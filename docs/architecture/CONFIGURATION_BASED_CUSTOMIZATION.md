@@ -508,6 +508,10 @@ Real template smoke coverage:
   `건축공사 감리세부기준 [별지 제2호서식] 공사감리일지` structure and renders it as
   a DOCX-based template. HWP/PDF delivery strategy is documented in
   `KOREAN_DOCUMENT_FORMAT_STRATEGY.md`.
+- Export foundation is now explicit in `document-engine`. `DOCX` remains the
+  first render substrate, while `HTML`, `PDF`, `HWP`, and `HWPX` are exporter
+  targets behind `DocumentArtifactExporter`. Missing converters fail with
+  `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
 
 ### Phase E: Workflow Definition V1
 

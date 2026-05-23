@@ -46,6 +46,60 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void simpleEngineFailsClearlyWhenRequestedExporterIsNotConfigured() {
+        var engine = new SimpleDocumentEngine();
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-export-1",
+                "office-1",
+                "report-export-1",
+                new TemplateSpec("DAILY", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("title", "Daily report"),
+                List.of(),
+                OutputFormat.PDF));
+
+        assertEquals(GenerationStatus.FAILED, result.status());
+        assertEquals("DOCUMENT_EXPORTER_NOT_CONFIGURED", result.errorCode());
+        assertTrue(result.errorMessage().contains("DOCX -> PDF"));
+    }
+
+    @Test
+    void simpleEngineCanReturnDocxAndExportedPdfWhenExporterIsConfigured() {
+        var engine = new SimpleDocumentEngine(new DocumentArtifactExportService(List.of(new FakePdfExporter())));
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-export-2",
+                "office-1",
+                "report-export-2",
+                new TemplateSpec("DAILY", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("title", "Daily report"),
+                List.of(),
+                OutputFormat.DOCX_AND_PDF));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        assertEquals(2, result.artifacts().size());
+        assertEquals(ArtifactType.DOCX, result.artifacts().get(0).type());
+        assertEquals(ArtifactType.PDF, result.artifacts().get(1).type());
+        assertEquals("inspection-report-report-export-2.pdf", result.artifacts().get(1).fileName());
+        assertNotNull(result.artifacts().get(1).content());
+    }
+
+    @Test
+    void simpleEngineLeavesHtmlAsExporterBackedExtensionPoint() {
+        var engine = new SimpleDocumentEngine();
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-export-3",
+                "office-1",
+                "report-export-3",
+                new TemplateSpec("DAILY", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("title", "Daily report"),
+                List.of(),
+                OutputFormat.HTML));
+
+        assertEquals(GenerationStatus.FAILED, result.status());
+        assertEquals("DOCUMENT_EXPORTER_NOT_CONFIGURED", result.errorCode());
+        assertTrue(result.errorMessage().contains("DOCX -> HTML"));
+    }
+
+    @Test
     void docxTemplateEngineBindsPlaceholdersFromPayload() throws Exception {
         var template = docx("""
                 Project: ${report.title}
@@ -438,5 +492,24 @@ class DocumentGenerationResultTest {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&apos;");
+    }
+
+    private static final class FakePdfExporter implements DocumentArtifactExporter {
+        @Override
+        public boolean supports(ArtifactType sourceType, ArtifactType targetType) {
+            return sourceType == ArtifactType.DOCX && targetType == ArtifactType.PDF;
+        }
+
+        @Override
+        public DocumentExportResult export(DocumentExportRequest request) {
+            var content = "fake-pdf".getBytes(StandardCharsets.UTF_8);
+            return DocumentExportResult.completed(new GeneratedArtifact(
+                    ArtifactType.PDF,
+                    "inspection-report-" + request.reportId() + ".pdf",
+                    "documents/jobs/" + request.jobId() + "/inspection-report-" + request.reportId() + ".pdf",
+                    content.length,
+                    "fake-sha256",
+                    content));
+        }
     }
 }

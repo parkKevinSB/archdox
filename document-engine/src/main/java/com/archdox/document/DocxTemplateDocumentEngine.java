@@ -34,6 +34,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private final TemplateContentResolver templateContentResolver;
     private final PhotoContentResolver photoContentResolver;
+    private final DocumentArtifactExportService exportService;
     private final DocumentEngine fallback;
 
     public DocxTemplateDocumentEngine(TemplateContentResolver templateContentResolver, DocumentEngine fallback) {
@@ -42,23 +43,34 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     public DocxTemplateDocumentEngine(
             TemplateContentResolver templateContentResolver,
+            DocumentEngine fallback,
+            DocumentArtifactExportService exportService
+    ) {
+        this(templateContentResolver, photo -> Optional.empty(), fallback, exportService);
+    }
+
+    public DocxTemplateDocumentEngine(
+            TemplateContentResolver templateContentResolver,
             PhotoContentResolver photoContentResolver,
             DocumentEngine fallback
     ) {
+        this(templateContentResolver, photoContentResolver, fallback, DocumentArtifactExportService.disabled());
+    }
+
+    public DocxTemplateDocumentEngine(
+            TemplateContentResolver templateContentResolver,
+            PhotoContentResolver photoContentResolver,
+            DocumentEngine fallback,
+            DocumentArtifactExportService exportService
+    ) {
         this.templateContentResolver = templateContentResolver;
         this.photoContentResolver = photoContentResolver;
+        this.exportService = exportService == null ? DocumentArtifactExportService.disabled() : exportService;
         this.fallback = fallback;
     }
 
     @Override
     public DocumentGenerationResult generate(DocumentGenerationRequest request) {
-        if (request.outputFormat() == OutputFormat.PDF || request.outputFormat() == OutputFormat.DOCX_AND_PDF) {
-            return DocumentGenerationResult.failed(
-                    request.jobId(),
-                    "UNSUPPORTED_OUTPUT_FORMAT",
-                    "PDF conversion is not implemented in the MVP document engine");
-        }
-
         try {
             Optional<byte[]> templateContent = templateContentResolver.resolve(request.template());
             if (templateContent.isEmpty()) {
@@ -75,7 +87,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                     content.length,
                     sha256(content),
                     content);
-            return DocumentGenerationResult.completed(request.jobId(), List.of(artifact));
+            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService);
         } catch (IOException ex) {
             return DocumentGenerationResult.failed(request.jobId(), "TEMPLATE_BINDING_FAILED", ex.getMessage());
         } catch (RuntimeException ex) {

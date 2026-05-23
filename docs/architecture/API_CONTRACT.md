@@ -1332,9 +1332,9 @@ All document job endpoints require `Authorization` and `X-Office-Id`.
 
 Phase 4 MVP implements Cloud-side DOCX generation first. Job creation is
 asynchronous: Cloud creates `document_jobs`, then the REST entrypoint submits a
-`document-generation` Flower flow. PDF conversion, ArchDox Agent rendering, and
-`CLOUD_MANAGED` ArchDox Agent execution are follow-up phases behind the same job
-contract.
+`document-generation` Flower flow. PDF/HWP/HWPX/HTML export, ArchDox Agent
+rendering, and `CLOUD_MANAGED` ArchDox Agent execution are follow-up phases
+behind the same job contract.
 
 Document generation is a polling-based API flow:
 
@@ -1404,6 +1404,21 @@ Worker routing:
 With that schema, a DOCX template may use `${projectName}` instead of exposing
 the internal path `${steps.BASIC_INFO.payload.inspectionDate}`. The job snapshot
 keeps the resolved `templateFields` values immutable for later auditing.
+
+Output formats:
+
+- `DOCX`: render and return a DOCX artifact.
+- `PDF`: render the configured source artifact, then export to PDF.
+- `DOCX_AND_PDF`: return DOCX plus exported PDF.
+- `HTML`: export or render an HTML artifact when an HTML renderer/exporter is
+  configured.
+- `HTML_AND_PDF`: return HTML plus exported PDF when the configured render/export
+  path supports it.
+- `HWP`, `HWPX`: export Korean office document artifacts when a converter is
+  configured.
+
+If an output format requires an exporter that is not configured, generation
+fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
 
 Phase 4-3 target flow:
 

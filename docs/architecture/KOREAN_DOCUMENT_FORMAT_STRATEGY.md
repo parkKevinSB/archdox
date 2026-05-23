@@ -6,8 +6,8 @@ testable rendering substrate instead of making HWP the first core engine.
 
 ## Current Decision
 
-Use DOCX as the MVP rendering substrate, then export to PDF/HWP as separate
-artifact steps.
+Use DOCX as the MVP rendering substrate, then export to HTML/PDF/HWP as
+separate artifact steps.
 
 ```text
 Report snapshot
@@ -19,6 +19,7 @@ Photo/checklist assets
 DOCX template renderer
         |
         +--> DOCX artifact
+        +--> HTML exporter
         +--> PDF exporter
         +--> HWP/HWPX exporter
 ```
@@ -35,7 +36,26 @@ testing, layout iteration, and conversion.
 - Template binding can be tested without installing office software.
 - Output layout configuration can be expressed as explicit sections such as
   `PHOTO_TABLE` and `CHECKLIST_TABLE`.
-- Generated DOCX can become the source artifact for PDF or HWP/HWPX export.
+- Generated DOCX can become the source artifact for HTML, PDF, or HWP/HWPX
+  export.
+
+## HTML Strategy
+
+HTML is a strong future format for preview, web-native documents, AI-assisted
+explanatory reports, and HTML-to-PDF conversion. It should be supported as a
+first-class artifact type, but not by mixing web rendering code into the DOCX
+renderer.
+
+Recommended stages:
+
+1. Add `HTML` as an artifact/export target.
+2. Initially allow `DOCX -> HTML` or snapshot-driven `HtmlTemplateRenderer`
+   implementations behind `DocumentArtifactExporter` or a renderer facade.
+3. Use HTML for browser preview and potentially for `HTML -> PDF` pipelines
+   where layout requirements fit web rendering better than Word layout.
+
+HTML must follow the same rule as HWP/PDF: the business source of truth is the
+report snapshot and versioned configuration, not the generated HTML file.
 
 ## Why Not HWP First
 
@@ -123,6 +143,7 @@ DocxTemplateRenderer
   - image media embedding
 
 DocumentArtifactExporter
+  - HTML export
   - PDF export
   - HWP/HWPX export
   - converter-specific execution
@@ -134,7 +155,40 @@ ArtifactStorage
 
 The report snapshot, template field bindings, output layout config, photo
 assets, and checklist answers must remain format-neutral. Only the final
-renderer/exporter should know about DOCX, PDF, HWP, or HWPX mechanics.
+renderer/exporter should know about DOCX, HTML, PDF, HWP, or HWPX mechanics.
+
+## Implemented Foundation
+
+`document-engine` now has an explicit export layer:
+
+- `DocumentArtifactExporter`
+- `DocumentArtifactExportService`
+- `DocumentExportRequest`
+- `DocumentExportResult`
+
+Supported artifact type names are:
+
+- `DOCX`
+- `HTML`
+- `PDF`
+- `HWP`
+- `HWPX`
+- `PRINT_LOG`
+
+Supported output format requests are:
+
+- `DOCX`
+- `HTML`
+- `HTML_AND_PDF`
+- `PDF`
+- `DOCX_AND_PDF`
+- `HWP`
+- `HWPX`
+
+The foundation intentionally does not ship a real converter yet. If a request
+requires `HTML`, `PDF`, `HWP`, or `HWPX` and no matching exporter is configured,
+generation fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes missing
+infrastructure obvious while keeping the render/export boundary stable.
 
 ## Reviewed HWP Source Templates
 

@@ -136,7 +136,10 @@ public class DocumentRenderCommandExecutor {
     private String mimeType(ArtifactType type) {
         return switch (type) {
             case DOCX -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case HTML -> "text/html";
             case PDF -> "application/pdf";
+            case HWP -> "application/x-hwp";
+            case HWPX -> "application/vnd.hancom.hwpx";
             case PRINT_LOG -> "application/json";
         };
     }

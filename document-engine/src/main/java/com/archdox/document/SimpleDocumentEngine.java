@@ -14,15 +14,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class SimpleDocumentEngine implements DocumentEngine {
+    private final DocumentArtifactExportService exportService;
+
+    public SimpleDocumentEngine() {
+        this(DocumentArtifactExportService.disabled());
+    }
+
+    public SimpleDocumentEngine(DocumentArtifactExportService exportService) {
+        this.exportService = exportService == null ? DocumentArtifactExportService.disabled() : exportService;
+    }
+
     @Override
     public DocumentGenerationResult generate(DocumentGenerationRequest request) {
-        if (request.outputFormat() == OutputFormat.PDF || request.outputFormat() == OutputFormat.DOCX_AND_PDF) {
-            return DocumentGenerationResult.failed(
-                    request.jobId(),
-                    "UNSUPPORTED_OUTPUT_FORMAT",
-                    "PDF conversion is not implemented in the MVP document engine");
-        }
-
         try {
             var fileName = "inspection-report-" + sanitizeFileName(request.reportId()) + ".docx";
             var storageRef = "documents/jobs/" + sanitizeFileName(request.jobId()) + "/" + fileName;
@@ -34,7 +37,7 @@ public class SimpleDocumentEngine implements DocumentEngine {
                     content.length,
                     sha256(content),
                     content);
-            return DocumentGenerationResult.completed(request.jobId(), List.of(artifact));
+            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService);
         } catch (IOException | RuntimeException ex) {
             return DocumentGenerationResult.failed(request.jobId(), "DOCUMENT_RENDER_FAILED", ex.getMessage());
         }

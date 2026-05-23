@@ -15,8 +15,8 @@ export type DocumentJobProgressStep =
   | "FAILED";
 
 export type DocumentWorkerType = "CLOUD" | "ARCHDOX_AGENT";
-export type DocumentOutputFormat = "DOCX" | "PDF";
-export type DocumentArtifactType = "DOCX" | "PDF";
+export type DocumentOutputFormat = "DOCX" | "HTML" | "HTML_AND_PDF" | "PDF" | "DOCX_AND_PDF" | "HWP" | "HWPX";
+export type DocumentArtifactType = "DOCX" | "HTML" | "PDF" | "HWP" | "HWPX";
 export type DocumentArtifactStorageKind = "API_LOCAL" | "ARCHDOX_AGENT" | "S3_COMPATIBLE";
 export type DocumentDeliveryChannel = "DOWNLOAD";
 export type DocumentDeliveryStatus = "REQUESTED" | "SENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
