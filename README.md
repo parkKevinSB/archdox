@@ -23,16 +23,12 @@ The current repository contains:
 - Java 21
 - Node.js 22 or newer
 - Docker Desktop
-- Git sibling checkouts for Flower/Bloom:
-  - `../bloom`
-  - `../flower`
 
-The Gradle build references Flower/Bloom as sibling repositories:
+The Gradle build includes the ArchDox runtime snapshots of Flower/Bloom under:
 
 ```text
-archdox/
-bloom/
-flower/
+libs/bloom/
+libs/flower/
 ```
 
 ## Local Infrastructure
@@ -99,9 +95,8 @@ Checks:
 - `admin` build
 - Docker Compose config validation
 
-The backend CI checks out `parkKevinSB/bloom` and `parkKevinSB/flower` as sibling
-repositories. If those repositories become private, add a repository secret named
-`ARCHDOX_CI_REPO_TOKEN` with read access to all three repositories.
+The backend CI builds the vendored Flower/Bloom runtime snapshots from `libs/`,
+so GitHub Actions only needs access to this repository.
 
 ## Development Rules
 

@@ -21,24 +21,6 @@ jobs:
     steps:
       - name: Checkout ArchDox
         uses: actions/checkout@v4
-        with:
-          path: archdox
-
-      - name: Checkout Bloom
-        uses: actions/checkout@v4
-        with:
-          repository: parkKevinSB/bloom
-          ref: main
-          path: bloom
-          token: ${{ secrets.ARCHDOX_CI_REPO_TOKEN || github.token }}
-
-      - name: Checkout Flower
-        uses: actions/checkout@v4
-        with:
-          repository: parkKevinSB/flower
-          ref: main
-          path: flower
-          token: ${{ secrets.ARCHDOX_CI_REPO_TOKEN || github.token }}
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -51,15 +33,12 @@ jobs:
 
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-        working-directory: archdox
 
       - name: Compile backend modules
         run: ./gradlew :cloud-api:compileJava :archdox-agent:compileJava --no-daemon
-        working-directory: archdox
 
       - name: Run backend tests
         run: ./gradlew test --no-daemon
-        working-directory: archdox
 
   frontend:
     name: Frontend (${{ matrix.app }})
@@ -75,23 +54,21 @@ jobs:
     steps:
       - name: Checkout ArchDox
         uses: actions/checkout@v4
-        with:
-          path: archdox
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: archdox/${{ matrix.app }}/package-lock.json
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-        working-directory: archdox/${{ matrix.app }}
+        working-directory: ${{ matrix.app }}
 
       - name: Build
         run: npm run build
-        working-directory: archdox/${{ matrix.app }}
+        working-directory: ${{ matrix.app }}
 
   docker-compose:
     name: Docker Compose Config
@@ -101,9 +78,6 @@ jobs:
     steps:
       - name: Checkout ArchDox
         uses: actions/checkout@v4
-        with:
-          path: archdox
 
       - name: Validate compose file
         run: docker compose config --quiet
-        working-directory: archdox

@@ -62,16 +62,15 @@ Current CI checks:
 - `admin` build
 - Docker Compose config validation
 
-Backend CI requires Flower/Bloom sibling repositories because `settings.gradle.kts`
-includes:
+Backend CI builds the Flower/Bloom runtime snapshots that are vendored under:
 
 ```text
-../bloom
-../flower
+libs/bloom
+libs/flower
 ```
 
-If those sibling repositories are private, configure the GitHub repository secret
-`ARCHDOX_CI_REPO_TOKEN` with read access to `archdox`, `bloom`, and `flower`.
+If Flower/Bloom are updated from their source repositories, sync the runtime
+snapshot deliberately and run the full backend test suite before committing.
 
 ## Do Not Commit
 
