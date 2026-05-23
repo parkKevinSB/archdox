@@ -79,7 +79,8 @@ public class DocumentRenderCommandExecutor {
                 intValue(template.getOrDefault("version", 1)),
                 stringValue(template.getOrDefault("storageRef", "templates/default.docx"), "storageRef"),
                 stringValue(template.getOrDefault("schemaJson", "{}"), "schemaJson"),
-                stringValue(template.getOrDefault("composePolicyJson", "{}"), "composePolicyJson"));
+                stringValue(template.getOrDefault("composePolicyJson", "{}"), "composePolicyJson"),
+                optionalStringValue(template.get("downloadUrl")));
     }
 
     private List<PhotoAsset> photos(Object value) {
@@ -112,6 +113,13 @@ public class DocumentRenderCommandExecutor {
     private String stringValue(Object value, String fieldName) {
         if (value == null || String.valueOf(value).isBlank()) {
             throw new IllegalArgumentException(fieldName + " is required");
+        }
+        return String.valueOf(value);
+    }
+
+    private String optionalStringValue(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
         }
         return String.valueOf(value);
     }

@@ -375,6 +375,11 @@ Current capability:
   `GET /api/v1/config/document-template-revisions/{revisionId}/content`
 - after publication, template revision content is immutable; changes require a
   new revision
+- `ARCHDOX_AGENT` document rendering uses the same `document-engine` template
+  binding code as Cloud rendering. Cloud includes an agent-authenticated
+  template download URL in the `GENERATE_DOCUMENT` command, and the Agent may
+  cache immutable template revision content under its configured template
+  storage root.
 
 Remaining limitations:
 

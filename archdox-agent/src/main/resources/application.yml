@@ -37,3 +37,6 @@ archdox:
       artifact:
         kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FS}
         root-path: ${AGENT_ARTIFACT_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+      template:
+        kind: ${AGENT_TEMPLATE_STORAGE_KIND:LOCAL_FS}
+        root-path: ${AGENT_TEMPLATE_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}

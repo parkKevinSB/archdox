@@ -479,6 +479,10 @@ revisions.
 - Rule: ArchDox Agent rendering is started by a `GENERATE_DOCUMENT` command. ACK,
   completion, and failure are reported back over the Cloud WebSocket channel and
   converted into Flower/Bloom events for the waiting render step.
+- Rule: `GENERATE_DOCUMENT` carries the selected template metadata and, when
+  Cloud has the template content, an agent-authenticated template download URL.
+  The ArchDox Agent uses the shared `document-engine` module and may cache
+  immutable template revision content by logical `storageRef`.
 - Rule: `status` is the coarse lifecycle state. `progress_step`,
   `progress_percent`, and `progress_message` are the UI polling state.
 - Rule: the create API returns immediately after persisting the job and

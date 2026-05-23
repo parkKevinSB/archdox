@@ -1855,7 +1855,9 @@ For document rendering, Cloud sends `commandType=GENERATE_DOCUMENT`:
       "version": 1,
       "storageRef": "templates/default.docx",
       "schemaJson": "{}",
-      "composePolicyJson": "{}"
+      "composePolicyJson": "{}",
+      "downloadMethod": "GET",
+      "downloadUrl": "/agent/api/v1/document-jobs/7001/template/content"
     },
     "inputSnapshot": {},
     "photos": [],
@@ -1866,6 +1868,12 @@ For document rendering, Cloud sends `commandType=GENERATE_DOCUMENT`:
   }
 }
 ```
+
+When `downloadUrl` is present, the ArchDox Agent resolves relative URLs against
+`CLOUD_API_BASE_URL`, authenticates with its agent credentials, downloads the
+DOCX template, and may cache it under its template storage root by `storageRef`.
+If the template is already cached locally, the Agent can render without
+downloading again because template revisions are immutable.
 
 For Agent-backed document delivery, Cloud sends
 `commandType=UPLOAD_DOCUMENT_ARTIFACT`:

@@ -161,11 +161,16 @@ public class ArchDoxAgentProperties {
         return storage.artifact.rootPath == null ? localStorageRoot : storage.artifact.rootPath;
     }
 
+    public String templateRootPath() {
+        return storage.template.rootPath == null ? localStorageRoot : storage.template.rootPath;
+    }
+
     public Map<String, Object> storageProfile() {
         var profile = new LinkedHashMap<String, Object>();
         profile.put("original", storage.original.asMap(localStorageRoot));
         profile.put("working", storage.working.asMap(localStorageRoot));
         profile.put("artifact", storage.artifact.asMap(localStorageRoot));
+        profile.put("template", storage.template.asMap(localStorageRoot));
         return profile;
     }
 
@@ -173,6 +178,7 @@ public class ArchDoxAgentProperties {
         private StorageTarget original = new StorageTarget();
         private StorageTarget working = new StorageTarget();
         private StorageTarget artifact = new StorageTarget();
+        private StorageTarget template = new StorageTarget();
 
         public StorageTarget getOriginal() {
             return original;
@@ -196,6 +202,14 @@ public class ArchDoxAgentProperties {
 
         public void setArtifact(StorageTarget artifact) {
             this.artifact = artifact == null ? new StorageTarget() : artifact;
+        }
+
+        public StorageTarget getTemplate() {
+            return template;
+        }
+
+        public void setTemplate(StorageTarget template) {
+            this.template = template == null ? new StorageTarget() : template;
         }
     }
 

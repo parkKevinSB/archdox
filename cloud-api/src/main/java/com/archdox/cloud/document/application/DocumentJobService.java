@@ -241,12 +241,17 @@ public class DocumentJobService {
         payload.put("siteId", report.siteId());
         payload.put("outputFormat", request.outputFormat().name());
         payload.put("inputSnapshot", request.payload());
-        payload.put("template", Map.of(
-                "templateCode", request.template().templateCode(),
-                "version", request.template().version(),
-                "storageRef", request.template().storageRef(),
-                "schemaJson", request.template().schemaJson(),
-                "composePolicyJson", request.template().composePolicyJson()));
+        var templatePayload = new LinkedHashMap<String, Object>();
+        templatePayload.put("templateCode", request.template().templateCode());
+        templatePayload.put("version", request.template().version());
+        templatePayload.put("storageRef", request.template().storageRef());
+        templatePayload.put("schemaJson", request.template().schemaJson());
+        templatePayload.put("composePolicyJson", request.template().composePolicyJson());
+        if (request.template().storageRef() != null && !request.template().storageRef().isBlank()) {
+            templatePayload.put("downloadMethod", "GET");
+            templatePayload.put("downloadUrl", "/agent/api/v1/document-jobs/%d/template/content".formatted(job.id()));
+        }
+        payload.put("template", templatePayload);
         payload.put("photos", request.photos().stream()
                 .map(photo -> {
                     var photoPayload = new LinkedHashMap<String, Object>();
@@ -260,6 +265,26 @@ public class DocumentJobService {
                 .toList());
         payload.put("resultStorageKind", DocumentArtifactStorageKind.ARCHDOX_AGENT.name());
         return payload;
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentArtifactDownload downloadArchDoxAgentTemplate(Long officeId, Long jobId) throws IOException {
+        var job = requireFlowJob(officeId, jobId);
+        var report = requireFlowReport(officeId, job.reportId());
+        if (job.workerType() != DocumentWorkerType.ARCHDOX_AGENT) {
+            throw new BadRequestException("Document job is not routed to ARCHDOX_AGENT");
+        }
+        var template = templateSpec(job, report);
+        if (template.storageRef() == null
+                || template.storageRef().isBlank()
+                || !objectStore.exists(template.storageRef())) {
+            throw new NotFoundException("Document template content not found");
+        }
+        return new DocumentArtifactDownload(
+                filenameFromStorageRef(template.storageRef()),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                objectStore.size(template.storageRef()),
+                outputStream -> objectStore.copyTo(template.storageRef(), outputStream));
     }
 
     @Transactional
@@ -770,6 +795,15 @@ public class DocumentJobService {
 
     private String normalizeCode(String value) {
         return value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String filenameFromStorageRef(String storageRef) {
+        var normalized = storageRef.replace('\\', '/');
+        var index = normalized.lastIndexOf('/');
+        if (index >= 0 && index + 1 < normalized.length()) {
+            return normalized.substring(index + 1);
+        }
+        return "template.docx";
     }
 
     private Optional<Object> readPath(Object root, String path) {
