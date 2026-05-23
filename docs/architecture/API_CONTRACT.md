@@ -1860,7 +1860,17 @@ For document rendering, Cloud sends `commandType=GENERATE_DOCUMENT`:
       "downloadUrl": "/agent/api/v1/document-jobs/7001/template/content"
     },
     "inputSnapshot": {},
-    "photos": [],
+    "photos": [
+      {
+        "photoId": "9881",
+        "checklistItemKey": "BASIC_INFO",
+        "storageRef": "offices/10/reports/1000/photos/.../working.jpg",
+        "caption": "Front view",
+        "layoutSize": "MEDIUM",
+        "mimeType": "image/jpeg",
+        "downloadUrl": "/agent/api/v1/photos/9881/assets/WORKING/content"
+      }
+    ],
     "resultStorageKind": "ARCHDOX_AGENT",
     "attempt": 1,
     "maxAttempts": 3,
@@ -1874,6 +1884,9 @@ When `downloadUrl` is present, the ArchDox Agent resolves relative URLs against
 DOCX template, and may cache it under its template storage root by `storageRef`.
 If the template is already cached locally, the Agent can render without
 downloading again because template revisions are immutable.
+Photo `downloadUrl` follows the same relative URL and agent-authentication
+rules. It is used only when the Agent cannot already resolve the working image
+from its configured local working-photo storage.
 
 For Agent-backed document delivery, Cloud sends
 `commandType=UPLOAD_DOCUMENT_ARTIFACT`:
@@ -2274,8 +2287,14 @@ Supported V1 section types:
 - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`
 - `TEXT`
 
-V1 creates text blocks only. Real DOCX table and image insertion is a later
-document-engine phase.
+Text-block binding remains available for all section types. In addition,
+`PHOTO_TABLE` is a rich DOCX section: when the template contains the section
+placeholder as its own Word paragraph, for example `${photoSection}`,
+`document-engine` replaces that paragraph with a Word table. If the selected
+worker can resolve working-image content from Cloud or Agent storage, the table
+embeds the images into `word/media/*` and writes the corresponding document
+relationships. If image content is unavailable, the table still renders metadata
+and marks the image cell as unavailable.
 
 ### Office Config Overrides
 

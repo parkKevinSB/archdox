@@ -8,10 +8,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -22,12 +25,24 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_.\\-\\[\\]]+)}");
     private static final Pattern WORD_TEXT_NODE_PATTERN = Pattern.compile("(<w:t(?:\\s+[^>]*)?>)(.*?)(</w:t>)",
             Pattern.DOTALL);
+    private static final Pattern WORD_PARAGRAPH_PATTERN = Pattern.compile("<w:p(?:\\s+[^>]*)?>.*?</w:p>",
+            Pattern.DOTALL);
 
     private final TemplateContentResolver templateContentResolver;
+    private final PhotoContentResolver photoContentResolver;
     private final DocumentEngine fallback;
 
     public DocxTemplateDocumentEngine(TemplateContentResolver templateContentResolver, DocumentEngine fallback) {
+        this(templateContentResolver, photo -> Optional.empty(), fallback);
+    }
+
+    public DocxTemplateDocumentEngine(
+            TemplateContentResolver templateContentResolver,
+            PhotoContentResolver photoContentResolver,
+            DocumentEngine fallback
+    ) {
         this.templateContentResolver = templateContentResolver;
+        this.photoContentResolver = photoContentResolver;
         this.fallback = fallback;
     }
 
@@ -48,7 +63,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
             var fileName = "inspection-report-" + sanitizeFileName(request.reportId()) + ".docx";
             var storageRef = "documents/jobs/" + sanitizeFileName(request.jobId()) + "/" + fileName;
-            var content = bindTemplate(templateContent.get(), buildBindings(request));
+            var content = bindTemplate(templateContent.get(), request);
             var artifact = new GeneratedArtifact(
                     ArtifactType.DOCX,
                     fileName,
@@ -64,23 +79,46 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         }
     }
 
-    private byte[] bindTemplate(byte[] templateContent, Map<String, String> bindings) throws IOException {
-        try (var input = new ZipInputStream(new ByteArrayInputStream(templateContent), StandardCharsets.UTF_8);
-             var output = new ByteArrayOutputStream();
-             var zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+    private byte[] bindTemplate(byte[] templateContent, DocumentGenerationRequest request) throws IOException {
+        var bindings = buildBindings(request);
+        var context = new DocxRenderContext(request, bindings);
+        var entries = new LinkedHashMap<String, byte[]>();
+        try (var input = new ZipInputStream(new ByteArrayInputStream(templateContent), StandardCharsets.UTF_8)) {
             for (var entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
-                var bytes = input.readAllBytes();
-                var copied = new ZipEntry(entry.getName());
-                copied.setComment(entry.getComment());
-                copied.setExtra(entry.getExtra());
-                copied.setTime(entry.getTime());
-                zip.putNextEntry(copied);
-                if (shouldBind(entry.getName())) {
-                    var xml = new String(bytes, StandardCharsets.UTF_8);
-                    zip.write(replacePlaceholders(xml, bindings).getBytes(StandardCharsets.UTF_8));
-                } else {
-                    zip.write(bytes);
-                }
+                entries.put(entry.getName(), input.readAllBytes());
+            }
+        }
+
+        if (entries.containsKey("word/document.xml")) {
+            entries.put("word/document.xml", renderMainDocumentXml(
+                    new String(entries.get("word/document.xml"), StandardCharsets.UTF_8),
+                    context).getBytes(StandardCharsets.UTF_8));
+        }
+        entries.replaceAll((name, bytes) -> {
+            if (shouldBind(name) && !"word/document.xml".equals(name)) {
+                return replacePlaceholders(new String(bytes, StandardCharsets.UTF_8), bindings).getBytes(StandardCharsets.UTF_8);
+            }
+            return bytes;
+        });
+        if (!context.relationships().isEmpty() || entries.containsKey("word/_rels/document.xml.rels")) {
+            entries.put("word/_rels/document.xml.rels", updateDocumentRelationships(
+                    entries.get("word/_rels/document.xml.rels"),
+                    context.relationships()).getBytes(StandardCharsets.UTF_8));
+        }
+        if (!context.contentTypeDefaults().isEmpty()) {
+            entries.put("[Content_Types].xml", updateContentTypes(
+                    entries.get("[Content_Types].xml"),
+                    context.contentTypeDefaults()).getBytes(StandardCharsets.UTF_8));
+        }
+        for (var media : context.media()) {
+            entries.put(media.path(), media.content());
+        }
+
+        try (var output = new ByteArrayOutputStream();
+             var zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            for (var entry : entries.entrySet()) {
+                zip.putNextEntry(new ZipEntry(entry.getKey()));
+                zip.write(entry.getValue());
                 zip.closeEntry();
             }
             zip.finish();
@@ -90,6 +128,248 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private boolean shouldBind(String entryName) {
         return entryName.startsWith("word/") && entryName.endsWith(".xml");
+    }
+
+    private String renderMainDocumentXml(String xml, DocxRenderContext context) throws IOException {
+        var richReplaced = replaceRichPhotoSectionPlaceholders(xml, context);
+        return replacePlaceholders(richReplaced, context.bindings());
+    }
+
+    private String replaceRichPhotoSectionPlaceholders(String xml, DocxRenderContext context) throws IOException {
+        var sections = photoTableSections(context.request());
+        var rendered = xml;
+        for (var section : sections.entrySet()) {
+            var placeholder = "${" + section.getKey() + "}";
+            var tableXml = buildPhotoTableXml(section.getValue(), context);
+            var matcher = WORD_PARAGRAPH_PATTERN.matcher(rendered);
+            var result = new StringBuffer();
+            var replaced = false;
+            while (matcher.find()) {
+                var paragraph = matcher.group();
+                if (paragraph.contains(placeholder) || paragraphText(paragraph).contains(placeholder)) {
+                    matcher.appendReplacement(result, Matcher.quoteReplacement(tableXml));
+                    replaced = true;
+                }
+            }
+            matcher.appendTail(result);
+            if (replaced) {
+                rendered = result.toString();
+            }
+        }
+        return rendered;
+    }
+
+    private Map<String, Map<String, Object>> photoTableSections(DocumentGenerationRequest request) {
+        var layoutSections = mapValue(request.payload().get("layoutSections"));
+        if (layoutSections.isEmpty()) {
+            return Map.of();
+        }
+        var sections = new LinkedHashMap<String, Map<String, Object>>();
+        layoutSections.forEach((key, rawSection) -> {
+            var section = mapValue(rawSection);
+            var type = normalizeCode(stringValue(section.get("type")));
+            if ("PHOTO_TABLE".equals(type)) {
+                sections.put(key, section);
+            }
+        });
+        return sections;
+    }
+
+    private String paragraphText(String paragraphXml) {
+        var matcher = WORD_TEXT_NODE_PATTERN.matcher(paragraphXml);
+        var text = new StringBuilder();
+        while (matcher.find()) {
+            text.append(matcher.group(2));
+        }
+        return text.toString();
+    }
+
+    private String buildPhotoTableXml(Map<String, Object> section, DocxRenderContext context) throws IOException {
+        var photos = context.request().photos() == null ? List.<PhotoAsset>of() : context.request().photos();
+        var rows = new StringBuilder();
+        var title = stringValue(section.get("title"));
+        if (title != null && !title.isBlank()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph(title)), "9000", 2))));
+        }
+        rows.append(tableRow(List.of(
+                tableCell(List.of(textParagraph("Photo")), "4200", 1),
+                tableCell(List.of(textParagraph("Description")), "4800", 1))));
+        if (photos.isEmpty()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph("No photos.")), "9000", 2))));
+        } else {
+            for (var photo : photos) {
+                rows.append(tableRow(List.of(
+                        tableCell(List.of(photoParagraph(photo, context)), "4200", 1),
+                        tableCell(photoDescriptionParagraphs(photo), "4800", 1))));
+            }
+        }
+        return """
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="9000" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:left w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:right w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                    </w:tblBorders>
+                  </w:tblPr>
+                  <w:tblGrid><w:gridCol w:w="4200"/><w:gridCol w:w="4800"/></w:tblGrid>
+                  %s
+                </w:tbl>
+                """.formatted(rows);
+    }
+
+    private String tableRow(List<String> cells) {
+        return "<w:tr>" + String.join("", cells) + "</w:tr>";
+    }
+
+    private String tableCell(List<String> paragraphs, String width, int gridSpan) {
+        var gridSpanXml = gridSpan > 1 ? "<w:gridSpan w:val=\"" + gridSpan + "\"/>" : "";
+        return """
+                <w:tc>
+                  <w:tcPr><w:tcW w:w="%s" w:type="dxa"/>%s</w:tcPr>
+                  %s
+                </w:tc>
+                """.formatted(width, gridSpanXml, String.join("", paragraphs));
+    }
+
+    private String photoParagraph(PhotoAsset photo, DocxRenderContext context) throws IOException {
+        var image = resolvePhotoImage(photo, context);
+        if (image.isEmpty()) {
+            return textParagraph("Image unavailable");
+        }
+        return "<w:p><w:r>" + drawingXml(image.get()) + "</w:r></w:p>";
+    }
+
+    private List<String> photoDescriptionParagraphs(PhotoAsset photo) {
+        var paragraphs = new ArrayList<String>();
+        paragraphs.add(textParagraph("Photo ID: " + valueOrBlank(photo.photoId())));
+        if (photo.checklistItemKey() != null && !photo.checklistItemKey().isBlank()) {
+            paragraphs.add(textParagraph("Step: " + photo.checklistItemKey()));
+        }
+        if (photo.caption() != null && !photo.caption().isBlank()) {
+            paragraphs.add(textParagraph("Caption: " + photo.caption()));
+        }
+        if (photo.storageRef() != null && !photo.storageRef().isBlank()) {
+            paragraphs.add(textParagraph("Storage: " + photo.storageRef()));
+        }
+        return paragraphs;
+    }
+
+    private String textParagraph(String text) {
+        return "<w:p><w:r><w:t>" + escapeXml(text) + "</w:t></w:r></w:p>";
+    }
+
+    private Optional<DocxImage> resolvePhotoImage(PhotoAsset photo, DocxRenderContext context) throws IOException {
+        var content = photoContentResolver.resolve(photo);
+        if (content.isEmpty() || content.get().content() == null || content.get().content().length == 0) {
+            return Optional.empty();
+        }
+        return Optional.of(context.addImage(photo, content.get()));
+    }
+
+    private String drawingXml(DocxImage image) {
+        return """
+                <w:drawing>
+                  <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">
+                    <wp:extent cx="%d" cy="%d"/>
+                    <wp:docPr id="%d" name="ArchDox Photo %d"/>
+                    <wp:cNvGraphicFramePr>
+                      <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+                    </wp:cNvGraphicFramePr>
+                    <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                      <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                          <pic:nvPicPr>
+                            <pic:cNvPr id="%d" name="%s"/>
+                            <pic:cNvPicPr/>
+                          </pic:nvPicPr>
+                          <pic:blipFill>
+                            <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="%s"/>
+                            <a:stretch><a:fillRect/></a:stretch>
+                          </pic:blipFill>
+                          <pic:spPr>
+                            <a:xfrm><a:off x="0" y="0"/><a:ext cx="%d" cy="%d"/></a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                          </pic:spPr>
+                        </pic:pic>
+                      </a:graphicData>
+                    </a:graphic>
+                  </wp:inline>
+                </w:drawing>
+                """.formatted(
+                image.widthEmu(),
+                image.heightEmu(),
+                image.docPrId(),
+                image.docPrId(),
+                image.docPrId(),
+                escapeXml(image.fileName()),
+                image.relationshipId(),
+                image.widthEmu(),
+                image.heightEmu());
+    }
+
+    private String updateDocumentRelationships(byte[] existing, List<DocxRelationship> relationships) {
+        var xml = existing == null || existing.length == 0
+                ? """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                </Relationships>
+                """
+                : new String(existing, StandardCharsets.UTF_8);
+        if (relationships.isEmpty()) {
+            return xml;
+        }
+        var additions = new StringBuilder();
+        for (var relationship : relationships) {
+            additions.append("""
+                    <Relationship Id="%s" Type="%s" Target="%s"/>
+                    """.formatted(
+                    relationship.id(),
+                    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+                    relationship.target()));
+        }
+        var close = xml.lastIndexOf("</Relationships>");
+        if (close < 0) {
+            return xml + additions;
+        }
+        return xml.substring(0, close) + additions + xml.substring(close);
+    }
+
+    private String updateContentTypes(byte[] existing, Map<String, String> contentTypeDefaults) {
+        var xml = existing == null || existing.length == 0
+                ? """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+                </Types>
+                """
+                : new String(existing, StandardCharsets.UTF_8);
+        var additions = new StringBuilder();
+        for (var entry : contentTypeDefaults.entrySet()) {
+            if (!hasDefaultContentType(xml, entry.getKey())) {
+                additions.append("""
+                        <Default Extension="%s" ContentType="%s"/>
+                        """.formatted(entry.getKey(), entry.getValue()));
+            }
+        }
+        if (additions.isEmpty()) {
+            return xml;
+        }
+        var close = xml.lastIndexOf("</Types>");
+        if (close < 0) {
+            return xml + additions;
+        }
+        return xml.substring(0, close) + additions + xml.substring(close);
+    }
+
+    private boolean hasDefaultContentType(String xml, String extension) {
+        var needle = "Extension=\"" + extension + "\"";
+        return xml.contains(needle) || xml.contains("Extension='" + extension + "'");
     }
 
     private String replacePlaceholders(String xml, Map<String, String> bindings) {
@@ -306,6 +586,125 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return value == null ? "" : value.toString();
     }
 
+    private String stringValue(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
+    private String normalizeCode(String value) {
+        return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        var result = new LinkedHashMap<String, Object>();
+        raw.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
+        return result;
+    }
+
+    private String imageExtension(ResolvedPhotoContent content, PhotoAsset photo) {
+        var mimeType = content.mimeType() == null ? "" : content.mimeType().toLowerCase(Locale.ROOT);
+        return switch (mimeType) {
+            case "image/png" -> "png";
+            case "image/gif" -> "gif";
+            case "image/webp" -> "webp";
+            case "image/jpg", "image/jpeg" -> "jpeg";
+            default -> extensionFromStorageRef(photo.storageRef()).orElse("jpeg");
+        };
+    }
+
+    private Optional<String> extensionFromStorageRef(String storageRef) {
+        if (storageRef == null || storageRef.isBlank() || !storageRef.contains(".")) {
+            return Optional.empty();
+        }
+        var extension = storageRef.substring(storageRef.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        return switch (extension) {
+            case "jpg" -> Optional.of("jpeg");
+            case "jpeg", "png", "gif", "webp" -> Optional.of(extension);
+            default -> Optional.empty();
+        };
+    }
+
+    private String imageContentType(String extension, ResolvedPhotoContent content) {
+        var mimeType = content.mimeType() == null ? "" : content.mimeType().toLowerCase(Locale.ROOT);
+        if (!mimeType.isBlank()) {
+            return "image/jpg".equals(mimeType) ? "image/jpeg" : mimeType;
+        }
+        return switch (extension) {
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> "image/jpeg";
+        };
+    }
+
+    private long[] imageSize(PhotoLayoutSize layoutSize) {
+        var size = layoutSize == null ? PhotoLayoutSize.MEDIUM : layoutSize;
+        return switch (size) {
+            case THUMBNAIL -> new long[]{1_371_600L, 1_028_700L};
+            case ORIGINAL -> new long[]{4_572_000L, 3_429_000L};
+            case MEDIUM -> new long[]{2_743_200L, 2_057_400L};
+        };
+    }
+
+    private final class DocxRenderContext {
+        private final DocumentGenerationRequest request;
+        private final Map<String, String> bindings;
+        private final List<DocxMedia> media = new ArrayList<>();
+        private final List<DocxRelationship> relationships = new ArrayList<>();
+        private final Map<String, String> contentTypeDefaults = new LinkedHashMap<>();
+        private final Set<String> mediaPaths = new HashSet<>();
+        private int imageCounter;
+
+        private DocxRenderContext(DocumentGenerationRequest request, Map<String, String> bindings) {
+            this.request = request;
+            this.bindings = bindings;
+        }
+
+        private DocumentGenerationRequest request() {
+            return request;
+        }
+
+        private Map<String, String> bindings() {
+            return bindings;
+        }
+
+        private List<DocxMedia> media() {
+            return media;
+        }
+
+        private List<DocxRelationship> relationships() {
+            return relationships;
+        }
+
+        private Map<String, String> contentTypeDefaults() {
+            return contentTypeDefaults;
+        }
+
+        private DocxImage addImage(PhotoAsset photo, ResolvedPhotoContent content) {
+            imageCounter++;
+            var extension = imageExtension(content, photo);
+            var fileName = "archdox-photo-" + imageCounter + "." + extension;
+            var path = "word/media/" + fileName;
+            while (mediaPaths.contains(path)) {
+                imageCounter++;
+                fileName = "archdox-photo-" + imageCounter + "." + extension;
+                path = "word/media/" + fileName;
+            }
+            mediaPaths.add(path);
+            var relationshipId = "rIdArchDoxImage" + imageCounter;
+            relationships.add(new DocxRelationship(relationshipId, "media/" + fileName));
+            contentTypeDefaults.putIfAbsent(extension, imageContentType(extension, content));
+            media.add(new DocxMedia(path, content.content()));
+            var size = imageSize(photo.layoutSize());
+            return new DocxImage(relationshipId, fileName, imageCounter, size[0], size[1]);
+        }
+    }
+
     private record WordTextNode(int contentStart, int contentEnd, String content) {
     }
 
@@ -318,5 +717,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             int endNodeIndex,
             int endOffset,
             String replacement) {
+    }
+
+    private record DocxMedia(String path, byte[] content) {
+    }
+
+    private record DocxRelationship(String id, String target) {
+    }
+
+    private record DocxImage(
+            String relationshipId,
+            String fileName,
+            int docPrId,
+            long widthEmu,
+            long heightEmu
+    ) {
     }
 }

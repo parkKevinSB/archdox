@@ -260,6 +260,10 @@ public class DocumentJobService {
                     photoPayload.put("storageRef", photo.storageRef());
                     photoPayload.put("caption", photo.caption());
                     photoPayload.put("layoutSize", photo.layoutSize().name());
+                    photoPayload.put("mimeType", photo.mimeType());
+                    if (photo.downloadUrl() != null && !photo.downloadUrl().isBlank()) {
+                        photoPayload.put("downloadUrl", photo.downloadUrl());
+                    }
                     return photoPayload;
                 })
                 .toList());
@@ -984,7 +988,9 @@ public class DocumentJobService {
                     photo.stepCode(),
                     working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(photo.storageRef()),
                     "",
-                    PhotoLayoutSize.MEDIUM));
+                    PhotoLayoutSize.MEDIUM,
+                    working.map(com.archdox.cloud.photo.domain.PhotoAsset::mimeType).orElse(photo.mimeType()),
+                    working.map(asset -> "/agent/api/v1/photos/%d/assets/WORKING/content".formatted(photo.id())).orElse(null)));
         }
         return photos;
     }

@@ -95,7 +95,9 @@ public class DocumentRenderCommandExecutor {
                     stringValue(photo.getOrDefault("checklistItemKey", ""), "checklistItemKey"),
                     stringValue(photo.getOrDefault("storageRef", ""), "storageRef"),
                     stringValue(photo.getOrDefault("caption", ""), "caption"),
-                    PhotoLayoutSize.valueOf(stringValue(photo.getOrDefault("layoutSize", "MEDIUM"), "layoutSize"))));
+                    PhotoLayoutSize.valueOf(stringValue(photo.getOrDefault("layoutSize", "MEDIUM"), "layoutSize")),
+                    optionalStringValue(photo.get("mimeType")),
+                    optionalStringValue(photo.get("downloadUrl"))));
         }
         return photos;
     }

@@ -425,8 +425,10 @@ often change.
   document layout behavior, not become a general programming language.
 - Rule: Output Layout V1 supports text-block sections. `payload.sections[*].key`
   becomes a `templateFields` placeholder, so a DOCX template can use
-  `${photoSection}` or `${checklistSection}`. Real DOCX table/image insertion is
-  a later document-engine phase.
+  `${photoSection}` or `${checklistSection}`.
+- Rule: `PHOTO_TABLE` is the first rich DOCX layout. When the matching
+  placeholder is a standalone Word paragraph, `document-engine` can replace it
+  with a generated Word table and embedded working-image media entries.
 
 ## Office Config Override
 

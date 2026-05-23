@@ -161,6 +161,10 @@ public class ArchDoxAgentProperties {
         return storage.artifact.rootPath == null ? localStorageRoot : storage.artifact.rootPath;
     }
 
+    public String workingRootPath() {
+        return storage.working.rootPath == null ? localStorageRoot : storage.working.rootPath;
+    }
+
     public String templateRootPath() {
         return storage.template.rootPath == null ? localStorageRoot : storage.template.rootPath;
     }

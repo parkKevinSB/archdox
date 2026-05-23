@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -147,6 +148,50 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineReplacesPhotoTablePlaceholderWithTableAndImage() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p><w:r><w:t>${photoSection}</w:t></w:r></w:p>
+                """);
+        var image = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lz7S4QAAAABJRU5ErkJggg==");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                photo -> Optional.of(new ResolvedPhotoContent(image, "image/png")),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-5",
+                "office-1",
+                "report-5",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("layoutSections", Map.of(
+                        "photoSection", Map.of(
+                                "type", "PHOTO_TABLE",
+                                "title", "Site Photos"))),
+                List.of(new PhotoAsset(
+                        "photo-1",
+                        "BASIC_INFO",
+                        "photos/photo-1.png",
+                        "Front view",
+                        PhotoLayoutSize.MEDIUM,
+                        "image/png",
+                        null)),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = documentXml(content);
+        assertTrue(documentXml.contains("<w:tbl>"));
+        assertTrue(documentXml.contains("Site Photos"));
+        assertTrue(documentXml.contains("Photo ID: photo-1"));
+        assertTrue(documentXml.contains("Caption: Front view"));
+        assertTrue(!documentXml.contains("${photoSection}"));
+        assertTrue(zipEntry(content, "word/_rels/document.xml.rels").contains("rIdArchDoxImage1"));
+        assertTrue(zipEntry(content, "[Content_Types].xml").contains("Extension=\"png\""));
+        assertNotNull(zipEntryBytes(content, "word/media/archdox-photo-1.png"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),
@@ -235,14 +280,23 @@ class DocumentGenerationResultTest {
     }
 
     private String documentXml(byte[] docx) throws Exception {
+        return zipEntry(docx, "word/document.xml");
+    }
+
+    private String zipEntry(byte[] docx, String name) throws Exception {
+        var bytes = zipEntryBytes(docx, name);
+        return bytes == null ? "" : new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private byte[] zipEntryBytes(byte[] docx, String name) throws Exception {
         try (var zip = new ZipInputStream(new ByteArrayInputStream(docx), StandardCharsets.UTF_8)) {
             for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
-                if ("word/document.xml".equals(entry.getName())) {
-                    return new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                if (name.equals(entry.getName())) {
+                    return zip.readAllBytes();
                 }
             }
         }
-        return "";
+        return null;
     }
 
     private String escapeXml(String value) {

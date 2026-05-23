@@ -383,11 +383,15 @@ Current capability:
 
 Remaining limitations:
 
-- real image insertion into DOCX is not applied yet
+- DOCX `PHOTO_TABLE` insertion supports a generated Word table with working
+  image media entries when image content can be resolved by Cloud or ArchDox
+  Agent storage. More advanced table styling, image sizing from actual
+  dimensions, captions, and multi-column photo grids remain later refinements.
 - admin UI supports template definition/revision/upload/publish/override
   management; a rich visual template/schema editor remains later
 - complex Word fields, content controls, headers/footers with unusual XML
-  structures, and true table/image insertion remain later hardening phases
+  structures, and arbitrary table/image DSL features remain later hardening
+  phases
 
 ### Phase D: Output Layout V1
 
@@ -400,9 +404,13 @@ Implemented first layout binding:
   `document_jobs.input_snapshot_json.configuration.outputLayout`
 - output layout `payload.sections` creates `layoutSections`
 - each section writes a text block into `templateFields` by section `key`
+- `PHOTO_TABLE` can also replace a matching DOCX paragraph placeholder with a
+  generated Word table and embedded image media entries
 - supported section types:
-  - `PHOTO_SUMMARY`, `PHOTO_LIST`, `PHOTO_TABLE`: text summary from uploaded
-    photo snapshot rows
+  - `PHOTO_SUMMARY`, `PHOTO_LIST`: text summary from uploaded photo snapshot
+    rows
+  - `PHOTO_TABLE`: text summary plus DOCX table/image insertion when the
+    template uses `${sectionKey}` as a standalone paragraph placeholder
   - `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`: text summary from checklist answer
     snapshot rows
   - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`: single value read from the document job
@@ -441,8 +449,10 @@ Example:
 ```
 
 With this layout, DOCX can use `${photoSection}` and `${checklistSection}`.
-This is still text-block layout. Real DOCX table/image insertion belongs to the
-next hardening phase.
+`PHOTO_TABLE` is the first rich layout: when `${photoSection}` is a standalone
+paragraph placeholder, `document-engine` replaces it with a Word table and
+embeds resolvable working images into the DOCX package. Other section types
+remain text-block layout for now.
 
 ### Phase E: Workflow Definition V1
 
