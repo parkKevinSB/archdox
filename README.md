@@ -39,6 +39,19 @@ Start PostgreSQL, MailHog, and MinIO:
 docker compose up -d postgres mailhog minio minio-init
 ```
 
+Build the ArchDox Agent runtime image with LibreOffice and Korean/CJK fonts:
+
+```powershell
+docker compose --profile app build archdox-agent
+docker run --rm --entrypoint soffice archdox/archdox-agent:local --version
+```
+
+Start the optional Cloud API and ArchDox Agent app containers:
+
+```powershell
+docker compose --profile app up -d
+```
+
 Validate Docker Compose:
 
 ```powershell

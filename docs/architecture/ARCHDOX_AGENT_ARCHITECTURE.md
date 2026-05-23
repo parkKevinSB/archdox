@@ -186,6 +186,15 @@ LibreOffice or another configured PDF converter available. If the office PC or
 cloud-managed Agent does not have `soffice` installed and enabled, it must not
 claim `PDF` capability.
 
+Implemented V1:
+
+- `ArchDoxAgentCapabilityProvider` asks the Agent document runtime to verify
+  LibreOffice availability before adding PDF-related output formats.
+- The verification runs `soffice --version` through the shared process runner
+  and caches the result for the current executable path.
+- Compose uses the service name `archdox-agent` and the Docker image under
+  `infra/docker/archdox-agent`.
+
 ## Worker And Storage Terms
 
 - Document worker type: `ARCHDOX_AGENT` means the job is executed by the Agent

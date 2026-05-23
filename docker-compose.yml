@@ -70,13 +70,14 @@ services:
       - .:/workspace
       - gradle-cache:/home/gradle/.gradle
 
-  local-agent:
-    image: gradle:8.14-jdk21
-    container_name: archdox-local-agent
+  archdox-agent:
+    build:
+      context: .
+      dockerfile: infra/docker/archdox-agent/Dockerfile
+    image: archdox/archdox-agent:local
+    container_name: archdox-agent
     profiles:
       - app
-    working_dir: /workspace
-    command: sh -c "chmod +x gradlew && ./gradlew :archdox-agent:bootRun --no-daemon"
     depends_on:
       - api-server
     environment:
@@ -85,14 +86,15 @@ services:
       CLOUD_API_BASE_URL: ${CLOUD_API_BASE_URL:-http://api-server:8080}
       AGENT_WS_ENABLED: ${AGENT_WS_ENABLED:-false}
       AGENT_OFFICE_ID: ${AGENT_OFFICE_ID:-0}
-      AGENT_CODE: ${AGENT_CODE:-local-agent}
+      AGENT_CODE: ${AGENT_CODE:-archdox-agent-local}
       AGENT_SHARED_SECRET: ${AGENT_SHARED_SECRET:-dev-agent-secret-change-me}
       AGENT_LOCAL_STORAGE_ROOT: /var/lib/archdox-agent
+      DOCUMENT_EXPORT_LIBREOFFICE_ENABLED: ${DOCUMENT_EXPORT_LIBREOFFICE_ENABLED:-true}
+      DOCUMENT_EXPORT_LIBREOFFICE_PATH: ${DOCUMENT_EXPORT_LIBREOFFICE_PATH:-soffice}
+      DOCUMENT_EXPORT_LIBREOFFICE_TIMEOUT_MS: ${DOCUMENT_EXPORT_LIBREOFFICE_TIMEOUT_MS:-60000}
     ports:
       - "18080:18080"
     volumes:
-      - .:/workspace
-      - gradle-cache:/home/gradle/.gradle
       - archdox-agent-data:/var/lib/archdox-agent
 
   ollama:

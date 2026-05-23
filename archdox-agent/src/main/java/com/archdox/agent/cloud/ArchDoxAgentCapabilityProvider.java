@@ -1,6 +1,6 @@
 package com.archdox.agent.cloud;
 
-import com.archdox.agent.document.DocumentExportProperties;
+import com.archdox.agent.document.LibreOfficeRuntimeAvailability;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -8,17 +8,20 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ArchDoxAgentCapabilityProvider {
-    private final DocumentExportProperties exportProperties;
+    private final LibreOfficeRuntimeAvailability libreOfficeRuntimeAvailability;
 
-    public ArchDoxAgentCapabilityProvider(DocumentExportProperties exportProperties) {
-        this.exportProperties = exportProperties;
+    public ArchDoxAgentCapabilityProvider(LibreOfficeRuntimeAvailability libreOfficeRuntimeAvailability) {
+        this.libreOfficeRuntimeAvailability = libreOfficeRuntimeAvailability;
     }
 
     public Map<String, Object> capabilities() {
+        var libreOffice = libreOfficeRuntimeAvailability.probe();
+        var pdfExportAvailable = libreOffice.pdfExportAvailable();
+
         var outputFormats = new ArrayList<String>();
         outputFormats.add("DOCX");
         outputFormats.add("HTML");
-        if (exportProperties.getLibreOffice().isEnabled()) {
+        if (pdfExportAvailable) {
             outputFormats.add("PDF");
             outputFormats.add("DOCX_AND_PDF");
             outputFormats.add("HTML_AND_PDF");
@@ -30,10 +33,17 @@ public class ArchDoxAgentCapabilityProvider {
         capabilities.put("documentGeneration", true);
         capabilities.put("documentRender", true);
         capabilities.put("documentArtifactDelivery", true);
-        capabilities.put("pdfExport", exportProperties.getLibreOffice().isEnabled());
+        capabilities.put("pdfExport", pdfExportAvailable);
         capabilities.put("outputFormats", outputFormats);
         capabilities.put("converters", Map.of(
-                "libreOffice", exportProperties.getLibreOffice().isEnabled()));
+                "libreOffice", pdfExportAvailable));
+        capabilities.put("converterDetails", Map.of(
+                "libreOffice", Map.of(
+                        "enabled", libreOffice.enabled(),
+                        "available", libreOffice.available(),
+                        "executablePath", libreOffice.executablePath(),
+                        "version", libreOffice.version(),
+                        "message", libreOffice.message())));
         return capabilities;
     }
 }

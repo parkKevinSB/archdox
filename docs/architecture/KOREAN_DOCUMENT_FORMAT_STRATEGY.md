@@ -291,6 +291,18 @@ soffice --headless --nologo --nofirststartwizard --convert-to pdf --outdir <dir>
 - test behavior: unit tests use a fake command runner, so CI does not need
   LibreOffice installed.
 
+Implemented container runtime:
+
+- `infra/docker/archdox-agent/Dockerfile` builds an ArchDox Agent image with
+  LibreOffice Writer and Noto CJK fonts.
+- `docker-compose.yml` runs the `archdox-agent` service from that image instead
+  of relying on the generic Gradle image.
+- The image sets `DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true` and
+  `DOCUMENT_EXPORT_LIBREOFFICE_PATH=soffice`.
+- The Agent verifies `soffice --version` before advertising `PDF`,
+  `DOCX_AND_PDF`, or `HTML_AND_PDF` capability. Enabling the property alone is
+  not enough.
+
 ## Reviewed HWP Source Templates
 
 The following downloaded HWP files were inspected through HWP preview text

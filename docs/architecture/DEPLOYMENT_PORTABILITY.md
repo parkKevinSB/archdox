@@ -243,7 +243,7 @@ Use these rules when choosing a deployment shape:
 - `minio`
 - `minio-init`
 - `api-server` with profile `app`
-- `local-agent` with profile `app`
+- `archdox-agent` with profile `app`
 - `ollama` with profile `ai`
 
 Examples:
@@ -254,6 +254,25 @@ docker compose --profile app up -d
 docker compose --profile app --profile ai up -d
 ```
 
-The local Agent service is present but `AGENT_WS_ENABLED` defaults to `false` in
+The ArchDox Agent service is present but `AGENT_WS_ENABLED` defaults to `false` in
 Compose so it does not accidentally connect with incomplete office credentials.
 Enable it with explicit Agent credentials when testing a real office.
+
+The Compose `archdox-agent` service uses
+`infra/docker/archdox-agent/Dockerfile`. That image bakes in:
+
+- Java 21 runtime
+- LibreOffice Writer/headless conversion support
+- Noto CJK fonts for Korean document rendering
+- `/var/lib/archdox-agent` as the default Agent storage root
+
+The image enables LibreOffice export by default:
+
+```text
+DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true
+DOCUMENT_EXPORT_LIBREOFFICE_PATH=soffice
+```
+
+This is a deployment/runtime concern. Application source code still talks to the
+portable `DocumentArtifactExporter` boundary, and PDF routing still depends on
+the selected runtime advertising a verified `pdfExport` capability.
