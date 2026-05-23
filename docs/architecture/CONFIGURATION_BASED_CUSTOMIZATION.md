@@ -493,6 +493,18 @@ use `fields[].width`, and detail `PHOTO_TABLE` can use `columnWidths` or
 `photoColumnWidth`/`descriptionColumnWidth`. These options are for document
 quality, not for arbitrary layout programming.
 
+Real template smoke coverage:
+
+- `document-engine` includes a realistic inspection DOCX smoke test that renders
+  a summary table, split placeholder binding, `PHOTO_TABLE`, embedded image
+  media, and `CHECKLIST_TABLE` in one generated document.
+- The smoke test writes a generated DOCX under
+  `document-engine/build/archdox-smoke/realistic-inspection-smoke.docx` for
+  local manual inspection after test execution.
+- This smoke test is not a replacement for customer-template QA. It is a
+  regression guard proving the engine can render a practical template shape
+  end-to-end before real office templates are mapped.
+
 ### Phase E: Workflow Definition V1
 
 Allow report/document workflows to select from supported stage sets while still

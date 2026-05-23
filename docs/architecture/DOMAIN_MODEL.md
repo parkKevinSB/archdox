@@ -442,6 +442,10 @@ often change.
 - Rule: `CHECKLIST_TABLE` remains narrow: `fields` controls visible columns and
   may read known checklist answer paths such as `itemCode`, `label`,
   `answer.value`, and `note`.
+- Rule: document-engine changes that affect DOCX binding, rich tables, or media
+  embedding should keep a realistic smoke test passing. The smoke test must
+  cover normal placeholders, split Word text placeholders, photo media
+  relationships, and checklist table rendering together.
 
 ## Office Config Override
 
