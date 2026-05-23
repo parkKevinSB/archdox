@@ -408,6 +408,8 @@ class DocumentJobIntegrationTest {
                         .content("""
                                 {
                                   "payload": {
+                                    "inspectionDate": "2026-05-23",
+                                    "inspectorName": "Document Job",
                                     "weather": "Clear",
                                     "location": "Site A"
                                   }

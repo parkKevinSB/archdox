@@ -177,6 +177,21 @@ Rule sets are appropriate for:
 Do not move core security, tenant isolation, or data ownership invariants into
 JSON rules. Those remain code-level guarantees.
 
+Initial submit-validation rule support:
+
+```json
+{
+  "minWorkingPhotos": 2,
+  "requiredSteps": ["BASIC_INFO"]
+}
+```
+
+`minWorkingPhotos` and `minPhotos` control the minimum uploaded working-image
+asset count when the resolved report workflow contains a `PHOTO` step.
+`requiredSteps` is a small escape hatch for requiring a known saved step while
+the workflow schema is still young. Field-level requirements should preferably
+live in workflow step `fields[].required`.
+
 ### 5. Office Override
 
 Office-specific behavior should be expressed as an override that points to a

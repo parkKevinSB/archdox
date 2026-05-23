@@ -170,6 +170,64 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(jsonPath("$.steps", hasSize(1)))
                 .andExpect(jsonPath("$.steps[0].code").value("CUSTOM_INFO"))
                 .andExpect(jsonPath("$.steps[0].fields[0].key").value("memo"));
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.blockingIssues[*].code", hasItems("MISSING_STEP_CUSTOM_INFO")));
+
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "CUSTOM_INFO")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {
+                                    "memo": "Configured workflow input"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.blockingIssues", hasSize(0)));
+    }
+
+    @Test
+    void appliesRuleSetMinimumWorkingPhotoCount() throws Exception {
+        var user = signup("rule-set-validation@example.com", "Rule Set Validation");
+        var projectId = createProject(user);
+        var reportId = createReport(user, projectId);
+        saveBasicInfoStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId, "photo-one");
+
+        var ruleSetId = createRuleSet(user);
+        var revisionId = createRuleSetRevision(user, ruleSetId);
+        publishRuleSetRevision(user, revisionId);
+        assignRuleSetOverride(user, revisionId);
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.blockingIssues[*].code", hasItems("MISSING_WORKING_PHOTO")));
+
+        uploadWorkingPhoto(user, projectId, reportId, "photo-two");
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.blockingIssues", hasSize(0)));
     }
 
     private TestUser signup() throws Exception {
@@ -298,6 +356,60 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    private long createRuleSet(TestUser user) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/config/rule-sets")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "daily-photo-rules",
+                                  "name": "Daily Photo Rules",
+                                  "reportType": "daily_supervision"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createRuleSetRevision(TestUser user, long ruleSetId) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/config/rule-sets/{ruleSetId}/revisions", ruleSetId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {
+                                    "minWorkingPhotos": 2
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private void publishRuleSetRevision(TestUser user, long revisionId) throws Exception {
+        mockMvc.perform(post("/api/v1/config/rule-set-revisions/{revisionId}/publish", revisionId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk());
+    }
+
+    private void assignRuleSetOverride(TestUser user, long revisionId) throws Exception {
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ruleSetRevisionId": %d
+                                }
+                                """.formatted(revisionId)))
+                .andExpect(status().isOk());
+    }
+
     private void saveBasicInfoStep(TestUser user, long reportId) throws Exception {
         mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "BASIC_INFO")
                         .header("Authorization", bearer(user.accessToken()))
@@ -306,6 +418,8 @@ class ReportSubmitValidationIntegrationTest {
                         .content("""
                                 {
                                   "payload": {
+                                    "inspectionDate": "2026-05-23",
+                                    "inspectorName": "Submit Validation",
                                     "weather": "Clear",
                                     "location": "Site A"
                                   }
@@ -331,7 +445,11 @@ class ReportSubmitValidationIntegrationTest {
     }
 
     private void uploadWorkingPhoto(TestUser user, long projectId, long reportId) throws Exception {
-        var bytes = "submit-validation-working-photo".getBytes(StandardCharsets.UTF_8);
+        uploadWorkingPhoto(user, projectId, reportId, "submit-validation-working-photo");
+    }
+
+    private void uploadWorkingPhoto(TestUser user, long projectId, long reportId, String content) throws Exception {
+        var bytes = content.getBytes(StandardCharsets.UTF_8);
         var hash = sha256(bytes);
         var intentResult = mockMvc.perform(post("/api/v1/photos/intent")
                         .header("Authorization", bearer(user.accessToken()))

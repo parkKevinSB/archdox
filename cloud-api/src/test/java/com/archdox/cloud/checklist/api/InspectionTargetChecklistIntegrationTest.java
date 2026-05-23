@@ -238,6 +238,8 @@ class InspectionTargetChecklistIntegrationTest {
                         .content("""
                                 {
                                   "payload": {
+                                    "inspectionDate": "2026-05-23",
+                                    "inspectorName": "Target Checklist",
                                     "weather": "Clear",
                                     "location": "Safety Site"
                                   }

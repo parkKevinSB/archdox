@@ -964,11 +964,24 @@ Checks whether a report is ready to move from draft writing into document
 generation readiness. This endpoint is safe for the UI to call before showing a
 final submit action.
 
-Current MVP blocking rules:
+Current MVP blocking rules are resolved from workflow definition and rule set
+configuration:
 
-- `BASIC_INFO` step has been saved
-- `CHECKLIST` step has been saved, or checklist answers exist for the report
-- at least one uploaded `WORKING` photo asset exists for the report
+- `FORM` steps with required fields must be saved and contain non-empty values
+  for those fields.
+- `CHECKLIST` steps must be saved, or checklist answers must exist for the
+  report.
+- `PHOTO` steps require uploaded `WORKING` photo assets. The default minimum is
+  1 when the workflow contains a `PHOTO` step.
+- Rule set payload may override photo count with `minWorkingPhotos` or
+  `minPhotos`.
+- Rule set payload may force extra saved steps with `requiredSteps`.
+
+Built-in fallback still behaves like the old MVP contract:
+
+- required basic information step
+- checklist step or checklist answers
+- at least one working photo
 
 Response `200`:
 

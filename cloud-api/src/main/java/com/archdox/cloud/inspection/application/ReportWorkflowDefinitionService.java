@@ -10,9 +10,12 @@ import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.dto.ReportWorkflowDefinitionResponse;
 import com.archdox.cloud.inspection.dto.ReportWorkflowFieldResponse;
 import com.archdox.cloud.inspection.dto.ReportWorkflowStepResponse;
+import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.inspectiontarget.domain.InspectionReportTarget;
 import com.archdox.cloud.inspectiontarget.domain.InspectionReportTargetRole;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
+import com.archdox.cloud.global.api.NotFoundException;
+import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.site.infra.SiteRepository;
 import java.util.List;
 import java.util.Locale;
@@ -26,20 +29,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportWorkflowDefinitionService {
     private static final String BUILT_IN_DEFAULT_SOURCE = "BUILT_IN_DEFAULT";
 
-    private final InspectionReportService inspectionReportService;
+    private final InspectionReportRepository reportRepository;
     private final ConfigurationRegistryService configurationRegistryService;
     private final SiteRepository siteRepository;
     private final InspectionReportTargetRepository reportTargetRepository;
     private final ChecklistSchemaRepository checklistSchemaRepository;
 
     public ReportWorkflowDefinitionService(
-            InspectionReportService inspectionReportService,
+            InspectionReportRepository reportRepository,
             ConfigurationRegistryService configurationRegistryService,
             SiteRepository siteRepository,
             InspectionReportTargetRepository reportTargetRepository,
             ChecklistSchemaRepository checklistSchemaRepository
     ) {
-        this.inspectionReportService = inspectionReportService;
+        this.reportRepository = reportRepository;
         this.configurationRegistryService = configurationRegistryService;
         this.siteRepository = siteRepository;
         this.reportTargetRepository = reportTargetRepository;
@@ -48,7 +51,11 @@ public class ReportWorkflowDefinitionService {
 
     @Transactional(readOnly = true)
     public ReportWorkflowDefinitionResponse resolve(Long reportId) {
-        var report = inspectionReportService.requireReport(reportId);
+        return resolveForReport(requireReport(reportId));
+    }
+
+    @Transactional(readOnly = true)
+    public ReportWorkflowDefinitionResponse resolveForReport(InspectionReport report) {
         var siteType = resolveSiteType(report);
         var targetType = resolveTargetType(report);
         var checklistSchema = resolveChecklistSchema(report, siteType, targetType);
@@ -77,6 +84,16 @@ public class ReportWorkflowDefinitionService {
         }
 
         return builtInDefault(report, siteType, targetType, checklistSchema);
+    }
+
+    private InspectionReport requireReport(Long reportId) {
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        return reportRepository.findByIdAndOfficeId(reportId, officeId)
+                .orElseThrow(() -> new NotFoundException(
+                        "REPORT_NOT_FOUND",
+                        "errors.report.notFound",
+                        "Inspection report not found",
+                        Map.of("reportId", reportId)));
     }
 
     private String resolveSiteType(InspectionReport report) {

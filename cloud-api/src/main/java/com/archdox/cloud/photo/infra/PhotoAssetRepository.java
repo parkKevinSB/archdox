@@ -31,4 +31,20 @@ public interface PhotoAssetRepository extends JpaRepository<PhotoAsset, Long> {
             @Param("assetType") PhotoAssetType assetType,
             @Param("status") PhotoAssetStatus status
     );
+
+    @Query("""
+            select count(asset)
+            from PhotoAsset asset
+            join asset.photo photo
+            where photo.reportId = :reportId
+              and photo.officeId = :officeId
+              and asset.assetType = :assetType
+              and asset.status = :status
+            """)
+    long countUploadedAsset(
+            @Param("reportId") Long reportId,
+            @Param("officeId") Long officeId,
+            @Param("assetType") PhotoAssetType assetType,
+            @Param("status") PhotoAssetStatus status
+    );
 }
