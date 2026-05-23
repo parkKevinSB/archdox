@@ -36,13 +36,16 @@ current architecture.
 15. Follow `docs/architecture/CONFIGURATION_BASED_CUSTOMIZATION.md` when adding
     customer-specific templates, report behavior, workflow stages, validation
     rules, output layouts, or office overrides.
-16. Follow `docs/architecture/CLIENT_PRODUCT_UI_DIRECTION.md` when implementing
+16. Follow `docs/architecture/DOCUMENT_NEUTRAL_MODEL.md` when adding document
+    generation data, template bindings, output layout behavior, artifact
+    formats, AI document review, or report snapshot changes.
+17. Follow `docs/architecture/CLIENT_PRODUCT_UI_DIRECTION.md` when implementing
     real user-facing `client/web` screens. Share the ArchDox admin visual system
     and theme, but keep normal user workflows simpler than admin/Ops screens.
-17. Follow `docs/architecture/FRONTEND_STACK_DECISION.md` before adding or
+18. Follow `docs/architecture/FRONTEND_STACK_DECISION.md` before adding or
     replacing major frontend libraries, routers, UI kits, validation libraries,
     or state-machine dependencies.
-18. Follow `docs/architecture/FRONTEND_ARCHITECTURE.md` when adding or
+19. Follow `docs/architecture/FRONTEND_ARCHITECTURE.md` when adding or
     refactoring `client/web` or `admin` React code. Keep modules feature-shaped:
     `App` composes, `features/*` owns business UI, and `components/*` owns
     reusable product UI only. For normal user screens, preserve the
@@ -51,24 +54,24 @@ current architecture.
     business journey from mobile. Follow
     `docs/architecture/UI_WORKFLOW_ORCHESTRATION.md` when changing report
     writing, photo capture, document progress, or other guided user workflows.
-19. For non-trivial React features, keep REST calls in `features/*/api.ts`,
+20. For non-trivial React features, keep REST calls in `features/*/api.ts`,
     feature-local request/response types in `features/*/types.ts`, server state
     in TanStack Query hooks, and multi-field form state in React Hook Form.
     Do not force this pattern onto tiny UI-only components, but apply it before
     a feature grows enough to mix API calls, permissions, loading state, and
     JSX in one file.
-20. Major user workflow areas in `client/web` should be represented by React
+21. Major user workflow areas in `client/web` should be represented by React
     Router paths. Do not add new top-level pages that are reachable only through
     hidden local component state.
-21. Follow `docs/architecture/SITE_TARGET_HIERARCHY.md` when adding projects,
+22. Follow `docs/architecture/SITE_TARGET_HIERARCHY.md` when adding projects,
     sites, buildings, facilities, inspection targets, reports, photos, or
     document binding context. `site` is `현장`; `project` is the larger
     business container that may contain many sites.
-22. Do not add new Spring `@Scheduled` jobs, cron jobs, polling loops, or
+23. Do not add new Spring `@Scheduled` jobs, cron jobs, polling loops, or
     scheduler-style background mechanisms without explicit user confirmation.
     If the behavior is orchestration with waiting, retry, timeout, or backoff,
     design it as a Flower flow/worker first.
-23. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
+24. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
     PR expectations, CI checks, and files that must never be committed.
 
 ## Tenant And Security Rules
@@ -151,6 +154,14 @@ current architecture.
 17. Generated document artifacts are immutable history for a specific
     `reportRevision`. Editing a submitted/generated report must reopen it as a
     new `contentRevision`; do not mutate or silently replace prior artifacts.
+18. The source of truth for document generation is the neutral document snapshot
+    in `document_jobs.input_snapshot_json`, not DOCX, HTML, PDF, HWP, or any
+    customer-specific artifact.
+19. Add new document data to the neutral snapshot first, then expose it through
+    `templateFields`, `layoutSections`, or bounded renderer/exporter behavior.
+20. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
+    must stay inside document-engine renderers/exporters or deployment-specific
+    converter adapters.
 
 ## Configuration And Customization Rules
 

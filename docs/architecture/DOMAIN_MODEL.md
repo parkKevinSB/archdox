@@ -522,6 +522,15 @@ revisions.
   `GET /api/v1/document-jobs/{jobId}` until `GENERATED` or `FAILED`.
 - Rule: every job stores `input_snapshot_json` so generated documents are
   explainable even if report steps or photos change later.
+- Rule: `input_snapshot_json` is the neutral document model V1. It is the
+  source of truth for rendering and export, not DOCX, HTML, PDF, HWP, HWPX, or
+  a customer-specific template file.
+- Rule: neutral snapshot data should include report/project/site/target/step/
+  photo/checklist/configuration context. Template-specific aliases belong under
+  `templateFields`; layout-specific repeated sections belong under
+  `layoutSections`.
+- Rule: new document-generation features should add or normalize neutral
+  snapshot data before adding artifact-format-specific renderer behavior.
 - Rule: every job stores `report_revision`; document artifacts produced by the
   job must be interpreted as output for that exact report revision.
 - Rule: job creation resolves the current office/report configuration and stores

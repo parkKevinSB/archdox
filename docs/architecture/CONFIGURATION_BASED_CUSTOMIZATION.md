@@ -326,6 +326,11 @@ Current limitation:
 Wire document generation to resolve a template revision and bind data through
 `document-engine`.
 
+This phase follows `docs/architecture/DOCUMENT_NEUTRAL_MODEL.md`: configuration
+does not bind directly to a physical artifact format. It binds to the neutral
+document snapshot first. DOCX, HTML, PDF, HWP, and HWPX renderers/exporters then
+interpret the same snapshot through bounded template/layout behavior.
+
 Implemented first binding:
 
 - document job creation resolves configuration by `officeId + reportType`
