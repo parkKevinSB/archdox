@@ -504,6 +504,10 @@ Real template smoke coverage:
 - This smoke test is not a replacement for customer-template QA. It is a
   regression guard proving the engine can render a practical template shape
   end-to-end before real office templates are mapped.
+- A second smoke mapping follows the downloaded Korean HWP
+  `건축공사 감리세부기준 [별지 제2호서식] 공사감리일지` structure and renders it as
+  a DOCX-based template. HWP/PDF delivery strategy is documented in
+  `KOREAN_DOCUMENT_FORMAT_STRATEGY.md`.
 
 ### Phase E: Workflow Definition V1
 

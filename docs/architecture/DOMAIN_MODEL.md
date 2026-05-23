@@ -446,6 +446,10 @@ often change.
   embedding should keep a realistic smoke test passing. The smoke test must
   cover normal placeholders, split Word text placeholders, photo media
   relationships, and checklist table rendering together.
+- Rule: HWP/HWPX and PDF are delivery/export artifact formats. The business
+  source of truth remains the report snapshot plus versioned template/layout
+  configuration. DOCX is the first render substrate until a reliable
+  HWP/HWPX renderer or converter is selected.
 
 ## Office Config Override
 

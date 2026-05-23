@@ -113,6 +113,78 @@ class DocxTemplateSmokeTest {
         writeSmokeArtifact(content);
     }
 
+    @Test
+    void rendersHwpDerivedConstructionSupervisionDailyLogMapping() throws Exception {
+        var template = constructionSupervisionDailyLogTemplate();
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-hwp-derived-1",
+                "office-smoke",
+                "report-hwp-derived-1",
+                new TemplateSpec("CONSTRUCTION_SUPERVISION_DAILY_LOG", 1, "templates/hwp-derived-daily-log.docx", "{}", "{}"),
+                Map.of(
+                        "templateFields", Map.of(
+                                "serialNo", "DL-2026-0523-001",
+                                "projectName", "Project Alpha 신축공사",
+                                "inspectionDate", "2026-05-23",
+                                "dayOfWeek", "토",
+                                "weather", "맑음",
+                                "chiefSupervisorName", "김감리",
+                                "assistantArchitectName", "박건축",
+                                "specialNotes", "3층 슬래브 타설 전 철근 배근 상태를 확인함.",
+                                "correctionResults", "개구부 주변 안전난간 보강 지시 및 조치 완료 확인."),
+                        "layoutSections", Map.of(
+                                "supervisionItemsSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "includeTitle", false,
+                                        "tableStyle", "ArchDoxInspectionTable",
+                                        "headerFill", "FFF2CC",
+                                        "borderColor", "C9A227",
+                                        "fields", List.of(
+                                                Map.of("label", "공종 및 세부공정 (층)", "source", "answer.trade", "width", 3000),
+                                                Map.of("label", "감리 항목", "source", "label", "width", 2500),
+                                                Map.of("label", "감리내용", "source", "note", "width", 3500)))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "itemCode", "LOG-001",
+                                        "label", "슬래브 철근 배근 상태",
+                                        "answer", Map.of("trade", "철근콘크리트공사 (3층)", "value", "확인"),
+                                        "note", "배근 간격, 정착 길이 및 피복두께 확인"),
+                                Map.of(
+                                        "itemCode", "LOG-002",
+                                        "label", "안전난간 설치 상태",
+                                        "answer", Map.of("trade", "가설공사 (3층)", "value", "보완"),
+                                        "note", "개구부 주변 안전난간 추가 보강 지시"))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = zipEntry(content, "word/document.xml");
+        assertTrue(documentXml.contains("공사감리일지"));
+        assertTrue(documentXml.contains("DL-2026-0523-001"));
+        assertTrue(documentXml.contains("김감리"));
+        assertTrue(documentXml.contains("박건축"));
+        assertTrue(documentXml.contains("Project Alpha 신축공사"));
+        assertTrue(documentXml.contains("2026-05-23"));
+        assertTrue(documentXml.contains("토"));
+        assertTrue(documentXml.contains("맑음"));
+        assertTrue(documentXml.contains("공종 및 세부공정 (층)"));
+        assertTrue(documentXml.contains("철근콘크리트공사 (3층)"));
+        assertTrue(documentXml.contains("슬래브 철근 배근 상태"));
+        assertTrue(documentXml.contains("배근 간격, 정착 길이 및 피복두께 확인"));
+        assertTrue(documentXml.contains("특기사항"));
+        assertTrue(documentXml.contains("지적사항 및 처리결과"));
+        assertTrue(documentXml.contains("공종에는 주요공종 및 단위공종 그리고 해당 층수를 기재합니다."));
+        assertTrue(documentXml.contains("<w:tblStyle w:val=\"ArchDoxInspectionTable\"/>"));
+        assertTrue(!documentXml.contains("${"));
+
+        writeSmokeArtifact("hwp-derived-construction-supervision-daily-log.docx", content);
+    }
+
     private byte[] realisticInspectionTemplate() throws Exception {
         return docxWithBodyXml("""
                 <w:p><w:r><w:t>ArchDox Inspection Report</w:t></w:r></w:p>
@@ -151,6 +223,52 @@ class DocxTemplateSmokeTest {
                 <w:p><w:r><w:t>${photoSection}</w:t></w:r></w:p>
                 <w:p><w:r><w:t>Checklist Section</w:t></w:r></w:p>
                 <w:p><w:r><w:t>${checklistSection}</w:t></w:r></w:p>
+                """);
+    }
+
+    private byte[] constructionSupervisionDailyLogTemplate() throws Exception {
+        return docxWithBodyXml("""
+                <w:p><w:r><w:t>■ 건축공사 감리세부기준〔별지 제2호서식〕</w:t></w:r></w:p>
+                <w:p><w:r><w:t>공사감리일지</w:t></w:r></w:p>
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="9000" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:left w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:right w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                    </w:tblBorders>
+                  </w:tblPr>
+                  <w:tblGrid><w:gridCol w:w="2200"/><w:gridCol w:w="2800"/><w:gridCol w:w="1800"/><w:gridCol w:w="2200"/></w:tblGrid>
+                  <w:tr>
+                    <w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>일련번호</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="2800" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>${serialNo}</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>날씨</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>${weather}</w:t></w:r></w:p></w:tc>
+                  </w:tr>
+                  <w:tr>
+                    <w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>총괄감리책임자</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="2800" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>${chiefSupervisorName} (서명 또는 인)</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>건축사보</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>${assistantArchitectName} (서명 또는 인)</w:t></w:r></w:p></w:tc>
+                  </w:tr>
+                  <w:tr>
+                    <w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>공사명</w:t></w:r></w:p></w:tc>
+                    <w:tc><w:tcPr><w:tcW w:w="6800" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr><w:p><w:r><w:t>${projectName} 공사 ${inspectionDate}(${dayOfWeek}요일)</w:t></w:r></w:p></w:tc>
+                  </w:tr>
+                </w:tbl>
+                <w:p><w:r><w:t>${supervisionItemsSection}</w:t></w:r></w:p>
+                <w:p><w:r><w:t>특기사항</w:t></w:r></w:p>
+                <w:p><w:r><w:t>${specialNotes}</w:t></w:r></w:p>
+                <w:p><w:r><w:t>지적사항 및 처리결과</w:t></w:r></w:p>
+                <w:p><w:r><w:t>${correctionResults}</w:t></w:r></w:p>
+                <w:p><w:r><w:t>작성방법</w:t></w:r></w:p>
+                <w:p><w:r><w:t>1. 공종에는 주요공종 및 단위공종 그리고 해당 층수를 기재합니다.</w:t></w:r></w:p>
+                <w:p><w:r><w:t>2. 감리항목은 공종별 감리 체크리스트를 기반으로 기재합니다.</w:t></w:r></w:p>
+                <w:p><w:r><w:t>3. 감리내용에는 육안검사, 입회, 시험 등 감리내용과 결과를 구체적으로 기재합니다.</w:t></w:r></w:p>
                 """);
     }
 
@@ -218,8 +336,12 @@ class DocxTemplateSmokeTest {
     }
 
     private void writeSmokeArtifact(byte[] content) throws Exception {
+        writeSmokeArtifact("realistic-inspection-smoke.docx", content);
+    }
+
+    private void writeSmokeArtifact(String fileName, byte[] content) throws Exception {
         var outputDirectory = Path.of("build", "archdox-smoke");
         Files.createDirectories(outputDirectory);
-        Files.write(outputDirectory.resolve("realistic-inspection-smoke.docx"), content);
+        Files.write(outputDirectory.resolve(fileName), content);
     }
 }
