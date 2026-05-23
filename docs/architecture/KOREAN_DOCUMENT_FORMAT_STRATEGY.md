@@ -113,6 +113,14 @@ Implemented V1 rule:
 - The exporter is registered only when `archdox.documents.export.libre-office.enabled`
   is true.
 - Cloud API and ArchDox Agent use the same document-engine exporter class.
+- LibreOffice is a runtime dependency, not source code bundled into ArchDox.
+  If `soffice` is not installed or the exporter is disabled, PDF-capable routes
+  are not advertised and PDF generation is rejected or fails with an explicit
+  error code.
+- Cloud API should not become the default heavy converter host. For production,
+  prefer Office ArchDox Agent or Cloud-managed ArchDox Agent/document-worker for
+  PDF conversion. Cloud API inline conversion is allowed for dev/simple personal
+  MVP only when explicitly enabled.
 - Runtime settings:
 
 ```yaml
@@ -244,6 +252,18 @@ snapshot-driven preview renderer and does not require an external converter. If
 a request requires `PDF`, `HWP`, or `HWPX` and no matching exporter is
 configured, generation fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes
 missing infrastructure obvious while keeping the render/export boundary stable.
+
+Implemented routing policy:
+
+- UI sends `outputFormat`; it should not force `workerType=CLOUD`.
+- Cloud API selects `ARCHDOX_AGENT` when an online Agent advertises the
+  requested output format.
+- If no capable Agent exists, Cloud API uses inline `CLOUD` only for formats it
+  can actually render/export in the current runtime.
+- PDF requires `DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true` on the selected
+  runtime and a working `soffice` executable. Otherwise create-time validation
+  returns `DOCUMENT_WORKER_UNAVAILABLE` or `DOCUMENT_WORKER_UNSUPPORTED` before
+  a doomed job is created.
 
 Implemented HTML preview renderer:
 

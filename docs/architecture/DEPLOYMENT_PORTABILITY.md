@@ -98,6 +98,16 @@ This keeps PDF conversion portable:
 - Business code still requests `OutputFormat.PDF` or `DOCX_AND_PDF`; it does
   not know where LibreOffice is installed.
 
+ArchDox does not auto-install LibreOffice from application code. Deployment is
+responsible for installing the converter and fonts in the selected runtime:
+
+- Windows/local: install LibreOffice and set `DOCUMENT_EXPORT_LIBREOFFICE_PATH`
+  if `soffice` is not on `PATH`.
+- Docker/cloud: bake LibreOffice and Korean fonts into the document-worker or
+  ArchDox Agent image.
+- Dev/default: leave `DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=false`; PDF requests
+  should fail fast unless a capable Agent is connected.
+
 Runtime profile files:
 
 - `cloud-api/src/main/resources/application-dev.yml`

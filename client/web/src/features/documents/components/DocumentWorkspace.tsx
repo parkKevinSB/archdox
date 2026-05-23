@@ -82,6 +82,7 @@ export function DocumentWorkspace({
                     previewingArtifactId={workspace.previewingArtifactId}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
                     onCreate={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "DOCX" })}
+                    onCreatePdf={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "PDF" })}
                     onCreatePreview={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "HTML" })}
                     onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
                     onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
@@ -128,6 +129,7 @@ function DocumentReportCard({
   previewingArtifactId,
   requestingDeliveryArtifactId,
   onCreate,
+  onCreatePdf,
   onCreatePreview,
   onDownloadPrepared,
   onPreviewArtifact,
@@ -143,6 +145,7 @@ function DocumentReportCard({
   previewingArtifactId: number | null;
   requestingDeliveryArtifactId: number | null;
   onCreate: () => Promise<DocumentJobResponse>;
+  onCreatePdf: () => Promise<DocumentJobResponse>;
   onCreatePreview: () => Promise<DocumentJobResponse>;
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
   onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
@@ -155,8 +158,9 @@ function DocumentReportCard({
   const active = Boolean(activeJob);
   const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status) && !active;
   const action = documentAction(report, latestJob, active);
-  const creatingDocx = creating && creatingOutputFormat !== "HTML";
+  const creatingDocx = creating && (creatingOutputFormat === null || creatingOutputFormat === "DOCX");
   const creatingHtml = creating && creatingOutputFormat === "HTML";
+  const creatingPdf = creating && creatingOutputFormat === "PDF";
 
   return (
     <article className="document-card">
@@ -213,6 +217,10 @@ function DocumentReportCard({
         <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
           {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
           HTML Preview
+        </button>
+        <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
+          {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+          PDF 생성
         </button>
         <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
           {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}

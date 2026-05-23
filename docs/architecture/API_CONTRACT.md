@@ -1369,7 +1369,11 @@ Current `progressStep` values:
 
 Worker routing:
 
-- Office plan with an installed ArchDox Agent should use `workerType=ARCHDOX_AGENT`.
+- `workerType` is policy-routed by Cloud API when the client omits it. The UI
+  should normally send only `outputFormat`.
+- Office plan with an installed ArchDox Agent should prefer
+  `workerType=ARCHDOX_AGENT` when an online Agent advertises the requested
+  document output capability.
   Cloud API routes a `GENERATE_DOCUMENT` command to the office ArchDox Agent through the
   WebSocket command channel. The ArchDox Agent runs `document-engine`, stores or
   uploads the result according to policy, then reports completion.
@@ -1381,6 +1385,10 @@ Worker routing:
 - Cloud API must remain the owner of job state, progress state, tenant checks,
   and artifact metadata. Render workers own execution, not the public REST
   contract.
+- PDF-capable routing requires one of:
+  - Cloud exporter enabled by `archdox.documents.export.libre-office.enabled`.
+  - Online ArchDox Agent with `capabilities.outputFormats` containing `PDF`,
+    `DOCX_AND_PDF`, or `HTML_AND_PDF`, or `capabilities.pdfExport=true`.
 - Template Binding V1 reads the selected template revision's `storageRef` from
   document storage when available and replaces `${...}` placeholders using the
   job input snapshot. DOCX Placeholder Hardening V1 supports both intact
@@ -1421,6 +1429,15 @@ Output formats:
 If an output format requires an exporter that is not configured, such as PDF,
 HWP, or HWPX conversion, generation fails with
 `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
+
+If Cloud API can decide before job creation that no route can handle the
+requested format, the create API returns a structured `400` instead of creating
+a doomed job:
+
+- `DOCUMENT_WORKER_UNAVAILABLE`: no Cloud exporter and no online capable
+  ArchDox Agent exists for the requested output format.
+- `DOCUMENT_WORKER_UNSUPPORTED`: the request explicitly selected a worker type
+  that cannot handle the requested output format.
 
 PDF exporter V1 uses LibreOffice when enabled by runtime configuration. If the
 exporter is enabled but conversion cannot complete, document generation fails
@@ -1471,15 +1488,16 @@ Request:
 
 ```json
 {
-  "outputFormat": "DOCX",
-  "workerType": "CLOUD"
+  "outputFormat": "DOCX"
 }
 ```
 
-Both fields are optional in the MVP. Defaults:
+Both fields are optional. Defaults:
 
 - `outputFormat`: `DOCX`
-- `workerType`: `CLOUD`
+- `workerType`: omitted means Cloud API applies the routing policy. Explicit
+  `workerType` is accepted only for tests, admin tooling, or emergency
+  overrides and is validated against worker capability.
 
 Response `201`:
 
@@ -1758,7 +1776,11 @@ device credentials. `AGENT_SHARED_SECRET` is a development fallback only.
   "capabilities": {
     "nas": true,
     "photoPickup": true,
-    "documentGeneration": false
+    "documentGeneration": true,
+    "documentRender": true,
+    "documentArtifactDelivery": true,
+    "pdfExport": false,
+    "outputFormats": ["DOCX", "HTML"]
   },
   "storageProfile": {
     "original": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/original"},
@@ -1795,7 +1817,11 @@ the install token.
   "capabilities": {
     "nas": true,
     "photoPickup": true,
-    "documentGeneration": false
+    "documentGeneration": true,
+    "documentRender": true,
+    "documentArtifactDelivery": true,
+    "pdfExport": true,
+    "outputFormats": ["DOCX", "HTML", "PDF", "DOCX_AND_PDF", "HTML_AND_PDF"]
   },
   "storageProfile": {
     "original": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/original"},

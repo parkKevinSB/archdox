@@ -167,6 +167,25 @@ Do not add `local_agent_*` tables or `local_agent_id` columns.
 - `storage_profile_json`
 - heartbeat/auth timestamps
 
+`capabilities_json` is part of command routing, not just monitoring. An Agent
+must advertise stable execution capabilities during `HELLO`, for example:
+
+```json
+{
+  "documentGeneration": true,
+  "documentRender": true,
+  "documentArtifactDelivery": true,
+  "photoPickup": true,
+  "pdfExport": true,
+  "outputFormats": ["DOCX", "HTML", "PDF", "DOCX_AND_PDF", "HTML_AND_PDF"]
+}
+```
+
+PDF-related formats must be advertised only when the selected Agent runtime has
+LibreOffice or another configured PDF converter available. If the office PC or
+cloud-managed Agent does not have `soffice` installed and enabled, it must not
+claim `PDF` capability.
+
 ## Worker And Storage Terms
 
 - Document worker type: `ARCHDOX_AGENT` means the job is executed by the Agent

@@ -122,8 +122,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         throw new Error("사무소 선택이 필요합니다.");
       }
       return createDocumentJob(token, officeId, reportId, {
-        outputFormat,
-        workerType: "CLOUD"
+        outputFormat
       });
     },
     onSuccess: async () => {

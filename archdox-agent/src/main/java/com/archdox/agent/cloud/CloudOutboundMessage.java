@@ -22,7 +22,7 @@ public record CloudOutboundMessage(
         Map<String, Object> result,
         String errorMessage
 ) {
-    public static CloudOutboundMessage hello(ArchDoxAgentProperties properties) {
+    public static CloudOutboundMessage hello(ArchDoxAgentProperties properties, Map<String, Object> capabilities) {
         return new CloudOutboundMessage(
                 "HELLO",
                 properties.getAuthMode(),
@@ -34,7 +34,7 @@ public record CloudOutboundMessage(
                 properties.getDeviceSecret(),
                 properties.getVersion(),
                 properties.getDeploymentMode(),
-                Map.of("nas", true, "photoPickup", true, "documentGeneration", true, "documentArtifactDelivery", true),
+                capabilities == null ? Map.of() : capabilities,
                 properties.storageProfile(),
                 null,
                 null,

@@ -78,6 +78,7 @@ public class DocumentJobService {
     private final ChecklistService checklistService;
     private final ProjectRepository projectRepository;
     private final SiteRepository siteRepository;
+    private final DocumentGenerationRoutingService routingService;
     private final ObjectMapper objectMapper;
 
     public DocumentJobService(
@@ -97,6 +98,7 @@ public class DocumentJobService {
             ChecklistService checklistService,
             ProjectRepository projectRepository,
             SiteRepository siteRepository,
+            DocumentGenerationRoutingService routingService,
             ObjectMapper objectMapper
     ) {
         this.inspectionReportService = inspectionReportService;
@@ -115,6 +117,7 @@ public class DocumentJobService {
         this.checklistService = checklistService;
         this.projectRepository = projectRepository;
         this.siteRepository = siteRepository;
+        this.routingService = routingService;
         this.objectMapper = objectMapper;
     }
 
@@ -123,8 +126,8 @@ public class DocumentJobService {
         var report = inspectionReportService.requireReport(reportId);
         requireCanRequestGeneration(report);
         var outputFormat = request.normalizedOutputFormat();
-        var workerType = request.normalizedWorkerType();
         var officeId = OfficeContext.requireCurrentOfficeId();
+        var workerType = routingService.route(officeId, outputFormat, request.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
         var snapshot = buildInputSnapshot(report, configuration);

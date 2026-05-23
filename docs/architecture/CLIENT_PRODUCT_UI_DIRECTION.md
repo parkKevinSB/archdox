@@ -526,12 +526,16 @@ Current MVP behavior:
   revision chips.
 - Generated jobs are shown as revision history. The latest generated revision
   is visually distinguished from previous generated revisions.
-- Document generation requests use the Cloud worker by default for the first
-  client UI.
+- Document generation requests send `outputFormat` and let Cloud API choose the
+  worker route. The normal user UI should not expose Cloud vs Agent unless an
+  admin/debug tool explicitly needs it.
 - HTML preview requests are a separate user action from DOCX generation. The UI
   creates an `outputFormat=HTML` document job when the user wants a browser
   preview, then shows the generated HTML artifact in an in-app sandboxed
   preview dialog.
+- PDF generation is a separate user action from DOCX generation. If no capable
+  Cloud converter or ArchDox Agent is available, the UI shows the server's
+  structured worker-unavailable message instead of a generic failed request.
 - HTML artifact rows expose both preview and download actions. Preview fetches
   the HTML through authenticated Cloud API calls and renders it with iframe
   `srcDoc`; it must not depend on an unauthenticated public file URL.

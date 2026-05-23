@@ -20,6 +20,7 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
 
     private final ArchDoxAgentProperties properties;
     private final ObjectMapper objectMapper;
+    private final ArchDoxAgentCapabilityProvider capabilityProvider;
     private final PhotoPickupCommandExecutor photoPickupCommandExecutor;
     private final DocumentRenderCommandExecutor documentRenderCommandExecutor;
     private final DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor;
@@ -29,12 +30,14 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     public CloudAgentWebSocketClient(
             ArchDoxAgentProperties properties,
             ObjectMapper objectMapper,
+            ArchDoxAgentCapabilityProvider capabilityProvider,
             PhotoPickupCommandExecutor photoPickupCommandExecutor,
             DocumentRenderCommandExecutor documentRenderCommandExecutor,
             DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor
     ) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.capabilityProvider = capabilityProvider;
         this.photoPickupCommandExecutor = photoPickupCommandExecutor;
         this.documentRenderCommandExecutor = documentRenderCommandExecutor;
         this.documentArtifactDeliveryCommandExecutor = documentArtifactDeliveryCommandExecutor;
@@ -60,7 +63,7 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         this.session = session;
-        send(CloudOutboundMessage.hello(properties));
+        send(CloudOutboundMessage.hello(properties, capabilityProvider.capabilities()));
     }
 
     @Override

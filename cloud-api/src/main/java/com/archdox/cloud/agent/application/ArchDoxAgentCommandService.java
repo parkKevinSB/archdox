@@ -30,6 +30,7 @@ import com.archdox.cloud.photo.application.PhotoPickupService;
 import com.archdox.cloud.photo.event.PhotoPickupCommandAckedEvent;
 import com.archdox.cloud.photo.event.PhotoPickupCommandCompletedEvent;
 import com.archdox.cloud.photo.event.PhotoPickupCommandFailedEvent;
+import com.archdox.document.OutputFormat;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -161,7 +162,8 @@ public class ArchDoxAgentCommandService {
             int attempt,
             int maxAttempts
     ) {
-        var agent = selectCommandTargetAgent(officeId, false);
+        var outputFormat = outputFormat(renderPayload);
+        var agent = selectDocumentRenderTargetAgent(officeId, outputFormat);
         if (agent.isEmpty()) {
             return Optional.empty();
         }
@@ -183,6 +185,11 @@ public class ArchDoxAgentCommandService {
         deliver(command);
         recordCommandEvent(command, OperationEventSeverity.INFO, "AGENT_COMMAND_ENQUEUED", "GENERATE_DOCUMENT command enqueued.");
         return Optional.of(command.id());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasDocumentRenderTarget(Long officeId, OutputFormat outputFormat) {
+        return selectDocumentRenderTargetAgent(officeId, outputFormat).isPresent();
     }
 
     @Transactional
@@ -388,6 +395,23 @@ public class ArchDoxAgentCommandService {
         return agentRepository.findFirstByOfficeIdOrderByLastSeenAtDesc(officeId);
     }
 
+    private Optional<ArchDoxAgent> selectDocumentRenderTargetAgent(Long officeId, OutputFormat outputFormat) {
+        var activeSessionAgent = sessionRepository
+                .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentSessionStatus.ACTIVE)
+                .stream()
+                .map(session -> session.agent())
+                .filter(agent -> ArchDoxAgentCapabilities.supportsDocumentRender(agent, outputFormat))
+                .findFirst();
+        if (activeSessionAgent.isPresent()) {
+            return activeSessionAgent;
+        }
+        return agentRepository
+                .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentStatus.ONLINE)
+                .stream()
+                .filter(agent -> ArchDoxAgentCapabilities.supportsDocumentRender(agent, outputFormat))
+                .findFirst();
+    }
+
     private boolean isDocumentRender(ArchDoxAgentCommand command) {
         return command.commandType() == ArchDoxAgentCommandType.GENERATE_DOCUMENT;
     }
@@ -406,6 +430,13 @@ public class ArchDoxAgentCommandService {
 
     private Long photoId(ArchDoxAgentCommand command) {
         return longValue(command.payloadJson().get("photoId"));
+    }
+
+    private OutputFormat outputFormat(Map<String, Object> payload) {
+        if (payload == null || payload.get("outputFormat") == null || String.valueOf(payload.get("outputFormat")).isBlank()) {
+            return OutputFormat.DOCX;
+        }
+        return OutputFormat.valueOf(String.valueOf(payload.get("outputFormat")).trim().toUpperCase(java.util.Locale.ROOT));
     }
 
     private void recordCommandEvent(
