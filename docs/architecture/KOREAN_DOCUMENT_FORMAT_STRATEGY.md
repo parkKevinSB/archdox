@@ -380,6 +380,12 @@ These are placeholder defaults, not a new physical document model. A template
 revision can override any field through `schema.bindings`, and rich sections
 such as `PHOTO_TABLE` and `CHECKLIST_TABLE` remain output-layout behavior.
 
+Cloud API exposes these defaults through
+`GET /api/v1/config/document-template-fields`. The admin template screen uses
+that read-only catalog to show copyable `${fieldKey}` placeholders and form
+presets such as construction daily supervision appendix 2 or demolition safety
+check appendix 1.
+
 ## Development Rule
 
 Do not make `.hwp` the source of truth for business data. HWP/HWPX is an

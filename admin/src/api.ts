@@ -14,7 +14,8 @@ import type {
   OfficeMember,
   OfficeConfigOverride,
   OperationEvent,
-  Photo
+  Photo,
+  TemplateFieldCatalog
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -291,6 +292,14 @@ export function acceptOfficeInvitation(token: string, invitationToken: string) {
 
 export function getDocumentTemplates(token: string, officeId: number, reportType?: string) {
   return request<ConfigDefinition[]>("/api/v1/config/document-templates", {
+    token,
+    officeId,
+    query: { reportType }
+  });
+}
+
+export function getDocumentTemplateFields(token: string, officeId: number, reportType?: string) {
+  return request<TemplateFieldCatalog>("/api/v1/config/document-template-fields", {
     token,
     officeId,
     query: { reportType }

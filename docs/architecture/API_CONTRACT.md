@@ -1413,6 +1413,46 @@ With that schema, a DOCX template may use `${projectName}` instead of exposing
 the internal path `${steps.BASIC_INFO.payload.inspectionDate}`. The job snapshot
 keeps the resolved `templateFields` values immutable for later auditing.
 
+Template field catalog:
+
+```http
+GET /api/v1/config/document-template-fields?reportType=DAILY_SUPERVISION
+```
+
+The endpoint is read-only admin metadata. It lists standard placeholders that
+can be used in DOCX templates and form presets derived from inspected Korean
+supervision/demolition forms. It does not create templates and does not replace
+template revision `schema.bindings`.
+
+Example response:
+
+```json
+{
+  "reportType": "DAILY_SUPERVISION",
+  "fields": [
+    {
+      "key": "constructionName",
+      "label": "Construction name",
+      "category": "project-site",
+      "source": "project.name",
+      "example": "Document Tower",
+      "description": "Public-form alias for project name.",
+      "reportTypes": []
+    }
+  ],
+  "presets": [
+    {
+      "code": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
+      "title": "Korean construction daily supervision appendix 2",
+      "description": "Field set for daily construction supervision logs.",
+      "reportTypes": ["DAILY_SUPERVISION", "CONSTRUCTION_DAILY_LOG"],
+      "recommendedFields": ["documentTitle", "constructionName", "inspectionDate"],
+      "layoutSections": ["CHECKLIST_TABLE", "PHOTO_TABLE"]
+    }
+  ]
+}
+```
+
 Output formats:
 
 - `DOCX`: render and return a DOCX artifact.

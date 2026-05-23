@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +41,27 @@ class ConfigurationRegistryIntegrationTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Test
+    void officeAdminCanReadDocumentTemplateFieldCatalog() throws Exception {
+        var alpha = signup("config-fields@example.com", "Config Fields");
+
+        var result = mockMvc.perform(get("/api/v1/config/document-template-fields")
+                        .header("Authorization", bearer(alpha.accessToken()))
+                        .header("X-Office-Id", alpha.officeId())
+                        .param("reportType", "daily_supervision"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reportType").value("DAILY_SUPERVISION"))
+                .andExpect(jsonPath("$.fields").isArray())
+                .andExpect(jsonPath("$.presets").isArray())
+                .andReturn();
+
+        var body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertTrue(hasField(body, "constructionName"));
+        assertTrue(hasField(body, "constructionTrade"));
+        assertFalse(hasField(body, "demolitionWorkerName"));
+        assertTrue(hasPreset(body, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
+    }
 
     @Test
     void officeAdminCanCreatePublishOverrideAndResolveConfiguration() throws Exception {
@@ -249,6 +272,24 @@ class ConfigurationRegistryIntegrationTest {
     private long readId(String json) throws Exception {
         JsonNode node = objectMapper.readTree(json);
         return node.get("id").asLong();
+    }
+
+    private boolean hasField(JsonNode body, String key) {
+        for (JsonNode field : body.get("fields")) {
+            if (key.equals(field.get("key").asText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasPreset(JsonNode body, String code) {
+        for (JsonNode preset : body.get("presets")) {
+            if (code.equals(preset.get("code").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String bearer(String token) {

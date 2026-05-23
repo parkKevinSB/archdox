@@ -39,6 +39,7 @@ import {
   getAgentCommands,
   getAgentSessions,
   getAgents,
+  getDocumentTemplateFields,
   getDocumentTemplateRevisions,
   getDocumentTemplates,
   getDocumentDeliveries,
@@ -73,7 +74,9 @@ import type {
   OfficeConfigOverride,
   OfficeOpsSummary,
   OperationEvent,
-  Photo
+  Photo,
+  TemplateFieldCatalog,
+  TemplateFieldDefinition
 } from "./types";
 
 type ViewKey =
@@ -1110,6 +1113,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
   const [templates, setTemplates] = useState<ConfigDefinition[]>([]);
   const [revisions, setRevisions] = useState<DocumentTemplateRevision[]>([]);
   const [overrides, setOverrides] = useState<OfficeConfigOverride[]>([]);
+  const [fieldCatalog, setFieldCatalog] = useState<TemplateFieldCatalog | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [reportTypeFilter, setReportTypeFilter] = useState("");
   const [templateCode, setTemplateCode] = useState("");
@@ -1135,6 +1139,8 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
     [revisions]
   );
 
+  const fieldCatalogReportType = selectedTemplate?.reportType ?? normalizeFormValue(reportTypeFilter) ?? undefined;
+
   useEffect(() => {
     loadTemplates();
     loadOverrides();
@@ -1155,6 +1161,11 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
       setOverrideReportType(selectedTemplate.reportType);
     }
   }, [selectedTemplate?.id, selectedTemplate?.reportType]);
+
+  useEffect(() => {
+    loadFieldCatalog(fieldCatalogReportType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, officeId, fieldCatalogReportType]);
 
   useEffect(() => {
     if (publishedRevisions.length > 0 && !publishedRevisions.some((revision) => String(revision.id) === overrideRevisionId)) {
@@ -1190,6 +1201,15 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
     }
   }
 
+  async function loadFieldCatalog(reportType?: string) {
+    setError(null);
+    try {
+      setFieldCatalog(await getDocumentTemplateFields(token, officeId, reportType));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Template field catalog could not be loaded.");
+    }
+  }
+
   async function loadOverrides() {
     setError(null);
     try {
@@ -1200,7 +1220,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
   }
 
   async function refreshAll() {
-    await Promise.all([loadTemplates(), loadOverrides()]);
+    await Promise.all([loadTemplates(), loadOverrides(), loadFieldCatalog(fieldCatalogReportType)]);
     if (selectedTemplateId) {
       await loadRevisions(selectedTemplateId);
     }
@@ -1303,6 +1323,11 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
     } finally {
       setBusyAction(null);
     }
+  }
+
+  async function copyTemplatePlaceholder(field: TemplateFieldDefinition) {
+    await navigator.clipboard.writeText(`\${${field.key}}`);
+    setNotice(`Copied \${${field.key}}`);
   }
 
   async function submitOverride(event: FormEvent) {
@@ -1510,6 +1535,68 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
           </div>
         </Panel>
       </div>
+
+      <Panel
+        title="Template field catalog"
+        icon={<Copy size={18} />}
+        count={fieldCatalog?.fields.length ?? 0}
+        action={<span className="panel-context">{fieldCatalog?.reportType ?? "ALL_REPORT_TYPES"}</span>}
+      >
+        <div className="config-panel-body">
+          {fieldCatalog?.presets.length ? (
+            <div className="template-preset-list">
+              {fieldCatalog.presets.map((preset) => (
+                <article className="template-preset-card" key={preset.code}>
+                  <div>
+                    <strong>{preset.title}</strong>
+                    <span>{preset.code}</span>
+                  </div>
+                  <p>{preset.description}</p>
+                  <code>{preset.recommendedFields.map((field) => `\${${field}}`).join(" ")}</code>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="template-field-grid">
+            {fieldCatalog?.fields.length ? null : <EmptyState message="No template fields found." />}
+            {fieldCatalog?.fields.map((field) => (
+              <article className="template-field-card" key={field.key}>
+                <div className="template-field-card-head">
+                  <div>
+                    <strong>{field.label}</strong>
+                    <code>{`\${${field.key}}`}</code>
+                  </div>
+                  <button
+                    className="icon-button"
+                    onClick={() => copyTemplatePlaceholder(field)}
+                    title="Copy placeholder"
+                    type="button"
+                    aria-label={`Copy ${field.key}`}
+                  >
+                    <Copy size={16} />
+                  </button>
+                </div>
+                <p>{field.description}</p>
+                <dl>
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{field.category}</dd>
+                  </div>
+                  <div>
+                    <dt>Source</dt>
+                    <dd>{field.source}</dd>
+                  </div>
+                  <div>
+                    <dt>Example</dt>
+                    <dd>{field.example}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </div>
+      </Panel>
 
       <Panel title="사무소 오버라이드" icon={<ShieldCheck size={18} />} count={overrides.length}>
         <div className="config-panel-body">

@@ -398,6 +398,9 @@ Remaining limitations:
   dimensions, captions, and multi-column photo grids remain later refinements.
 - admin UI supports template definition/revision/upload/publish/override
   management; a rich visual template/schema editor remains later
+- admin UI now reads `GET /api/v1/config/document-template-fields` and shows
+  standard placeholders plus Korean form presets so operators can copy
+  `${fieldKey}` values into DOCX templates
 - complex Word fields, content controls, headers/footers with unusual XML
   structures, and arbitrary table/image DSL features remain later hardening
   phases

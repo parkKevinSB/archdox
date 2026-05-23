@@ -21,6 +21,9 @@ import com.archdox.cloud.configuration.dto.JsonConfigRevisionResponse;
 import com.archdox.cloud.configuration.dto.OfficeConfigOverrideResponse;
 import com.archdox.cloud.configuration.dto.ResolvedConfigPartResponse;
 import com.archdox.cloud.configuration.dto.ResolvedOfficeConfigurationResponse;
+import com.archdox.cloud.configuration.dto.TemplateFieldCatalogResponse;
+import com.archdox.cloud.configuration.dto.TemplateFieldResponse;
+import com.archdox.cloud.configuration.dto.TemplateFormPresetResponse;
 import com.archdox.cloud.configuration.dto.UpdateOfficeConfigOverrideRequest;
 import com.archdox.cloud.configuration.infra.DocumentTemplateRepository;
 import com.archdox.cloud.configuration.infra.DocumentTemplateRevisionRepository;
@@ -37,6 +40,7 @@ import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
+import com.archdox.cloud.document.application.StandardTemplateFieldCatalog;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
 import com.archdox.shared.MembershipRole;
@@ -69,6 +73,7 @@ public class ConfigurationRegistryService {
     private final OutputLayoutConfigRevisionRepository layoutRevisionRepository;
     private final OfficeConfigOverrideRepository overrideRepository;
     private final DocumentLocalObjectStore objectStore;
+    private final StandardTemplateFieldCatalog templateFieldCatalog;
 
     public ConfigurationRegistryService(
             OfficeMembershipRepository membershipRepository,
@@ -81,7 +86,8 @@ public class ConfigurationRegistryService {
             OutputLayoutConfigRepository layoutRepository,
             OutputLayoutConfigRevisionRepository layoutRevisionRepository,
             OfficeConfigOverrideRepository overrideRepository,
-            DocumentLocalObjectStore objectStore
+            DocumentLocalObjectStore objectStore,
+            StandardTemplateFieldCatalog templateFieldCatalog
     ) {
         this.membershipRepository = membershipRepository;
         this.templateRepository = templateRepository;
@@ -94,6 +100,34 @@ public class ConfigurationRegistryService {
         this.layoutRevisionRepository = layoutRevisionRepository;
         this.overrideRepository = overrideRepository;
         this.objectStore = objectStore;
+        this.templateFieldCatalog = templateFieldCatalog;
+    }
+
+    @Transactional(readOnly = true)
+    public TemplateFieldCatalogResponse documentTemplateFields(UserPrincipal principal, String reportType) {
+        requireOfficeAdmin(principal);
+        var catalog = templateFieldCatalog.catalog(normalizeOptionalCode(reportType));
+        return new TemplateFieldCatalogResponse(
+                catalog.reportType(),
+                catalog.fields().stream()
+                        .map(field -> new TemplateFieldResponse(
+                                field.key(),
+                                field.label(),
+                                field.category(),
+                                field.source(),
+                                field.example(),
+                                field.description(),
+                                field.reportTypes()))
+                        .toList(),
+                catalog.presets().stream()
+                        .map(preset -> new TemplateFormPresetResponse(
+                                preset.code(),
+                                preset.title(),
+                                preset.description(),
+                                preset.reportTypes(),
+                                preset.recommendedFields(),
+                                preset.layoutSections()))
+                        .toList());
     }
 
     @Transactional(readOnly = true)

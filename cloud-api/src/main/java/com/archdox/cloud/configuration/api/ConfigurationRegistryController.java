@@ -9,6 +9,7 @@ import com.archdox.cloud.configuration.dto.DocumentTemplateRevisionResponse;
 import com.archdox.cloud.configuration.dto.JsonConfigRevisionResponse;
 import com.archdox.cloud.configuration.dto.OfficeConfigOverrideResponse;
 import com.archdox.cloud.configuration.dto.ResolvedOfficeConfigurationResponse;
+import com.archdox.cloud.configuration.dto.TemplateFieldCatalogResponse;
 import com.archdox.cloud.configuration.dto.UpdateOfficeConfigOverrideRequest;
 import com.archdox.cloud.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -37,6 +38,14 @@ public class ConfigurationRegistryController {
 
     public ConfigurationRegistryController(ConfigurationRegistryService service) {
         this.service = service;
+    }
+
+    @GetMapping("/document-template-fields")
+    public TemplateFieldCatalogResponse documentTemplateFields(
+            Authentication authentication,
+            @RequestParam(required = false) String reportType
+    ) {
+        return service.documentTemplateFields(principal(authentication), reportType);
     }
 
     @GetMapping("/document-templates")

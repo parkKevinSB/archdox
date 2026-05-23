@@ -271,6 +271,31 @@ export type DocumentTemplateRevision = {
   publishedAt?: string | null;
 };
 
+export type TemplateFieldDefinition = {
+  key: string;
+  label: string;
+  category: string;
+  source: string;
+  example: string;
+  description: string;
+  reportTypes: string[];
+};
+
+export type TemplateFormPreset = {
+  code: string;
+  title: string;
+  description: string;
+  reportTypes: string[];
+  recommendedFields: string[];
+  layoutSections: string[];
+};
+
+export type TemplateFieldCatalog = {
+  reportType?: string | null;
+  fields: TemplateFieldDefinition[];
+  presets: TemplateFormPreset[];
+};
+
 export type ResolvedConfigPart = {
   source: string;
   definitionId?: number | null;
