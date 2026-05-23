@@ -186,6 +186,12 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String buildPhotoTableXml(Map<String, Object> section, DocxRenderContext context) throws IOException {
         var photos = context.request().photos() == null ? List.<PhotoAsset>of() : context.request().photos();
+        var photosPerRow = photosPerRow(section);
+        var imageSize = sectionImageSize(section);
+        if (photosPerRow > 1) {
+            return buildPhotoGridTableXml(section, photos, photosPerRow, imageSize, context);
+        }
+
         var rows = new StringBuilder();
         var title = stringValue(section.get("title"));
         if (title != null && !title.isBlank()) {
@@ -201,10 +207,57 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         } else {
             for (var photo : photos) {
                 rows.append(tableRow(List.of(
-                        tableCell(List.of(photoParagraph(photo, context)), "4200", 1),
-                        tableCell(photoDescriptionParagraphs(photo), "4800", 1))));
+                        tableCell(List.of(photoParagraph(photo, imageSize, context)), "4200", 1),
+                        tableCell(photoDescriptionParagraphs(photo, sectionFields(section)), "4800", 1))));
             }
         }
+        return tableXml(List.of("4200", "4800"), rows.toString());
+    }
+
+    private String buildPhotoGridTableXml(
+            Map<String, Object> section,
+            List<PhotoAsset> photos,
+            int photosPerRow,
+            PhotoLayoutSize imageSize,
+            DocxRenderContext context
+    ) throws IOException {
+        var rows = new StringBuilder();
+        var title = stringValue(section.get("title"));
+        var cellWidth = String.valueOf(9000 / photosPerRow);
+        if (title != null && !title.isBlank()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph(title)), "9000", photosPerRow))));
+        }
+        if (photos.isEmpty()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph("No photos.")), "9000", photosPerRow))));
+        } else {
+            var fields = sectionFields(section);
+            for (int i = 0; i < photos.size(); i += photosPerRow) {
+                var cells = new ArrayList<String>();
+                for (int column = 0; column < photosPerRow; column++) {
+                    var index = i + column;
+                    if (index >= photos.size()) {
+                        cells.add(tableCell(List.of(textParagraph("")), cellWidth, 1));
+                        continue;
+                    }
+                    var photo = photos.get(index);
+                    var paragraphs = new ArrayList<String>();
+                    paragraphs.add(photoParagraph(photo, imageSize, context));
+                    paragraphs.addAll(photoDescriptionParagraphs(photo, fields));
+                    cells.add(tableCell(paragraphs, cellWidth, 1));
+                }
+                rows.append(tableRow(cells));
+            }
+        }
+        var widths = new ArrayList<String>();
+        for (int i = 0; i < photosPerRow; i++) {
+            widths.add(cellWidth);
+        }
+        return tableXml(widths, rows.toString());
+    }
+
+    private String tableXml(List<String> columnWidths, String rows) {
         return """
                 <w:tbl>
                   <w:tblPr>
@@ -218,10 +271,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                       <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
                     </w:tblBorders>
                   </w:tblPr>
-                  <w:tblGrid><w:gridCol w:w="4200"/><w:gridCol w:w="4800"/></w:tblGrid>
+                  <w:tblGrid>%s</w:tblGrid>
                   %s
                 </w:tbl>
-                """.formatted(rows);
+                """.formatted(tableGrid(columnWidths), rows);
+    }
+
+    private String tableGrid(List<String> columnWidths) {
+        return columnWidths.stream()
+                .map(width -> "<w:gridCol w:w=\"" + width + "\"/>")
+                .reduce("", String::concat);
     }
 
     private String tableRow(List<String> cells) {
@@ -238,25 +297,23 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 """.formatted(width, gridSpanXml, String.join("", paragraphs));
     }
 
-    private String photoParagraph(PhotoAsset photo, DocxRenderContext context) throws IOException {
-        var image = resolvePhotoImage(photo, context);
+    private String photoParagraph(PhotoAsset photo, PhotoLayoutSize imageSize, DocxRenderContext context) throws IOException {
+        var image = resolvePhotoImage(photo, imageSize, context);
         if (image.isEmpty()) {
             return textParagraph("Image unavailable");
         }
         return "<w:p><w:r>" + drawingXml(image.get()) + "</w:r></w:p>";
     }
 
-    private List<String> photoDescriptionParagraphs(PhotoAsset photo) {
+    private List<String> photoDescriptionParagraphs(PhotoAsset photo, List<Map<String, String>> fields) {
         var paragraphs = new ArrayList<String>();
-        paragraphs.add(textParagraph("Photo ID: " + valueOrBlank(photo.photoId())));
-        if (photo.checklistItemKey() != null && !photo.checklistItemKey().isBlank()) {
-            paragraphs.add(textParagraph("Step: " + photo.checklistItemKey()));
-        }
-        if (photo.caption() != null && !photo.caption().isBlank()) {
-            paragraphs.add(textParagraph("Caption: " + photo.caption()));
-        }
-        if (photo.storageRef() != null && !photo.storageRef().isBlank()) {
-            paragraphs.add(textParagraph("Storage: " + photo.storageRef()));
+        for (var field : fields) {
+            var value = photoFieldValue(photo, field.get("source"));
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            var label = field.get("label");
+            paragraphs.add(textParagraph(label == null || label.isBlank() ? value : label + ": " + value));
         }
         return paragraphs;
     }
@@ -265,12 +322,95 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return "<w:p><w:r><w:t>" + escapeXml(text) + "</w:t></w:r></w:p>";
     }
 
-    private Optional<DocxImage> resolvePhotoImage(PhotoAsset photo, DocxRenderContext context) throws IOException {
+    private int photosPerRow(Map<String, Object> section) {
+        return Math.max(1, Math.min(3, intValue(section.get("photosPerRow"), 1)));
+    }
+
+    private PhotoLayoutSize sectionImageSize(Map<String, Object> section) {
+        var value = stringValue(section.get("imageSize"));
+        if (value == null) {
+            value = stringValue(section.get("layoutSize"));
+        }
+        if (value == null) {
+            value = stringValue(section.get("photoLayoutSize"));
+        }
+        if (value == null) {
+            return PhotoLayoutSize.MEDIUM;
+        }
+        try {
+            return PhotoLayoutSize.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return PhotoLayoutSize.MEDIUM;
+        }
+    }
+
+    private List<Map<String, String>> sectionFields(Map<String, Object> section) {
+        var value = section.get("fields");
+        if (!(value instanceof List<?> fields) || fields.isEmpty()) {
+            return defaultPhotoDescriptionFields();
+        }
+        var parsed = new ArrayList<Map<String, String>>();
+        for (var field : fields) {
+            if (field instanceof String source && !source.isBlank()) {
+                parsed.add(Map.of("source", source));
+                continue;
+            }
+            if (field instanceof Map<?, ?> map) {
+                var source = firstString(map, "source", "path", "key");
+                if (source == null) {
+                    continue;
+                }
+                var label = firstString(map, "label", "title");
+                parsed.add(label == null
+                        ? Map.of("source", source)
+                        : Map.of("source", source, "label", label));
+            }
+        }
+        return parsed.isEmpty() ? defaultPhotoDescriptionFields() : parsed;
+    }
+
+    private List<Map<String, String>> defaultPhotoDescriptionFields() {
+        return List.of(
+                Map.of("label", "Photo ID", "source", "photoId"),
+                Map.of("label", "Step", "source", "stepCode"),
+                Map.of("label", "Caption", "source", "caption"),
+                Map.of("label", "Storage", "source", "storageRef"));
+    }
+
+    private String photoFieldValue(PhotoAsset photo, String source) {
+        return switch (normalizeCode(source)) {
+            case "PHOTOID", "PHOTO_ID", "ID" -> valueOrBlank(photo.photoId());
+            case "CHECKLISTITEMKEY", "CHECKLIST_ITEM_KEY", "STEPCODE", "STEP_CODE", "STEP" ->
+                    valueOrBlank(photo.checklistItemKey());
+            case "CAPTION", "DESCRIPTION", "DESC" -> valueOrBlank(photo.caption());
+            case "STORAGEREF", "STORAGE_REF", "WORKINGSTORAGEREF", "WORKING_STORAGE_REF" ->
+                    valueOrBlank(photo.storageRef());
+            case "MIMETYPE", "MIME_TYPE" -> valueOrBlank(photo.mimeType());
+            default -> "";
+        };
+    }
+
+    private String firstString(Map<?, ?> map, String... keys) {
+        for (var key : keys) {
+            var value = map.get(key);
+            var text = stringValue(value);
+            if (text != null) {
+                return text;
+            }
+        }
+        return null;
+    }
+
+    private Optional<DocxImage> resolvePhotoImage(
+            PhotoAsset photo,
+            PhotoLayoutSize imageSize,
+            DocxRenderContext context
+    ) throws IOException {
         var content = photoContentResolver.resolve(photo);
         if (content.isEmpty() || content.get().content() == null || content.get().content().length == 0) {
             return Optional.empty();
         }
-        return Optional.of(context.addImage(photo, content.get()));
+        return Optional.of(context.addImage(photo, content.get(), imageSize));
     }
 
     private String drawingXml(DocxImage image) {
@@ -597,6 +737,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     private Map<String, Object> mapValue(Object value) {
         if (!(value instanceof Map<?, ?> raw)) {
             return Map.of();
@@ -685,7 +839,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             return contentTypeDefaults;
         }
 
-        private DocxImage addImage(PhotoAsset photo, ResolvedPhotoContent content) {
+        private DocxImage addImage(PhotoAsset photo, ResolvedPhotoContent content, PhotoLayoutSize imageSize) {
             imageCounter++;
             var extension = imageExtension(content, photo);
             var fileName = "archdox-photo-" + imageCounter + "." + extension;
@@ -700,7 +854,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             relationships.add(new DocxRelationship(relationshipId, "media/" + fileName));
             contentTypeDefaults.putIfAbsent(extension, imageContentType(extension, content));
             media.add(new DocxMedia(path, content.content()));
-            var size = imageSize(photo.layoutSize());
+            var size = imageSize(imageSize == null ? photo.layoutSize() : imageSize);
             return new DocxImage(relationshipId, fileName, imageCounter, size[0], size[1]);
         }
     }

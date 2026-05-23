@@ -644,12 +644,22 @@ public class DocumentJobService {
         var renderedItems = items.stream()
                 .map(item -> renderLayoutItem(item, fields))
                 .toList();
-        return Map.of(
-                "type", normalizeCode(firstString(section, "type", "sectionType")),
-                "title", title == null ? "" : title,
-                "text", String.join("\n", lines),
-                "itemCount", items.size(),
-                "items", renderedItems);
+        var rendered = new LinkedHashMap<String, Object>();
+        var type = normalizeCode(firstString(section, "type", "sectionType"));
+        rendered.put("type", type);
+        rendered.put("title", title == null ? "" : title);
+        rendered.put("text", String.join("\n", lines));
+        rendered.put("itemCount", items.size());
+        rendered.put("items", renderedItems);
+        if (type.startsWith("PHOTO_")) {
+            rendered.put("fields", fields);
+            rendered.put("photosPerRow", intValue(section.get("photosPerRow"), 1));
+            var imageSize = firstString(section, "imageSize", "layoutSize", "photoLayoutSize");
+            if (imageSize != null) {
+                rendered.put("imageSize", normalizeCode(imageSize));
+            }
+        }
+        return rendered;
     }
 
     private Map<String, Object> renderTextSection(String title, String text) {

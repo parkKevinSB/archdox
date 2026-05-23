@@ -2250,16 +2250,14 @@ Output layout revision payloads may use a `sections` array:
     "sections": [
       {
         "key": "photoSection",
-        "type": "PHOTO_SUMMARY",
+        "type": "PHOTO_TABLE",
         "title": "Photo Section",
+        "photosPerRow": 2,
+        "imageSize": "THUMBNAIL",
         "fields": [
           {
-            "label": "Photo",
-            "source": "photoId"
-          },
-          {
-            "label": "Step",
-            "source": "stepCode"
+            "label": "Caption",
+            "source": "caption"
           }
         ]
       },
@@ -2295,6 +2293,14 @@ worker can resolve working-image content from Cloud or Agent storage, the table
 embeds the images into `word/media/*` and writes the corresponding document
 relationships. If image content is unavailable, the table still renders metadata
 and marks the image cell as unavailable.
+
+Supported `PHOTO_TABLE` layout options:
+
+- `photosPerRow`: `1`, `2`, or `3`; values outside the range are clamped.
+  `1` renders an image/detail table. `2` and `3` render a grid.
+- `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`.
+- `fields`: supported photo metadata sources include `photoId`, `stepCode`
+  or `checklistItemKey`, `caption`, `storageRef`, and `mimeType`.
 
 ### Office Config Overrides
 

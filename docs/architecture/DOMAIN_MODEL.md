@@ -429,6 +429,9 @@ often change.
 - Rule: `PHOTO_TABLE` is the first rich DOCX layout. When the matching
   placeholder is a standalone Word paragraph, `document-engine` can replace it
   with a generated Word table and embedded working-image media entries.
+- Rule: `PHOTO_TABLE` layout options stay intentionally small: `photosPerRow`
+  controls detail table versus grid layout, `imageSize` controls embedded image
+  display size, and `fields` controls the visible photo metadata rows.
 
 ## Office Config Override
 

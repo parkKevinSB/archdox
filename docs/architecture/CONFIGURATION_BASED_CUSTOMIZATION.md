@@ -406,6 +406,10 @@ Implemented first layout binding:
 - each section writes a text block into `templateFields` by section `key`
 - `PHOTO_TABLE` can also replace a matching DOCX paragraph placeholder with a
   generated Word table and embedded image media entries
+- `PHOTO_TABLE` supports narrow layout options:
+  - `photosPerRow`: `1`, `2`, or `3`; default `1`
+  - `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`; default `MEDIUM`
+  - `fields`: metadata rows to show under or beside each photo
 - supported section types:
   - `PHOTO_SUMMARY`, `PHOTO_LIST`: text summary from uploaded photo snapshot
     rows
@@ -422,21 +426,19 @@ Example:
 ```json
 {
   "sections": [
-    {
-      "key": "photoSection",
-      "type": "PHOTO_SUMMARY",
-      "title": "Photo Section",
-      "fields": [
-        {
-          "label": "Photo",
-          "source": "photoId"
-        },
-        {
-          "label": "Step",
-          "source": "stepCode"
-        }
-      ]
-    },
+      {
+        "key": "photoSection",
+        "type": "PHOTO_TABLE",
+        "title": "Photo Section",
+        "photosPerRow": 2,
+        "imageSize": "THUMBNAIL",
+        "fields": [
+          {
+            "label": "Caption",
+            "source": "caption"
+          }
+        ]
+      },
     {
       "key": "checklistSection",
       "type": "VALUE",
@@ -453,6 +455,12 @@ With this layout, DOCX can use `${photoSection}` and `${checklistSection}`.
 paragraph placeholder, `document-engine` replaces it with a Word table and
 embeds resolvable working images into the DOCX package. Other section types
 remain text-block layout for now.
+
+`photosPerRow = 1` renders a detail table with an image column and a metadata
+column. `photosPerRow = 2` or `3` renders a photo grid where each cell contains
+the image and configured metadata fields. This remains intentionally narrow:
+it is enough for common inspection/photo-report layouts without turning output
+layout JSON into a general document programming language.
 
 ### Phase E: Workflow Definition V1
 

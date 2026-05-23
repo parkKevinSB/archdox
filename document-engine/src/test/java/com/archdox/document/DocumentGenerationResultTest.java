@@ -192,6 +192,49 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineSupportsPhotoGridLayoutOptions() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p><w:r><w:t>${photoSection}</w:t></w:r></w:p>
+                """);
+        var image = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lz7S4QAAAABJRU5ErkJggg==");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                photo -> Optional.of(new ResolvedPhotoContent(image, "image/png")),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-6",
+                "office-1",
+                "report-6",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("layoutSections", Map.of(
+                        "photoSection", Map.of(
+                                "type", "PHOTO_TABLE",
+                                "title", "Two Column Photos",
+                                "photosPerRow", 2,
+                                "imageSize", "THUMBNAIL",
+                                "fields", List.of(Map.of("label", "Caption", "source", "caption"))))),
+                List.of(
+                        new PhotoAsset("photo-1", "BASIC_INFO", "photos/photo-1.png", "Front view", PhotoLayoutSize.MEDIUM, "image/png", null),
+                        new PhotoAsset("photo-2", "BASIC_INFO", "photos/photo-2.png", "Rear view", PhotoLayoutSize.MEDIUM, "image/png", null),
+                        new PhotoAsset("photo-3", "BASIC_INFO", "photos/photo-3.png", "Detail view", PhotoLayoutSize.MEDIUM, "image/png", null)),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = documentXml(content);
+        assertTrue(documentXml.contains("Two Column Photos"));
+        assertTrue(documentXml.contains("<w:gridCol w:w=\"4500\"/><w:gridCol w:w=\"4500\"/>"));
+        assertTrue(documentXml.contains("Caption: Front view"));
+        assertTrue(documentXml.contains("Caption: Rear view"));
+        assertTrue(documentXml.contains("Caption: Detail view"));
+        assertTrue(!documentXml.contains("Storage: photos/photo-1.png"));
+        assertTrue(documentXml.contains("cx=\"1371600\" cy=\"1028700\""));
+        assertNotNull(zipEntryBytes(content, "word/media/archdox-photo-3.png"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),
