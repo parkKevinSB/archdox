@@ -283,6 +283,47 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineSupportsRichTableStyleOptions() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p><w:r><w:t>${checklistSection}</w:t></w:r></w:p>
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-8",
+                "office-1",
+                "report-8",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("layoutSections", Map.of(
+                        "checklistSection", Map.of(
+                                "type", "CHECKLIST_TABLE",
+                                "title", "Hidden Checklist Title",
+                                "includeTitle", false,
+                                "emptyText", "No checklist answers saved.",
+                                "tableStyle", "ArchDoxInspectionTable",
+                                "borderColor", "#C9A227",
+                                "headerFill", "FFF2CC",
+                                "fields", List.of(
+                                        Map.of("label", "Code", "source", "itemCode", "width", 1800),
+                                        Map.of("label", "Item", "source", "label", "width", 5200),
+                                        Map.of("label", "Result", "source", "answer.value", "width", 2000))))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("<w:tblStyle w:val=\"ArchDoxInspectionTable\"/>"));
+        assertTrue(documentXml.contains("w:color=\"C9A227\""));
+        assertTrue(documentXml.contains("<w:shd w:fill=\"FFF2CC\"/>"));
+        assertTrue(documentXml.contains("<w:gridCol w:w=\"1800\"/><w:gridCol w:w=\"5200\"/><w:gridCol w:w=\"2000\"/>"));
+        assertTrue(documentXml.contains("No checklist answers saved."));
+        assertTrue(!documentXml.contains("Hidden Checklist Title"));
+        assertTrue(!documentXml.contains("${checklistSection}"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),

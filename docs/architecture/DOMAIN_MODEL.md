@@ -432,6 +432,10 @@ often change.
 - Rule: `PHOTO_TABLE` layout options stay intentionally small: `photosPerRow`
   controls detail table versus grid layout, `imageSize` controls embedded image
   display size, and `fields` controls the visible photo metadata rows.
+- Rule: rich DOCX tables may use narrow polish options such as `includeTitle`,
+  `emptyText`, `tableStyle`, `borderColor`, `headerFill`, `titleFill`, and
+  explicit column widths. These options improve output quality while keeping
+  layout configuration bounded.
 - Rule: `CHECKLIST_TABLE` is the checklist rich DOCX layout. When the matching
   placeholder is a standalone Word paragraph, `document-engine` can replace it
   with a generated Word table from the saved checklist answer snapshot.

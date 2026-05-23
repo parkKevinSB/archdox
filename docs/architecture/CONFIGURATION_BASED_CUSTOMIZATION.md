@@ -410,6 +410,8 @@ Implemented first layout binding:
   - `photosPerRow`: `1`, `2`, or `3`; default `1`
   - `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`; default `MEDIUM`
   - `fields`: metadata rows to show under or beside each photo
+  - `includeTitle`, `emptyText`, `tableStyle`, `borderColor`, `headerFill`,
+    `titleFill`, and simple column width options for practical DOCX polish
 - `CHECKLIST_TABLE` can also replace a matching DOCX paragraph placeholder with
   a generated Word table from saved checklist answers
 - supported section types:
@@ -450,17 +452,22 @@ Example:
       "fields": [
         {
           "label": "Item",
-          "source": "itemCode"
+          "source": "itemCode",
+          "width": 1800
         },
         {
           "label": "Result",
-          "source": "answer.value"
+          "source": "answer.value",
+          "width": 2400
         },
         {
           "label": "Note",
-          "source": "note"
+          "source": "note",
+          "width": 4800
         }
-      ]
+      ],
+      "headerFill": "FFF2CC",
+      "borderColor": "C9A227"
     }
   ]
 }
@@ -478,6 +485,13 @@ column. `photosPerRow = 2` or `3` renders a photo grid where each cell contains
 the image and configured metadata fields. This remains intentionally narrow:
 it is enough for common inspection/photo-report layouts without turning output
 layout JSON into a general document programming language.
+
+Rich table polish remains intentionally narrow. `tableStyle` may reference a
+Word table style id that already exists in the template. `borderColor`,
+`headerFill`, and `titleFill` are six-digit hex colors. `CHECKLIST_TABLE` can
+use `fields[].width`, and detail `PHOTO_TABLE` can use `columnWidths` or
+`photoColumnWidth`/`descriptionColumnWidth`. These options are for document
+quality, not for arbitrary layout programming.
 
 ### Phase E: Workflow Definition V1
 

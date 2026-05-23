@@ -2268,17 +2268,23 @@ Output layout revision payloads may use a `sections` array:
         "fields": [
           {
             "label": "Item",
-            "source": "itemCode"
+            "source": "itemCode",
+            "width": 1800
           },
           {
             "label": "Result",
-            "source": "answer.value"
+            "source": "answer.value",
+            "width": 2400
           },
           {
             "label": "Note",
-            "source": "note"
+            "source": "note",
+            "width": 4800
           }
-        ]
+        ],
+        "emptyText": "No checklist answers saved.",
+        "headerFill": "FFF2CC",
+        "borderColor": "C9A227"
       }
     ]
   }
@@ -2313,12 +2319,26 @@ Supported `PHOTO_TABLE` layout options:
 - `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`.
 - `fields`: supported photo metadata sources include `photoId`, `stepCode`
   or `checklistItemKey`, `caption`, `storageRef`, and `mimeType`.
+- `photoColumnWidth` and `descriptionColumnWidth`, or `columnWidths` with two
+  values, may adjust the detail-table column widths.
 
 `CHECKLIST_TABLE` is also a rich DOCX section. It renders the saved
 `checklistAnswers` snapshot as a Word table when the section placeholder is its
 own paragraph. Supported field sources include `itemCode`, `label`,
 `answer.value`, `answer.result`, and `note`. This is still a narrow table
 layout, not an arbitrary DOCX programming layer.
+
+Shared rich table polish options:
+
+- `includeTitle`: defaults to `true`; `false` suppresses the title row.
+- `emptyText` or `emptyMessage`: message shown when the source list is empty.
+- `tableStyle`: optional Word table style id already available in the DOCX
+  template.
+- `borderColor`, `headerFill`, `titleFill`: six-digit hex colors with or
+  without `#`.
+- `tableWidth`: Word DXA width; defaults to `9000`.
+- `CHECKLIST_TABLE` can use `fields[].width` or `columnWidths` to control
+  visible column widths.
 
 ### Office Config Overrides
 

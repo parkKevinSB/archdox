@@ -651,6 +651,7 @@ public class DocumentJobService {
         rendered.put("text", String.join("\n", lines));
         rendered.put("itemCount", items.size());
         rendered.put("items", renderedItems);
+        copyLayoutOptions(section, rendered);
         if (type.startsWith("PHOTO_") || type.startsWith("CHECKLIST_")) {
             rendered.put("fields", fields);
         }
@@ -662,6 +663,26 @@ public class DocumentJobService {
             }
         }
         return rendered;
+    }
+
+    private void copyLayoutOptions(Map<?, ?> section, Map<String, Object> rendered) {
+        copyIfPresent(section, rendered, "includeTitle");
+        copyIfPresent(section, rendered, "emptyText");
+        copyIfPresent(section, rendered, "emptyMessage");
+        copyIfPresent(section, rendered, "tableStyle");
+        copyIfPresent(section, rendered, "tableWidth");
+        copyIfPresent(section, rendered, "columnWidths");
+        copyIfPresent(section, rendered, "borderColor");
+        copyIfPresent(section, rendered, "headerFill");
+        copyIfPresent(section, rendered, "titleFill");
+        copyIfPresent(section, rendered, "photoColumnWidth");
+        copyIfPresent(section, rendered, "descriptionColumnWidth");
+    }
+
+    private void copyIfPresent(Map<?, ?> source, Map<String, Object> target, String key) {
+        if (source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
     }
 
     private Map<String, Object> renderTextSection(String title, String text) {
@@ -728,9 +749,16 @@ public class DocumentJobService {
                     continue;
                 }
                 var label = firstString(map, "label", "title");
-                parsed.add(label == null
-                        ? Map.of("source", source)
-                        : Map.of("source", source, "label", label));
+                var width = firstString(map, "width", "columnWidth");
+                var parsedField = new LinkedHashMap<String, String>();
+                parsedField.put("source", source);
+                if (label != null) {
+                    parsedField.put("label", label);
+                }
+                if (width != null) {
+                    parsedField.put("width", width);
+                }
+                parsed.add(parsedField);
             }
         }
         return parsed.isEmpty() ? defaultFields : parsed;

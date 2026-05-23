@@ -27,6 +27,10 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             Pattern.DOTALL);
     private static final Pattern WORD_PARAGRAPH_PATTERN = Pattern.compile("<w:p(?:\\s+[^>]*)?>.*?</w:p>",
             Pattern.DOTALL);
+    private static final int DEFAULT_TABLE_WIDTH = 9000;
+    private static final String DEFAULT_BORDER_COLOR = "D9DDE3";
+    private static final String DEFAULT_HEADER_FILL = "F3F4F6";
+    private static final String DEFAULT_TITLE_FILL = "EEF2F7";
 
     private final TemplateContentResolver templateContentResolver;
     private final PhotoContentResolver photoContentResolver;
@@ -197,60 +201,73 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String buildPhotoTableXml(Map<String, Object> section, DocxRenderContext context) throws IOException {
         var photos = context.request().photos() == null ? List.<PhotoAsset>of() : context.request().photos();
+        var tableOptions = tableOptions(section);
         var photosPerRow = photosPerRow(section);
         var imageSize = sectionImageSize(section);
         if (photosPerRow > 1) {
-            return buildPhotoGridTableXml(section, photos, photosPerRow, imageSize, context);
+            return buildPhotoGridTableXml(section, photos, photosPerRow, imageSize, tableOptions, context);
         }
 
+        var columnWidths = photoDetailColumnWidths(section, tableOptions.tableWidth());
         var rows = new StringBuilder();
         var title = stringValue(section.get("title"));
-        if (title != null && !title.isBlank()) {
+        if (includeTitle(section) && title != null && !title.isBlank()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph(title)), "9000", 2))));
+                    tableCell(List.of(textParagraph(title, true)), String.valueOf(tableOptions.tableWidth()), 2, tableOptions.titleFill()))));
         }
         rows.append(tableRow(List.of(
-                tableCell(List.of(textParagraph("Photo")), "4200", 1),
-                tableCell(List.of(textParagraph("Description")), "4800", 1))));
+                tableCell(List.of(textParagraph("Photo", true)), columnWidths.get(0), 1, tableOptions.headerFill()),
+                tableCell(List.of(textParagraph("Description", true)), columnWidths.get(1), 1, tableOptions.headerFill()))));
         if (photos.isEmpty()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph("No photos.")), "9000", 2))));
+                    tableCell(
+                            List.of(textParagraph(emptyText(section, "No photos."))),
+                            String.valueOf(tableOptions.tableWidth()),
+                            2))));
         } else {
             for (var photo : photos) {
                 rows.append(tableRow(List.of(
-                        tableCell(List.of(photoParagraph(photo, imageSize, context)), "4200", 1),
+                        tableCell(List.of(photoParagraph(photo, imageSize, context)), columnWidths.get(0), 1),
                         tableCell(
                                 photoDescriptionParagraphs(photo, sectionFields(section, defaultPhotoDescriptionFields())),
-                                "4800",
+                                columnWidths.get(1),
                                 1))));
             }
         }
-        return tableXml(List.of("4200", "4800"), rows.toString());
+        return tableXml(columnWidths, rows.toString(), tableOptions);
     }
 
     private String buildChecklistTableXml(Map<String, Object> section, DocxRenderContext context) {
         var checklistAnswers = listValue(context.request().payload().get("checklistAnswers"));
+        var tableOptions = tableOptions(section);
         var fields = sectionFields(section, defaultChecklistTableFields());
-        var columnWidths = equalColumnWidths(fields.size());
+        var columnWidths = checklistColumnWidths(section, fields, tableOptions.tableWidth());
         var rows = new StringBuilder();
         var title = stringValue(section.get("title"));
-        if (title != null && !title.isBlank()) {
+        if (includeTitle(section) && title != null && !title.isBlank()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph(title)), "9000", fields.size()))));
+                    tableCell(List.of(textParagraph(title, true)), String.valueOf(tableOptions.tableWidth()), fields.size(), tableOptions.titleFill()))));
         }
-        rows.append(tableRow(checklistHeaderCells(fields, columnWidths)));
+        rows.append(tableRow(checklistHeaderCells(fields, columnWidths, tableOptions)));
         if (checklistAnswers.isEmpty()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph("No checklist answers.")), "9000", fields.size()))));
+                    tableCell(
+                            List.of(textParagraph(emptyText(section, "No checklist answers."))),
+                            String.valueOf(tableOptions.tableWidth()),
+                            fields.size()))));
         } else {
             for (var answer : checklistAnswers) {
                 rows.append(tableRow(checklistValueCells(answer, fields, columnWidths)));
             }
         }
-        return tableXml(columnWidths, rows.toString());
+        return tableXml(columnWidths, rows.toString(), tableOptions);
     }
 
-    private List<String> checklistHeaderCells(List<Map<String, String>> fields, List<String> columnWidths) {
+    private List<String> checklistHeaderCells(
+            List<Map<String, String>> fields,
+            List<String> columnWidths,
+            TableOptions tableOptions
+    ) {
         var cells = new ArrayList<String>();
         for (int i = 0; i < fields.size(); i++) {
             var field = fields.get(i);
@@ -258,7 +275,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             if (label == null || label.isBlank()) {
                 label = field.getOrDefault("source", "");
             }
-            cells.add(tableCell(List.of(textParagraph(label)), columnWidths.get(i), 1));
+            cells.add(tableCell(List.of(textParagraph(label, true)), columnWidths.get(i), 1, tableOptions.headerFill()));
         }
         return cells;
     }
@@ -284,18 +301,22 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             List<PhotoAsset> photos,
             int photosPerRow,
             PhotoLayoutSize imageSize,
+            TableOptions tableOptions,
             DocxRenderContext context
     ) throws IOException {
         var rows = new StringBuilder();
         var title = stringValue(section.get("title"));
-        var cellWidth = String.valueOf(9000 / photosPerRow);
-        if (title != null && !title.isBlank()) {
+        var cellWidth = String.valueOf(tableOptions.tableWidth() / photosPerRow);
+        if (includeTitle(section) && title != null && !title.isBlank()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph(title)), "9000", photosPerRow))));
+                    tableCell(List.of(textParagraph(title, true)), String.valueOf(tableOptions.tableWidth()), photosPerRow, tableOptions.titleFill()))));
         }
         if (photos.isEmpty()) {
             rows.append(tableRow(List.of(
-                    tableCell(List.of(textParagraph("No photos.")), "9000", photosPerRow))));
+                    tableCell(
+                            List.of(textParagraph(emptyText(section, "No photos."))),
+                            String.valueOf(tableOptions.tableWidth()),
+                            photosPerRow))));
         } else {
             var fields = sectionFields(section, defaultPhotoDescriptionFields());
             for (int i = 0; i < photos.size(); i += photosPerRow) {
@@ -319,27 +340,41 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         for (int i = 0; i < photosPerRow; i++) {
             widths.add(cellWidth);
         }
-        return tableXml(widths, rows.toString());
+        return tableXml(widths, rows.toString(), tableOptions);
     }
 
-    private String tableXml(List<String> columnWidths, String rows) {
+    private String tableXml(List<String> columnWidths, String rows, TableOptions tableOptions) {
+        var tableStyleXml = tableOptions.tableStyle() == null || tableOptions.tableStyle().isBlank()
+                ? ""
+                : "<w:tblStyle w:val=\"" + escapeXml(tableOptions.tableStyle()) + "\"/>";
         return """
                 <w:tbl>
                   <w:tblPr>
-                    <w:tblW w:w="9000" w:type="dxa"/>
+                    %s
+                    <w:tblW w:w="%d" w:type="dxa"/>
                     <w:tblBorders>
-                      <w:top w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
-                      <w:left w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
-                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
-                      <w:right w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
-                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
-                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:top w:val="single" w:sz="4" w:space="0" w:color="%s"/>
+                      <w:left w:val="single" w:sz="4" w:space="0" w:color="%s"/>
+                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="%s"/>
+                      <w:right w:val="single" w:sz="4" w:space="0" w:color="%s"/>
+                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="%s"/>
+                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="%s"/>
                     </w:tblBorders>
                   </w:tblPr>
                   <w:tblGrid>%s</w:tblGrid>
                   %s
                 </w:tbl>
-                """.formatted(tableGrid(columnWidths), rows);
+                """.formatted(
+                tableStyleXml,
+                tableOptions.tableWidth(),
+                tableOptions.borderColor(),
+                tableOptions.borderColor(),
+                tableOptions.borderColor(),
+                tableOptions.borderColor(),
+                tableOptions.borderColor(),
+                tableOptions.borderColor(),
+                tableGrid(columnWidths),
+                rows);
     }
 
     private String tableGrid(List<String> columnWidths) {
@@ -349,12 +384,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private List<String> equalColumnWidths(int columnCount) {
+        return equalColumnWidths(columnCount, DEFAULT_TABLE_WIDTH);
+    }
+
+    private List<String> equalColumnWidths(int columnCount, int tableWidth) {
         var count = Math.max(1, columnCount);
         var widths = new ArrayList<String>();
-        var baseWidth = 9000 / count;
+        var baseWidth = tableWidth / count;
         var usedWidth = 0;
         for (int i = 0; i < count; i++) {
-            var width = i == count - 1 ? 9000 - usedWidth : baseWidth;
+            var width = i == count - 1 ? tableWidth - usedWidth : baseWidth;
             widths.add(String.valueOf(width));
             usedWidth += width;
         }
@@ -366,13 +405,18 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String tableCell(List<String> paragraphs, String width, int gridSpan) {
+        return tableCell(paragraphs, width, gridSpan, null);
+    }
+
+    private String tableCell(List<String> paragraphs, String width, int gridSpan, String fill) {
         var gridSpanXml = gridSpan > 1 ? "<w:gridSpan w:val=\"" + gridSpan + "\"/>" : "";
+        var fillXml = fill == null || fill.isBlank() ? "" : "<w:shd w:fill=\"" + fill + "\"/>";
         return """
                 <w:tc>
-                  <w:tcPr><w:tcW w:w="%s" w:type="dxa"/>%s</w:tcPr>
+                  <w:tcPr><w:tcW w:w="%s" w:type="dxa"/>%s%s</w:tcPr>
                   %s
                 </w:tc>
-                """.formatted(width, gridSpanXml, String.join("", paragraphs));
+                """.formatted(width, gridSpanXml, fillXml, String.join("", paragraphs));
     }
 
     private String photoParagraph(PhotoAsset photo, PhotoLayoutSize imageSize, DocxRenderContext context) throws IOException {
@@ -397,7 +441,12 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String textParagraph(String text) {
-        return "<w:p><w:r><w:t>" + escapeXml(text) + "</w:t></w:r></w:p>";
+        return textParagraph(text, false);
+    }
+
+    private String textParagraph(String text, boolean bold) {
+        var runProperties = bold ? "<w:rPr><w:b/></w:rPr>" : "";
+        return "<w:p><w:r>" + runProperties + "<w:t>" + escapeXml(text) + "</w:t></w:r></w:p>";
     }
 
     private int photosPerRow(Map<String, Object> section) {
@@ -422,6 +471,80 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         }
     }
 
+    private TableOptions tableOptions(Map<String, Object> section) {
+        return new TableOptions(
+                Math.max(1000, intValue(section.get("tableWidth"), DEFAULT_TABLE_WIDTH)),
+                stringValue(section.get("tableStyle")),
+                colorValue(section.get("borderColor"), DEFAULT_BORDER_COLOR),
+                colorValue(section.get("headerFill"), DEFAULT_HEADER_FILL),
+                colorValue(section.get("titleFill"), DEFAULT_TITLE_FILL));
+    }
+
+    private boolean includeTitle(Map<String, Object> section) {
+        return !Boolean.FALSE.equals(section.get("includeTitle"));
+    }
+
+    private String emptyText(Map<String, Object> section, String fallback) {
+        var value = firstString(section, "emptyText", "emptyMessage");
+        return value == null ? fallback : value;
+    }
+
+    private List<String> photoDetailColumnWidths(Map<String, Object> section, int tableWidth) {
+        var configured = configuredColumnWidths(section.get("columnWidths"), 2);
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        var photoWidth = intValue(section.get("photoColumnWidth"), Math.min(4200, tableWidth));
+        var descriptionWidth = intValue(section.get("descriptionColumnWidth"), tableWidth - photoWidth);
+        if (photoWidth <= 0 || descriptionWidth <= 0) {
+            return List.of("4200", "4800");
+        }
+        return List.of(String.valueOf(photoWidth), String.valueOf(descriptionWidth));
+    }
+
+    private List<String> checklistColumnWidths(
+            Map<String, Object> section,
+            List<Map<String, String>> fields,
+            int tableWidth
+    ) {
+        var configured = configuredColumnWidths(section.get("columnWidths"), fields.size());
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        var fieldWidths = widthsFromFields(fields);
+        if (!fieldWidths.isEmpty()) {
+            return fieldWidths;
+        }
+        return equalColumnWidths(fields.size(), tableWidth);
+    }
+
+    private List<String> configuredColumnWidths(Object value, int expectedCount) {
+        if (!(value instanceof List<?> rawWidths) || rawWidths.size() != expectedCount) {
+            return List.of();
+        }
+        var widths = new ArrayList<String>();
+        for (var rawWidth : rawWidths) {
+            var width = positiveWidth(rawWidth);
+            if (width == null) {
+                return List.of();
+            }
+            widths.add(width);
+        }
+        return widths;
+    }
+
+    private List<String> widthsFromFields(List<Map<String, String>> fields) {
+        var widths = new ArrayList<String>();
+        for (var field : fields) {
+            var width = positiveWidth(field.get("width"));
+            if (width == null) {
+                return List.of();
+            }
+            widths.add(width);
+        }
+        return widths;
+    }
+
     private List<Map<String, String>> sectionFields(
             Map<String, Object> section,
             List<Map<String, String>> defaultFields
@@ -442,9 +565,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                     continue;
                 }
                 var label = firstString(map, "label", "title");
-                parsed.add(label == null
-                        ? Map.of("source", source)
-                        : Map.of("source", source, "label", label));
+                var width = firstString(map, "width", "columnWidth");
+                var parsedField = new LinkedHashMap<String, String>();
+                parsedField.put("source", source);
+                if (label != null) {
+                    parsedField.put("label", label);
+                }
+                if (width != null) {
+                    parsedField.put("width", width);
+                }
+                parsed.add(parsedField);
             }
         }
         return parsed.isEmpty() ? defaultFields : parsed;
@@ -859,6 +989,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return fallback;
     }
 
+    private String positiveWidth(Object value) {
+        var width = intValue(value, -1);
+        return width > 0 ? String.valueOf(width) : null;
+    }
+
+    private String colorValue(Object value, String fallback) {
+        var text = stringValue(value);
+        if (text == null) {
+            return fallback;
+        }
+        var normalized = text.trim().replace("#", "").toUpperCase(Locale.ROOT);
+        return normalized.matches("[0-9A-F]{6}") ? normalized : fallback;
+    }
+
     private Map<String, Object> mapValue(Object value) {
         if (!(value instanceof Map<?, ?> raw)) {
             return Map.of();
@@ -1029,6 +1173,15 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             int endNodeIndex,
             int endOffset,
             String replacement) {
+    }
+
+    private record TableOptions(
+            int tableWidth,
+            String tableStyle,
+            String borderColor,
+            String headerFill,
+            String titleFill
+    ) {
     }
 
     private record DocxMedia(String path, byte[] content) {
