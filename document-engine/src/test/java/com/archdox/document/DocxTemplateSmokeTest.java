@@ -19,6 +19,38 @@ import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 
 class DocxTemplateSmokeTest {
+    private static final String KO_CONSTRUCTION_SUPERVISION_REPORT = "\uAC10\uB9AC\uBCF4\uACE0\uC11C";
+    private static final String KO_CONSTRUCTION_DAILY_LOG = "\uACF5\uC0AC\uAC10\uB9AC\uC77C\uC9C0";
+    private static final String KO_DEMOLITION_SAFETY_CHECKLIST =
+            "\uD574\uCCB4\uACF5\uC0AC \uC548\uC804\uC810\uAC80\uD45C";
+    private static final String KO_SERIAL_NO = "\uC77C\uB828\uBC88\uD638";
+    private static final String KO_WEATHER = "\uB0A0\uC528";
+    private static final String KO_CHIEF_SUPERVISOR = "\uCD1D\uAD04\uAC10\uB9AC\uCC45\uC784\uC790";
+    private static final String KO_ARCHITECT_ASSISTANT = "\uAC74\uCD95\uC0AC\uBCF4";
+    private static final String KO_CONSTRUCTION_NAME = "\uACF5\uC0AC\uBA85";
+    private static final String KO_INSPECTION_DATE = "\uAC10\uB9AC\uC77C\uC790";
+    private static final String KO_TRADE_AND_PROCESS =
+            "\uACF5\uC885 \uBC0F \uC138\uBD80\uACF5\uC815";
+    private static final String KO_SUPERVISION_ITEM = "\uAC10\uB9AC \uD56D\uBAA9";
+    private static final String KO_SUPERVISION_CONTENT = "\uAC10\uB9AC\uB0B4\uC6A9";
+    private static final String KO_SPECIAL_NOTES = "\uD2B9\uAE30\uC0AC\uD56D";
+    private static final String KO_ISSUE_AND_ACTION =
+            "\uC9C0\uC801\uC0AC\uD56D \uBC0F \uCC98\uB9AC\uACB0\uACFC";
+    private static final String KO_PERMIT_NUMBER = "\uD5C8\uAC00\uBC88\uD638";
+    private static final String KO_PERMIT_DATE = "\uD5C8\uAC00\uC77C\uC790";
+    private static final String KO_SITE_ADDRESS = "\uB300\uC9C0\uC704\uCE58";
+    private static final String KO_LOT_NUMBER = "\uC9C0\uBC88";
+    private static final String KO_SUPERVISION_PERIOD = "\uACF5\uC0AC\uAC10\uB9AC\uAE30\uAC04";
+    private static final String KO_SUPERVISOR = "\uAC10\uB9AC\uC790";
+    private static final String KO_COMPREHENSIVE_OPINION = "\uC885\uD569\uC758\uACAC";
+    private static final String KO_CHECK_ITEM = "\uAC80\uC0AC\uD56D\uBAA9";
+    private static final String KO_CHECK_CRITERIA = "\uAC80\uC0AC\uAE30\uC900";
+    private static final String KO_CHECK_RESULT = "\uAC80\uC0AC\uACB0\uACFC";
+    private static final String KO_ACTION = "\uC870\uCE58\uC0AC\uD56D";
+    private static final String KO_CHECK_LOCATION = "\uC810\uAC80\uC704\uCE58";
+    private static final String KO_DEMOLITION_WORKER = "\uD574\uCCB4\uC791\uC5C5\uC790";
+    private static final String KO_WORK_STAGE = "\uC791\uC5C5\uB2E8\uACC4";
+
     @Test
     void rendersRealisticInspectionTemplateWithPhotosAndChecklistTables() throws Exception {
         var template = realisticInspectionTemplate();
@@ -185,6 +217,265 @@ class DocxTemplateSmokeTest {
         writeSmokeArtifact("hwp-derived-construction-supervision-daily-log.docx", content);
     }
 
+    @Test
+    void rendersPdfReferenceConstructionDailySupervisionLogTemplate() throws Exception {
+        var template = pdfReferenceConstructionDailyLogTemplate();
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-pdf-reference-daily-log-1",
+                "office-smoke",
+                "report-pdf-reference-daily-log-1",
+                new TemplateSpec(
+                        "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
+                        1,
+                        "templates/pdf-reference-construction-daily-log.docx",
+                        "{}",
+                        "{}"),
+                Map.of(
+                        "templateFields", Map.of(
+                                "serialNo", "DL-2026-0524-001",
+                                "chiefSupervisorName", "Supervisor Kim",
+                                "architectAssistantName", "Assistant Park",
+                                "constructionName", "Reference Tower",
+                                "inspectionDate", "2026-05-24",
+                                "inspectionDayOfWeek", "Sunday",
+                                "weather", "Clear",
+                                "specialNotes", "Slab rebar spacing and cover depth checked.",
+                                "issueAndAction", "Opening guardrail reinforcement completed."),
+                        "layoutSections", Map.of(
+                                "supervisionItemsSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "includeTitle", false,
+                                        "tableStyle", "ArchDoxInspectionTable",
+                                        "headerFill", "FFF2CC",
+                                        "borderColor", "C9A227",
+                                        "fields", List.of(
+                                                Map.of("label", KO_TRADE_AND_PROCESS, "source", "answer.trade", "width", 3000),
+                                                Map.of("label", KO_SUPERVISION_ITEM, "source", "label", "width", 2500),
+                                                Map.of("label", KO_SUPERVISION_CONTENT, "source", "note", "width", 3500)))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "itemCode", "LOG-001",
+                                        "label", "Slab rebar placement",
+                                        "answer", Map.of("trade", "Reinforced concrete / 3F", "value", "OK"),
+                                        "note", "Spacing, anchorage length, and cover depth verified."),
+                                Map.of(
+                                        "itemCode", "LOG-002",
+                                        "label", "Temporary safety rail",
+                                        "answer", Map.of("trade", "Temporary work / 3F", "value", "ACTION_DONE"),
+                                        "note", "Opening guardrail added and photo evidence attached."))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = zipEntry(content, "word/document.xml");
+        assertTrue(documentXml.contains(KO_CONSTRUCTION_DAILY_LOG));
+        assertTrue(documentXml.contains("DL-2026-0524-001"));
+        assertTrue(documentXml.contains("Supervisor Kim"));
+        assertTrue(documentXml.contains("Reference Tower"));
+        assertTrue(documentXml.contains("2026-05-24"));
+        assertTrue(documentXml.contains(KO_TRADE_AND_PROCESS));
+        assertTrue(documentXml.contains(KO_SUPERVISION_ITEM));
+        assertTrue(documentXml.contains("Reinforced concrete / 3F"));
+        assertTrue(documentXml.contains("Slab rebar placement"));
+        assertTrue(documentXml.contains("Opening guardrail added"));
+        assertTrue(documentXml.contains(KO_SPECIAL_NOTES));
+        assertTrue(documentXml.contains(KO_ISSUE_AND_ACTION));
+        assertTrue(documentXml.contains("<w:tblStyle w:val=\"ArchDoxInspectionTable\"/>"));
+        assertTrue(!documentXml.contains("${"));
+        assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 2);
+
+        writeSmokeArtifact("pdf-reference-construction-daily-supervision-log.docx", content);
+    }
+
+    @Test
+    void rendersPdfReferenceConstructionSupervisionReportTemplate() throws Exception {
+        var template = pdfReferenceConstructionSupervisionReportTemplate();
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-pdf-reference-construction-report-1",
+                "office-smoke",
+                "report-pdf-reference-construction-report-1",
+                new TemplateSpec(
+                        "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
+                        1,
+                        "templates/pdf-reference-construction-supervision-report.docx",
+                        "{}",
+                        "{}"),
+                Map.of(
+                        "templateFields", Map.ofEntries(
+                                Map.entry("permitNumber", "ARCH-2026-001"),
+                                Map.entry("permitDate", "2026-05-01"),
+                                Map.entry("siteAddress", "Seoul Gangnam-gu Reference-ro 10"),
+                                Map.entry("lotNumber", "123-4"),
+                                Map.entry("constructionName", "Reference Tower"),
+                                Map.entry("supervisionStartDate", "2026-05-01"),
+                                Map.entry("supervisionEndDate", "2026-08-31"),
+                                Map.entry("chiefSupervisorName", "Supervisor Kim"),
+                                Map.entry("supervisorName", "Inspector Park"),
+                                Map.entry("specialNotes", "Structure, waterproofing, and evacuation path items reviewed.")),
+                        "layoutSections", Map.of(
+                                "reportOpinionSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "title", KO_COMPREHENSIVE_OPINION,
+                                        "tableStyle", "ArchDoxInspectionTable",
+                                        "headerFill", "FFF2CC",
+                                        "borderColor", "C9A227",
+                                        "fields", List.of(
+                                                Map.of("label", "Code", "source", "itemCode", "width", 1800),
+                                                Map.of("label", KO_SUPERVISION_ITEM, "source", "label", "width", 2800),
+                                                Map.of("label", KO_CHECK_RESULT, "source", "answer.value", "width", 1800),
+                                                Map.of("label", KO_SUPERVISION_CONTENT, "source", "note", "width", 2600)))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "itemCode", "RPT-001",
+                                        "label", "Load path review",
+                                        "answer", Map.of("value", "Conforming"),
+                                        "note", "Column, beam, and slab load path reviewed."),
+                                Map.of(
+                                        "itemCode", "RPT-002",
+                                        "label", "Fire safety separation",
+                                        "answer", Map.of("value", "Needs follow-up"),
+                                        "note", "Confirm sealant material certificate before completion."))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = zipEntry(content, "word/document.xml");
+        assertTrue(documentXml.contains(KO_CONSTRUCTION_SUPERVISION_REPORT));
+        assertTrue(documentXml.contains(KO_PERMIT_NUMBER));
+        assertTrue(documentXml.contains("ARCH-2026-001"));
+        assertTrue(documentXml.contains(KO_SITE_ADDRESS));
+        assertTrue(documentXml.contains("Seoul Gangnam-gu Reference-ro 10"));
+        assertTrue(documentXml.contains(KO_SUPERVISION_PERIOD));
+        assertTrue(documentXml.contains("2026-05-01 ~ 2026-08-31"));
+        assertTrue(documentXml.contains(KO_COMPREHENSIVE_OPINION));
+        assertTrue(documentXml.contains("Load path review"));
+        assertTrue(documentXml.contains("Needs follow-up"));
+        assertTrue(documentXml.contains("Confirm sealant material certificate"));
+        assertTrue(!documentXml.contains("${"));
+        assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 2);
+
+        writeSmokeArtifact("pdf-reference-construction-supervision-report.docx", content);
+    }
+
+    @Test
+    void rendersPdfReferenceDemolitionSafetyChecklistTemplate() throws Exception {
+        var template = pdfReferenceDemolitionSafetyChecklistTemplate();
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-pdf-reference-demolition-safety-1",
+                "office-smoke",
+                "report-pdf-reference-demolition-safety-1",
+                new TemplateSpec(
+                        "KOREAN_DEMOLITION_SAFETY_CHECK_APPENDIX_1",
+                        1,
+                        "templates/pdf-reference-demolition-safety-checklist.docx",
+                        "{}",
+                        "{}"),
+                Map.of(
+                        "templateFields", Map.of(
+                                "safetyInspectionDate", "2026-05-24",
+                                "inspectionLocation", "Reference Building B1",
+                                "supervisorName", "Supervisor Lee",
+                                "demolitionWorkerName", "Worker Choi",
+                                "safetyCheckStage", "Interior wall demolition",
+                                "correctiveAction", "Install additional temporary support before next stage."),
+                        "layoutSections", Map.of(
+                                "safetyChecklistSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "title", KO_DEMOLITION_SAFETY_CHECKLIST,
+                                        "tableStyle", "ArchDoxInspectionTable",
+                                        "headerFill", "FFF2CC",
+                                        "borderColor", "C9A227",
+                                        "fields", List.of(
+                                                Map.of("label", KO_CHECK_ITEM, "source", "label", "width", 2500),
+                                                Map.of("label", KO_CHECK_CRITERIA, "source", "answer.criteria", "width", 2500),
+                                                Map.of("label", KO_CHECK_RESULT, "source", "answer.result", "width", 1800),
+                                                Map.of("label", KO_ACTION, "source", "note", "width", 2200)))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "itemCode", "DEM-001",
+                                        "label", "Temporary support spacing",
+                                        "answer", Map.of("criteria", "Support interval within plan", "result", "Pass"),
+                                        "note", "Checked before demolition."),
+                                Map.of(
+                                        "itemCode", "DEM-002",
+                                        "label", "Dust control",
+                                        "answer", Map.of("criteria", "Water spray and cover installed", "result", "Action required"),
+                                        "note", "Add cover at north entrance."))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var content = result.artifacts().get(0).content();
+        var documentXml = zipEntry(content, "word/document.xml");
+        assertTrue(documentXml.contains(KO_DEMOLITION_SAFETY_CHECKLIST));
+        assertTrue(documentXml.contains("2026-05-24"));
+        assertTrue(documentXml.contains(KO_CHECK_LOCATION));
+        assertTrue(documentXml.contains("Reference Building B1"));
+        assertTrue(documentXml.contains(KO_DEMOLITION_WORKER));
+        assertTrue(documentXml.contains("Interior wall demolition"));
+        assertTrue(documentXml.contains(KO_CHECK_CRITERIA));
+        assertTrue(documentXml.contains(KO_CHECK_RESULT));
+        assertTrue(documentXml.contains("Temporary support spacing"));
+        assertTrue(documentXml.contains("Action required"));
+        assertTrue(documentXml.contains("Add cover at north entrance."));
+        assertTrue(!documentXml.contains("${"));
+        assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 2);
+
+        writeSmokeArtifact("pdf-reference-demolition-safety-checklist.docx", content);
+    }
+
+    private byte[] pdfReferenceConstructionDailyLogTemplate() throws Exception {
+        return docxWithBodyXml(String.join(
+                "\n",
+                paragraph(KO_CONSTRUCTION_DAILY_LOG),
+                simpleTable(
+                        simpleRow(KO_SERIAL_NO, "${serialNo}", KO_WEATHER, "${weather}")
+                                + simpleRow(KO_CHIEF_SUPERVISOR, "${chiefSupervisorName}", KO_ARCHITECT_ASSISTANT, "${architectAssistantName}")
+                                + simpleRow(KO_CONSTRUCTION_NAME, "${constructionName}", KO_INSPECTION_DATE, "${inspectionDate} ${inspectionDayOfWeek}")),
+                paragraph("${supervisionItemsSection}"),
+                paragraph(KO_SPECIAL_NOTES),
+                paragraph("${specialNotes}"),
+                paragraph(KO_ISSUE_AND_ACTION),
+                paragraph("${issueAndAction}")));
+    }
+
+    private byte[] pdfReferenceConstructionSupervisionReportTemplate() throws Exception {
+        return docxWithBodyXml(String.join(
+                "\n",
+                paragraph(KO_CONSTRUCTION_SUPERVISION_REPORT),
+                simpleTable(
+                        simpleRow(KO_PERMIT_NUMBER, "${permitNumber}", KO_PERMIT_DATE, "${permitDate}")
+                                + simpleRow(KO_SITE_ADDRESS, "${siteAddress}", KO_LOT_NUMBER, "${lotNumber}")
+                                + simpleRow(KO_CONSTRUCTION_NAME, "${constructionName}", KO_SUPERVISOR, "${chiefSupervisorName} / ${supervisorName}")
+                                + simpleRow(KO_SUPERVISION_PERIOD, "${supervisionStartDate} ~ ${supervisionEndDate}", KO_SPECIAL_NOTES, "${specialNotes}")),
+                paragraph("${reportOpinionSection}")));
+    }
+
+    private byte[] pdfReferenceDemolitionSafetyChecklistTemplate() throws Exception {
+        return docxWithBodyXml(String.join(
+                "\n",
+                paragraph(KO_DEMOLITION_SAFETY_CHECKLIST),
+                simpleTable(
+                        simpleRow(KO_INSPECTION_DATE, "${safetyInspectionDate}", KO_CHECK_LOCATION, "${inspectionLocation}")
+                                + simpleRow(KO_SUPERVISOR, "${supervisorName}", KO_DEMOLITION_WORKER, "${demolitionWorkerName}")
+                                + simpleRow(KO_WORK_STAGE, "${safetyCheckStage}", KO_ACTION, "${correctiveAction}")),
+                paragraph("${safetyChecklistSection}")));
+    }
+
     private byte[] realisticInspectionTemplate() throws Exception {
         return docxWithBodyXml("""
                 <w:p><w:r><w:t>ArchDox Inspection Report</w:t></w:r></w:p>
@@ -270,6 +561,45 @@ class DocxTemplateSmokeTest {
                 <w:p><w:r><w:t>2. 감리항목은 공종별 감리 체크리스트를 기반으로 기재합니다.</w:t></w:r></w:p>
                 <w:p><w:r><w:t>3. 감리내용에는 육안검사, 입회, 시험 등 감리내용과 결과를 구체적으로 기재합니다.</w:t></w:r></w:p>
                 """);
+    }
+
+    private String paragraph(String value) {
+        return "<w:p><w:r><w:t>" + value + "</w:t></w:r></w:p>";
+    }
+
+    private String simpleTable(String rowsXml) {
+        return """
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="9000" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:left w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:right w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="D9DDE3"/>
+                    </w:tblBorders>
+                  </w:tblPr>
+                  <w:tblGrid><w:gridCol w:w="2200"/><w:gridCol w:w="2800"/><w:gridCol w:w="1800"/><w:gridCol w:w="2200"/></w:tblGrid>
+                  %s
+                </w:tbl>
+                """.formatted(rowsXml);
+    }
+
+    private String simpleRow(String firstLabel, String firstValue, String secondLabel, String secondValue) {
+        return "<w:tr>"
+                + simpleCell(firstLabel, "2200")
+                + simpleCell(firstValue, "2800")
+                + simpleCell(secondLabel, "1800")
+                + simpleCell(secondValue, "2200")
+                + "</w:tr>";
+    }
+
+    private String simpleCell(String value, String width) {
+        return "<w:tc><w:tcPr><w:tcW w:w=\"" + width + "\" w:type=\"dxa\"/></w:tcPr>"
+                + paragraph(value)
+                + "</w:tc>";
     }
 
     private byte[] docxWithBodyXml(String bodyXml) throws Exception {
