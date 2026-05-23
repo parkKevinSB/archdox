@@ -92,10 +92,10 @@ public class DocumentRenderCommandExecutor {
             var photo = mapValue(item);
             photos.add(new PhotoAsset(
                     stringValue(photo.get("photoId"), "photoId"),
-                    stringValue(photo.getOrDefault("checklistItemKey", ""), "checklistItemKey"),
-                    stringValue(photo.getOrDefault("storageRef", ""), "storageRef"),
-                    stringValue(photo.getOrDefault("caption", ""), "caption"),
-                    PhotoLayoutSize.valueOf(stringValue(photo.getOrDefault("layoutSize", "MEDIUM"), "layoutSize")),
+                    optionalStringValue(photo.get("checklistItemKey"), ""),
+                    optionalStringValue(photo.get("storageRef"), ""),
+                    optionalStringValue(photo.get("caption"), ""),
+                    PhotoLayoutSize.valueOf(optionalStringValue(photo.get("layoutSize"), "MEDIUM")),
                     optionalStringValue(photo.get("mimeType")),
                     optionalStringValue(photo.get("downloadUrl"))));
         }
@@ -122,6 +122,13 @@ public class DocumentRenderCommandExecutor {
     private String optionalStringValue(Object value) {
         if (value == null || String.valueOf(value).isBlank()) {
             return null;
+        }
+        return String.valueOf(value);
+    }
+
+    private String optionalStringValue(Object value, String fallback) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
         }
         return String.valueOf(value);
     }

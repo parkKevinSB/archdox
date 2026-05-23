@@ -9,27 +9,49 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.archdox.agent.cloud.ArchDoxAgentProperties;
+import com.archdox.agent.cloud.CloudInboundMessage;
+import com.archdox.agent.cloud.DocumentRenderCommandExecutor;
+import com.archdox.agent.document.AgentDocumentStore;
+import com.archdox.cloud.agent.application.ArchDoxAgentCommandService;
+import com.archdox.cloud.agent.domain.ArchDoxAgent;
+import com.archdox.cloud.agent.domain.ArchDoxAgentCommand;
+import com.archdox.cloud.agent.domain.ArchDoxAgentCommandStatus;
+import com.archdox.cloud.agent.domain.ArchDoxAgentCommandType;
+import com.archdox.cloud.agent.domain.ArchDoxAgentDeploymentMode;
+import com.archdox.cloud.agent.domain.ArchDoxAgentSession;
+import com.archdox.cloud.agent.domain.ArchDoxAgentSessionStatus;
+import com.archdox.cloud.agent.infra.ArchDoxAgentCommandRepository;
+import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
+import com.archdox.cloud.agent.infra.ArchDoxAgentSessionRepository;
 import com.archdox.cloud.document.event.DocumentGeneratedEvent;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
+import com.archdox.document.DocxTemplateDocumentEngine;
+import com.archdox.document.SimpleDocumentEngine;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.bloom.EventBus;
 import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,11 +91,23 @@ class DocumentJobIntegrationTest {
     @Autowired
     EventBus eventBus;
 
+    @Autowired
+    ArchDoxAgentRepository agentRepository;
+
+    @Autowired
+    ArchDoxAgentSessionRepository agentSessionRepository;
+
+    @Autowired
+    ArchDoxAgentCommandRepository agentCommandRepository;
+
+    @Autowired
+    ArchDoxAgentCommandService agentCommandService;
+
     @Test
     void createsCloudDocumentJobAndStoresDocxArtifact() throws Exception {
         var events = new ArrayList<DocumentGeneratedEvent>();
         eventBus.subscribe(DocumentGeneratedEvent.class, events::add);
-        var user = signup();
+        var user = signup("document-user@example.com");
         var templateOverride = createTemplateOverride(user);
         var projectId = createProject(user);
         var siteId = createSite(user, projectId);
@@ -183,6 +217,75 @@ class DocumentJobIntegrationTest {
         assertTrue(documentXml.contains("Checklist Section"));
         assertTrue(documentXml.contains("Summary: Checked"));
         assertTrue(documentXml.contains("Template: DAILY_TEMPLATE v1"));
+    }
+
+    @Test
+    void archDoxAgentDocumentJobUsesCloudPayloadAndCompletesFromAgentResult(@TempDir Path agentStorage) throws Exception {
+        var user = signup("agent-document-user@example.com");
+        var templateOverride = createTemplateOverride(user);
+        var agentId = registerDocumentAgent(user.officeId());
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "workerType": "ARCHDOX_AGENT",
+                                  "outputFormat": "DOCX"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("REQUESTED"))
+                .andExpect(jsonPath("$.workerType").value("ARCHDOX_AGENT"))
+                .andReturn();
+
+        var jobId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+        assertSnapshotUsesTemplateOverride(jobId, templateOverride.revisionId(), templateOverride.storageRef());
+
+        var command = waitForGenerateDocumentCommand(user.officeId(), jobId);
+        assertTrue(command.agent().id().equals(agentId));
+        assertTrue(command.status() == ArchDoxAgentCommandStatus.PENDING
+                || command.status() == ArchDoxAgentCommandStatus.DELIVERED);
+        assertTrue("DOCX".equals(command.payloadJson().get("outputFormat")));
+        assertTrue(command.payloadJson().containsKey("inputSnapshot"));
+        assertTrue(command.payloadJson().containsKey("template"));
+        assertTrue(command.payloadJson().containsKey("photos"));
+
+        var agentResult = executeAgentDocumentRender(command, agentStorage);
+        agentCommandService.ack(agentId, command.id());
+        agentCommandService.complete(agentId, command.id(), agentResult);
+
+        var generated = waitForGenerated(user, jobId);
+        assertTrue("ARCHDOX_AGENT".equals(generated.get("workerType").asText()));
+        assertTrue("GENERATED".equals(generated.get("status").asText()));
+        assertTrue("GENERATED".equals(generated.get("progressStep").asText()));
+        assertTrue(generated.get("artifacts").size() == 1);
+        var artifact = generated.get("artifacts").get(0);
+        assertTrue("DOCX".equals(artifact.get("artifactType").asText()));
+        assertTrue("ARCHDOX_AGENT".equals(artifact.get("storageKind").asText()));
+
+        var storageRef = artifact.get("storageRef").asText();
+        var renderedDocx = agentStorage.resolve(storageRef);
+        assertTrue(Files.exists(renderedDocx));
+        var documentXml = docxText(Files.readAllBytes(renderedDocx));
+        assertTrue(documentXml.contains("Project: Document Tower"));
+        assertTrue(documentXml.contains("Site: North Site"));
+        assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
+        assertTrue(documentXml.contains("Inspector: Document Job"));
+        assertTrue(documentXml.contains("Checklist summary: Checked"));
     }
 
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {
@@ -362,6 +465,72 @@ class DocumentJobIntegrationTest {
         assertTrue("OFFICE_OVERRIDE".equals(outputLayout.get("source")));
     }
 
+    private long registerDocumentAgent(long officeId) {
+        var now = java.time.OffsetDateTime.now();
+        var agent = agentRepository.save(new ArchDoxAgent(
+                officeId,
+                "docgen-agent-" + officeId,
+                ArchDoxAgentDeploymentMode.LOCAL_OFFICE,
+                "test",
+                Map.of(
+                        "documentGeneration", true,
+                        "outputFormats", List.of("DOCX")),
+                Map.of("artifact", Map.of("kind", "LOCAL_FS")),
+                now));
+        agentSessionRepository.save(new ArchDoxAgentSession(
+                agent,
+                "integration-test-api",
+                "integration-test-ws-" + officeId,
+                now));
+        return agent.id();
+    }
+
+    private ArchDoxAgentCommand waitForGenerateDocumentCommand(long officeId, long jobId) throws Exception {
+        for (int i = 0; i < 80; i++) {
+            var commands = agentCommandRepository.searchOfficeCommands(
+                    officeId,
+                    null,
+                    null,
+                    PageRequest.of(0, 20));
+            var command = commands.stream()
+                    .filter(candidate -> candidate.commandType() == ArchDoxAgentCommandType.GENERATE_DOCUMENT)
+                    .filter(candidate -> String.valueOf(jobId).equals(String.valueOf(candidate.payloadJson().get("documentJobId"))))
+                    .findFirst();
+            if (command.isPresent()) {
+                return command.get();
+            }
+            Thread.sleep(50);
+        }
+        fail("GENERATE_DOCUMENT command was not enqueued for job " + jobId);
+        return null;
+    }
+
+    private Map<String, Object> executeAgentDocumentRender(
+            ArchDoxAgentCommand command,
+            Path agentStorage
+    ) throws Exception {
+        var agentProperties = new ArchDoxAgentProperties();
+        agentProperties.setLocalStorageRoot(agentStorage.toString());
+        var engine = new DocxTemplateDocumentEngine(template -> {
+            if (template.storageRef() == null || !objectStore.exists(template.storageRef())) {
+                return java.util.Optional.empty();
+            }
+            try (var input = objectStore.open(template.storageRef())) {
+                return java.util.Optional.of(input.readAllBytes());
+            }
+        }, new SimpleDocumentEngine());
+        var executor = new DocumentRenderCommandExecutor(engine, new AgentDocumentStore(agentProperties));
+        return executor.execute(new CloudInboundMessage(
+                "COMMAND",
+                null,
+                null,
+                null,
+                command.id(),
+                command.commandType().name(),
+                command.payloadJson(),
+                null));
+    }
+
     private String docxText(byte[] content) throws Exception {
         try (var input = new ZipInputStream(new java.io.ByteArrayInputStream(content), StandardCharsets.UTF_8)) {
             for (var entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
@@ -439,16 +608,16 @@ class DocumentJobIntegrationTest {
         return null;
     }
 
-    private TestUser signup() throws Exception {
+    private TestUser signup(String email) throws Exception {
         var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "document-user@example.com",
+                                  "email": "%s",
                                   "password": "password-1234",
                                   "name": "Document User"
                                 }
-                                """))
+                                """.formatted(email)))
                 .andExpect(status().isCreated())
                 .andReturn();
         var accessToken = objectMapper.readTree(signupResult.getResponse().getContentAsString())
