@@ -80,7 +80,8 @@ public class DocumentRenderCommandExecutor {
                 stringValue(template.getOrDefault("storageRef", "templates/default.docx"), "storageRef"),
                 stringValue(template.getOrDefault("schemaJson", "{}"), "schemaJson"),
                 stringValue(template.getOrDefault("composePolicyJson", "{}"), "composePolicyJson"),
-                optionalStringValue(template.get("downloadUrl")));
+                optionalStringValue(template.get("downloadUrl")),
+                booleanValue(template.getOrDefault("contentRequired", false)));
     }
 
     private List<PhotoAsset> photos(Object value) {
@@ -138,6 +139,13 @@ public class DocumentRenderCommandExecutor {
             return number.intValue();
         }
         return Integer.parseInt(String.valueOf(value));
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
     }
 
     private String mimeType(ArtifactType type) {

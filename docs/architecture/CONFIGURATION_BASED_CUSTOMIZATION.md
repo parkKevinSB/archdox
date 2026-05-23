@@ -340,7 +340,7 @@ Implemented first binding:
   current compatibility field
 - Cloud document generation builds `TemplateSpec` from the snapshot, not by
   re-resolving latest config later
-- fallback remains `templates/default.docx` when no configuration exists
+- fallback remains available only when no configured template revision exists
 - document job snapshots now include `project`, `site`, and `templateFields`
 - neutral document snapshot assembly now lives in `DocumentSnapshotBuilder`
   instead of `DocumentJobService`
@@ -371,8 +371,11 @@ Current capability:
   writes the resolved value into the first involved text node and clears the
   remaining placeholder fragments, preserving the surrounding Word run
   structure.
-- missing template files fall back to the simple generated DOCX path, preserving
-  the MVP behavior
+- configured template revisions are marked as `contentRequired`; missing or
+  unreadable DOCX content fails generation with a template-content error instead
+  of silently producing a fallback document
+- missing template content may fall back to the simple generated DOCX path only
+  when no configured template revision was selected for the job
 - unresolved placeholders remain visible in the output so missing data is easier
   to catch
 - office admins can upload a DOCX file to a `DRAFT` document template revision

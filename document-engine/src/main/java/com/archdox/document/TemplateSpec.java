@@ -6,7 +6,8 @@ public record TemplateSpec(
         String storageRef,
         String schemaJson,
         String composePolicyJson,
-        String downloadUrl
+        String downloadUrl,
+        boolean contentRequired
 ) {
     public TemplateSpec(
             String templateCode,
@@ -15,6 +16,17 @@ public record TemplateSpec(
             String schemaJson,
             String composePolicyJson
     ) {
-        this(templateCode, version, storageRef, schemaJson, composePolicyJson, null);
+        this(templateCode, version, storageRef, schemaJson, composePolicyJson, null, false);
+    }
+
+    public TemplateSpec(
+            String templateCode,
+            int version,
+            String storageRef,
+            String schemaJson,
+            String composePolicyJson,
+            String downloadUrl
+    ) {
+        this(templateCode, version, storageRef, schemaJson, composePolicyJson, downloadUrl, false);
     }
 }

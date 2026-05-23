@@ -365,8 +365,11 @@ AI prompts.
   to snapshot paths. Example: `projectName -> project.name`,
   `inspectionDate -> steps.BASIC_INFO.payload.inspectionDate`. Resolved values
   are stored under `document_jobs.input_snapshot_json.templateFields`.
-- Rule: when the selected template file is not available in configured document
-  storage, Cloud generation falls back to the simple generated DOCX path.
+- Rule: configured template revisions require their DOCX content. If the
+  selected template file is not available in configured document storage, Cloud
+  or Agent generation must fail clearly with a template-content error rather
+  than silently falling back to a simple generated DOCX path. The simple fallback
+  is only for jobs with no configured template revision.
 - Rule: office admins upload DOCX content to `DRAFT` template revisions through
   the Template Upload API. The API stores the file and assigns the storage
   reference; clients should not handcraft object-store paths.

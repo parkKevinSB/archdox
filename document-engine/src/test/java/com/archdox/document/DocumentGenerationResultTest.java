@@ -467,7 +467,7 @@ class DocumentGenerationResultTest {
     }
 
     @Test
-    void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
+    void docxTemplateEngineFallsBackWhenTemplateContentIsOptional() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),
                 new SimpleDocumentEngine());
@@ -484,6 +484,33 @@ class DocumentGenerationResultTest {
         assertEquals(GenerationStatus.COMPLETED, result.status());
         assertEquals(ArtifactType.DOCX, result.artifacts().get(0).type());
         assertNotNull(result.artifacts().get(0).content());
+    }
+
+    @Test
+    void docxTemplateEngineFailsWhenRequiredTemplateContentIsMissing() {
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.empty(),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-required-template",
+                "office-1",
+                "report-required-template",
+                new TemplateSpec(
+                        "DAILY",
+                        1,
+                        "templates/missing.docx",
+                        "{}",
+                        "{}",
+                        null,
+                        true),
+                Map.of("title", "Daily report"),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.FAILED, result.status());
+        assertEquals("DOCUMENT_TEMPLATE_CONTENT_NOT_FOUND", result.errorCode());
+        assertTrue(result.artifacts().isEmpty());
     }
 
     private byte[] docx(String bodyText) throws Exception {

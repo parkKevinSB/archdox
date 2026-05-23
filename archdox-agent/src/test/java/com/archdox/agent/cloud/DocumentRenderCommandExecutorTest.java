@@ -27,7 +27,10 @@ class DocumentRenderCommandExecutorTest {
         properties.setLocalStorageRoot(tempDir.toString());
         var template = templateDocx("Project: ${projectName}");
         var executor = new DocumentRenderCommandExecutor(
-                new DocxTemplateDocumentEngine(spec -> Optional.of(template), new SimpleDocumentEngine()),
+                new DocxTemplateDocumentEngine(spec -> {
+                    assertTrue(spec.contentRequired());
+                    return Optional.of(template);
+                }, new SimpleDocumentEngine()),
                 new AgentDocumentStore(properties));
         var payload = Map.<String, Object>of(
                 "documentJobId", 700L,
@@ -42,7 +45,8 @@ class DocumentRenderCommandExecutorTest {
                         "version", 1,
                         "storageRef", "templates/default.docx",
                         "schemaJson", "{}",
-                        "composePolicyJson", "{}"),
+                        "composePolicyJson", "{}",
+                        "contentRequired", true),
                 "photos", List.of(),
                 "resultStorageKind", "ARCHDOX_AGENT");
 

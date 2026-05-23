@@ -229,6 +229,7 @@ public class DocumentJobService {
         templatePayload.put("storageRef", request.template().storageRef());
         templatePayload.put("schemaJson", request.template().schemaJson());
         templatePayload.put("composePolicyJson", request.template().composePolicyJson());
+        templatePayload.put("contentRequired", request.template().contentRequired());
         if (request.template().storageRef() != null && !request.template().storageRef().isBlank()) {
             templatePayload.put("downloadMethod", "GET");
             templatePayload.put("downloadUrl", "/agent/api/v1/document-jobs/%d/template/content".formatted(job.id()));
@@ -502,7 +503,9 @@ public class DocumentJobService {
                                     ? "templates/default.docx"
                                     : "templates/" + report.templateId() + ".docx"),
                     jsonString(template.get("schema")),
-                    jsonString(template.get("composePolicy")));
+                    jsonString(template.get("composePolicy")),
+                    null,
+                    true);
         }
         return new TemplateSpec(
                 report.reportType(),

@@ -1392,8 +1392,12 @@ Worker routing:
 - Template Binding V1 reads the selected template revision's `storageRef` from
   document storage when available and replaces `${...}` placeholders using the
   job input snapshot. DOCX Placeholder Hardening V1 supports both intact
-  placeholders and placeholders split across multiple Word text nodes. Missing
-  template files fall back to the simple generated DOCX path.
+  placeholders and placeholders split across multiple Word text nodes.
+  Configured template revisions are `contentRequired`: if the selected DOCX
+  content is missing or unreadable, generation fails with a template-content
+  error instead of silently falling back to a simple generated document. The
+  simple fallback is allowed only when no configured template revision is
+  selected.
 - Template Binding V1 now snapshots `project`, `site`, and `templateFields`.
   Template revision `schema.bindings` can map business-friendly placeholders to
   snapshot paths:

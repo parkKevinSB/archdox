@@ -74,8 +74,28 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     @Override
     public DocumentGenerationResult generate(DocumentGenerationRequest request) {
         try {
-            Optional<byte[]> templateContent = templateContentResolver.resolve(request.template());
+            Optional<byte[]> templateContent;
+            try {
+                templateContent = templateContentResolver.resolve(request.template());
+            } catch (IOException ex) {
+                if (request.template().contentRequired()) {
+                    return DocumentGenerationResult.failed(
+                            request.jobId(),
+                            "DOCUMENT_TEMPLATE_CONTENT_UNAVAILABLE",
+                            "Document template content could not be read: " + ex.getMessage());
+                }
+                throw ex;
+            }
             if (templateContent.isEmpty()) {
+                if (request.template().contentRequired()) {
+                    return DocumentGenerationResult.failed(
+                            request.jobId(),
+                            "DOCUMENT_TEMPLATE_CONTENT_NOT_FOUND",
+                            "Document template content was not found for "
+                                    + request.template().templateCode()
+                                    + " v"
+                                    + request.template().version());
+                }
                 return fallback.generate(request);
             }
 

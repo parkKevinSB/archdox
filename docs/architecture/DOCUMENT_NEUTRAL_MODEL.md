@@ -123,6 +123,10 @@ template JSON schema to repeat the same common bindings.
    `input_snapshot_json`.
 7. When a report is edited after generation, create a new content revision and
    generate a new document job rather than rewriting the old artifact.
+8. A configured template revision is part of the immutable render contract. If
+   its DOCX content is missing or unreadable, generation must fail clearly
+   instead of falling back to a different document shape. Fallback generation is
+   allowed only when no configured template revision was selected.
 
 ## Refactoring Direction
 

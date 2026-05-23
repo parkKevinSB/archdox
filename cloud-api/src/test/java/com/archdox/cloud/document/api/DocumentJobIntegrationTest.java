@@ -268,6 +268,9 @@ class DocumentJobIntegrationTest {
         assertTrue(command.payloadJson().containsKey("inputSnapshot"));
         assertTrue(command.payloadJson().containsKey("template"));
         assertTrue(command.payloadJson().containsKey("photos"));
+        @SuppressWarnings("unchecked")
+        var templatePayload = (Map<String, Object>) command.payloadJson().get("template");
+        assertTrue(Boolean.TRUE.equals(templatePayload.get("contentRequired")));
 
         var agentResult = executeAgentDocumentRender(command, agentStorage);
         agentCommandService.ack(agentId, command.id());

@@ -166,6 +166,9 @@ current architecture.
 21. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
     must stay inside document-engine renderers/exporters or deployment-specific
     converter adapters.
+22. Configured template revisions are content-required render inputs. If the
+    selected revision's DOCX content is missing or unreadable, fail the document
+    job clearly; do not silently generate a different fallback document.
 
 ## Configuration And Customization Rules
 
