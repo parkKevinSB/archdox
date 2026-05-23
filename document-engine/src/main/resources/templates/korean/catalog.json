@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "Bundled Korean default DOCX templates for ArchDox document-engine. These are editable seed templates, not smoke-test artifacts.",
+  "templates": [
+    {
+      "templateCode": "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
+      "storageRef": "templates/korean/korean-construction-supervision-report-appendix-1.docx",
+      "title": "Construction supervision report appendix 1",
+      "outputFormat": "DOCX",
+      "richSections": [
+        "reportOpinionSection"
+      ]
+    },
+    {
+      "templateCode": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+      "storageRef": "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
+      "title": "Construction daily supervision log appendix 2",
+      "outputFormat": "DOCX",
+      "richSections": [
+        "supervisionItemsSection"
+      ]
+    },
+    {
+      "templateCode": "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
+      "storageRef": "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
+      "title": "Demolition safety checklist appendix 1",
+      "outputFormat": "DOCX",
+      "richSections": [
+        "safetyChecklistSection"
+      ]
+    },
+    {
+      "templateCode": "KOREAN_DEMOLITION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+      "storageRef": "templates/korean/korean-demolition-daily-supervision-log-appendix-2.docx",
+      "title": "Demolition daily supervision log appendix 2",
+      "outputFormat": "DOCX",
+      "richSections": [
+        "supervisionItemsSection"
+      ]
+    },
+    {
+      "templateCode": "KOREAN_DEMOLITION_COMPLETION_REPORT_APPENDIX_3",
+      "storageRef": "templates/korean/korean-demolition-completion-report-appendix-3.docx",
+      "title": "Demolition completion report appendix 3",
+      "outputFormat": "DOCX",
+      "richSections": [
+        "supervisorDeploymentSection"
+      ]
+    }
+  ]
+}

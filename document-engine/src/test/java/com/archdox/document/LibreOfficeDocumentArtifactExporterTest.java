@@ -20,7 +20,11 @@ class LibreOfficeDocumentArtifactExporterTest {
                 new LibreOfficePdfExportOptions("fake-soffice", 1234),
                 (command, timeout) -> {
                     assertEquals("fake-soffice", command.get(0));
+                    assertTrue(command.stream().anyMatch(argument ->
+                            argument.startsWith("-env:UserInstallation=file:")));
                     assertTrue(command.contains("--headless"));
+                    assertTrue(command.contains("--invisible"));
+                    assertTrue(command.contains("--norestore"));
                     assertTrue(command.contains("--convert-to"));
                     assertEquals(Duration.ofMillis(1234), timeout);
                     var outputDir = Path.of(command.get(command.indexOf("--outdir") + 1));

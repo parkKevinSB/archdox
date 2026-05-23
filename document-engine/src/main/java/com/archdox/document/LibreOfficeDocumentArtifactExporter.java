@@ -45,13 +45,18 @@ public class LibreOfficeDocumentArtifactExporter implements DocumentArtifactExpo
             var sourceFileName = sourceDocxFileName(request.sourceArtifact());
             var sourcePath = workspace.resolve(sourceFileName);
             var outputDirectory = workspace.resolve("out");
+            var userProfile = workspace.resolve("lo-profile");
             Files.createDirectories(outputDirectory);
+            Files.createDirectories(userProfile);
             Files.write(sourcePath, request.sourceArtifact().content());
 
             var command = List.of(
                     options.executablePath(),
+                    "-env:UserInstallation=" + userProfile.toUri(),
                     "--headless",
+                    "--invisible",
                     "--nologo",
+                    "--norestore",
                     "--nofirststartwizard",
                     "--convert-to",
                     "pdf",
