@@ -178,6 +178,10 @@ class DocumentJobIntegrationTest {
         assertTrue(documentXml.contains("Inspector: Document Job"));
         assertTrue(documentXml.contains("Weather: Clear"));
         assertTrue(documentXml.contains("Checklist summary: Checked"));
+        assertTrue(documentXml.contains("Photo Section"));
+        assertTrue(documentXml.contains("Step: PHOTOS"));
+        assertTrue(documentXml.contains("Checklist Section"));
+        assertTrue(documentXml.contains("Summary: Checked"));
         assertTrue(documentXml.contains("Template: DAILY_TEMPLATE v1"));
     }
 
@@ -233,6 +237,10 @@ class DocumentJobIntegrationTest {
                         Inspector: ${inspectorName}
                         Weather: ${weather}
                         Checklist summary: ${checklistSummary}
+                        Photos:
+                        ${photoSection}
+                        Checklist:
+                        ${checklistSection}
                         Template: ${templateCode} v${templateVersion}
                         """));
         var uploadResult = mockMvc.perform(multipart("/api/v1/config/document-template-revisions/{revisionId}/content", revisionId)
@@ -264,18 +272,81 @@ class DocumentJobIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        var layoutRevisionId = createOutputLayoutRevision(user);
         mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "DAILY_SUPERVISION")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "templateRevisionId": %d
+                                  "templateRevisionId": %d,
+                                  "outputLayoutRevisionId": %d
                                 }
-                        """.formatted(revisionId)))
+                        """.formatted(revisionId, layoutRevisionId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.template.revisionId").value(revisionId));
-        return new TemplateOverride(revisionId, templateStorageRef);
+                .andExpect(jsonPath("$.template.revisionId").value(revisionId))
+                .andExpect(jsonPath("$.outputLayout.revisionId").value(layoutRevisionId));
+        return new TemplateOverride(revisionId, templateStorageRef, layoutRevisionId);
+    }
+
+    private long createOutputLayoutRevision(TestUser user) throws Exception {
+        var layoutResult = mockMvc.perform(post("/api/v1/config/output-layouts")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "DAILY_LAYOUT",
+                                  "name": "Daily Layout",
+                                  "reportType": "DAILY_SUPERVISION"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var layoutId = readId(layoutResult.getResponse().getContentAsString());
+        var revisionResult = mockMvc.perform(post("/api/v1/config/output-layouts/{layoutId}/revisions", layoutId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {
+                                    "sections": [
+                                      {
+                                        "key": "photoSection",
+                                        "type": "PHOTO_SUMMARY",
+                                        "title": "Photo Section",
+                                        "fields": [
+                                          {
+                                            "label": "Photo",
+                                            "source": "photoId"
+                                          },
+                                          {
+                                            "label": "Step",
+                                            "source": "stepCode"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "key": "checklistSection",
+                                        "type": "VALUE",
+                                        "title": "Checklist Section",
+                                        "valueLabel": "Summary",
+                                        "source": "steps.CHECKLIST.payload.checklistSummary"
+                                      }
+                                    ]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var revisionId = readId(revisionResult.getResponse().getContentAsString());
+        mockMvc.perform(post("/api/v1/config/output-layout-revisions/{revisionId}/publish", revisionId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        return revisionId;
     }
 
     @SuppressWarnings("unchecked")
@@ -287,6 +358,8 @@ class DocumentJobIntegrationTest {
         assertTrue(templateRevisionId == ((Number) template.get("revisionId")).longValue());
         assertTrue("DAILY_TEMPLATE".equals(template.get("code")));
         assertTrue(templateStorageRef.equals(template.get("storageRef")));
+        var outputLayout = (Map<String, Object>) configuration.get("outputLayout");
+        assertTrue("OFFICE_OVERRIDE".equals(outputLayout.get("source")));
     }
 
     private String docxText(byte[] content) throws Exception {
@@ -531,6 +604,6 @@ class DocumentJobIntegrationTest {
     private record TestUser(long officeId, String accessToken) {
     }
 
-    private record TemplateOverride(long revisionId, String storageRef) {
+    private record TemplateOverride(long revisionId, String storageRef, long outputLayoutRevisionId) {
     }
 }

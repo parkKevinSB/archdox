@@ -2220,6 +2220,54 @@ Create request:
 }
 ```
 
+Output layout revision payloads may use a `sections` array:
+
+```json
+{
+  "payload": {
+    "sections": [
+      {
+        "key": "photoSection",
+        "type": "PHOTO_SUMMARY",
+        "title": "Photo Section",
+        "fields": [
+          {
+            "label": "Photo",
+            "source": "photoId"
+          },
+          {
+            "label": "Step",
+            "source": "stepCode"
+          }
+        ]
+      },
+      {
+        "key": "checklistSection",
+        "type": "VALUE",
+        "title": "Checklist Section",
+        "valueLabel": "Summary",
+        "source": "steps.CHECKLIST.payload.checklistSummary"
+      }
+    ]
+  }
+}
+```
+
+During document generation, Cloud writes rendered section text to
+`input_snapshot_json.layoutSections` and also exposes each section key under
+`input_snapshot_json.templateFields`. A DOCX template can therefore reference
+`${photoSection}` and `${checklistSection}`.
+
+Supported V1 section types:
+
+- `PHOTO_SUMMARY`, `PHOTO_LIST`, `PHOTO_TABLE`
+- `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`
+- `VALUE`, `FIELD`, `SNAPSHOT_VALUE`
+- `TEXT`
+
+V1 creates text blocks only. Real DOCX table and image insertion is a later
+document-engine phase.
+
 ### Office Config Overrides
 
 ```text

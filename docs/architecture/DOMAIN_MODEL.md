@@ -419,6 +419,10 @@ often change.
   labels.
 - Rule: keep the layout DSL narrow and explicit. It should configure supported
   document layout behavior, not become a general programming language.
+- Rule: Output Layout V1 supports text-block sections. `payload.sections[*].key`
+  becomes a `templateFields` placeholder, so a DOCX template can use
+  `${photoSection}` or `${checklistSection}`. Real DOCX table/image insertion is
+  a later document-engine phase.
 
 ## Office Config Override
 

@@ -374,7 +374,7 @@ Current limitation:
 Remaining limitations:
 
 - placeholders split across multiple Word runs may not bind yet
-- image/photo section layout DSL is not applied yet
+- real image insertion into DOCX is not applied yet
 - admin UI template management is not implemented yet
 - full DOCX placeholder binding with robust Word run normalization remains a
   later hardening phase
@@ -383,6 +383,56 @@ Remaining limitations:
 
 Support a small, explicit output layout config for photo sections and simple
 field/section ordering.
+
+Implemented first layout binding:
+
+- selected output layout revision is snapshotted under
+  `document_jobs.input_snapshot_json.configuration.outputLayout`
+- output layout `payload.sections` creates `layoutSections`
+- each section writes a text block into `templateFields` by section `key`
+- supported section types:
+  - `PHOTO_SUMMARY`, `PHOTO_LIST`, `PHOTO_TABLE`: text summary from uploaded
+    photo snapshot rows
+  - `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`: text summary from checklist answer
+    snapshot rows
+  - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`: single value read from the document job
+    snapshot path
+  - `TEXT`: literal text block
+
+Example:
+
+```json
+{
+  "sections": [
+    {
+      "key": "photoSection",
+      "type": "PHOTO_SUMMARY",
+      "title": "Photo Section",
+      "fields": [
+        {
+          "label": "Photo",
+          "source": "photoId"
+        },
+        {
+          "label": "Step",
+          "source": "stepCode"
+        }
+      ]
+    },
+    {
+      "key": "checklistSection",
+      "type": "VALUE",
+      "title": "Checklist Section",
+      "valueLabel": "Summary",
+      "source": "steps.CHECKLIST.payload.checklistSummary"
+    }
+  ]
+}
+```
+
+With this layout, DOCX can use `${photoSection}` and `${checklistSection}`.
+This is still text-block layout. Real DOCX table/image insertion belongs to the
+next hardening phase.
 
 ### Phase E: Workflow Definition V1
 
