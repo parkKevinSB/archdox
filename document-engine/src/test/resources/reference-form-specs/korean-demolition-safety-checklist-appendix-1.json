@@ -1,0 +1,75 @@
+{
+  "code": "KOREAN_DEMOLITION_SAFETY_CHECK_APPENDIX_1",
+  "title": "해체공사 안전점검표",
+  "referencePdf": "docs/reference-forms/korean/demolition-safety-checklist-appendix-1.pdf",
+  "source": "PDF_TEXT_EXTRACTED",
+  "pages": 1,
+  "reportTypes": [
+    "DEMOLITION_SAFETY_CHECK"
+  ],
+  "recommendedPlaceholders": [
+    "documentTitle",
+    "safetyInspectionDate",
+    "inspectionLocation",
+    "supervisorName",
+    "demolitionWorkerName",
+    "safetyCheckStage",
+    "inspectionCriteria",
+    "inspectionResult",
+    "correctiveAction",
+    "safetyChecklistItems"
+  ],
+  "sections": [
+    {
+      "code": "CHECK_HEADER",
+      "label": "점검 기본 정보",
+      "fields": [
+        "점검일자",
+        "점검위치",
+        "감리자",
+        "해체작업자"
+      ]
+    },
+    {
+      "code": "SAFETY_CHECK_TABLE",
+      "label": "안전점검 결과",
+      "fields": [
+        "검사항목",
+        "검사기준",
+        "허용범위",
+        "검사결과",
+        "조치사항",
+        "해체작업자",
+        "감리자"
+      ],
+      "outputLayout": "CHECKLIST_TABLE"
+    },
+    {
+      "code": "DEMOLITION_STAGES",
+      "label": "해체 단계",
+      "fields": [
+        "최초 마감재 철거 전",
+        "지붕층 해체 착수 전",
+        "중간층 해체 착수 전",
+        "지하층 해체 착수 전"
+      ]
+    },
+    {
+      "code": "AUTHORING_GUIDE",
+      "label": "작성방법",
+      "fields": [
+        "하부보강 잭서포트",
+        "해체장비 이동구간",
+        "잔재물 적재 높이 및 하중",
+        "보강 상세도면",
+        "부적합사항 조치"
+      ]
+    }
+  ],
+  "layoutHints": [
+    "Single-page safety checklist.",
+    "Checklist rows should be stage-aware.",
+    "Use explicit corrective action cells for nonconforming items.",
+    "Do not store PDF coordinates as business rules."
+  ]
+}

@@ -309,6 +309,33 @@ Implemented container runtime:
 - `scripts/smoke/archdox-agent-pdf-smoke.ps1` builds the Agent image, verifies
   `soffice --version`, and runs the Dockerized PDF smoke target.
 
+## Reference Form Archive
+
+Canonical PDF reference copies live under:
+
+```text
+docs/reference-forms/korean/
+```
+
+These PDFs are layout and wording references, not the runtime source of truth.
+The document-engine should use structured specs under:
+
+```text
+document-engine/src/test/resources/reference-form-specs/
+```
+
+The current reference set covers:
+
+- construction supervision report appendix 1
+- construction daily supervision log appendix 2
+- demolition safety checklist appendix 1
+- demolition daily supervision log appendix 2
+- demolition supervision completion report appendix 3
+
+Use the PDFs for visual comparison when shaping DOCX templates. Use the JSON
+specs for smoke tests, field coverage checks, and renderer behavior. Do not
+bind business logic to PDF coordinates or raw extracted PDF text.
+
 ## Reviewed HWP Source Templates
 
 The following downloaded HWP files were inspected through HWP preview text

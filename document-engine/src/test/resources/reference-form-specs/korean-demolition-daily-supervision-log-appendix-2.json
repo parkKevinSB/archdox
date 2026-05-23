@@ -1,0 +1,75 @@
+{
+  "code": "KOREAN_DEMOLITION_DAILY_SUPERVISION_APPENDIX_2",
+  "title": "해체 공사감리일지",
+  "referencePdf": "docs/reference-forms/korean/demolition-daily-supervision-log-appendix-2.pdf",
+  "source": "PDF_TEXT_EXTRACTED",
+  "pages": 1,
+  "reportTypes": [
+    "DEMOLITION_DAILY_SUPERVISION",
+    "DEMOLITION_DAILY_LOG"
+  ],
+  "recommendedPlaceholders": [
+    "documentTitle",
+    "supervisorName",
+    "assistantSupervisorName",
+    "constructionName",
+    "inspectionDate",
+    "inspectionDayOfWeek",
+    "weather",
+    "workDescription",
+    "demolitionWorkStage",
+    "supervisionFocus",
+    "supervisionContent",
+    "specialNotes",
+    "issueAndAction"
+  ],
+  "sections": [
+    {
+      "code": "DAILY_HEADER",
+      "label": "일지 기본 정보",
+      "fields": [
+        "공사감리자",
+        "감리원",
+        "공사명",
+        "공사 년월일",
+        "요일",
+        "날씨"
+      ]
+    },
+    {
+      "code": "WORK_SUPERVISION",
+      "label": "작업 및 감리 내용",
+      "fields": [
+        "작업사항",
+        "공종",
+        "감리착안사항",
+        "감리내용"
+      ],
+      "outputLayout": "CHECKLIST_TABLE"
+    },
+    {
+      "code": "NOTES_AND_ISSUES",
+      "label": "특기사항 및 지적사항",
+      "fields": [
+        "특기사항",
+        "지적사항 및 처리결과"
+      ]
+    },
+    {
+      "code": "AUTHORING_GUIDE",
+      "label": "작성방법",
+      "fields": [
+        "공종 작성방법",
+        "감리착안사항 작성방법",
+        "특기사항 작성방법",
+        "지적사항 및 처리결과 작성방법",
+        "필수확인점 작성"
+      ]
+    }
+  ],
+  "layoutHints": [
+    "Single-page demolition daily log.",
+    "The main table differs from construction daily logs by using 감리착안사항.",
+    "Keep it as a separate preset even if the renderer path is shared."
+  ]
+}

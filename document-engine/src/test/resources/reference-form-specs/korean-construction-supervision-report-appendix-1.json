@@ -1,0 +1,74 @@
+{
+  "code": "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
+  "title": "감리보고서",
+  "referencePdf": "docs/reference-forms/korean/construction-supervision-report-appendix-1.pdf",
+  "source": "PDF_TEXT_EXTRACTED",
+  "pages": 3,
+  "reportTypes": [
+    "CONSTRUCTION_SUPERVISION_REPORT",
+    "SUPERVISION_REPORT"
+  ],
+  "recommendedPlaceholders": [
+    "documentTitle",
+    "permitNumber",
+    "permitDate",
+    "siteAddress",
+    "lotNumber",
+    "constructionName",
+    "supervisionStartDate",
+    "supervisionEndDate",
+    "chiefSupervisorName",
+    "supervisorName",
+    "specialNotes"
+  ],
+  "sections": [
+    {
+      "code": "APPLICATION_INFO",
+      "label": "신청 및 허가 정보",
+      "fields": [
+        "신청구분",
+        "허가번호",
+        "허가일자",
+        "대지위치",
+        "지번"
+      ]
+    },
+    {
+      "code": "PROGRESS_REPORT",
+      "label": "중간보고/완료보고",
+      "fields": [
+        "구분",
+        "건축공정",
+        "동명칭 및 번호",
+        "공사감리기간",
+        "공사완료일자"
+      ]
+    },
+    {
+      "code": "SUPERVISOR_OPINION",
+      "label": "공사감리자 및 관계전문기술자 의견",
+      "fields": [
+        "공사감리자",
+        "관계전문기술자 확인 및 의견",
+        "종합의견"
+      ]
+    },
+    {
+      "code": "FIELD_INVESTIGATION",
+      "label": "현장 조사",
+      "fields": [
+        "대지 및 도로",
+        "건축물의 구조",
+        "설비",
+        "피난 및 방화",
+        "조경"
+      ]
+    }
+  ],
+  "layoutHints": [
+    "Three-page report form.",
+    "Use a dense two-column table for application fields.",
+    "Use checkbox-like text for intermediate/completion report states.",
+    "Reserve multi-line cells for technical opinions and final opinion."
+  ]
+}

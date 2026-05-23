@@ -1,0 +1,79 @@
+{
+  "code": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
+  "title": "공사감리일지",
+  "referencePdf": "docs/reference-forms/korean/construction-daily-supervision-log-appendix-2.pdf",
+  "source": "PDF_TEXT_EXTRACTED",
+  "pages": 1,
+  "reportTypes": [
+    "DAILY_SUPERVISION",
+    "CONSTRUCTION_DAILY_LOG"
+  ],
+  "recommendedPlaceholders": [
+    "documentTitle",
+    "serialNo",
+    "chiefSupervisorName",
+    "architectAssistantName",
+    "constructionName",
+    "inspectionDate",
+    "inspectionDayOfWeek",
+    "weather",
+    "constructionTrade",
+    "detailedProcess",
+    "floor",
+    "supervisionItem",
+    "supervisionContent",
+    "specialNotes",
+    "issueAndAction"
+  ],
+  "sections": [
+    {
+      "code": "DAILY_HEADER",
+      "label": "일지 기본 정보",
+      "fields": [
+        "일련번호",
+        "총괄감리책임자",
+        "건축사보",
+        "공사명",
+        "공사 년월일",
+        "요일",
+        "날씨"
+      ]
+    },
+    {
+      "code": "SUPERVISION_CONTENT",
+      "label": "감리 내용",
+      "fields": [
+        "공종 및 세부공정",
+        "층",
+        "감리 항목",
+        "감리내용"
+      ],
+      "outputLayout": "CHECKLIST_TABLE"
+    },
+    {
+      "code": "NOTES_AND_ISSUES",
+      "label": "특기사항 및 지적사항",
+      "fields": [
+        "특기사항",
+        "지적사항 및 처리결과"
+      ]
+    },
+    {
+      "code": "AUTHORING_GUIDE",
+      "label": "작성방법",
+      "fields": [
+        "공종 작성방법",
+        "감리항목 작성방법",
+        "감리내용 작성방법",
+        "특기사항 작성방법",
+        "지적사항 작성방법"
+      ]
+    }
+  ],
+  "layoutHints": [
+    "Single-page daily log.",
+    "The core supervision table should support multiple rows.",
+    "Checklist answers can map into 공종/감리항목/감리내용 columns.",
+    "Generated DOCX smoke should verify no unresolved ${...} placeholders remain."
+  ]
+}
