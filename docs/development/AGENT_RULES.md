@@ -68,6 +68,8 @@ current architecture.
     scheduler-style background mechanisms without explicit user confirmation.
     If the behavior is orchestration with waiting, retry, timeout, or backoff,
     design it as a Flower flow/worker first.
+23. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
+    PR expectations, CI checks, and files that must never be committed.
 
 ## Tenant And Security Rules
 

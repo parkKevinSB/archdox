@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout ArchDox
+        uses: actions/checkout@v4
+        with:
+          path: archdox
+
+      - name: Checkout Bloom
+        uses: actions/checkout@v4
+        with:
+          repository: parkKevinSB/bloom
+          ref: main
+          path: bloom
+          token: ${{ secrets.ARCHDOX_CI_REPO_TOKEN || github.token }}
+
+      - name: Checkout Flower
+        uses: actions/checkout@v4
+        with:
+          repository: parkKevinSB/flower
+          ref: main
+          path: flower
+          token: ${{ secrets.ARCHDOX_CI_REPO_TOKEN || github.token }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+        working-directory: archdox
+
+      - name: Compile backend modules
+        run: ./gradlew :cloud-api:compileJava :archdox-agent:compileJava --no-daemon
+        working-directory: archdox
+
+      - name: Run backend tests
+        run: ./gradlew test --no-daemon
+        working-directory: archdox
+
+  frontend:
+    name: Frontend (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - client/web
+          - admin
+
+    steps:
+      - name: Checkout ArchDox
+        uses: actions/checkout@v4
+        with:
+          path: archdox
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: archdox/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: archdox/${{ matrix.app }}
+
+      - name: Build
+        run: npm run build
+        working-directory: archdox/${{ matrix.app }}
+
+  docker-compose:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout ArchDox
+        uses: actions/checkout@v4
+        with:
+          path: archdox
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+        working-directory: archdox

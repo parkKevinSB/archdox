@@ -45,49 +45,50 @@ class OfficeMemberManagementIntegrationTest {
     void ownerCanManageOfficeMembersAndEventsAreRecorded() throws Exception {
         var owner = signup("member-owner@example.com", "Member Owner");
         var member = signup("member-target@example.com", "Member Target");
+        var officeId = createOffice(owner, "Member Owner Office");
 
-        addMember(owner, owner.officeId(), member.email(), "MEMBER")
+        addMember(owner, officeId, member.email(), "MEMBER")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.userId").value(member.userId()))
-                .andExpect(jsonPath("$.officeId").value(owner.officeId()))
+                .andExpect(jsonPath("$.officeId").value(officeId))
                 .andExpect(jsonPath("$.role").value("MEMBER"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        mockMvc.perform(get("/api/v1/offices/{officeId}/members", owner.officeId())
+        mockMvc.perform(get("/api/v1/offices/{officeId}/members", officeId)
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId()))
+                        .header("X-Office-Id", officeId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.userId == %d && @.role == 'MEMBER')]".formatted(member.userId())).exists());
 
-        mockMvc.perform(get("/api/v1/offices/{officeId}/members", owner.officeId())
+        mockMvc.perform(get("/api/v1/offices/{officeId}/members", officeId)
                         .header("Authorization", bearer(member.accessToken()))
-                        .header("X-Office-Id", owner.officeId()))
+                        .header("X-Office-Id", officeId))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", owner.officeId(), member.userId())
+        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", officeId, member.userId())
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId())
+                        .header("X-Office-Id", officeId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        mockMvc.perform(delete("/api/v1/offices/{officeId}/members/{memberUserId}", owner.officeId(), member.userId())
+        mockMvc.perform(delete("/api/v1/offices/{officeId}/members/{memberUserId}", officeId, member.userId())
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId()))
+                        .header("X-Office-Id", officeId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.status").value("SUSPENDED"));
 
-        addMember(owner, owner.officeId(), member.email(), "VIEWER")
+        addMember(owner, officeId, member.email(), "VIEWER")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("VIEWER"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
         var events = mockMvc.perform(get("/api/v1/operation-events")
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId())
+                        .header("X-Office-Id", officeId)
                         .param("resourceType", "OFFICE_MEMBER")
                         .param("limit", "20"))
                 .andExpect(status().isOk())
@@ -105,32 +106,33 @@ class OfficeMemberManagementIntegrationTest {
         var owner = signup("owner-protection@example.com", "Owner Protection");
         var admin = signup("admin-protection@example.com", "Admin Protection");
         var secondOwner = signup("second-owner@example.com", "Second Owner");
+        var officeId = createOffice(owner, "Owner Protection Office");
 
-        addMember(owner, owner.officeId(), admin.email(), "ADMIN")
+        addMember(owner, officeId, admin.email(), "ADMIN")
                 .andExpect(status().isCreated());
 
-        addMember(admin, owner.officeId(), secondOwner.email(), "OWNER")
+        addMember(admin, officeId, secondOwner.email(), "OWNER")
                 .andExpect(status().isForbidden());
 
-        addMember(owner, owner.officeId(), secondOwner.email(), "OWNER")
+        addMember(owner, officeId, secondOwner.email(), "OWNER")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.role").value("OWNER"));
 
-        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", owner.officeId(), owner.userId())
+        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", officeId, owner.userId())
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId())
+                        .header("X-Office-Id", officeId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isConflict());
 
-        mockMvc.perform(delete("/api/v1/offices/{officeId}/members/{memberUserId}", owner.officeId(), owner.userId())
+        mockMvc.perform(delete("/api/v1/offices/{officeId}/members/{memberUserId}", officeId, owner.userId())
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId()))
+                        .header("X-Office-Id", officeId))
                 .andExpect(status().isConflict());
 
-        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", owner.officeId(), secondOwner.userId())
+        mockMvc.perform(patch("/api/v1/offices/{officeId}/members/{memberUserId}/role", officeId, secondOwner.userId())
                         .header("Authorization", bearer(owner.accessToken()))
-                        .header("X-Office-Id", owner.officeId())
+                        .header("X-Office-Id", officeId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isOk())
@@ -154,6 +156,22 @@ class OfficeMemberManagementIntegrationTest {
                 .header("X-Office-Id", officeId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
+    }
+
+    private long createOffice(TestUser owner, String displayName) throws Exception {
+        var officeResult = mockMvc.perform(post("/api/v1/offices")
+                        .header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "%s"
+                                }
+                                """.formatted(displayName)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(officeResult.getResponse().getContentAsString())
+                .get("id")
+                .asLong();
     }
 
     private TestUser signup(String email, String name) throws Exception {

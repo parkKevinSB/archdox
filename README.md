@@ -1,0 +1,114 @@
+# ArchDox
+
+[![CI](https://github.com/parkKevinSB/archdox/actions/workflows/ci.yml/badge.svg)](https://github.com/parkKevinSB/archdox/actions/workflows/ci.yml)
+
+ArchDox is a document workflow orchestration platform for architecture office
+inspection, supervision, photo handling, document generation, and operations.
+
+The current repository contains:
+
+- `cloud-api`: Spring Boot Cloud API, tenancy, REST APIs, orchestration, storage,
+  document jobs, Agent command routing.
+- `archdox-agent`: ArchDox Agent runtime for office/local or cloud-managed
+  execution.
+- `document-engine`: reusable document generation primitives.
+- `domain-shared`: small shared domain enums and values.
+- `client/web`: user-facing React app.
+- `admin`: operations/admin React app.
+- `docs`: architecture and development rules.
+- `infra`: infrastructure notes.
+
+## Local Prerequisites
+
+- Java 21
+- Node.js 22 or newer
+- Docker Desktop
+- Git sibling checkouts for Flower/Bloom:
+  - `../bloom`
+  - `../flower`
+
+The Gradle build references Flower/Bloom as sibling repositories:
+
+```text
+archdox/
+bloom/
+flower/
+```
+
+## Local Infrastructure
+
+Start PostgreSQL, MailHog, and MinIO:
+
+```powershell
+docker compose up -d postgres mailhog minio minio-init
+```
+
+Validate Docker Compose:
+
+```powershell
+docker compose config --quiet
+```
+
+## Backend Verification
+
+```powershell
+.\gradlew.bat :cloud-api:compileJava :archdox-agent:compileJava
+.\gradlew.bat test
+```
+
+Run Cloud API locally:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "local"
+.\gradlew.bat :cloud-api:bootRun
+```
+
+Health check:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/actuator/health
+```
+
+## Frontend Verification
+
+User web app:
+
+```powershell
+cd client\web
+npm ci
+npm run build
+```
+
+Admin app:
+
+```powershell
+cd admin
+npm ci
+npm run build
+```
+
+## GitHub Actions
+
+CI runs on pushes and pull requests targeting `master`.
+
+Checks:
+
+- backend compile
+- backend tests
+- `client/web` build
+- `admin` build
+- Docker Compose config validation
+
+The backend CI checks out `parkKevinSB/bloom` and `parkKevinSB/flower` as sibling
+repositories. If those repositories become private, add a repository secret named
+`ARCHDOX_CI_REPO_TOKEN` with read access to all three repositories.
+
+## Development Rules
+
+Before changing major architecture, read:
+
+- `AGENTS.md`
+- `docs/development/AGENT_RULES.md`
+- `docs/development/DDD_EVENT_ORCHESTRATION_RULES.md`
+- `docs/architecture/DEPLOYMENT_PORTABILITY.md`
+- `docs/architecture/FRONTEND_ARCHITECTURE.md`
