@@ -6,6 +6,7 @@ import com.archdox.cloud.checklist.infra.ChecklistSchemaRepository;
 import com.archdox.cloud.configuration.application.ConfigurationRegistryService;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfigPart;
 import com.archdox.cloud.configuration.domain.ConfigResolutionSource;
+import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.dto.ReportWorkflowDefinitionResponse;
 import com.archdox.cloud.inspection.dto.ReportWorkflowFieldResponse;
@@ -28,25 +29,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReportWorkflowDefinitionService {
     private static final String BUILT_IN_DEFAULT_SOURCE = "BUILT_IN_DEFAULT";
+    private static final String DOCUMENT_TYPE_DEFAULT_SOURCE = "DOCUMENT_TYPE_DEFAULT";
 
     private final InspectionReportRepository reportRepository;
     private final ConfigurationRegistryService configurationRegistryService;
     private final SiteRepository siteRepository;
     private final InspectionReportTargetRepository reportTargetRepository;
     private final ChecklistSchemaRepository checklistSchemaRepository;
+    private final DocumentTypeRegistryService documentTypeRegistryService;
 
     public ReportWorkflowDefinitionService(
             InspectionReportRepository reportRepository,
             ConfigurationRegistryService configurationRegistryService,
             SiteRepository siteRepository,
             InspectionReportTargetRepository reportTargetRepository,
-            ChecklistSchemaRepository checklistSchemaRepository
+            ChecklistSchemaRepository checklistSchemaRepository,
+            DocumentTypeRegistryService documentTypeRegistryService
     ) {
         this.reportRepository = reportRepository;
         this.configurationRegistryService = configurationRegistryService;
         this.siteRepository = siteRepository;
         this.reportTargetRepository = reportTargetRepository;
         this.checklistSchemaRepository = checklistSchemaRepository;
+        this.documentTypeRegistryService = documentTypeRegistryService;
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +149,29 @@ public class ReportWorkflowDefinitionService {
             String targetType,
             ChecklistSchema checklistSchema
     ) {
+        var documentType = documentTypeRegistryService.resolveByReportType(report.officeId(), report.reportType());
+        if (documentType.isPresent()) {
+            var definition = documentType.get();
+            var steps = documentTypeRegistryService.workflowSteps(definition);
+            if (!steps.isEmpty()) {
+                return new ReportWorkflowDefinitionResponse(
+                        report.id(),
+                        report.officeId(),
+                        report.reportType(),
+                        siteType,
+                        targetType,
+                        documentTypeRegistryService.workflowId(definition),
+                        documentTypeRegistryService.workflowTitle(definition),
+                        DOCUMENT_TYPE_DEFAULT_SOURCE,
+                        definition.id(),
+                        null,
+                        null,
+                        checklistSchema == null ? null : checklistSchema.id(),
+                        checklistSchema == null ? null : checklistSchema.code(),
+                        checklistSchema == null ? null : checklistSchema.version(),
+                        steps);
+            }
+        }
         return new ReportWorkflowDefinitionResponse(
                 report.id(),
                 report.officeId(),

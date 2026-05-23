@@ -160,6 +160,30 @@ component, material, or work area being inspected or documented.
   project-structure-manager permission: personal `OWNER`, office
   `OWNER`/`ADMIN`, or project assignment role `MANAGER`.
 
+## Document Type Definition
+
+`document_type_definition` is the product-level default pack for a report
+document type.
+
+- Table: `document_type_definitions`
+- Ownership: global by default with optional `office_id` override.
+- Important fields: `code`, `report_type`, `name`, `category`,
+  `default_template_code`, `default_template_storage_ref`,
+  `checklist_schema_code`, `default_output_format`, `workflow_json`,
+  `output_layout_json`, `active`, `display_order`
+- Rule: report creation must resolve `report_type` through this registry, then
+  store the normalized `report_type` on `inspection_reports`.
+- Rule: a document type may provide a default checklist pack, report wizard
+  steps, DOCX template, and neutral output layout.
+- Rule: these defaults are the baseline only. Published office-specific
+  template/workflow/rule/output-layout revisions may override them later.
+- Rule: adding a new standard document such as demolition safety checklist must
+  add a registry row and checklist pack instead of adding renderer branches like
+  `if reportType == X`.
+- Rule: the generated document source remains the neutral report snapshot plus
+  selected configuration. PDF/HWPX/HWP/HTML are artifact outputs, not source
+  models.
+
 ## Project Assignment
 
 `project_assignment` connects an office user to a project-level work scope.

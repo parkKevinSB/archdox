@@ -29,6 +29,7 @@ It should contain document-generation data such as:
 - `report`
 - `project`
 - `site`
+- `documentType`
 - `targets`
 - `steps`
 - `photos`
@@ -39,6 +40,39 @@ It should contain document-generation data such as:
 
 Renderers and exporters may read this snapshot, but they must not mutate it or
 replace it as the source of truth.
+
+## Document Type Registry
+
+Document type selection is the first business decision in report authoring.
+The selected type must resolve default writing behavior without adding Java
+branches for each Korean form or customer.
+
+V1 document type defaults are stored in `document_type_definitions`:
+
+- `code` / `report_type`: stable business document type identifiers.
+- `default_template_code` and `default_template_storage_ref`: the default DOCX
+  template to bind when no office-specific template revision is published.
+- `checklist_schema_code`: the default checklist pack for the report.
+- `workflow_json`: the report wizard steps shown to the user.
+- `output_layout_json`: neutral layout sections used by DOCX/HTML/PDF/HWPX
+  renderers.
+
+This registry is not a replacement for office customization. It is the
+product-level baseline. Office-specific template/workflow/rule/output-layout
+configuration may override it later, but the fallback path must still remain:
+
+```text
+report type
+-> document_type_definitions
+-> default workflow + checklist schema + template + output layout
+-> neutral snapshot
+-> document-engine renderer/exporter
+```
+
+Initial Korean default document types include demolition safety checklist,
+demolition daily supervision log, demolition completion report, construction
+daily supervision log, and construction supervision report. These are reference
+packs, not hardcoded renderer branches.
 
 ## Format Boundary
 
@@ -140,6 +174,8 @@ responsibilities into clearer components:
   `templateFields`.
 - `OutputLayoutCompiler`: turns versioned output-layout configuration into
   neutral `layoutSections`.
+- `DocumentTypeRegistryService`: resolves product-level default document type
+  behavior when no office-specific configuration revision exists.
 - `DocumentGenerationRequest`: remains the document-engine input contract.
 
 This refactoring should be incremental. Do not introduce a broad generic DSL or
@@ -154,5 +190,7 @@ Implemented foundation:
   `StandardTemplateFieldResolver`, then overridden by explicit template schema
   bindings when present.
 - Output layout section compilation is isolated in `OutputLayoutCompiler`.
+- `document_type_definitions` provides default workflow/checklist/template/
+  output-layout packs for common Korean supervision and demolition documents.
 - `DocumentJobService` remains responsible for job lifecycle, routing, progress,
   and artifact metadata rather than low-level snapshot assembly.

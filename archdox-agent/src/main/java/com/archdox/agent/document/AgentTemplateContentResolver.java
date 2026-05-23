@@ -1,6 +1,7 @@
 package com.archdox.agent.document;
 
 import com.archdox.agent.cloud.ArchDoxAgentProperties;
+import com.archdox.document.BundledDocumentTemplates;
 import com.archdox.document.TemplateContentResolver;
 import com.archdox.document.TemplateSpec;
 import java.io.IOException;
@@ -33,6 +34,11 @@ public class AgentTemplateContentResolver implements TemplateContentResolver {
         var cached = templateStore.readIfExists(template.storageRef());
         if (cached.isPresent()) {
             return cached;
+        }
+        var bundled = BundledDocumentTemplates.read(template.storageRef());
+        if (bundled.isPresent()) {
+            templateStore.write(template.storageRef(), bundled.get());
+            return bundled;
         }
         if (template.downloadUrl() == null || template.downloadUrl().isBlank()) {
             return Optional.empty();

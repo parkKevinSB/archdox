@@ -637,6 +637,53 @@ Response `201`: `InspectionTargetResponse`
 
 Response `200`: `InspectionTargetResponse` with `status = ARCHIVED`
 
+## Document Types
+
+All document type endpoints require `Authorization` and `X-Office-Id`.
+Document types are the product-level defaults used when a report is created:
+they resolve the normalized `reportType`, default checklist pack, report wizard
+steps, default template, and neutral output layout.
+
+### GET `/api/v1/document-types`
+
+Response `200`:
+
+```json
+[
+  {
+    "id": 1,
+    "officeId": null,
+    "code": "DEMOLITION_SAFETY_CHECKLIST",
+    "reportType": "DEMOLITION_SAFETY_CHECKLIST",
+    "name": "Demolition safety checklist",
+    "description": "Default demolition safety inspection form.",
+    "category": "DEMOLITION_SUPERVISION",
+    "defaultTemplateCode": "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
+    "defaultTemplateStorageRef": "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
+    "checklistSchemaCode": "DEMOLITION_SAFETY_CHECKLIST_DEFAULT",
+    "defaultOutputFormat": "DOCX",
+    "displayOrder": 10,
+    "steps": [
+      {
+        "code": "BASIC_INFO",
+        "title": "Basic information",
+        "description": "Inspection date, location, supervisor, and stage.",
+        "stepType": "FORM",
+        "savePolicy": "ON_NAVIGATE",
+        "fields": []
+      }
+    ]
+  }
+]
+```
+
+### GET `/api/v1/document-types/{code}`
+
+Response `200`: one `DocumentTypeResponse`.
+
+Report creation should send one of these `code`/`reportType` values. The Cloud
+API normalizes it and stores the canonical `reportType` on the report.
+
 ## Inspection Reports
 
 All inspection report endpoints require `Authorization` and `X-Office-Id`.

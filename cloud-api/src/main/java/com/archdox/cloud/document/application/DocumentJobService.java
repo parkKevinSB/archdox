@@ -17,6 +17,7 @@ import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
 import com.archdox.cloud.configuration.application.ConfigurationRegistryService;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfiguration;
 import com.archdox.cloud.configuration.domain.ConfigResolutionSource;
+import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -31,6 +32,7 @@ import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.document.ArtifactType;
+import com.archdox.document.BundledDocumentTemplates;
 import com.archdox.document.DocumentEngine;
 import com.archdox.document.DocumentGenerationRequest;
 import com.archdox.document.GenerationStatus;
@@ -64,6 +66,7 @@ public class DocumentJobService {
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final ConfigurationRegistryService configurationRegistryService;
+    private final DocumentTypeRegistryService documentTypeRegistryService;
     private final DocumentSnapshotBuilder snapshotBuilder;
     private final DocumentGenerationRoutingService routingService;
     private final ObjectMapper objectMapper;
@@ -80,6 +83,7 @@ public class DocumentJobService {
             EventBus eventBus,
             OperationEventService operationEventService,
             ConfigurationRegistryService configurationRegistryService,
+            DocumentTypeRegistryService documentTypeRegistryService,
             DocumentSnapshotBuilder snapshotBuilder,
             DocumentGenerationRoutingService routingService,
             ObjectMapper objectMapper
@@ -95,6 +99,7 @@ public class DocumentJobService {
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.configurationRegistryService = configurationRegistryService;
+        this.documentTypeRegistryService = documentTypeRegistryService;
         this.snapshotBuilder = snapshotBuilder;
         this.routingService = routingService;
         this.objectMapper = objectMapper;
@@ -262,9 +267,19 @@ public class DocumentJobService {
             throw new BadRequestException("Document job is not routed to ARCHDOX_AGENT");
         }
         var template = templateSpec(job, report);
-        if (template.storageRef() == null
-                || template.storageRef().isBlank()
-                || !objectStore.exists(template.storageRef())) {
+        if (template.storageRef() == null || template.storageRef().isBlank()) {
+            throw new NotFoundException("Document template content not found");
+        }
+        if (!objectStore.exists(template.storageRef())) {
+            var bundled = BundledDocumentTemplates.read(template.storageRef());
+            if (bundled.isPresent()) {
+                var content = bundled.get();
+                return new DocumentArtifactDownload(
+                        filenameFromStorageRef(template.storageRef()),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        content.length,
+                        outputStream -> outputStream.write(content));
+            }
             throw new NotFoundException("Document template content not found");
         }
         return new DocumentArtifactDownload(
@@ -506,6 +521,20 @@ public class DocumentJobService {
                     jsonString(template.get("composePolicy")),
                     null,
                     true);
+        }
+        var defaultTemplate = documentTypeRegistryService.resolveByReportType(report.officeId(), report.reportType())
+                .filter(definition -> definition.defaultTemplateStorageRef() != null
+                        && !definition.defaultTemplateStorageRef().isBlank())
+                .map(definition -> new TemplateSpec(
+                        optionalStringValue(definition.defaultTemplateCode(), report.reportType()),
+                        1,
+                        definition.defaultTemplateStorageRef(),
+                        "{}",
+                        "{}",
+                        null,
+                        true));
+        if (defaultTemplate.isPresent()) {
+            return defaultTemplate.get();
         }
         return new TemplateSpec(
                 report.reportType(),

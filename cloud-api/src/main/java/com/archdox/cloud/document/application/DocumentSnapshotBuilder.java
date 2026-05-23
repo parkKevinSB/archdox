@@ -4,6 +4,7 @@ import com.archdox.cloud.checklist.application.ChecklistService;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfigPart;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfiguration;
 import com.archdox.cloud.configuration.application.ResolvedDocumentTemplateConfig;
+import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
@@ -32,6 +33,7 @@ public class DocumentSnapshotBuilder {
     private final TemplateBindingResolver templateBindingResolver;
     private final OutputLayoutCompiler outputLayoutCompiler;
     private final StandardTemplateFieldResolver standardTemplateFieldResolver;
+    private final DocumentTypeRegistryService documentTypeRegistryService;
 
     public DocumentSnapshotBuilder(
             InspectionReportStepRepository stepRepository,
@@ -43,7 +45,8 @@ public class DocumentSnapshotBuilder {
             SiteRepository siteRepository,
             TemplateBindingResolver templateBindingResolver,
             OutputLayoutCompiler outputLayoutCompiler,
-            StandardTemplateFieldResolver standardTemplateFieldResolver
+            StandardTemplateFieldResolver standardTemplateFieldResolver,
+            DocumentTypeRegistryService documentTypeRegistryService
     ) {
         this.stepRepository = stepRepository;
         this.photoRepository = photoRepository;
@@ -55,6 +58,7 @@ public class DocumentSnapshotBuilder {
         this.templateBindingResolver = templateBindingResolver;
         this.outputLayoutCompiler = outputLayoutCompiler;
         this.standardTemplateFieldResolver = standardTemplateFieldResolver;
+        this.documentTypeRegistryService = documentTypeRegistryService;
     }
 
     public Map<String, Object> build(
@@ -66,6 +70,7 @@ public class DocumentSnapshotBuilder {
         snapshot.put("configuration", configurationSnapshot(configuration));
         snapshot.put("project", projectSnapshot(report));
         snapshot.put("site", siteSnapshot(report));
+        snapshot.put("documentType", documentTypeSnapshot(report));
         snapshot.put("steps", stepSnapshot(report));
         snapshot.put("targets", targetSnapshot(report));
         snapshot.put("checklistAnswers", checklistService.answerSnapshot(report));
@@ -74,6 +79,11 @@ public class DocumentSnapshotBuilder {
         var templateFields = new LinkedHashMap<>(standardTemplateFieldResolver.resolve(snapshot));
         templateFields.putAll(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
         var layoutBinding = outputLayoutCompiler.compile(configuration.outputLayout().payload(), snapshot);
+        if (layoutBinding.sections().isEmpty()) {
+            layoutBinding = documentTypeRegistryService.resolveByReportType(report.officeId(), report.reportType())
+                    .map(definition -> outputLayoutCompiler.compile(definition.outputLayoutJson(), snapshot))
+                    .orElse(layoutBinding);
+        }
         snapshot.put("layoutSections", layoutBinding.sections());
         layoutBinding.templateFields().forEach(templateFields::putIfAbsent);
         snapshot.put("templateFields", templateFields);
@@ -134,6 +144,26 @@ public class DocumentSnapshotBuilder {
                     return Map.<String, Object>copyOf(snapshot);
                 })
                 .orElseGet(() -> Map.of("id", report.siteId()));
+    }
+
+    private Map<String, Object> documentTypeSnapshot(InspectionReport report) {
+        return documentTypeRegistryService.resolveByReportType(report.officeId(), report.reportType())
+                .map(definition -> {
+                    var snapshot = new LinkedHashMap<String, Object>();
+                    snapshot.put("id", definition.id());
+                    snapshot.put("officeId", definition.officeId() == null ? "" : definition.officeId());
+                    snapshot.put("code", definition.code());
+                    snapshot.put("reportType", definition.reportType());
+                    snapshot.put("name", definition.name());
+                    snapshot.put("description", definition.description() == null ? "" : definition.description());
+                    snapshot.put("category", definition.category());
+                    snapshot.put("defaultTemplateCode", definition.defaultTemplateCode() == null ? "" : definition.defaultTemplateCode());
+                    snapshot.put("defaultTemplateStorageRef", definition.defaultTemplateStorageRef() == null ? "" : definition.defaultTemplateStorageRef());
+                    snapshot.put("checklistSchemaCode", definition.checklistSchemaCode() == null ? "" : definition.checklistSchemaCode());
+                    snapshot.put("defaultOutputFormat", definition.defaultOutputFormat());
+                    return Map.<String, Object>copyOf(snapshot);
+                })
+                .orElseGet(Map::of);
     }
 
     private Map<String, Object> configurationSnapshot(ResolvedDocumentConfiguration configuration) {

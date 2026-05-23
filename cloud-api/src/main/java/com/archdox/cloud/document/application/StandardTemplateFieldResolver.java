@@ -21,6 +21,7 @@ public class StandardTemplateFieldResolver {
                 "steps.BASIC_INFO.payload.inspectionDate",
                 "steps.DAILY_LOG.payload.inspectionDate",
                 "steps.SAFETY_CHECK.payload.inspectionDate",
+                "steps.CHECKLIST.payload.inspectionDate",
                 "steps.DEMOLITION_SAFETY_CHECK.payload.inspectionDate",
                 "steps.DEMOLITION_DAILY_LOG.payload.inspectionDate");
 
@@ -57,6 +58,7 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.BASIC_INFO.payload.location",
                 "steps.SAFETY_CHECK.payload.location",
+                "steps.CHECKLIST.payload.location",
                 "steps.DEMOLITION_SAFETY_CHECK.payload.location",
                 "steps.DEMOLITION_DAILY_LOG.payload.location",
                 "site.name",
@@ -77,7 +79,10 @@ public class StandardTemplateFieldResolver {
                 "steps.BASIC_INFO.payload.architectAssistantName",
                 "steps.BASIC_INFO.payload.assistantSupervisorName"));
         put(fields, "assistantSupervisorName", readFirst(snapshot, "steps.BASIC_INFO.payload.assistantSupervisorName"));
-        put(fields, "demolitionWorkerName", readFirst(snapshot, "steps.DEMOLITION_SAFETY_CHECK.payload.demolitionWorkerName"));
+        put(fields, "demolitionWorkerName", readFirst(
+                snapshot,
+                "steps.BASIC_INFO.payload.demolitionWorkerName",
+                "steps.DEMOLITION_SAFETY_CHECK.payload.demolitionWorkerName"));
 
         put(fields, "constructionTrade", readFirst(
                 snapshot,
@@ -126,9 +131,13 @@ public class StandardTemplateFieldResolver {
         put(fields, "checklistSummary", readFirst(snapshot, "steps.CHECKLIST.payload.checklistSummary"));
         put(fields, "issueCount", readFirst(snapshot, "steps.CHECKLIST.payload.issueCount", "steps.ISSUES.payload.issueCount"));
 
-        put(fields, "safetyCheckStage", readFirst(snapshot, "steps.DEMOLITION_SAFETY_CHECK.payload.stage"));
+        put(fields, "safetyCheckStage", readFirst(
+                snapshot,
+                "steps.BASIC_INFO.payload.stage",
+                "steps.DEMOLITION_SAFETY_CHECK.payload.stage"));
         put(fields, "demolitionWorkStage", readFirst(
                 snapshot,
+                "steps.BASIC_INFO.payload.stage",
                 "steps.DEMOLITION_SAFETY_CHECK.payload.stage",
                 "steps.DEMOLITION_DAILY_LOG.payload.stage"));
         put(fields, "inspectionCriteria", readFirst(snapshot, "steps.DEMOLITION_SAFETY_CHECK.payload.inspectionCriteria"));
@@ -159,9 +168,9 @@ public class StandardTemplateFieldResolver {
         var normalized = reportType == null ? "" : reportType.trim().toUpperCase(java.util.Locale.ROOT);
         return switch (normalized) {
             case "CONSTRUCTION_SUPERVISION_REPORT", "SUPERVISION_REPORT" -> "\uAC10\uB9AC\uBCF4\uACE0\uC11C";
-            case "DAILY_SUPERVISION", "CONSTRUCTION_DAILY_LOG" -> "\uACF5\uC0AC\uAC10\uB9AC\uC77C\uC9C0";
-            case "DEMOLITION_SAFETY_CHECK" -> "\uD574\uCCB4\uACF5\uC0AC \uC548\uC804\uC810\uAC80\uD45C";
-            case "DEMOLITION_DAILY_SUPERVISION", "DEMOLITION_DAILY_LOG" -> "\uD574\uCCB4 \uACF5\uC0AC\uAC10\uB9AC\uC77C\uC9C0";
+            case "DAILY_SUPERVISION", "CONSTRUCTION_DAILY_LOG", "CONSTRUCTION_DAILY_SUPERVISION_LOG" -> "\uACF5\uC0AC\uAC10\uB9AC\uC77C\uC9C0";
+            case "DEMOLITION_SAFETY_CHECK", "DEMOLITION_SAFETY_CHECKLIST" -> "\uD574\uCCB4\uACF5\uC0AC \uC548\uC804\uC810\uAC80\uD45C";
+            case "DEMOLITION_DAILY_SUPERVISION", "DEMOLITION_DAILY_LOG", "DEMOLITION_DAILY_SUPERVISION_LOG" -> "\uD574\uCCB4 \uACF5\uC0AC\uAC10\uB9AC\uC77C\uC9C0";
             case "DEMOLITION_COMPLETION_REPORT" -> "\uAC74\uCD95\uBB3C \uD574\uCCB4\uAC10\uB9AC\uC644\uB8CC \uBCF4\uACE0\uC11C";
             default -> "";
         };

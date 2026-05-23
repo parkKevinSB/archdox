@@ -90,6 +90,17 @@ class DefaultKoreanTemplateResourceTest {
         }
     }
 
+    @Test
+    void bundledDocumentTemplatesResolveClasspathStorageRefs() throws Exception {
+        for (TemplateCase templateCase : TEMPLATE_CASES) {
+            var content = BundledDocumentTemplates.read(templateCase.storageRef());
+            assertTrue(content.isPresent(), templateCase.storageRef());
+            assertTrue(content.get().length > 0, templateCase.storageRef());
+        }
+
+        assertTrue(BundledDocumentTemplates.read("missing.docx").isEmpty());
+    }
+
     private Map<String, Object> payload(List<String> richSections) {
         var sections = new LinkedHashMap<String, Object>();
         for (String richSection : richSections) {

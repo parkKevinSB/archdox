@@ -24,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -127,7 +128,7 @@ public class ChecklistService {
     public ChecklistSchema resolveSchema(InspectionReport report) {
         var officeId = OfficeContext.requireCurrentOfficeId();
         return schemaRepository.findByReportTypeAndStatusOrderByOfficeIdDescIdAsc(
-                        report.reportType(),
+                        normalizeCode(report.reportType()),
                         ChecklistSchemaStatus.ACTIVE).stream()
                 .filter(schema -> schema.officeId() == null || Objects.equals(schema.officeId(), officeId))
                 .min(Comparator
@@ -211,5 +212,12 @@ public class ChecklistService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeCode(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
     }
 }

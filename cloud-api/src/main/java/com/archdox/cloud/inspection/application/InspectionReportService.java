@@ -2,6 +2,7 @@ package com.archdox.cloud.inspection.application;
 
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.api.BadRequestException;
+import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStatus;
@@ -34,6 +35,7 @@ public class InspectionReportService {
     private final SiteService siteService;
     private final OfficePermissionService permissionService;
     private final ReportSubmitValidationService submitValidationService;
+    private final DocumentTypeRegistryService documentTypeRegistryService;
 
     public InspectionReportService(
             InspectionReportRepository reportRepository,
@@ -41,7 +43,8 @@ public class InspectionReportService {
             ProjectService projectService,
             SiteService siteService,
             OfficePermissionService permissionService,
-            ReportSubmitValidationService submitValidationService
+            ReportSubmitValidationService submitValidationService,
+            DocumentTypeRegistryService documentTypeRegistryService
     ) {
         this.reportRepository = reportRepository;
         this.stepRepository = stepRepository;
@@ -49,6 +52,7 @@ public class InspectionReportService {
         this.siteService = siteService;
         this.permissionService = permissionService;
         this.submitValidationService = submitValidationService;
+        this.documentTypeRegistryService = documentTypeRegistryService;
     }
 
     @Transactional(readOnly = true)
@@ -71,14 +75,15 @@ public class InspectionReportService {
         }
         var officeId = OfficeContext.requireCurrentOfficeId();
         permissionService.requireReportWriter(principal.userId(), officeId, request.projectId(), null);
+        var documentType = documentTypeRegistryService.requireForReportCreation(officeId, request.reportType());
         var now = OffsetDateTime.now();
         var report = new InspectionReport(
                 officeId,
                 request.projectId(),
                 request.siteId(),
                 generateReportNo(now),
-                request.reportType().trim(),
-                trimToNull(request.title()),
+                documentType.reportType(),
+                defaultTitle(request.title(), documentType.name()),
                 request.templateId(),
                 principal.userId(),
                 now);
@@ -257,5 +262,10 @@ public class InspectionReportService {
             return null;
         }
         return value.trim();
+    }
+
+    private String defaultTitle(String title, String fallback) {
+        var trimmed = trimToNull(title);
+        return trimmed == null ? fallback : trimmed;
     }
 }

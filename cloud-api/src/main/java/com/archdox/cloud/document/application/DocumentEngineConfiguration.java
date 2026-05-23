@@ -6,6 +6,7 @@ import com.archdox.document.DocxTemplateDocumentEngine;
 import com.archdox.document.DocumentArtifactExportService;
 import com.archdox.document.DocumentArtifactExporter;
 import com.archdox.document.DocumentEngine;
+import com.archdox.document.BundledDocumentTemplates;
 import com.archdox.document.LibreOfficeDocumentArtifactExporter;
 import com.archdox.document.LibreOfficePdfExportOptions;
 import com.archdox.document.ResolvedPhotoContent;
@@ -40,7 +41,7 @@ public class DocumentEngineConfiguration {
                 return Optional.empty();
             }
             if (!objectStore.exists(template.storageRef())) {
-                return Optional.empty();
+                return BundledDocumentTemplates.read(template.storageRef());
             }
             try (var input = objectStore.open(template.storageRef())) {
                 return Optional.of(input.readAllBytes());
