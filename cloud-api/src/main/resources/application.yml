@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: archdox-cloud-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/archdox}
+    username: ${DB_USERNAME:archdox}
+    password: ${DB_PASSWORD:archdox}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+archdox:
+  storage:
+    active: ${ARCHDOX_STORAGE_ACTIVE:LOCAL_FILE}
+    local-file:
+      root-path: ${ARCHDOX_LOCAL_FILE_ROOT:build/storage}
+      bucket-name: ${ARCHDOX_LOCAL_FILE_BUCKET:local}
+    nas:
+      root-path: ${ARCHDOX_NAS_ROOT:build/nas-storage}
+      bucket-name: ${ARCHDOX_NAS_BUCKET:nas}
+    s3-compatible:
+      endpoint: ${ARCHDOX_S3_ENDPOINT:}
+      region: ${ARCHDOX_S3_REGION:ap-northeast-2}
+      bucket-name: ${ARCHDOX_S3_BUCKET:}
+      access-key: ${ARCHDOX_S3_ACCESS_KEY:}
+      secret-key: ${ARCHDOX_S3_SECRET_KEY:}
+      path-style-access: ${ARCHDOX_S3_PATH_STYLE_ACCESS:true}
+  ai:
+    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:llama3.1}
+  jwt:
+    secret: ${JWT_SECRET:dev-only-change-this-secret-for-archdox-local-256-bit}
+    access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
+    refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:14}
+  agent:
+    shared-secret: ${AGENT_SHARED_SECRET:dev-agent-secret-change-me}
+    command-ttl-minutes: ${AGENT_COMMAND_TTL_MINUTES:60}
+    install-token-ttl-minutes: ${AGENT_INSTALL_TOKEN_TTL_MINUTES:30}
+    allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:true}
+  photos:
+    pickup:
+      max-attempts: ${PHOTO_PICKUP_MAX_ATTEMPTS:5}
+      retry-base-delay-ms: ${PHOTO_PICKUP_RETRY_BASE_DELAY_MS:30000}
+      retry-max-delay-ms: ${PHOTO_PICKUP_RETRY_MAX_DELAY_MS:300000}
+      step-timeout-ms: ${PHOTO_PICKUP_STEP_TIMEOUT_MS:60000}
+      worker-interval-ms: ${PHOTO_PICKUP_WORKER_INTERVAL_MS:100}
+    derivatives:
+      max-attempts: ${PHOTO_DERIVATIVE_MAX_ATTEMPTS:3}
+      retry-base-delay-ms: ${PHOTO_DERIVATIVE_RETRY_BASE_DELAY_MS:1000}
+      retry-max-delay-ms: ${PHOTO_DERIVATIVE_RETRY_MAX_DELAY_MS:30000}
+      step-timeout-ms: ${PHOTO_DERIVATIVE_STEP_TIMEOUT_MS:60000}
+      worker-interval-ms: ${PHOTO_DERIVATIVE_WORKER_INTERVAL_MS:100}
+      executor-threads: ${PHOTO_DERIVATIVE_EXECUTOR_THREADS:2}
+    storage:
+      upload-target: ${PHOTO_UPLOAD_TARGET:API_LOCAL}
+      local-root: ${PHOTO_LOCAL_ROOT:build/photo-storage}
+      s3:
+        endpoint: ${PHOTO_S3_ENDPOINT:${ARCHDOX_S3_ENDPOINT:}}
+        region: ${PHOTO_S3_REGION:${ARCHDOX_S3_REGION:ap-northeast-2}}
+        bucket: ${PHOTO_S3_BUCKET:${ARCHDOX_S3_BUCKET:}}
+        access-key: ${PHOTO_S3_ACCESS_KEY:${ARCHDOX_S3_ACCESS_KEY:}}
+        secret-key: ${PHOTO_S3_SECRET_KEY:${ARCHDOX_S3_SECRET_KEY:}}
+        path-style-access: ${PHOTO_S3_PATH_STYLE_ACCESS:${ARCHDOX_S3_PATH_STYLE_ACCESS:true}}
+  documents:
+    generation:
+      max-attempts: ${DOCUMENT_GENERATION_MAX_ATTEMPTS:3}
+      retry-base-delay-ms: ${DOCUMENT_GENERATION_RETRY_BASE_DELAY_MS:1000}
+      retry-max-delay-ms: ${DOCUMENT_GENERATION_RETRY_MAX_DELAY_MS:30000}
+      step-timeout-ms: ${DOCUMENT_GENERATION_STEP_TIMEOUT_MS:60000}
+      worker-interval-ms: ${DOCUMENT_GENERATION_WORKER_INTERVAL_MS:100}
+      executor-threads: ${DOCUMENT_GENERATION_EXECUTOR_THREADS:2}
+    storage:
+      local-root: ${DOCUMENT_LOCAL_ROOT:build/document-storage}

@@ -1,0 +1,35 @@
+import type { ReportStepCode, ReportStepDefinition } from "./types";
+import { reportStepDefinitions } from "./flow/reportFlowDefinition";
+
+export { reportStepDefinitions } from "./flow/reportFlowDefinition";
+
+export function isReportStepCode(value?: string | null): value is ReportStepCode {
+  return reportStepDefinitions.some((definition) => definition.code === value);
+}
+
+export function payloadFieldValue(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return "";
+}
+
+export function payloadFromForm(definition: ReportStepDefinition, values: Record<string, string>) {
+  return definition.fields.reduce<Record<string, unknown>>((payload, field) => {
+    const rawValue = values[field.key]?.trim() ?? "";
+    if (rawValue.length === 0) {
+      return payload;
+    }
+    if (field.type === "number") {
+      const numericValue = Number(rawValue);
+      payload[field.key] = Number.isFinite(numericValue) ? numericValue : rawValue;
+      return payload;
+    }
+    payload[field.key] = rawValue;
+    return payload;
+  }, {});
+}

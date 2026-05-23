@@ -1,0 +1,7 @@
+archdox:
+  agent:
+    cloud-ws-url: ${CLOUD_AGENT_WS_URL:ws://localhost:8080/agent/ws}
+    cloud-http-base-url: ${CLOUD_API_BASE_URL:http://localhost:8080}
+    enabled: ${AGENT_WS_ENABLED:false}
+    deployment-mode: ${AGENT_DEPLOYMENT_MODE:LOCAL_OFFICE}
+    local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}

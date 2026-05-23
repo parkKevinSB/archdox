@@ -1,0 +1,17 @@
+archdox:
+  agent:
+    cloud-ws-url: ${CLOUD_AGENT_WS_URL:ws://archdox-server:8080/agent/ws}
+    cloud-http-base-url: ${CLOUD_API_BASE_URL:http://archdox-server:8080}
+    enabled: ${AGENT_WS_ENABLED:true}
+    deployment-mode: ${AGENT_DEPLOYMENT_MODE:LOCAL_OFFICE}
+    local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}
+    storage:
+      original:
+        kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FS}
+        root-path: ${AGENT_ORIGINAL_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/originals}
+      working:
+        kind: ${AGENT_WORKING_STORAGE_KIND:LOCAL_FS}
+        root-path: ${AGENT_WORKING_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/working}
+      artifact:
+        kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FS}
+        root-path: ${AGENT_ARTIFACT_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/artifacts}

@@ -1,0 +1,9 @@
+import type { MeResponse } from "./types";
+
+export type AppState = {
+  accessToken: string;
+  refreshToken: string;
+  user: MeResponse;
+};
+
+export type ViewKey = "home" | "projects" | "reports" | "photos" | "jobs" | "more";

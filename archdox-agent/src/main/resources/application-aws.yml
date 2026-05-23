@@ -1,0 +1,7 @@
+archdox:
+  agent:
+    cloud-ws-url: ${CLOUD_AGENT_WS_URL:wss://api.example.com/agent/ws}
+    cloud-http-base-url: ${CLOUD_API_BASE_URL:https://api.example.com}
+    enabled: ${AGENT_WS_ENABLED:true}
+    deployment-mode: ${AGENT_DEPLOYMENT_MODE:LOCAL_OFFICE}
+    auth-mode: ${AGENT_AUTH_MODE:DEVICE_SECRET}

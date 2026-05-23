@@ -1,0 +1,21 @@
+archdox:
+  storage:
+    active: S3_COMPATIBLE
+    s3-compatible:
+      endpoint: ${ARCHDOX_S3_ENDPOINT:}
+      region: ${ARCHDOX_S3_REGION:ap-northeast-2}
+      bucket-name: ${ARCHDOX_S3_BUCKET}
+      access-key: ${ARCHDOX_S3_ACCESS_KEY}
+      secret-key: ${ARCHDOX_S3_SECRET_KEY}
+      path-style-access: ${ARCHDOX_S3_PATH_STYLE_ACCESS:false}
+  photos:
+    storage:
+      upload-target: ${PHOTO_UPLOAD_TARGET:CLOUD_MEDIATED}
+  agent:
+    allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:false}
+  ai:
+    provider: ${ARCHDOX_AI_PROVIDER:OPENAI}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      api-key: ${OPENAI_API_KEY}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}

@@ -1,0 +1,15 @@
+archdox:
+  storage:
+    active: LOCAL_FILE
+    local-file:
+      root-path: ${ARCHDOX_LOCAL_FILE_ROOT:build/storage}
+      bucket-name: local-dev
+  photos:
+    storage:
+      upload-target: ${PHOTO_UPLOAD_TARGET:API_LOCAL}
+      local-root: ${PHOTO_LOCAL_ROOT:build/photo-storage}
+  documents:
+    storage:
+      local-root: ${DOCUMENT_LOCAL_ROOT:build/document-storage}
+  ai:
+    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}

@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/archdox}
+    username: ${DB_USERNAME:archdox}
+    password: ${DB_PASSWORD:archdox}
+
+archdox:
+  storage:
+    active: ${ARCHDOX_STORAGE_ACTIVE:S3_COMPATIBLE}
+    local-file:
+      root-path: ${ARCHDOX_LOCAL_FILE_ROOT:build/storage}
+      bucket-name: local-server
+    nas:
+      root-path: ${ARCHDOX_NAS_ROOT:build/nas-storage}
+      bucket-name: nas
+    s3-compatible:
+      endpoint: ${ARCHDOX_S3_ENDPOINT:http://localhost:9000}
+      region: ${ARCHDOX_S3_REGION:ap-northeast-2}
+      bucket-name: ${ARCHDOX_S3_BUCKET:archdox-local}
+      access-key: ${ARCHDOX_S3_ACCESS_KEY:archdox}
+      secret-key: ${ARCHDOX_S3_SECRET_KEY:archdox-password}
+      path-style-access: ${ARCHDOX_S3_PATH_STYLE_ACCESS:true}
+  photos:
+    storage:
+      upload-target: ${PHOTO_UPLOAD_TARGET:CLOUD_MEDIATED}
+      s3:
+        endpoint: ${PHOTO_S3_ENDPOINT:${ARCHDOX_S3_ENDPOINT:http://localhost:9000}}
+        region: ${PHOTO_S3_REGION:${ARCHDOX_S3_REGION:ap-northeast-2}}
+        bucket: ${PHOTO_S3_BUCKET:${ARCHDOX_S3_BUCKET:archdox-local}}
+        access-key: ${PHOTO_S3_ACCESS_KEY:${ARCHDOX_S3_ACCESS_KEY:archdox}}
+        secret-key: ${PHOTO_S3_SECRET_KEY:${ARCHDOX_S3_SECRET_KEY:archdox-password}}
+        path-style-access: ${PHOTO_S3_PATH_STYLE_ACCESS:true}
+  ai:
+    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:llama3.1}
