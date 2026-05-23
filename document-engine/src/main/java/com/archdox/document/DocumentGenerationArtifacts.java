@@ -11,14 +11,18 @@ final class DocumentGenerationArtifacts {
     static DocumentGenerationResult completeFromDocx(
             DocumentGenerationRequest request,
             GeneratedArtifact docxArtifact,
-            DocumentArtifactExportService exportService
+            DocumentArtifactExportService exportService,
+            HtmlPreviewDocumentRenderer htmlRenderer
     ) {
         var format = request.outputFormat() == null ? OutputFormat.DOCX : request.outputFormat();
         var artifacts = new ArrayList<GeneratedArtifact>();
         if (includesDocx(format)) {
             artifacts.add(docxArtifact);
         }
-        for (var targetType : exportTargets(format)) {
+        if (includesHtml(format)) {
+            artifacts.add(htmlRenderer.render(request));
+        }
+        for (var targetType : converterTargets(format)) {
             var export = exportService.export(new DocumentExportRequest(
                     request.jobId(),
                     request.reportId(),
@@ -41,11 +45,17 @@ final class DocumentGenerationArtifacts {
         };
     }
 
-    private static List<ArtifactType> exportTargets(OutputFormat format) {
+    private static boolean includesHtml(OutputFormat format) {
         return switch (format) {
-            case DOCX -> List.of();
-            case HTML -> List.of(ArtifactType.HTML);
-            case HTML_AND_PDF -> List.of(ArtifactType.HTML, ArtifactType.PDF);
+            case HTML, HTML_AND_PDF -> true;
+            case DOCX, DOCX_AND_PDF, PDF, HWP, HWPX -> false;
+        };
+    }
+
+    private static List<ArtifactType> converterTargets(OutputFormat format) {
+        return switch (format) {
+            case DOCX, HTML -> List.of();
+            case HTML_AND_PDF -> List.of(ArtifactType.PDF);
             case PDF, DOCX_AND_PDF -> List.of(ArtifactType.PDF);
             case HWP -> List.of(ArtifactType.HWP);
             case HWPX -> List.of(ArtifactType.HWPX);

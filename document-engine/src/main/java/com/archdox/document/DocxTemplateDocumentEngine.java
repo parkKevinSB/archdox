@@ -35,6 +35,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     private final TemplateContentResolver templateContentResolver;
     private final PhotoContentResolver photoContentResolver;
     private final DocumentArtifactExportService exportService;
+    private final HtmlPreviewDocumentRenderer htmlRenderer;
     private final DocumentEngine fallback;
 
     public DocxTemplateDocumentEngine(TemplateContentResolver templateContentResolver, DocumentEngine fallback) {
@@ -66,6 +67,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         this.templateContentResolver = templateContentResolver;
         this.photoContentResolver = photoContentResolver;
         this.exportService = exportService == null ? DocumentArtifactExportService.disabled() : exportService;
+        this.htmlRenderer = new HtmlPreviewDocumentRenderer(this.photoContentResolver);
         this.fallback = fallback;
     }
 
@@ -87,7 +89,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                     content.length,
                     sha256(content),
                     content);
-            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService);
+            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService, htmlRenderer);
         } catch (IOException ex) {
             return DocumentGenerationResult.failed(request.jobId(), "TEMPLATE_BINDING_FAILED", ex.getMessage());
         } catch (RuntimeException ex) {

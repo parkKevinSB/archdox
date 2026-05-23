@@ -15,13 +15,22 @@ import java.util.zip.ZipOutputStream;
 
 public class SimpleDocumentEngine implements DocumentEngine {
     private final DocumentArtifactExportService exportService;
+    private final HtmlPreviewDocumentRenderer htmlRenderer;
 
     public SimpleDocumentEngine() {
         this(DocumentArtifactExportService.disabled());
     }
 
     public SimpleDocumentEngine(DocumentArtifactExportService exportService) {
+        this(exportService, new HtmlPreviewDocumentRenderer());
+    }
+
+    public SimpleDocumentEngine(
+            DocumentArtifactExportService exportService,
+            HtmlPreviewDocumentRenderer htmlRenderer
+    ) {
         this.exportService = exportService == null ? DocumentArtifactExportService.disabled() : exportService;
+        this.htmlRenderer = htmlRenderer == null ? new HtmlPreviewDocumentRenderer() : htmlRenderer;
     }
 
     @Override
@@ -37,7 +46,7 @@ public class SimpleDocumentEngine implements DocumentEngine {
                     content.length,
                     sha256(content),
                     content);
-            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService);
+            return DocumentGenerationArtifacts.completeFromDocx(request, artifact, exportService, htmlRenderer);
         } catch (IOException | RuntimeException ex) {
             return DocumentGenerationResult.failed(request.jobId(), "DOCUMENT_RENDER_FAILED", ex.getMessage());
         }

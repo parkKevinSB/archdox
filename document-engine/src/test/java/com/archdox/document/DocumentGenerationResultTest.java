@@ -83,20 +83,109 @@ class DocumentGenerationResultTest {
     }
 
     @Test
-    void simpleEngineLeavesHtmlAsExporterBackedExtensionPoint() {
+    void simpleEngineGeneratesHtmlPreviewWithoutExporter() {
         var engine = new SimpleDocumentEngine();
         var result = engine.generate(new DocumentGenerationRequest(
                 "job-export-3",
                 "office-1",
                 "report-export-3",
                 new TemplateSpec("DAILY", 1, "templates/daily.docx", "{}", "{}"),
-                Map.of("title", "Daily report"),
+                Map.of("templateFields", Map.of(
+                        "documentTitle", "Daily report",
+                        "projectName", "Seoul office")),
                 List.of(),
                 OutputFormat.HTML));
 
-        assertEquals(GenerationStatus.FAILED, result.status());
-        assertEquals("DOCUMENT_EXPORTER_NOT_CONFIGURED", result.errorCode());
-        assertTrue(result.errorMessage().contains("DOCX -> HTML"));
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        assertEquals(1, result.artifacts().size());
+        assertEquals(ArtifactType.HTML, result.artifacts().get(0).type());
+        assertEquals("inspection-report-report-export-3.html", result.artifacts().get(0).fileName());
+        var html = new String(result.artifacts().get(0).content(), StandardCharsets.UTF_8);
+        assertTrue(html.contains("<!doctype html>"));
+        assertTrue(html.contains("Daily report"));
+        assertTrue(html.contains("Seoul office"));
+    }
+
+    @Test
+    void simpleEngineCanReturnHtmlAndExportedPdfWhenExporterIsConfigured() {
+        var engine = new SimpleDocumentEngine(new DocumentArtifactExportService(List.of(new FakePdfExporter())));
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-export-4",
+                "office-1",
+                "report-export-4",
+                new TemplateSpec("DAILY", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("templateFields", Map.of("documentTitle", "Preview report")),
+                List.of(),
+                OutputFormat.HTML_AND_PDF));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        assertEquals(2, result.artifacts().size());
+        assertEquals(ArtifactType.HTML, result.artifacts().get(0).type());
+        assertEquals(ArtifactType.PDF, result.artifacts().get(1).type());
+    }
+
+    @Test
+    void docxTemplateEngineGeneratesHtmlPreviewWithPhotoAndChecklistSections() throws Exception {
+        var template = docx("""
+                Project: ${projectName}
+                """);
+        var image = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lz7S4QAAAABJRU5ErkJggg==");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                photo -> Optional.of(new ResolvedPhotoContent(image, "image/png")),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-html-1",
+                "office-1",
+                "report-html-1",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "templateFields", Map.of(
+                                "documentTitle", "공사감리 미리보기",
+                                "projectName", "서초동 근린생활시설"),
+                        "layoutSections", Map.of(
+                                "photoSection", Map.of(
+                                        "type", "PHOTO_TABLE",
+                                        "title", "현장 사진",
+                                        "photosPerRow", 2,
+                                        "fields", List.of(Map.of("label", "설명", "source", "caption"))),
+                                "checklistSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "title", "감리 체크리스트",
+                                        "fields", List.of(
+                                                Map.of("label", "항목", "source", "label"),
+                                                Map.of("label", "결과", "source", "answer.value"),
+                                                Map.of("label", "비고", "source", "note")))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "label", "철근 배근 확인",
+                                        "answer", Map.of("value", "적합"),
+                                        "note", "도면과 일치"))),
+                List.of(new PhotoAsset(
+                        "photo-1",
+                        "PHOTO_STEP",
+                        "photos/photo-1.png",
+                        "전면부 확인",
+                        PhotoLayoutSize.MEDIUM,
+                        "image/png",
+                        null)),
+                OutputFormat.HTML));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        assertEquals(1, result.artifacts().size());
+        assertEquals(ArtifactType.HTML, result.artifacts().get(0).type());
+        var html = new String(result.artifacts().get(0).content(), StandardCharsets.UTF_8);
+        assertTrue(html.contains("공사감리 미리보기"));
+        assertTrue(html.contains("서초동 근린생활시설"));
+        assertTrue(html.contains("현장 사진"));
+        assertTrue(html.contains("data:image/png;base64,"));
+        assertTrue(html.contains("전면부 확인"));
+        assertTrue(html.contains("감리 체크리스트"));
+        assertTrue(html.contains("철근 배근 확인"));
+        assertTrue(html.contains("적합"));
+        assertTrue(html.contains("도면과 일치"));
     }
 
     @Test

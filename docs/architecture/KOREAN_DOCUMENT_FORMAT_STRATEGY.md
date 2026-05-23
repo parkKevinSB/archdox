@@ -19,7 +19,7 @@ Photo/checklist assets
 DOCX template renderer
         |
         +--> DOCX artifact
-        +--> HTML exporter
+        +--> HTML preview renderer
         +--> PDF exporter
         +--> HWP/HWPX exporter
 ```
@@ -48,14 +48,26 @@ renderer.
 
 Recommended stages:
 
-1. Add `HTML` as an artifact/export target.
-2. Initially allow `DOCX -> HTML` or snapshot-driven `HtmlTemplateRenderer`
-   implementations behind `DocumentArtifactExporter` or a renderer facade.
+1. Add `HTML` as an artifact target.
+2. Render HTML directly from the report snapshot and versioned layout
+   configuration for browser preview.
 3. Use HTML for browser preview and potentially for `HTML -> PDF` pipelines
    where layout requirements fit web rendering better than Word layout.
 
 HTML must follow the same rule as HWP/PDF: the business source of truth is the
 report snapshot and versioned configuration, not the generated HTML file.
+
+Implemented V1 rule:
+
+- `HTML` does not require an external exporter.
+- `document-engine` creates a responsive preview artifact from
+  `templateFields`, `PHOTO_TABLE`, `CHECKLIST_TABLE`, photos, and checklist
+  answer snapshots.
+- HTML preview is optimized for human review in the browser. It is not the
+  source of truth and it is not a guarantee of exact page breaks for final
+  submission.
+- `HTML_AND_PDF` returns the HTML preview artifact and still requires a PDF
+  exporter for the PDF artifact.
 
 ## Why Not HWP First
 
@@ -143,7 +155,7 @@ DocxTemplateRenderer
   - image media embedding
 
 DocumentArtifactExporter
-  - HTML export
+  - HTML preview render/export
   - PDF export
   - HWP/HWPX export
   - converter-specific execution
@@ -185,10 +197,23 @@ Supported output format requests are:
 - `HWP`
 - `HWPX`
 
-The foundation intentionally does not ship a real converter yet. If a request
-requires `HTML`, `PDF`, `HWP`, or `HWPX` and no matching exporter is configured,
-generation fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes missing
-infrastructure obvious while keeping the render/export boundary stable.
+The foundation intentionally does not ship a real office converter yet. `HTML`
+is implemented as a snapshot-driven preview renderer and does not require an
+external converter. If a request requires `PDF`, `HWP`, or `HWPX` and no
+matching exporter is configured, generation fails with
+`DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes missing infrastructure obvious
+while keeping the render/export boundary stable.
+
+Implemented HTML preview renderer:
+
+- class: `HtmlPreviewDocumentRenderer`
+- output: `ArtifactType.HTML`
+- format requests: `HTML`, `HTML_AND_PDF`
+- source data: `DocumentGenerationRequest.payload`, layout sections, photos,
+  and checklist answers
+- image behavior: embeds a data URL when the configured photo resolver can
+  resolve working image content; otherwise renders a readable placeholder and
+  metadata
 
 ## Reviewed HWP Source Templates
 

@@ -1410,15 +1410,17 @@ Output formats:
 - `DOCX`: render and return a DOCX artifact.
 - `PDF`: render the configured source artifact, then export to PDF.
 - `DOCX_AND_PDF`: return DOCX plus exported PDF.
-- `HTML`: export or render an HTML artifact when an HTML renderer/exporter is
-  configured.
-- `HTML_AND_PDF`: return HTML plus exported PDF when the configured render/export
-  path supports it.
+- `HTML`: render a browser-preview HTML artifact from the report snapshot,
+  template fields, layout sections, photos, and checklist answers.
+- `HTML_AND_PDF`: return the HTML preview artifact plus exported PDF. The HTML
+  artifact does not require an external converter, but the PDF artifact still
+  requires a configured PDF exporter.
 - `HWP`, `HWPX`: export Korean office document artifacts when a converter is
   configured.
 
-If an output format requires an exporter that is not configured, generation
-fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
+If an output format requires an exporter that is not configured, such as PDF,
+HWP, or HWPX conversion, generation fails with
+`DOCUMENT_EXPORTER_NOT_CONFIGURED`.
 
 Phase 4-3 target flow:
 

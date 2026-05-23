@@ -509,9 +509,13 @@ Real template smoke coverage:
   a DOCX-based template. HWP/PDF delivery strategy is documented in
   `KOREAN_DOCUMENT_FORMAT_STRATEGY.md`.
 - Export foundation is now explicit in `document-engine`. `DOCX` remains the
-  first render substrate, while `HTML`, `PDF`, `HWP`, and `HWPX` are exporter
-  targets behind `DocumentArtifactExporter`. Missing converters fail with
+  first render substrate. `HTML` is a snapshot-driven preview renderer, while
+  `PDF`, `HWP`, and `HWPX` remain converter/exporter targets behind
+  `DocumentArtifactExporter`. Missing converters fail with
   `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
+- HTML preview V1 renders `templateFields`, `PHOTO_TABLE`, and
+  `CHECKLIST_TABLE` into a responsive browser-readable artifact. It is for
+  writing/review workflows, not for exact final page-break validation.
 
 ### Phase E: Workflow Definition V1
 
