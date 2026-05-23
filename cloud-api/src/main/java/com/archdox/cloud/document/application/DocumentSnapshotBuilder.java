@@ -31,6 +31,7 @@ public class DocumentSnapshotBuilder {
     private final SiteRepository siteRepository;
     private final TemplateBindingResolver templateBindingResolver;
     private final OutputLayoutCompiler outputLayoutCompiler;
+    private final StandardTemplateFieldResolver standardTemplateFieldResolver;
 
     public DocumentSnapshotBuilder(
             InspectionReportStepRepository stepRepository,
@@ -41,7 +42,8 @@ public class DocumentSnapshotBuilder {
             ProjectRepository projectRepository,
             SiteRepository siteRepository,
             TemplateBindingResolver templateBindingResolver,
-            OutputLayoutCompiler outputLayoutCompiler
+            OutputLayoutCompiler outputLayoutCompiler,
+            StandardTemplateFieldResolver standardTemplateFieldResolver
     ) {
         this.stepRepository = stepRepository;
         this.photoRepository = photoRepository;
@@ -52,6 +54,7 @@ public class DocumentSnapshotBuilder {
         this.siteRepository = siteRepository;
         this.templateBindingResolver = templateBindingResolver;
         this.outputLayoutCompiler = outputLayoutCompiler;
+        this.standardTemplateFieldResolver = standardTemplateFieldResolver;
     }
 
     public Map<String, Object> build(
@@ -68,7 +71,8 @@ public class DocumentSnapshotBuilder {
         snapshot.put("checklistAnswers", checklistService.answerSnapshot(report));
         snapshot.put("photos", photoSnapshot(report));
 
-        var templateFields = new LinkedHashMap<>(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
+        var templateFields = new LinkedHashMap<>(standardTemplateFieldResolver.resolve(snapshot));
+        templateFields.putAll(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
         var layoutBinding = outputLayoutCompiler.compile(configuration.outputLayout().payload(), snapshot);
         snapshot.put("layoutSections", layoutBinding.sections());
         layoutBinding.templateFields().forEach(templateFields::putIfAbsent);

@@ -85,6 +85,28 @@ ${inspectorName}
 The same `templateFields` can be used by HTML preview, PDF conversion, AI review,
 and future HWPX rendering.
 
+## Standard Korean Form Fields
+
+Some public Korean construction/supervision forms have stable business fields
+that appear across many office templates. Examples include construction name,
+site address, permit number, supervision date, supervisor, daily work process,
+inspection criteria, special notes, issue/action result, and demolition safety
+check stage.
+
+These fields are still neutral business data. They must not become HWP-specific
+or office-specific Java branches.
+
+`StandardTemplateFieldResolver` provides common default `templateFields` from
+the neutral snapshot before template-specific schema bindings are applied.
+Template schema bindings remain stronger: if a published template revision maps
+`constructionName`, `inspectionDate`, or any other placeholder explicitly, that
+mapping overrides the standard default.
+
+This lets early DOCX templates mirror real forms such as Korean construction
+supervision reports, daily supervision logs, demolition safety checklists,
+demolition daily logs, and demolition completion reports without forcing every
+template JSON schema to repeat the same common bindings.
+
 ## Development Rules
 
 1. Do not add office-specific document generation branches such as
@@ -124,6 +146,9 @@ Implemented foundation:
 - `cloud-api` now builds `document_jobs.input_snapshot_json` through
   `DocumentSnapshotBuilder`.
 - Template field resolution is isolated in `TemplateBindingResolver`.
+- Common Korean supervision/demolition form placeholders are supplied by
+  `StandardTemplateFieldResolver`, then overridden by explicit template schema
+  bindings when present.
 - Output layout section compilation is isolated in `OutputLayoutCompiler`.
 - `DocumentJobService` remains responsible for job lifecycle, routing, progress,
   and artifact metadata rather than low-level snapshot assembly.

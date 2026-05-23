@@ -159,7 +159,11 @@ current architecture.
     customer-specific artifact.
 19. Add new document data to the neutral snapshot first, then expose it through
     `templateFields`, `layoutSections`, or bounded renderer/exporter behavior.
-20. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
+20. Common public-form placeholders may be supplied by
+    `StandardTemplateFieldResolver`, but they must remain report-domain neutral.
+    Do not use it for office-specific layouts or customer-specific branches.
+    Explicit template schema bindings override these standard defaults.
+21. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
     must stay inside document-engine renderers/exporters or deployment-specific
     converter adapters.
 

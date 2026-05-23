@@ -207,11 +207,16 @@ class DocumentJobIntegrationTest {
         assertTrue(content[0] == 'P' && content[1] == 'K');
         var documentXml = docxText(content);
         assertTrue(documentXml.contains("Project: Document Tower"));
+        assertTrue(documentXml.contains("Document title: Daily supervision report"));
+        assertTrue(documentXml.contains("Construction name: Document Tower"));
         assertTrue(documentXml.contains("Site: North Site"));
+        assertTrue(documentXml.contains("Site address: Seoul"));
         assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
+        assertTrue(documentXml.contains("Date parts: 2026-5-23 (\uD1A0)"));
         assertTrue(documentXml.contains("Inspector: Document Job"));
         assertTrue(documentXml.contains("Weather: Clear"));
         assertTrue(documentXml.contains("Checklist summary: Checked"));
+        assertTrue(documentXml.contains("Issue count: 0"));
         assertTrue(documentXml.contains("Photo Section"));
         assertTrue(documentXml.contains("Step: PHOTOS"));
         assertTrue(documentXml.contains("Checklist Section"));
@@ -282,8 +287,12 @@ class DocumentJobIntegrationTest {
         assertTrue(Files.exists(renderedDocx));
         var documentXml = docxText(Files.readAllBytes(renderedDocx));
         assertTrue(documentXml.contains("Project: Document Tower"));
+        assertTrue(documentXml.contains("Document title: Daily supervision report"));
+        assertTrue(documentXml.contains("Construction name: Document Tower"));
         assertTrue(documentXml.contains("Site: North Site"));
+        assertTrue(documentXml.contains("Site address: Seoul"));
         assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
+        assertTrue(documentXml.contains("Date parts: 2026-5-23 (\uD1A0)"));
         assertTrue(documentXml.contains("Inspector: Document Job"));
         assertTrue(documentXml.contains("Checklist summary: Checked"));
     }
@@ -335,11 +344,16 @@ class DocumentJobIntegrationTest {
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 templateDocx("""
                         Project: ${projectName}
+                        Document title: ${documentTitle}
+                        Construction name: ${constructionName}
                         Site: ${siteName}
+                        Site address: ${siteAddress}
                         Inspection date: ${inspectionDate}
+                        Date parts: ${inspectionYear}-${inspectionMonth}-${inspectionDay} (${inspectionDayOfWeek})
                         Inspector: ${inspectorName}
                         Weather: ${weather}
                         Checklist summary: ${checklistSummary}
+                        Issue count: ${issueCount}
                         Photos:
                         ${photoSection}
                         Checklist:

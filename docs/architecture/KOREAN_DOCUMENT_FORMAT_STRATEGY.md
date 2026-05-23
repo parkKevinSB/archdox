@@ -351,6 +351,35 @@ Generated smoke artifact:
 document-engine/build/archdox-smoke/hwp-derived-construction-supervision-daily-log.docx
 ```
 
+## Standard Binding Fields From Real Forms
+
+Phase 7-7 extends Cloud API snapshot assembly with standard placeholder
+resolution for the inspected Korean construction and demolition forms.
+
+The first supported field families are:
+
+- report identity: `documentTitle`, `reportTitle`, `reportNo`, `serialNo`,
+  `reportType`
+- project/site identity: `projectName`, `constructionName`,
+  `constructionProjectName`, `workName`, `siteName`, `siteCode`,
+  `siteAddress`, `buildingType`, `lotNumber`
+- permit/period/date: `permitNumber`, `permitDate`, `constructionStartDate`,
+  `constructionEndDate`, `supervisionStartDate`, `supervisionEndDate`,
+  `inspectionDate`, `inspectionYear`, `inspectionMonth`, `inspectionDay`,
+  `inspectionDayOfWeek`, `weather`, `inspectionLocation`
+- people: `chiefSupervisorName`, `supervisorName`, `inspectorName`,
+  `architectAssistantName`, `assistantSupervisorName`, `demolitionWorkerName`
+- daily supervision content: `constructionTrade`, `detailedProcess`, `floor`,
+  `workDescription`, `supervisionItem`, `supervisionFocus`,
+  `supervisionContent`, `specialNotes`, `issueAndAction`, `correctiveAction`
+- checklist/demolition content: `checklistSummary`, `issueCount`,
+  `safetyCheckStage`, `demolitionWorkStage`, `inspectionCriteria`,
+  `inspectionResult`, `safetyChecklistItems`
+
+These are placeholder defaults, not a new physical document model. A template
+revision can override any field through `schema.bindings`, and rich sections
+such as `PHOTO_TABLE` and `CHECKLIST_TABLE` remain output-layout behavior.
+
 ## Development Rule
 
 Do not make `.hwp` the source of truth for business data. HWP/HWPX is an
