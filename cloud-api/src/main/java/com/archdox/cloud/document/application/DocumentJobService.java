@@ -36,6 +36,8 @@ import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
+import com.archdox.cloud.project.infra.ProjectRepository;
+import com.archdox.cloud.site.infra.SiteRepository;
 import com.archdox.document.ArtifactType;
 import com.archdox.document.DocumentEngine;
 import com.archdox.document.DocumentGenerationRequest;
@@ -52,6 +54,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -73,6 +76,8 @@ public class DocumentJobService {
     private final ConfigurationRegistryService configurationRegistryService;
     private final InspectionReportTargetRepository reportTargetRepository;
     private final ChecklistService checklistService;
+    private final ProjectRepository projectRepository;
+    private final SiteRepository siteRepository;
     private final ObjectMapper objectMapper;
 
     public DocumentJobService(
@@ -90,6 +95,8 @@ public class DocumentJobService {
             ConfigurationRegistryService configurationRegistryService,
             InspectionReportTargetRepository reportTargetRepository,
             ChecklistService checklistService,
+            ProjectRepository projectRepository,
+            SiteRepository siteRepository,
             ObjectMapper objectMapper
     ) {
         this.inspectionReportService = inspectionReportService;
@@ -106,6 +113,8 @@ public class DocumentJobService {
         this.configurationRegistryService = configurationRegistryService;
         this.reportTargetRepository = reportTargetRepository;
         this.checklistService = checklistService;
+        this.projectRepository = projectRepository;
+        this.siteRepository = siteRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -478,11 +487,166 @@ public class DocumentJobService {
         reportSnapshot.put("templateId", report.templateId() == null ? "" : report.templateId());
         snapshot.put("report", reportSnapshot);
         snapshot.put("configuration", configurationSnapshot(configuration));
+        snapshot.put("project", projectSnapshot(report));
+        snapshot.put("site", siteSnapshot(report));
         snapshot.put("steps", stepSnapshot(report));
         snapshot.put("targets", targetSnapshot(report));
         snapshot.put("checklistAnswers", checklistService.answerSnapshot(report));
         snapshot.put("photos", photoSnapshot(report));
+        snapshot.put("templateFields", templateFields(configuration.template().schema(), snapshot));
         return snapshot;
+    }
+
+    private Map<String, Object> projectSnapshot(InspectionReport report) {
+        return projectRepository.findByIdAndOfficeId(report.projectId(), report.officeId())
+                .map(project -> {
+                    var snapshot = new LinkedHashMap<String, Object>();
+                    snapshot.put("id", project.id());
+                    snapshot.put("officeId", project.officeId());
+                    snapshot.put("name", project.name());
+                    snapshot.put("address", project.address() == null ? "" : project.address());
+                    snapshot.put("buildingType", project.buildingType() == null ? "" : project.buildingType());
+                    snapshot.put("startDate", project.startDate() == null ? "" : project.startDate().toString());
+                    snapshot.put("endDate", project.endDate() == null ? "" : project.endDate().toString());
+                    snapshot.put("status", project.status().name());
+                    return Map.<String, Object>copyOf(snapshot);
+                })
+                .orElseGet(() -> Map.of("id", report.projectId()));
+    }
+
+    private Map<String, Object> siteSnapshot(InspectionReport report) {
+        if (report.siteId() == null) {
+            return Map.of();
+        }
+        return siteRepository.findByIdAndOfficeId(report.siteId(), report.officeId())
+                .map(site -> {
+                    var snapshot = new LinkedHashMap<String, Object>();
+                    snapshot.put("id", site.id());
+                    snapshot.put("officeId", site.officeId());
+                    snapshot.put("projectId", site.projectId());
+                    snapshot.put("siteCode", site.siteCode() == null ? "" : site.siteCode());
+                    snapshot.put("name", site.name());
+                    snapshot.put("address", site.address() == null ? "" : site.address());
+                    snapshot.put("siteType", site.siteType() == null ? "" : site.siteType());
+                    snapshot.put("startDate", site.startDate() == null ? "" : site.startDate().toString());
+                    snapshot.put("endDate", site.endDate() == null ? "" : site.endDate().toString());
+                    snapshot.put("status", site.status().name());
+                    return Map.<String, Object>copyOf(snapshot);
+                })
+                .orElseGet(() -> Map.of("id", report.siteId()));
+    }
+
+    private Map<String, Object> templateFields(Map<String, Object> schema, Map<String, Object> snapshot) {
+        var fieldSources = templateFieldSources(schema);
+        if (fieldSources.isEmpty()) {
+            return Map.of();
+        }
+        var fields = new LinkedHashMap<String, Object>();
+        fieldSources.forEach((fieldName, sourcePath) -> {
+            var value = readPath(snapshot, sourcePath).orElse("");
+            fields.put(fieldName, value == null ? "" : value);
+        });
+        return fields;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> templateFieldSources(Map<String, Object> schema) {
+        if (schema == null || schema.isEmpty()) {
+            return Map.of();
+        }
+        var sources = new LinkedHashMap<String, String>();
+        readFieldSourceMap(schema.get("bindings"), sources);
+        readFieldSourceMap(schema.get("fieldMappings"), sources);
+        readFieldSourceMap(schema.get("fields"), sources);
+        if (schema.get("fields") instanceof List<?> fields) {
+            for (Object field : fields) {
+                if (field instanceof Map<?, ?> rawField) {
+                    var name = firstString(rawField, "key", "name", "placeholder");
+                    var source = firstString(rawField, "source", "path", "binding");
+                    if (name != null && source != null) {
+                        sources.put(name, source);
+                    }
+                }
+            }
+        }
+        return sources;
+    }
+
+    private void readFieldSourceMap(Object value, Map<String, String> sources) {
+        if (!(value instanceof Map<?, ?> mappings)) {
+            return;
+        }
+        mappings.forEach((rawName, rawSource) -> {
+            var name = stringValue(rawName);
+            var source = fieldSource(rawSource);
+            if (name != null && source != null) {
+                sources.put(name, source);
+            }
+        });
+    }
+
+    private String fieldSource(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return firstString(map, "source", "path", "binding");
+        }
+        return stringValue(value);
+    }
+
+    private String firstString(Map<?, ?> map, String... keys) {
+        for (String key : keys) {
+            var value = map.get(key);
+            var text = stringValue(value);
+            if (text != null && !text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
+    }
+
+    private Optional<Object> readPath(Object root, String path) {
+        if (path == null || path.isBlank()) {
+            return Optional.empty();
+        }
+        Object current = root;
+        for (String segment : path.split("\\.")) {
+            current = readSegment(current, segment);
+            if (current == null) {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(current);
+    }
+
+    private Object readSegment(Object current, String segment) {
+        if (segment == null || segment.isBlank()) {
+            return null;
+        }
+        var key = segment;
+        Integer index = null;
+        var bracketStart = segment.indexOf('[');
+        if (bracketStart >= 0 && segment.endsWith("]")) {
+            key = segment.substring(0, bracketStart);
+            var rawIndex = segment.substring(bracketStart + 1, segment.length() - 1);
+            try {
+                index = Integer.parseInt(rawIndex);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        Object value = current;
+        if (!key.isBlank()) {
+            if (!(current instanceof Map<?, ?> map)) {
+                return null;
+            }
+            value = map.get(key);
+        }
+        if (index == null) {
+            return value;
+        }
+        if (value instanceof List<?> list && index >= 0 && index < list.size()) {
+            return list.get(index);
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

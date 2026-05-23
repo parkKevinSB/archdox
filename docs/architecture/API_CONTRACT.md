@@ -1385,6 +1385,24 @@ Worker routing:
   document storage when available and replaces intact `${...}` placeholders
   using the job input snapshot. Missing template files fall back to the simple
   generated DOCX path.
+- Template Binding V1 now snapshots `project`, `site`, and `templateFields`.
+  Template revision `schema.bindings` can map business-friendly placeholders to
+  snapshot paths:
+
+```json
+{
+  "bindings": {
+    "projectName": "project.name",
+    "siteName": "site.name",
+    "inspectionDate": "steps.BASIC_INFO.payload.inspectionDate",
+    "weather": "steps.BASIC_INFO.payload.weather"
+  }
+}
+```
+
+With that schema, a DOCX template may use `${projectName}` instead of exposing
+the internal path `${steps.BASIC_INFO.payload.inspectionDate}`. The job snapshot
+keeps the resolved `templateFields` values immutable for later auditing.
 
 Phase 4-3 target flow:
 

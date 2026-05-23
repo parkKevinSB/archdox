@@ -357,6 +357,10 @@ AI prompts.
 - Rule: Template Binding V1 supports DOCX templates whose XML contains intact
   `${...}` placeholders. The engine binds values from the immutable document job
   snapshot and leaves unresolved placeholders visible.
+- Rule: template revision `schema.bindings` may map business placeholder names
+  to snapshot paths. Example: `projectName -> project.name`,
+  `inspectionDate -> steps.BASIC_INFO.payload.inspectionDate`. Resolved values
+  are stored under `document_jobs.input_snapshot_json.templateFields`.
 - Rule: when the selected template file is not available in configured document
   storage, Cloud generation falls back to the simple generated DOCX path.
 - Rule: office admins upload DOCX content to `DRAFT` template revisions through

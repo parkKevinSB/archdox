@@ -76,7 +76,8 @@ class DocumentJobIntegrationTest {
         var user = signup();
         var templateOverride = createTemplateOverride(user);
         var projectId = createProject(user);
-        var reportId = createReport(user, projectId);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
         saveChecklistStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
@@ -171,8 +172,12 @@ class DocumentJobIntegrationTest {
         assertTrue(content.length > 0);
         assertTrue(content[0] == 'P' && content[1] == 'K');
         var documentXml = docxText(content);
-        assertTrue(documentXml.contains("Report title: Daily supervision report"));
+        assertTrue(documentXml.contains("Project: Document Tower"));
+        assertTrue(documentXml.contains("Site: North Site"));
+        assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
+        assertTrue(documentXml.contains("Inspector: Document Job"));
         assertTrue(documentXml.contains("Weather: Clear"));
+        assertTrue(documentXml.contains("Checklist summary: Checked"));
         assertTrue(documentXml.contains("Template: DAILY_TEMPLATE v1"));
     }
 
@@ -198,7 +203,15 @@ class DocumentJobIntegrationTest {
                         .content("""
                                 {
                                   "schema": {
-                                    "required": ["projectName"]
+                                    "required": ["projectName"],
+                                    "bindings": {
+                                      "projectName": "project.name",
+                                      "siteName": "site.name",
+                                      "inspectionDate": "steps.BASIC_INFO.payload.inspectionDate",
+                                      "inspectorName": "steps.BASIC_INFO.payload.inspectorName",
+                                      "weather": "steps.BASIC_INFO.payload.weather",
+                                      "checklistSummary": "steps.CHECKLIST.payload.checklistSummary"
+                                    }
                                   },
                                   "composePolicy": {
                                     "photoSection": "photoTable"
@@ -214,8 +227,12 @@ class DocumentJobIntegrationTest {
                 "daily-template.docx",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 templateDocx("""
-                        Report title: ${report.title}
+                        Project: ${projectName}
+                        Site: ${siteName}
+                        Inspection date: ${inspectionDate}
+                        Inspector: ${inspectorName}
                         Weather: ${weather}
+                        Checklist summary: ${checklistSummary}
                         Template: ${templateCode} v${templateVersion}
                         """));
         var uploadResult = mockMvc.perform(multipart("/api/v1/config/document-template-revisions/{revisionId}/content", revisionId)
@@ -383,7 +400,25 @@ class DocumentJobIntegrationTest {
         return readId(result.getResponse().getContentAsString());
     }
 
-    private long createReport(TestUser user, long projectId) throws Exception {
+    private long createSite(TestUser user, long projectId) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/projects/{projectId}/sites", projectId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "siteCode": "SITE-NORTH",
+                                  "name": "North Site",
+                                  "address": "Seoul",
+                                  "siteType": "BUILDING"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createReport(TestUser user, long projectId, long siteId) throws Exception {
         var result = mockMvc.perform(post("/api/v1/inspection-reports")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
@@ -391,10 +426,11 @@ class DocumentJobIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
+                                  "siteId": %d,
                                   "reportType": "DAILY_SUPERVISION",
                                   "title": "Daily supervision report"
                                 }
-                                """.formatted(projectId)))
+                                """.formatted(projectId, siteId)))
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result.getResponse().getContentAsString());

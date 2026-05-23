@@ -336,12 +336,27 @@ Implemented first binding:
 - Cloud document generation builds `TemplateSpec` from the snapshot, not by
   re-resolving latest config later
 - fallback remains `templates/default.docx` when no configuration exists
+- document job snapshots now include `project`, `site`, and `templateFields`
+- template revision `schema.bindings` maps DOCX-friendly placeholder names to
+  snapshot paths, for example:
+
+```json
+{
+  "bindings": {
+    "projectName": "project.name",
+    "siteName": "site.name",
+    "inspectionDate": "steps.BASIC_INFO.payload.inspectionDate",
+    "weather": "steps.BASIC_INFO.payload.weather"
+  }
+}
+```
 
 Current limitation:
 
 - `DocxTemplateDocumentEngine` can read a configured DOCX template and replace
   placeholders that appear as intact text inside Word XML, such as
-  `${report.title}`, `${weather}`, `${templateCode}`, and `${templateVersion}`
+  `${report.title}`, `${projectName}`, `${siteName}`, `${weather}`,
+  `${templateCode}`, and `${templateVersion}`
 - missing template files fall back to the simple generated DOCX path, preserving
   the MVP behavior
 - unresolved placeholders remain visible in the output so missing data is easier

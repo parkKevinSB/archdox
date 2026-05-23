@@ -79,6 +79,41 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEnginePrefersExplicitTemplateFieldAliases() throws Exception {
+        var template = docx("""
+                Project name: ${projectName}
+                Inspection date: ${inspectionDate}
+                Weather: ${weather}
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-3",
+                "office-1",
+                "report-3",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "project", Map.of("name", "Internal project name"),
+                        "steps", Map.of("BASIC_INFO", Map.of("payload", Map.of(
+                                "inspectionDate", "2026-05-23",
+                                "weather", "Clear"))),
+                        "templateFields", Map.of(
+                                "projectName", "Mapped project name",
+                                "inspectionDate", "2026-05-24",
+                                "weather", "Mapped weather")),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("Project name: Mapped project name"));
+        assertTrue(documentXml.contains("Inspection date: 2026-05-24"));
+        assertTrue(documentXml.contains("Weather: Mapped weather"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),
@@ -87,7 +122,7 @@ class DocumentGenerationResultTest {
         var result = engine.generate(new DocumentGenerationRequest(
                 "job-3",
                 "office-1",
-                "report-3",
+                "report-4",
                 new TemplateSpec("DAILY", 1, "templates/missing.docx", "{}", "{}"),
                 Map.of("title", "Daily report"),
                 List.of(),

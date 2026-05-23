@@ -114,6 +114,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         bindings.put("generatedAt", OffsetDateTime.now().toString());
 
         flatten(bindings, "", request.payload());
+        addTemplateFieldAliases(bindings);
         addLeafAliases(bindings);
         return bindings;
     }
@@ -135,6 +136,21 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         if (!prefix.isBlank()) {
             bindings.put(prefix, valueOrBlank(value));
         }
+    }
+
+    private void addTemplateFieldAliases(Map<String, String> bindings) {
+        var prefix = "templateFields.";
+        var aliases = new LinkedHashMap<String, String>();
+        for (var entry : bindings.entrySet()) {
+            if (!entry.getKey().startsWith(prefix)) {
+                continue;
+            }
+            var alias = entry.getKey().substring(prefix.length());
+            if (!alias.isBlank() && !alias.contains(".") && !alias.contains("[")) {
+                aliases.put(alias, entry.getValue());
+            }
+        }
+        bindings.putAll(aliases);
     }
 
     private void addLeafAliases(Map<String, String> bindings) {
