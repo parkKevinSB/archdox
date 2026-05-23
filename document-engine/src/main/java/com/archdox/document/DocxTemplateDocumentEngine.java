@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,8 @@ import java.util.zip.ZipOutputStream;
 
 public class DocxTemplateDocumentEngine implements DocumentEngine {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_.\\-\\[\\]]+)}");
+    private static final Pattern WORD_TEXT_NODE_PATTERN = Pattern.compile("(<w:t(?:\\s+[^>]*)?>)(.*?)(</w:t>)",
+            Pattern.DOTALL);
 
     private final TemplateContentResolver templateContentResolver;
     private final DocumentEngine fallback;
@@ -90,6 +93,11 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String replacePlaceholders(String xml, Map<String, String> bindings) {
+        var replaced = replaceIntactPlaceholders(xml, bindings);
+        return replaceSplitTextNodePlaceholders(replaced, bindings);
+    }
+
+    private String replaceIntactPlaceholders(String xml, Map<String, String> bindings) {
         var matcher = PLACEHOLDER_PATTERN.matcher(xml);
         var result = new StringBuffer();
         while (matcher.find()) {
@@ -101,6 +109,95 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private String replaceSplitTextNodePlaceholders(String xml, Map<String, String> bindings) {
+        if (bindings.isEmpty() || !xml.contains("${")) {
+            return xml;
+        }
+
+        var textNodes = extractWordTextNodes(xml);
+        if (textNodes.size() < 2) {
+            return xml;
+        }
+
+        var contents = new ArrayList<String>(textNodes.size());
+        var textStarts = new int[textNodes.size()];
+        var combined = new StringBuilder();
+        for (int i = 0; i < textNodes.size(); i++) {
+            var node = textNodes.get(i);
+            textStarts[i] = combined.length();
+            contents.add(node.content());
+            combined.append(node.content());
+        }
+
+        var replacements = new ArrayList<SplitPlaceholderReplacement>();
+        var matcher = PLACEHOLDER_PATTERN.matcher(combined);
+        while (matcher.find()) {
+            var replacement = bindings.get(matcher.group(1));
+            if (replacement == null) {
+                continue;
+            }
+
+            var start = locateTextPosition(contents, textStarts, matcher.start());
+            var end = locateTextPosition(contents, textStarts, matcher.end() - 1);
+            if (start.nodeIndex() == end.nodeIndex()) {
+                continue;
+            }
+
+            replacements.add(new SplitPlaceholderReplacement(
+                    start.nodeIndex(),
+                    start.offset(),
+                    end.nodeIndex(),
+                    end.offset() + 1,
+                    escapeXml(replacement)));
+        }
+
+        for (int i = replacements.size() - 1; i >= 0; i--) {
+            applySplitReplacement(contents, replacements.get(i));
+        }
+        return rebuildXmlWithTextNodes(xml, textNodes, contents);
+    }
+
+    private List<WordTextNode> extractWordTextNodes(String xml) {
+        var textNodes = new ArrayList<WordTextNode>();
+        var matcher = WORD_TEXT_NODE_PATTERN.matcher(xml);
+        while (matcher.find()) {
+            textNodes.add(new WordTextNode(matcher.start(2), matcher.end(2), matcher.group(2)));
+        }
+        return textNodes;
+    }
+
+    private TextPosition locateTextPosition(List<String> contents, int[] textStarts, int charIndex) {
+        for (int i = 0; i < contents.size(); i++) {
+            var start = textStarts[i];
+            var end = start + contents.get(i).length();
+            if (charIndex >= start && charIndex < end) {
+                return new TextPosition(i, charIndex - start);
+            }
+        }
+        throw new IllegalStateException("Placeholder position is outside Word text nodes");
+    }
+
+    private void applySplitReplacement(List<String> contents, SplitPlaceholderReplacement replacement) {
+        var first = contents.get(replacement.startNodeIndex());
+        var last = contents.get(replacement.endNodeIndex());
+        contents.set(
+                replacement.startNodeIndex(),
+                first.substring(0, replacement.startOffset()) + replacement.replacement());
+        for (int i = replacement.startNodeIndex() + 1; i < replacement.endNodeIndex(); i++) {
+            contents.set(i, "");
+        }
+        contents.set(replacement.endNodeIndex(), last.substring(replacement.endOffset()));
+    }
+
+    private String rebuildXmlWithTextNodes(String xml, List<WordTextNode> textNodes, List<String> contents) {
+        var result = new StringBuilder(xml);
+        for (int i = textNodes.size() - 1; i >= 0; i--) {
+            var node = textNodes.get(i);
+            result.replace(node.contentStart(), node.contentEnd(), contents.get(i));
+        }
         return result.toString();
     }
 
@@ -207,5 +304,19 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String valueOrBlank(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private record WordTextNode(int contentStart, int contentEnd, String content) {
+    }
+
+    private record TextPosition(int nodeIndex, int offset) {
+    }
+
+    private record SplitPlaceholderReplacement(
+            int startNodeIndex,
+            int startOffset,
+            int endNodeIndex,
+            int endOffset,
+            String replacement) {
     }
 }

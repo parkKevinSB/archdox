@@ -351,12 +351,17 @@ Implemented first binding:
 }
 ```
 
-Current limitation:
+Current capability:
 
 - `DocxTemplateDocumentEngine` can read a configured DOCX template and replace
   placeholders that appear as intact text inside Word XML, such as
   `${report.title}`, `${projectName}`, `${siteName}`, `${weather}`,
   `${templateCode}`, and `${templateVersion}`
+- DOCX Placeholder Hardening V1 also supports placeholders split across
+  multiple Word text nodes, for example `${pro` + `ject` + `Name}`. The engine
+  writes the resolved value into the first involved text node and clears the
+  remaining placeholder fragments, preserving the surrounding Word run
+  structure.
 - missing template files fall back to the simple generated DOCX path, preserving
   the MVP behavior
 - unresolved placeholders remain visible in the output so missing data is easier
@@ -373,11 +378,11 @@ Current limitation:
 
 Remaining limitations:
 
-- placeholders split across multiple Word runs may not bind yet
 - real image insertion into DOCX is not applied yet
-- admin UI template management is not implemented yet
-- full DOCX placeholder binding with robust Word run normalization remains a
-  later hardening phase
+- admin UI supports template definition/revision/upload/publish/override
+  management; a rich visual template/schema editor remains later
+- complex Word fields, content controls, headers/footers with unusual XML
+  structures, and true table/image insertion remain later hardening phases
 
 ### Phase D: Output Layout V1
 

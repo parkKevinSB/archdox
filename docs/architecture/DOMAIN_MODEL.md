@@ -354,9 +354,13 @@ AI prompts.
   different office-specific documents.
 - Rule: document generation should bind data into the selected template
   revision through `document-engine`.
-- Rule: Template Binding V1 supports DOCX templates whose XML contains intact
-  `${...}` placeholders. The engine binds values from the immutable document job
-  snapshot and leaves unresolved placeholders visible.
+- Rule: Template Binding V1 supports DOCX templates whose XML contains `${...}`
+  placeholders. The engine binds values from the immutable document job snapshot
+  and leaves unresolved placeholders visible.
+- Rule: DOCX Placeholder Hardening V1 supports placeholders split across
+  multiple Word text nodes, such as `${pro` + `ject` + `Name}`. The resolved
+  value is written into the first involved text node while the remaining
+  placeholder fragments are cleared.
 - Rule: template revision `schema.bindings` may map business placeholder names
   to snapshot paths. Example: `projectName -> project.name`,
   `inspectionDate -> steps.BASIC_INFO.payload.inspectionDate`. Resolved values

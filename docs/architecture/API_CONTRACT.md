@@ -1382,9 +1382,10 @@ Worker routing:
   and artifact metadata. Render workers own execution, not the public REST
   contract.
 - Template Binding V1 reads the selected template revision's `storageRef` from
-  document storage when available and replaces intact `${...}` placeholders
-  using the job input snapshot. Missing template files fall back to the simple
-  generated DOCX path.
+  document storage when available and replaces `${...}` placeholders using the
+  job input snapshot. DOCX Placeholder Hardening V1 supports both intact
+  placeholders and placeholders split across multiple Word text nodes. Missing
+  template files fall back to the simple generated DOCX path.
 - Template Binding V1 now snapshots `project`, `site`, and `templateFields`.
   Template revision `schema.bindings` can map business-friendly placeholders to
   snapshot paths:

@@ -114,6 +114,39 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineBindsPlaceholderSplitAcrossWordTextNodes() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p>
+                  <w:r><w:t>Project: ${pro</w:t></w:r>
+                  <w:r><w:t>ject</w:t></w:r>
+                  <w:r><w:t>Name}</w:t></w:r>
+                  <w:r><w:t> / Weather: ${weather}</w:t></w:r>
+                </w:p>
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-4",
+                "office-1",
+                "report-4",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("templateFields", Map.of(
+                        "projectName", "Mapped project name",
+                        "weather", "Cloudy")),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("Project: Mapped project name"));
+        assertTrue(documentXml.contains("Weather: Cloudy"));
+        assertTrue(!documentXml.contains("${projectName}"));
+        assertTrue(!documentXml.contains("${pro"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),
@@ -159,6 +192,37 @@ class DocumentGenerationResultTest {
                       </w:body>
                     </w:document>
                     """.formatted(escapeXml(bodyText)));
+            zip.finish();
+            return output.toByteArray();
+        }
+    }
+
+    private byte[] docxWithBodyXml(String bodyXml) throws Exception {
+        try (var output = new ByteArrayOutputStream();
+             var zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            put(zip, "[Content_Types].xml", """
+                    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                    <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+                      <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+                      <Default Extension="xml" ContentType="application/xml"/>
+                      <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+                    </Types>
+                    """);
+            put(zip, "_rels/.rels", """
+                    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                      <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+                    </Relationships>
+                    """);
+            put(zip, "word/document.xml", """
+                    <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                      <w:body>
+                        %s
+                        <w:sectPr/>
+                      </w:body>
+                    </w:document>
+                    """.formatted(bodyXml));
             zip.finish();
             return output.toByteArray();
         }
