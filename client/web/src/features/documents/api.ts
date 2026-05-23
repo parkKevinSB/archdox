@@ -86,6 +86,28 @@ export async function downloadDocumentUrl(
   }
 }
 
+export async function fetchDocumentTextUrl(
+  token: string,
+  officeId: number,
+  downloadUrl: string
+) {
+  const response = await fetch(new URL(`${API_BASE}${downloadUrl}`, window.location.origin), {
+    headers: {
+      Accept: "text/html,*/*",
+      Authorization: `Bearer ${token}`,
+      "X-Office-Id": String(officeId)
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`문서 미리보기 요청에 실패했습니다. (${response.status})`);
+  }
+  return response.text();
+}
+
+export function directArtifactDownloadUrl(artifact: DocumentArtifactResponse) {
+  return `/api/v1/document-artifacts/${artifact.id}/download`;
+}
+
 export function defaultDownloadFileName(artifact: DocumentArtifactResponse) {
   return artifact.fileName || `archdox-document-${artifact.id}.${artifact.artifactType.toLowerCase()}`;
 }

@@ -1,4 +1,4 @@
-import { Download, FileClock, FileText, History, Loader2, RefreshCw, UploadCloud } from "lucide-react";
+import { Download, Eye, FileClock, FileText, History, Loader2, RefreshCw, UploadCloud, X } from "lucide-react";
 import {
   EmptyState,
   InlineAlert,
@@ -72,15 +72,19 @@ export function DocumentWorkspace({
                 return (
                   <DocumentReportCard
                     creating={workspace.creatingReportId === report.id}
+                    creatingOutputFormat={workspace.creatingOutputFormat}
                     deliveriesByArtifact={workspace.deliveriesByArtifact}
                     downloadingArtifactId={workspace.downloadingArtifactId}
                     jobs={jobs}
                     key={report.id}
                     projectName={project?.name}
                     report={report}
+                    previewingArtifactId={workspace.previewingArtifactId}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
-                    onCreate={() => workspace.createDocumentJob(report.id)}
+                    onCreate={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "DOCX" })}
+                    onCreatePreview={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "HTML" })}
                     onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
+                    onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
                     onRequestDelivery={(artifact, job) => workspace.requestArtifactDelivery({ artifact, job })}
                   />
                 );
@@ -106,31 +110,42 @@ export function DocumentWorkspace({
           </div>
         </Panel>
       </div>
+      {workspace.preview ? (
+        <DocumentPreviewDialog preview={workspace.preview} onClose={workspace.closePreview} />
+      ) : null}
     </div>
   );
 }
 
 function DocumentReportCard({
   creating,
+  creatingOutputFormat,
   deliveriesByArtifact,
   downloadingArtifactId,
   jobs,
   projectName,
   report,
+  previewingArtifactId,
   requestingDeliveryArtifactId,
   onCreate,
+  onCreatePreview,
   onDownloadPrepared,
+  onPreviewArtifact,
   onRequestDelivery
 }: {
   creating: boolean;
+  creatingOutputFormat: string | null;
   deliveriesByArtifact: Record<number, DocumentDeliveryRequestResponse>;
   downloadingArtifactId: number | null;
   jobs: DocumentJobResponse[];
   projectName?: string;
   report: InspectionReport;
+  previewingArtifactId: number | null;
   requestingDeliveryArtifactId: number | null;
   onCreate: () => Promise<DocumentJobResponse>;
+  onCreatePreview: () => Promise<DocumentJobResponse>;
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
+  onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
   onRequestDelivery: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
 }) {
   const latestJob = jobs[0] ?? null;
@@ -140,6 +155,8 @@ function DocumentReportCard({
   const active = Boolean(activeJob);
   const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status) && !active;
   const action = documentAction(report, latestJob, active);
+  const creatingDocx = creating && creatingOutputFormat !== "HTML";
+  const creatingHtml = creating && creatingOutputFormat === "HTML";
 
   return (
     <article className="document-card">
@@ -178,8 +195,10 @@ function DocumentReportCard({
               isLatest={index === 0}
               job={job}
               key={job.id}
+              previewingArtifactId={previewingArtifactId}
               requestingDeliveryArtifactId={requestingDeliveryArtifactId}
               onDownloadPrepared={onDownloadPrepared}
+              onPreviewArtifact={onPreviewArtifact}
               onRequestDelivery={onRequestDelivery}
             />
           ))}
@@ -191,8 +210,12 @@ function DocumentReportCard({
 
       <div className="document-actions">
         <span className="document-action-hint">{action.hint}</span>
+        <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
+          {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+          HTML Preview
+        </button>
         <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
-          {creating || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+          {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
           {action.label}
         </button>
       </div>
@@ -218,6 +241,41 @@ function RevisionStrip({
       {latestGeneratedJob && latestGeneratedJob.reportRevision !== report.contentRevision ? (
         <span className="revision-warning">최신 문서는 v{latestGeneratedJob.reportRevision}</span>
       ) : null}
+    </div>
+  );
+}
+
+function DocumentPreviewDialog({
+  onClose,
+  preview
+}: {
+  onClose: () => void;
+  preview: {
+    artifact: DocumentArtifactResponse;
+    html: string;
+    job: DocumentJobResponse;
+  };
+}) {
+  return (
+    <div className="document-preview-backdrop" role="presentation">
+      <section className="document-preview-dialog" role="dialog" aria-modal="true" aria-label="HTML document preview">
+        <header className="document-preview-header">
+          <div>
+            <span>HTML Preview</span>
+            <strong>{preview.artifact.fileName}</strong>
+            <small>job #{preview.job.id} · revision v{preview.job.reportRevision}</small>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button" aria-label="Close preview">
+            <X size={18} />
+          </button>
+        </header>
+        <iframe
+          className="document-preview-frame"
+          sandbox=""
+          srcDoc={preview.html}
+          title={preview.artifact.fileName}
+        />
+      </section>
     </div>
   );
 }
@@ -276,16 +334,20 @@ function GeneratedJobArtifacts({
   downloadingArtifactId,
   isLatest,
   job,
+  previewingArtifactId,
   requestingDeliveryArtifactId,
   onDownloadPrepared,
+  onPreviewArtifact,
   onRequestDelivery
 }: {
   deliveriesByArtifact: Record<number, DocumentDeliveryRequestResponse>;
   downloadingArtifactId: number | null;
   isLatest: boolean;
   job: DocumentJobResponse;
+  previewingArtifactId: number | null;
   requestingDeliveryArtifactId: number | null;
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
+  onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
   onRequestDelivery: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
 }) {
   return (
@@ -302,18 +364,12 @@ function GeneratedJobArtifacts({
           const delivery = deliveriesByArtifact[artifact.id];
           const deliveryActive = delivery ? ["REQUESTED", "SENDING"].includes(delivery.status) : false;
           const deliveryReady = delivery?.status === "COMPLETED" && Boolean(delivery.downloadUrl);
-          const busy = downloadingArtifactId === artifact.id || requestingDeliveryArtifactId === artifact.id;
+          const downloadBusy = downloadingArtifactId === artifact.id || requestingDeliveryArtifactId === artifact.id;
+          const previewBusy = previewingArtifactId === artifact.id;
           return (
-            <button
+            <div
               className="artifact-row"
-              disabled={busy || deliveryActive}
               key={artifact.id}
-              onClick={() =>
-                deliveryReady && delivery
-                  ? onDownloadPrepared(artifact, delivery)
-                  : onRequestDelivery(artifact, job)
-              }
-              type="button"
             >
               <span>
                 <strong>{artifact.fileName}</strong>
@@ -321,8 +377,33 @@ function GeneratedJobArtifacts({
                   {artifact.artifactType} · {formatBytes(artifact.bytes)} · {deliveryLabel(delivery)}
                 </small>
               </span>
-              {busy || deliveryActive ? <Loader2 className="spin" size={16} /> : <Download size={16} />}
-            </button>
+              <div className="artifact-actions">
+                {artifact.artifactType === "HTML" ? (
+                  <button
+                    className="secondary-button compact-button"
+                    disabled={previewBusy || deliveryActive}
+                    onClick={() => onPreviewArtifact(artifact, job)}
+                    type="button"
+                  >
+                    {previewBusy ? <Loader2 className="spin" size={15} /> : <Eye size={15} />}
+                    Preview
+                  </button>
+                ) : null}
+                <button
+                  className="secondary-button compact-button"
+                  disabled={downloadBusy || deliveryActive}
+                  onClick={() =>
+                    deliveryReady && delivery
+                      ? onDownloadPrepared(artifact, delivery)
+                      : onRequestDelivery(artifact, job)
+                  }
+                  type="button"
+                >
+                  {downloadBusy || deliveryActive ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
+                  Download
+                </button>
+              </div>
+            </div>
           );
         })}
       </div>

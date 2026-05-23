@@ -486,10 +486,10 @@ Owns:
 Current split:
 
 - `features/documents/api.ts`: document job, delivery request, and authorized
-  download calls
+  download/preview fetch calls
 - `features/documents/types.ts`: document job/artifact/delivery response types
 - `features/documents/hooks/useDocumentWorkspace.ts`: TanStack Query polling
-  and document mutations
+  and document mutations, including HTML preview state
 - `features/documents/components/DocumentWorkspace.tsx`: user-facing document
   workspace for `/documents`
 
@@ -505,6 +505,9 @@ Rules:
   document job endpoints.
 - Artifact downloads must go through authenticated API calls because document
   endpoints require `Authorization` and `X-Office-Id`.
+- HTML previews must also go through authenticated API calls. Render downloaded
+  HTML inside a sandboxed iframe and treat it as a review surface, not as a
+  final PDF/page-break guarantee.
 - Delivery requests may be asynchronous. The document feature should show
   request/preparing/downloadable states and poll delivery requests while they
   are active.

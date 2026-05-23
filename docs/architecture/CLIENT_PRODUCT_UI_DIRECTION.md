@@ -528,6 +528,13 @@ Current MVP behavior:
   is visually distinguished from previous generated revisions.
 - Document generation requests use the Cloud worker by default for the first
   client UI.
+- HTML preview requests are a separate user action from DOCX generation. The UI
+  creates an `outputFormat=HTML` document job when the user wants a browser
+  preview, then shows the generated HTML artifact in an in-app sandboxed
+  preview dialog.
+- HTML artifact rows expose both preview and download actions. Preview fetches
+  the HTML through authenticated Cloud API calls and renders it with iframe
+  `srcDoc`; it must not depend on an unauthenticated public file URL.
 - The UI polls document jobs while they are active.
 - Download actions create delivery requests and download through authenticated
   Cloud API calls.

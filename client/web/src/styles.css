@@ -725,11 +725,89 @@ button {
   background: var(--hover-soft);
 }
 
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.compact-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .document-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.document-preview-backdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 24, 40, 0.42);
+}
+
+.document-preview-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1120px, 100%);
+  height: min(860px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid #cfd9d8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.document-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid #dde6e4;
+  background: #f7fbfa;
+}
+
+.document-preview-header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.document-preview-header span {
+  color: #1d5d51;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.document-preview-header strong,
+.document-preview-header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-preview-header small {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.document-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #f6f7f9;
 }
 
 .document-action-hint {
