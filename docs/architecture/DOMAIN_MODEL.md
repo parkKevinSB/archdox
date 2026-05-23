@@ -490,13 +490,16 @@ revisions.
   `HWP`, `HWPX`
 - Rule: job creation belongs to `cloud-api`; reusable composition belongs to
   `document-engine`; execution belongs to `archdox-agent`.
-- Rule: Phase 4 MVP supports `CLOUD + DOCX`. `ARCHDOX_AGENT` rendering and PDF
-  conversion remain explicit follow-up phases.
+- Rule: `CLOUD + DOCX`, `CLOUD + HTML`, and configurable `DOCX -> PDF`
+  conversion now exist. `ARCHDOX_AGENT` uses the same document-engine export
+  boundary and can enable PDF conversion through the same LibreOffice settings.
 - Rule: `DOCX` is the first render substrate. `HTML`, `PDF`, `HWP`, and `HWPX`
   are artifact/export targets behind `DocumentArtifactExporter` until a native
   renderer is intentionally added.
 - Rule: missing export infrastructure must fail with a stable error code such
   as `DOCUMENT_EXPORTER_NOT_CONFIGURED`, not with an ambiguous render failure.
+- Rule: if the LibreOffice PDF exporter is enabled but cannot run or complete,
+  use a `DOCUMENT_PDF_EXPORT_*` error code.
 - Rule: Phase 4-3 introduces `DocumentRenderFlow` as the common asynchronous
   render flow for both office and personal plans.
 - Rule: office plans should prefer `ARCHDOX_AGENT` when an authenticated

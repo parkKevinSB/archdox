@@ -73,6 +73,31 @@ Cloud API AI boundary:
 - `AiTextGenerationServiceResolver`
 - `AiGenerationProperties`
 
+Shared document export boundary:
+
+- `com.archdox.document.DocumentArtifactExporter`
+- `LibreOfficeDocumentArtifactExporter`
+- `LibreOfficePdfExportOptions`
+- `LibreOfficeCommandRunner`
+
+Cloud API and ArchDox Agent both register the LibreOffice PDF exporter from the
+same runtime property prefix:
+
+```text
+archdox.documents.export.libre-office.enabled
+archdox.documents.export.libre-office.executable-path
+archdox.documents.export.libre-office.timeout-ms
+```
+
+This keeps PDF conversion portable:
+
+- AWS/cloud containers can install LibreOffice and Korean fonts.
+- Local/Tailscale servers can point to a local `soffice` executable.
+- Office ArchDox Agent can use locally installed office/conversion tooling when
+  the office PC is the better place to render final artifacts.
+- Business code still requests `OutputFormat.PDF` or `DOCX_AND_PDF`; it does
+  not know where LibreOffice is installed.
+
 Runtime profile files:
 
 - `cloud-api/src/main/resources/application-dev.yml`

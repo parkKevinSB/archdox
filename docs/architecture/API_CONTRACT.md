@@ -1422,6 +1422,16 @@ If an output format requires an exporter that is not configured, such as PDF,
 HWP, or HWPX conversion, generation fails with
 `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
 
+PDF exporter V1 uses LibreOffice when enabled by runtime configuration. If the
+exporter is enabled but conversion cannot complete, document generation fails
+with one of:
+
+- `DOCUMENT_PDF_EXPORTER_NOT_AVAILABLE`
+- `DOCUMENT_PDF_EXPORT_TIMEOUT`
+- `DOCUMENT_PDF_EXPORT_FAILED`
+- `DOCUMENT_PDF_EXPORT_NO_OUTPUT`
+- `DOCUMENT_PDF_EXPORT_NO_SOURCE_CONTENT`
+
 Phase 4-3 target flow:
 
 ```text

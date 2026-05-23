@@ -107,6 +107,46 @@ The converter should live behind an interface such as `PdfExportService` or
 PDF conversion must preserve fonts, page breaks, Korean text, images, and table
 layout. This requires deployment-level font management.
 
+Implemented V1 rule:
+
+- `LibreOfficeDocumentArtifactExporter` supports `DOCX -> PDF`.
+- The exporter is registered only when `archdox.documents.export.libre-office.enabled`
+  is true.
+- Cloud API and ArchDox Agent use the same document-engine exporter class.
+- Runtime settings:
+
+```yaml
+archdox:
+  documents:
+    export:
+      libre-office:
+        enabled: false
+        executable-path: soffice
+        timeout-ms: 60000
+```
+
+Environment variables:
+
+```text
+DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true
+DOCUMENT_EXPORT_LIBREOFFICE_PATH=soffice
+DOCUMENT_EXPORT_LIBREOFFICE_TIMEOUT_MS=60000
+```
+
+Failure codes:
+
+- `DOCUMENT_EXPORTER_NOT_CONFIGURED`: PDF was requested but the exporter was not
+  enabled.
+- `DOCUMENT_PDF_EXPORTER_NOT_AVAILABLE`: LibreOffice executable could not be
+  started.
+- `DOCUMENT_PDF_EXPORT_TIMEOUT`: conversion exceeded the configured timeout.
+- `DOCUMENT_PDF_EXPORT_FAILED`: LibreOffice returned a non-zero exit code or an
+  unexpected runtime failure occurred.
+- `DOCUMENT_PDF_EXPORT_NO_OUTPUT`: LibreOffice exited successfully but did not
+  produce a PDF file.
+- `DOCUMENT_PDF_EXPORT_NO_SOURCE_CONTENT`: the source DOCX artifact had no
+  binary content available to convert.
+
 ## HWP/HWPX Strategy
 
 Recommended stages:
@@ -197,12 +237,13 @@ Supported output format requests are:
 - `HWP`
 - `HWPX`
 
-The foundation intentionally does not ship a real office converter yet. `HTML`
-is implemented as a snapshot-driven preview renderer and does not require an
-external converter. If a request requires `PDF`, `HWP`, or `HWPX` and no
-matching exporter is configured, generation fails with
-`DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes missing infrastructure obvious
-while keeping the render/export boundary stable.
+The foundation now ships the first real converter integration for PDF through
+LibreOffice. It is disabled by default because runtime machines must install
+LibreOffice and Korean fonts explicitly. `HTML` is implemented as a
+snapshot-driven preview renderer and does not require an external converter. If
+a request requires `PDF`, `HWP`, or `HWPX` and no matching exporter is
+configured, generation fails with `DOCUMENT_EXPORTER_NOT_CONFIGURED`. This makes
+missing infrastructure obvious while keeping the render/export boundary stable.
 
 Implemented HTML preview renderer:
 
@@ -214,6 +255,21 @@ Implemented HTML preview renderer:
 - image behavior: embeds a data URL when the configured photo resolver can
   resolve working image content; otherwise renders a readable placeholder and
   metadata
+
+Implemented PDF exporter:
+
+- class: `LibreOfficeDocumentArtifactExporter`
+- source/target: `DOCX -> PDF`
+- command shape:
+
+```text
+soffice --headless --nologo --nofirststartwizard --convert-to pdf --outdir <dir> <docx>
+```
+
+- storage behavior: PDF artifact file name and storage reference are derived
+  from the source DOCX artifact.
+- test behavior: unit tests use a fake command runner, so CI does not need
+  LibreOffice installed.
 
 ## Reviewed HWP Source Templates
 

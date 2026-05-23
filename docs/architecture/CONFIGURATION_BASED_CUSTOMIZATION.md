@@ -511,7 +511,9 @@ Real template smoke coverage:
 - Export foundation is now explicit in `document-engine`. `DOCX` remains the
   first render substrate. `HTML` is a snapshot-driven preview renderer, while
   `PDF`, `HWP`, and `HWPX` remain converter/exporter targets behind
-  `DocumentArtifactExporter`. Missing converters fail with
+  `DocumentArtifactExporter`. `PDF` has a LibreOffice exporter implementation
+  that is disabled by default and enabled through deployment configuration.
+  Missing converters fail with
   `DOCUMENT_EXPORTER_NOT_CONFIGURED`.
 - HTML preview V1 renders `templateFields`, `PHOTO_TABLE`, and
   `CHECKLIST_TABLE` into a responsive browser-readable artifact. It is for

@@ -40,3 +40,9 @@ archdox:
       template:
         kind: ${AGENT_TEMPLATE_STORAGE_KIND:LOCAL_FS}
         root-path: ${AGENT_TEMPLATE_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+  documents:
+    export:
+      libre-office:
+        enabled: ${DOCUMENT_EXPORT_LIBREOFFICE_ENABLED:false}
+        executable-path: ${DOCUMENT_EXPORT_LIBREOFFICE_PATH:soffice}
+        timeout-ms: ${DOCUMENT_EXPORT_LIBREOFFICE_TIMEOUT_MS:60000}
