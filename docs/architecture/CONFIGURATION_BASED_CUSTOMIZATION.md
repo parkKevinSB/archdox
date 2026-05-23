@@ -410,6 +410,8 @@ Implemented first layout binding:
   - `photosPerRow`: `1`, `2`, or `3`; default `1`
   - `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`; default `MEDIUM`
   - `fields`: metadata rows to show under or beside each photo
+- `CHECKLIST_TABLE` can also replace a matching DOCX paragraph placeholder with
+  a generated Word table from saved checklist answers
 - supported section types:
   - `PHOTO_SUMMARY`, `PHOTO_LIST`: text summary from uploaded photo snapshot
     rows
@@ -417,6 +419,8 @@ Implemented first layout binding:
     template uses `${sectionKey}` as a standalone paragraph placeholder
   - `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`: text summary from checklist answer
     snapshot rows
+  - `CHECKLIST_TABLE`: text summary plus DOCX table insertion when the template
+    uses `${sectionKey}` as a standalone paragraph placeholder
   - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`: single value read from the document job
     snapshot path
   - `TEXT`: literal text block
@@ -441,20 +445,33 @@ Example:
       },
     {
       "key": "checklistSection",
-      "type": "VALUE",
+      "type": "CHECKLIST_TABLE",
       "title": "Checklist Section",
-      "valueLabel": "Summary",
-      "source": "steps.CHECKLIST.payload.checklistSummary"
+      "fields": [
+        {
+          "label": "Item",
+          "source": "itemCode"
+        },
+        {
+          "label": "Result",
+          "source": "answer.value"
+        },
+        {
+          "label": "Note",
+          "source": "note"
+        }
+      ]
     }
   ]
 }
 ```
 
 With this layout, DOCX can use `${photoSection}` and `${checklistSection}`.
-`PHOTO_TABLE` is the first rich layout: when `${photoSection}` is a standalone
-paragraph placeholder, `document-engine` replaces it with a Word table and
-embeds resolvable working images into the DOCX package. Other section types
-remain text-block layout for now.
+`PHOTO_TABLE` and `CHECKLIST_TABLE` are rich layouts: when the section
+placeholder is a standalone paragraph, `document-engine` replaces it with a
+Word table. `PHOTO_TABLE` embeds resolvable working images into the DOCX
+package. `CHECKLIST_TABLE` uses the saved checklist answer snapshot and supports
+field sources such as `itemCode`, `label`, `answer.value`, and `note`.
 
 `photosPerRow = 1` renders a detail table with an image column and a metadata
 column. `photosPerRow = 2` or `3` renders a photo grid where each cell contains

@@ -2263,10 +2263,22 @@ Output layout revision payloads may use a `sections` array:
       },
       {
         "key": "checklistSection",
-        "type": "VALUE",
+        "type": "CHECKLIST_TABLE",
         "title": "Checklist Section",
-        "valueLabel": "Summary",
-        "source": "steps.CHECKLIST.payload.checklistSummary"
+        "fields": [
+          {
+            "label": "Item",
+            "source": "itemCode"
+          },
+          {
+            "label": "Result",
+            "source": "answer.value"
+          },
+          {
+            "label": "Note",
+            "source": "note"
+          }
+        ]
       }
     ]
   }
@@ -2281,7 +2293,7 @@ During document generation, Cloud writes rendered section text to
 Supported V1 section types:
 
 - `PHOTO_SUMMARY`, `PHOTO_LIST`, `PHOTO_TABLE`
-- `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`
+- `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`, `CHECKLIST_TABLE`
 - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`
 - `TEXT`
 
@@ -2301,6 +2313,12 @@ Supported `PHOTO_TABLE` layout options:
 - `imageSize`: `THUMBNAIL`, `MEDIUM`, or `ORIGINAL`.
 - `fields`: supported photo metadata sources include `photoId`, `stepCode`
   or `checklistItemKey`, `caption`, `storageRef`, and `mimeType`.
+
+`CHECKLIST_TABLE` is also a rich DOCX section. It renders the saved
+`checklistAnswers` snapshot as a Word table when the section placeholder is its
+own paragraph. Supported field sources include `itemCode`, `label`,
+`answer.value`, `answer.result`, and `note`. This is still a narrow table
+layout, not an arbitrary DOCX programming layer.
 
 ### Office Config Overrides
 

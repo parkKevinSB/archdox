@@ -613,7 +613,7 @@ public class DocumentJobService {
         return switch (type) {
             case "PHOTO_SUMMARY", "PHOTO_LIST", "PHOTO_TABLE" ->
                     renderListSection(section, title, listValue(snapshot.get("photos")), defaultPhotoFields());
-            case "CHECKLIST_SUMMARY", "CHECKLIST_LIST" ->
+            case "CHECKLIST_SUMMARY", "CHECKLIST_LIST", "CHECKLIST_TABLE" ->
                     renderListSection(section, title, listValue(snapshot.get("checklistAnswers")), defaultChecklistFields());
             case "VALUE", "FIELD", "SNAPSHOT_VALUE" -> renderValueSection(section, title, snapshot);
             case "TEXT" -> renderTextSection(title, firstString(section, "text", "value"));
@@ -651,8 +651,10 @@ public class DocumentJobService {
         rendered.put("text", String.join("\n", lines));
         rendered.put("itemCount", items.size());
         rendered.put("items", renderedItems);
-        if (type.startsWith("PHOTO_")) {
+        if (type.startsWith("PHOTO_") || type.startsWith("CHECKLIST_")) {
             rendered.put("fields", fields);
+        }
+        if (type.startsWith("PHOTO_")) {
             rendered.put("photosPerRow", intValue(section.get("photosPerRow"), 1));
             var imageSize = firstString(section, "imageSize", "layoutSize", "photoLayoutSize");
             if (imageSize != null) {

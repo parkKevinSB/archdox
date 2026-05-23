@@ -235,6 +235,54 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineReplacesChecklistTablePlaceholderWithTable() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p><w:r><w:t>${checklistSection}</w:t></w:r></w:p>
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-7",
+                "office-1",
+                "report-7",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "layoutSections", Map.of(
+                                "checklistSection", Map.of(
+                                        "type", "CHECKLIST_TABLE",
+                                        "title", "Checklist",
+                                        "fields", List.of(
+                                                Map.of("label", "Code", "source", "itemCode"),
+                                                Map.of("label", "Item", "source", "label"),
+                                                Map.of("label", "Result", "source", "answer.value"),
+                                                Map.of("label", "Note", "source", "note")))),
+                        "checklistAnswers", List.of(
+                                Map.of(
+                                        "itemCode", "CHK-1",
+                                        "label", "Guard rail",
+                                        "answer", Map.of("value", "OK"),
+                                        "note", "Installed"),
+                                Map.of(
+                                        "itemCode", "CHK-2",
+                                        "label", "Opening",
+                                        "answer", Map.of("value", "NG"),
+                                        "note", "Needs cover"))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("<w:tbl>"));
+        assertTrue(documentXml.contains("Checklist"));
+        assertTrue(documentXml.contains("Guard rail"));
+        assertTrue(documentXml.contains("OK"));
+        assertTrue(documentXml.contains("Needs cover"));
+        assertTrue(!documentXml.contains("${checklistSection}"));
+    }
+
+    @Test
     void docxTemplateEngineFallsBackWhenTemplateIsMissing() {
         var engine = new DocxTemplateDocumentEngine(
                 spec -> Optional.empty(),

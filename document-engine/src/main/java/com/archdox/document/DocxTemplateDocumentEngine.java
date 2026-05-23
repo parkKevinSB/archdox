@@ -131,23 +131,26 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String renderMainDocumentXml(String xml, DocxRenderContext context) throws IOException {
-        var richReplaced = replaceRichPhotoSectionPlaceholders(xml, context);
+        var richReplaced = replaceRichSectionPlaceholders(xml, context);
         return replacePlaceholders(richReplaced, context.bindings());
     }
 
-    private String replaceRichPhotoSectionPlaceholders(String xml, DocxRenderContext context) throws IOException {
-        var sections = photoTableSections(context.request());
+    private String replaceRichSectionPlaceholders(String xml, DocxRenderContext context) throws IOException {
+        var sections = richLayoutSections(context.request());
         var rendered = xml;
         for (var section : sections.entrySet()) {
             var placeholder = "${" + section.getKey() + "}";
-            var tableXml = buildPhotoTableXml(section.getValue(), context);
+            var replacementXml = buildRichSectionXml(section.getValue(), context);
+            if (replacementXml == null || replacementXml.isBlank()) {
+                continue;
+            }
             var matcher = WORD_PARAGRAPH_PATTERN.matcher(rendered);
             var result = new StringBuffer();
             var replaced = false;
             while (matcher.find()) {
                 var paragraph = matcher.group();
                 if (paragraph.contains(placeholder) || paragraphText(paragraph).contains(placeholder)) {
-                    matcher.appendReplacement(result, Matcher.quoteReplacement(tableXml));
+                    matcher.appendReplacement(result, Matcher.quoteReplacement(replacementXml));
                     replaced = true;
                 }
             }
@@ -159,7 +162,15 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return rendered;
     }
 
-    private Map<String, Map<String, Object>> photoTableSections(DocumentGenerationRequest request) {
+    private String buildRichSectionXml(Map<String, Object> section, DocxRenderContext context) throws IOException {
+        return switch (normalizeCode(stringValue(section.get("type")))) {
+            case "PHOTO_TABLE" -> buildPhotoTableXml(section, context);
+            case "CHECKLIST_TABLE" -> buildChecklistTableXml(section, context);
+            default -> null;
+        };
+    }
+
+    private Map<String, Map<String, Object>> richLayoutSections(DocumentGenerationRequest request) {
         var layoutSections = mapValue(request.payload().get("layoutSections"));
         if (layoutSections.isEmpty()) {
             return Map.of();
@@ -168,7 +179,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         layoutSections.forEach((key, rawSection) -> {
             var section = mapValue(rawSection);
             var type = normalizeCode(stringValue(section.get("type")));
-            if ("PHOTO_TABLE".equals(type)) {
+            if ("PHOTO_TABLE".equals(type) || "CHECKLIST_TABLE".equals(type)) {
                 sections.put(key, section);
             }
         });
@@ -208,10 +219,64 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             for (var photo : photos) {
                 rows.append(tableRow(List.of(
                         tableCell(List.of(photoParagraph(photo, imageSize, context)), "4200", 1),
-                        tableCell(photoDescriptionParagraphs(photo, sectionFields(section)), "4800", 1))));
+                        tableCell(
+                                photoDescriptionParagraphs(photo, sectionFields(section, defaultPhotoDescriptionFields())),
+                                "4800",
+                                1))));
             }
         }
         return tableXml(List.of("4200", "4800"), rows.toString());
+    }
+
+    private String buildChecklistTableXml(Map<String, Object> section, DocxRenderContext context) {
+        var checklistAnswers = listValue(context.request().payload().get("checklistAnswers"));
+        var fields = sectionFields(section, defaultChecklistTableFields());
+        var columnWidths = equalColumnWidths(fields.size());
+        var rows = new StringBuilder();
+        var title = stringValue(section.get("title"));
+        if (title != null && !title.isBlank()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph(title)), "9000", fields.size()))));
+        }
+        rows.append(tableRow(checklistHeaderCells(fields, columnWidths)));
+        if (checklistAnswers.isEmpty()) {
+            rows.append(tableRow(List.of(
+                    tableCell(List.of(textParagraph("No checklist answers.")), "9000", fields.size()))));
+        } else {
+            for (var answer : checklistAnswers) {
+                rows.append(tableRow(checklistValueCells(answer, fields, columnWidths)));
+            }
+        }
+        return tableXml(columnWidths, rows.toString());
+    }
+
+    private List<String> checklistHeaderCells(List<Map<String, String>> fields, List<String> columnWidths) {
+        var cells = new ArrayList<String>();
+        for (int i = 0; i < fields.size(); i++) {
+            var field = fields.get(i);
+            var label = field.get("label");
+            if (label == null || label.isBlank()) {
+                label = field.getOrDefault("source", "");
+            }
+            cells.add(tableCell(List.of(textParagraph(label)), columnWidths.get(i), 1));
+        }
+        return cells;
+    }
+
+    private List<String> checklistValueCells(
+            Object answer,
+            List<Map<String, String>> fields,
+            List<String> columnWidths
+    ) {
+        var cells = new ArrayList<String>();
+        for (int i = 0; i < fields.size(); i++) {
+            var field = fields.get(i);
+            cells.add(tableCell(
+                    List.of(textParagraph(checklistFieldValue(answer, field.get("source")))),
+                    columnWidths.get(i),
+                    1));
+        }
+        return cells;
     }
 
     private String buildPhotoGridTableXml(
@@ -232,7 +297,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             rows.append(tableRow(List.of(
                     tableCell(List.of(textParagraph("No photos.")), "9000", photosPerRow))));
         } else {
-            var fields = sectionFields(section);
+            var fields = sectionFields(section, defaultPhotoDescriptionFields());
             for (int i = 0; i < photos.size(); i += photosPerRow) {
                 var cells = new ArrayList<String>();
                 for (int column = 0; column < photosPerRow; column++) {
@@ -281,6 +346,19 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return columnWidths.stream()
                 .map(width -> "<w:gridCol w:w=\"" + width + "\"/>")
                 .reduce("", String::concat);
+    }
+
+    private List<String> equalColumnWidths(int columnCount) {
+        var count = Math.max(1, columnCount);
+        var widths = new ArrayList<String>();
+        var baseWidth = 9000 / count;
+        var usedWidth = 0;
+        for (int i = 0; i < count; i++) {
+            var width = i == count - 1 ? 9000 - usedWidth : baseWidth;
+            widths.add(String.valueOf(width));
+            usedWidth += width;
+        }
+        return widths;
     }
 
     private String tableRow(List<String> cells) {
@@ -344,10 +422,13 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         }
     }
 
-    private List<Map<String, String>> sectionFields(Map<String, Object> section) {
+    private List<Map<String, String>> sectionFields(
+            Map<String, Object> section,
+            List<Map<String, String>> defaultFields
+    ) {
         var value = section.get("fields");
         if (!(value instanceof List<?> fields) || fields.isEmpty()) {
-            return defaultPhotoDescriptionFields();
+            return defaultFields;
         }
         var parsed = new ArrayList<Map<String, String>>();
         for (var field : fields) {
@@ -366,7 +447,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                         : Map.of("source", source, "label", label));
             }
         }
-        return parsed.isEmpty() ? defaultPhotoDescriptionFields() : parsed;
+        return parsed.isEmpty() ? defaultFields : parsed;
     }
 
     private List<Map<String, String>> defaultPhotoDescriptionFields() {
@@ -375,6 +456,14 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 Map.of("label", "Step", "source", "stepCode"),
                 Map.of("label", "Caption", "source", "caption"),
                 Map.of("label", "Storage", "source", "storageRef"));
+    }
+
+    private List<Map<String, String>> defaultChecklistTableFields() {
+        return List.of(
+                Map.of("label", "Item", "source", "itemCode"),
+                Map.of("label", "Label", "source", "label"),
+                Map.of("label", "Answer", "source", "answer.value"),
+                Map.of("label", "Note", "source", "note"));
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {
@@ -388,6 +477,25 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             case "MIMETYPE", "MIME_TYPE" -> valueOrBlank(photo.mimeType());
             default -> "";
         };
+    }
+
+    private String checklistFieldValue(Object answer, String source) {
+        return readPath(answer, source)
+                .map(this::textValue)
+                .orElse("");
+    }
+
+    private String textValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Map<?, ?> map) {
+            var direct = firstString(map, "value", "result", "label", "name");
+            if (direct != null) {
+                return direct;
+            }
+        }
+        return String.valueOf(value);
     }
 
     private String firstString(Map<?, ?> map, String... keys) {
@@ -758,6 +866,56 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         var result = new LinkedHashMap<String, Object>();
         raw.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
         return result;
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private Optional<Object> readPath(Object root, String path) {
+        if (path == null || path.isBlank()) {
+            return Optional.empty();
+        }
+        Object current = root;
+        for (String segment : path.split("\\.")) {
+            current = readSegment(current, segment);
+            if (current == null) {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(current);
+    }
+
+    private Object readSegment(Object current, String segment) {
+        if (segment == null || segment.isBlank()) {
+            return null;
+        }
+        var key = segment;
+        Integer index = null;
+        var bracketStart = segment.indexOf('[');
+        if (bracketStart >= 0 && segment.endsWith("]")) {
+            key = segment.substring(0, bracketStart);
+            var rawIndex = segment.substring(bracketStart + 1, segment.length() - 1);
+            try {
+                index = Integer.parseInt(rawIndex);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        Object value = current;
+        if (!key.isBlank()) {
+            if (!(current instanceof Map<?, ?> map)) {
+                return null;
+            }
+            value = map.get(key);
+        }
+        if (index == null) {
+            return value;
+        }
+        if (value instanceof List<?> list && index >= 0 && index < list.size()) {
+            return list.get(index);
+        }
+        return null;
     }
 
     private String imageExtension(ResolvedPhotoContent content, PhotoAsset photo) {

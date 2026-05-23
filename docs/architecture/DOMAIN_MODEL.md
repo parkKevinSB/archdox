@@ -432,6 +432,12 @@ often change.
 - Rule: `PHOTO_TABLE` layout options stay intentionally small: `photosPerRow`
   controls detail table versus grid layout, `imageSize` controls embedded image
   display size, and `fields` controls the visible photo metadata rows.
+- Rule: `CHECKLIST_TABLE` is the checklist rich DOCX layout. When the matching
+  placeholder is a standalone Word paragraph, `document-engine` can replace it
+  with a generated Word table from the saved checklist answer snapshot.
+- Rule: `CHECKLIST_TABLE` remains narrow: `fields` controls visible columns and
+  may read known checklist answer paths such as `itemCode`, `label`,
+  `answer.value`, and `note`.
 
 ## Office Config Override
 
