@@ -342,6 +342,10 @@ Implemented first binding:
   re-resolving latest config later
 - fallback remains `templates/default.docx` when no configuration exists
 - document job snapshots now include `project`, `site`, and `templateFields`
+- neutral document snapshot assembly now lives in `DocumentSnapshotBuilder`
+  instead of `DocumentJobService`
+- template field binding resolution lives in `TemplateBindingResolver`
+- output layout section compilation lives in `OutputLayoutCompiler`
 - template revision `schema.bindings` maps DOCX-friendly placeholder names to
   snapshot paths, for example:
 

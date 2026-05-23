@@ -14,21 +14,15 @@ import com.archdox.cloud.document.event.DocumentGeneratedEvent;
 import com.archdox.cloud.document.infra.DocumentArtifactRepository;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
-import com.archdox.cloud.checklist.application.ChecklistService;
 import com.archdox.cloud.configuration.application.ConfigurationRegistryService;
-import com.archdox.cloud.configuration.application.ResolvedDocumentConfigPart;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfiguration;
-import com.archdox.cloud.configuration.application.ResolvedDocumentTemplateConfig;
 import com.archdox.cloud.configuration.domain.ConfigResolutionSource;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.inspection.application.InspectionReportService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
-import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
-import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
-import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
@@ -36,8 +30,6 @@ import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
-import com.archdox.cloud.project.infra.ProjectRepository;
-import com.archdox.cloud.site.infra.SiteRepository;
 import com.archdox.document.ArtifactType;
 import com.archdox.document.DocumentEngine;
 import com.archdox.document.DocumentGenerationRequest;
@@ -54,7 +46,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -64,7 +55,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class DocumentJobService {
     private final InspectionReportService inspectionReportService;
     private final InspectionReportRepository reportRepository;
-    private final InspectionReportStepRepository stepRepository;
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
     private final DocumentJobRepository documentJobRepository;
@@ -74,17 +64,13 @@ public class DocumentJobService {
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final ConfigurationRegistryService configurationRegistryService;
-    private final InspectionReportTargetRepository reportTargetRepository;
-    private final ChecklistService checklistService;
-    private final ProjectRepository projectRepository;
-    private final SiteRepository siteRepository;
+    private final DocumentSnapshotBuilder snapshotBuilder;
     private final DocumentGenerationRoutingService routingService;
     private final ObjectMapper objectMapper;
 
     public DocumentJobService(
             InspectionReportService inspectionReportService,
             InspectionReportRepository reportRepository,
-            InspectionReportStepRepository stepRepository,
             PhotoRepository photoRepository,
             PhotoAssetRepository photoAssetRepository,
             DocumentJobRepository documentJobRepository,
@@ -94,16 +80,12 @@ public class DocumentJobService {
             EventBus eventBus,
             OperationEventService operationEventService,
             ConfigurationRegistryService configurationRegistryService,
-            InspectionReportTargetRepository reportTargetRepository,
-            ChecklistService checklistService,
-            ProjectRepository projectRepository,
-            SiteRepository siteRepository,
+            DocumentSnapshotBuilder snapshotBuilder,
             DocumentGenerationRoutingService routingService,
             ObjectMapper objectMapper
     ) {
         this.inspectionReportService = inspectionReportService;
         this.reportRepository = reportRepository;
-        this.stepRepository = stepRepository;
         this.photoRepository = photoRepository;
         this.photoAssetRepository = photoAssetRepository;
         this.documentJobRepository = documentJobRepository;
@@ -113,10 +95,7 @@ public class DocumentJobService {
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.configurationRegistryService = configurationRegistryService;
-        this.reportTargetRepository = reportTargetRepository;
-        this.checklistService = checklistService;
-        this.projectRepository = projectRepository;
-        this.siteRepository = siteRepository;
+        this.snapshotBuilder = snapshotBuilder;
         this.routingService = routingService;
         this.objectMapper = objectMapper;
     }
@@ -130,7 +109,7 @@ public class DocumentJobService {
         var workerType = routingService.route(officeId, outputFormat, request.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
-        var snapshot = buildInputSnapshot(report, configuration);
+        var snapshot = snapshotBuilder.build(report, configuration);
         var reportRevision = report.generationRevision();
         var job = documentJobRepository.saveAndFlush(new DocumentJob(
                 officeId,
@@ -499,351 +478,6 @@ public class DocumentJobService {
                 job.outputFormat());
     }
 
-    private Map<String, Object> buildInputSnapshot(
-            InspectionReport report,
-            ResolvedDocumentConfiguration configuration
-    ) {
-        var snapshot = new LinkedHashMap<String, Object>();
-        var reportSnapshot = new LinkedHashMap<String, Object>();
-        reportSnapshot.put("id", report.id());
-        reportSnapshot.put("officeId", report.officeId());
-        reportSnapshot.put("projectId", report.projectId());
-        reportSnapshot.put("contentRevision", report.contentRevision());
-        reportSnapshot.put("submittedRevision", report.submittedRevision() == null ? "" : report.submittedRevision());
-        reportSnapshot.put("generatedRevision", report.generatedRevision() == null ? "" : report.generatedRevision());
-        reportSnapshot.put("siteId", report.siteId() == null ? "" : report.siteId());
-        reportSnapshot.put("reportNo", report.reportNo());
-        reportSnapshot.put("reportType", report.reportType());
-        reportSnapshot.put("title", report.title() == null ? "" : report.title());
-        reportSnapshot.put("status", report.status().name());
-        reportSnapshot.put("templateId", report.templateId() == null ? "" : report.templateId());
-        snapshot.put("report", reportSnapshot);
-        snapshot.put("configuration", configurationSnapshot(configuration));
-        snapshot.put("project", projectSnapshot(report));
-        snapshot.put("site", siteSnapshot(report));
-        snapshot.put("steps", stepSnapshot(report));
-        snapshot.put("targets", targetSnapshot(report));
-        snapshot.put("checklistAnswers", checklistService.answerSnapshot(report));
-        snapshot.put("photos", photoSnapshot(report));
-        var templateFields = new LinkedHashMap<>(templateFields(configuration.template().schema(), snapshot));
-        var layoutBinding = outputLayoutSections(configuration.outputLayout().payload(), snapshot);
-        snapshot.put("layoutSections", layoutBinding.sections());
-        layoutBinding.templateFields().forEach(templateFields::putIfAbsent);
-        snapshot.put("templateFields", templateFields);
-        return snapshot;
-    }
-
-    private Map<String, Object> projectSnapshot(InspectionReport report) {
-        return projectRepository.findByIdAndOfficeId(report.projectId(), report.officeId())
-                .map(project -> {
-                    var snapshot = new LinkedHashMap<String, Object>();
-                    snapshot.put("id", project.id());
-                    snapshot.put("officeId", project.officeId());
-                    snapshot.put("name", project.name());
-                    snapshot.put("address", project.address() == null ? "" : project.address());
-                    snapshot.put("buildingType", project.buildingType() == null ? "" : project.buildingType());
-                    snapshot.put("startDate", project.startDate() == null ? "" : project.startDate().toString());
-                    snapshot.put("endDate", project.endDate() == null ? "" : project.endDate().toString());
-                    snapshot.put("status", project.status().name());
-                    return Map.<String, Object>copyOf(snapshot);
-                })
-                .orElseGet(() -> Map.of("id", report.projectId()));
-    }
-
-    private Map<String, Object> siteSnapshot(InspectionReport report) {
-        if (report.siteId() == null) {
-            return Map.of();
-        }
-        return siteRepository.findByIdAndOfficeId(report.siteId(), report.officeId())
-                .map(site -> {
-                    var snapshot = new LinkedHashMap<String, Object>();
-                    snapshot.put("id", site.id());
-                    snapshot.put("officeId", site.officeId());
-                    snapshot.put("projectId", site.projectId());
-                    snapshot.put("siteCode", site.siteCode() == null ? "" : site.siteCode());
-                    snapshot.put("name", site.name());
-                    snapshot.put("address", site.address() == null ? "" : site.address());
-                    snapshot.put("siteType", site.siteType() == null ? "" : site.siteType());
-                    snapshot.put("startDate", site.startDate() == null ? "" : site.startDate().toString());
-                    snapshot.put("endDate", site.endDate() == null ? "" : site.endDate().toString());
-                    snapshot.put("status", site.status().name());
-                    return Map.<String, Object>copyOf(snapshot);
-                })
-                .orElseGet(() -> Map.of("id", report.siteId()));
-    }
-
-    private Map<String, Object> templateFields(Map<String, Object> schema, Map<String, Object> snapshot) {
-        var fieldSources = templateFieldSources(schema);
-        if (fieldSources.isEmpty()) {
-            return Map.of();
-        }
-        var fields = new LinkedHashMap<String, Object>();
-        fieldSources.forEach((fieldName, sourcePath) -> {
-            var value = readPath(snapshot, sourcePath).orElse("");
-            fields.put(fieldName, value == null ? "" : value);
-        });
-        return fields;
-    }
-
-    private LayoutBindingResult outputLayoutSections(Map<String, Object> outputLayout, Map<String, Object> snapshot) {
-        var rawSections = outputLayout == null ? null : outputLayout.get("sections");
-        if (!(rawSections instanceof List<?> sectionList) || sectionList.isEmpty()) {
-            return new LayoutBindingResult(Map.of(), Map.of());
-        }
-        var sections = new LinkedHashMap<String, Object>();
-        var fields = new LinkedHashMap<String, Object>();
-        for (Object rawSection : sectionList) {
-            if (!(rawSection instanceof Map<?, ?> section)) {
-                continue;
-            }
-            var key = firstString(section, "key", "id", "name");
-            if (key == null) {
-                continue;
-            }
-            var rendered = renderLayoutSection(section, snapshot);
-            if (rendered == null) {
-                continue;
-            }
-            sections.put(key, rendered);
-            fields.put(key, rendered.getOrDefault("text", ""));
-        }
-        return new LayoutBindingResult(sections, fields);
-    }
-
-    private Map<String, Object> renderLayoutSection(Map<?, ?> section, Map<String, Object> snapshot) {
-        var type = normalizeCode(firstString(section, "type", "sectionType"));
-        var title = firstString(section, "title", "label");
-        return switch (type) {
-            case "PHOTO_SUMMARY", "PHOTO_LIST", "PHOTO_TABLE" ->
-                    renderListSection(section, title, listValue(snapshot.get("photos")), defaultPhotoFields());
-            case "CHECKLIST_SUMMARY", "CHECKLIST_LIST", "CHECKLIST_TABLE" ->
-                    renderListSection(section, title, listValue(snapshot.get("checklistAnswers")), defaultChecklistFields());
-            case "VALUE", "FIELD", "SNAPSHOT_VALUE" -> renderValueSection(section, title, snapshot);
-            case "TEXT" -> renderTextSection(title, firstString(section, "text", "value"));
-            default -> null;
-        };
-    }
-
-    private Map<String, Object> renderListSection(
-            Map<?, ?> section,
-            String title,
-            List<?> items,
-            List<Map<String, String>> defaultFields
-    ) {
-        var fields = layoutFields(section.get("fields"), defaultFields);
-        var lines = new ArrayList<String>();
-        if (!Boolean.FALSE.equals(section.get("includeTitle")) && title != null) {
-            lines.add(title);
-        }
-        if (items.isEmpty()) {
-            lines.add(firstString(section, "emptyText", "emptyMessage") == null
-                    ? "No items."
-                    : firstString(section, "emptyText", "emptyMessage"));
-        } else {
-            for (int i = 0; i < items.size(); i++) {
-                lines.add((i + 1) + ". " + renderLayoutItem(items.get(i), fields));
-            }
-        }
-        var renderedItems = items.stream()
-                .map(item -> renderLayoutItem(item, fields))
-                .toList();
-        var rendered = new LinkedHashMap<String, Object>();
-        var type = normalizeCode(firstString(section, "type", "sectionType"));
-        rendered.put("type", type);
-        rendered.put("title", title == null ? "" : title);
-        rendered.put("text", String.join("\n", lines));
-        rendered.put("itemCount", items.size());
-        rendered.put("items", renderedItems);
-        copyLayoutOptions(section, rendered);
-        if (type.startsWith("PHOTO_") || type.startsWith("CHECKLIST_")) {
-            rendered.put("fields", fields);
-        }
-        if (type.startsWith("PHOTO_")) {
-            rendered.put("photosPerRow", intValue(section.get("photosPerRow"), 1));
-            var imageSize = firstString(section, "imageSize", "layoutSize", "photoLayoutSize");
-            if (imageSize != null) {
-                rendered.put("imageSize", normalizeCode(imageSize));
-            }
-        }
-        return rendered;
-    }
-
-    private void copyLayoutOptions(Map<?, ?> section, Map<String, Object> rendered) {
-        copyIfPresent(section, rendered, "includeTitle");
-        copyIfPresent(section, rendered, "emptyText");
-        copyIfPresent(section, rendered, "emptyMessage");
-        copyIfPresent(section, rendered, "tableStyle");
-        copyIfPresent(section, rendered, "tableWidth");
-        copyIfPresent(section, rendered, "columnWidths");
-        copyIfPresent(section, rendered, "borderColor");
-        copyIfPresent(section, rendered, "headerFill");
-        copyIfPresent(section, rendered, "titleFill");
-        copyIfPresent(section, rendered, "photoColumnWidth");
-        copyIfPresent(section, rendered, "descriptionColumnWidth");
-    }
-
-    private void copyIfPresent(Map<?, ?> source, Map<String, Object> target, String key) {
-        if (source.containsKey(key)) {
-            target.put(key, source.get(key));
-        }
-    }
-
-    private Map<String, Object> renderTextSection(String title, String text) {
-        var lines = new ArrayList<String>();
-        if (title != null) {
-            lines.add(title);
-        }
-        if (text != null) {
-            lines.add(text);
-        }
-        return Map.of(
-                "type", "TEXT",
-                "title", title == null ? "" : title,
-                "text", String.join("\n", lines),
-                "itemCount", 0,
-                "items", List.of());
-    }
-
-    private Map<String, Object> renderValueSection(Map<?, ?> section, String title, Map<String, Object> snapshot) {
-        var source = firstString(section, "source", "path", "binding");
-        var label = firstString(section, "valueLabel", "fieldLabel", "label");
-        var value = readPath(snapshot, source).orElse("");
-        var valueText = value == null ? "" : String.valueOf(value);
-        var lines = new ArrayList<String>();
-        if (title != null) {
-            lines.add(title);
-        }
-        lines.add(label == null ? valueText : label + ": " + valueText);
-        return Map.of(
-                "type", "VALUE",
-                "title", title == null ? "" : title,
-                "text", String.join("\n", lines),
-                "itemCount", valueText.isBlank() ? 0 : 1,
-                "items", valueText.isBlank() ? List.of() : List.of(valueText));
-    }
-
-    private String renderLayoutItem(Object item, List<Map<String, String>> fields) {
-        return fields.stream()
-                .map(field -> {
-                    var source = field.get("source");
-                    var label = field.get("label");
-                    var value = readPath(item, source).orElse("");
-                    var text = value == null ? "" : String.valueOf(value);
-                    return label == null || label.isBlank() ? text : label + ": " + text;
-                })
-                .filter(value -> !value.isBlank())
-                .reduce((left, right) -> left + ", " + right)
-                .orElse("");
-    }
-
-    private List<Map<String, String>> layoutFields(Object value, List<Map<String, String>> defaultFields) {
-        if (!(value instanceof List<?> fields) || fields.isEmpty()) {
-            return defaultFields;
-        }
-        var parsed = new ArrayList<Map<String, String>>();
-        for (Object field : fields) {
-            if (field instanceof String source && !source.isBlank()) {
-                parsed.add(Map.of("source", source));
-                continue;
-            }
-            if (field instanceof Map<?, ?> map) {
-                var source = firstString(map, "source", "path", "key");
-                if (source == null) {
-                    continue;
-                }
-                var label = firstString(map, "label", "title");
-                var width = firstString(map, "width", "columnWidth");
-                var parsedField = new LinkedHashMap<String, String>();
-                parsedField.put("source", source);
-                if (label != null) {
-                    parsedField.put("label", label);
-                }
-                if (width != null) {
-                    parsedField.put("width", width);
-                }
-                parsed.add(parsedField);
-            }
-        }
-        return parsed.isEmpty() ? defaultFields : parsed;
-    }
-
-    private List<Map<String, String>> defaultPhotoFields() {
-        return List.of(
-                Map.of("label", "Photo", "source", "photoId"),
-                Map.of("label", "Step", "source", "stepCode"),
-                Map.of("label", "Working", "source", "workingStorageRef"));
-    }
-
-    private List<Map<String, String>> defaultChecklistFields() {
-        return List.of(
-                Map.of("label", "Item", "source", "itemCode"),
-                Map.of("label", "Label", "source", "label"),
-                Map.of("label", "Answer", "source", "answer.value"),
-                Map.of("label", "Note", "source", "note"));
-    }
-
-    private List<?> listValue(Object value) {
-        return value instanceof List<?> list ? list : List.of();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, String> templateFieldSources(Map<String, Object> schema) {
-        if (schema == null || schema.isEmpty()) {
-            return Map.of();
-        }
-        var sources = new LinkedHashMap<String, String>();
-        readFieldSourceMap(schema.get("bindings"), sources);
-        readFieldSourceMap(schema.get("fieldMappings"), sources);
-        readFieldSourceMap(schema.get("fields"), sources);
-        if (schema.get("fields") instanceof List<?> fields) {
-            for (Object field : fields) {
-                if (field instanceof Map<?, ?> rawField) {
-                    var name = firstString(rawField, "key", "name", "placeholder");
-                    var source = firstString(rawField, "source", "path", "binding");
-                    if (name != null && source != null) {
-                        sources.put(name, source);
-                    }
-                }
-            }
-        }
-        return sources;
-    }
-
-    private void readFieldSourceMap(Object value, Map<String, String> sources) {
-        if (!(value instanceof Map<?, ?> mappings)) {
-            return;
-        }
-        mappings.forEach((rawName, rawSource) -> {
-            var name = stringValue(rawName);
-            var source = fieldSource(rawSource);
-            if (name != null && source != null) {
-                sources.put(name, source);
-            }
-        });
-    }
-
-    private String fieldSource(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return firstString(map, "source", "path", "binding");
-        }
-        return stringValue(value);
-    }
-
-    private String firstString(Map<?, ?> map, String... keys) {
-        for (String key : keys) {
-            var value = map.get(key);
-            var text = stringValue(value);
-            if (text != null && !text.isBlank()) {
-                return text;
-            }
-        }
-        return null;
-    }
-
-    private String normalizeCode(String value) {
-        return value == null ? "" : value.trim().toUpperCase(java.util.Locale.ROOT);
-    }
-
     private String filenameFromStorageRef(String storageRef) {
         var normalized = storageRef.replace('\\', '/');
         var index = normalized.lastIndexOf('/');
@@ -851,58 +485,6 @@ public class DocumentJobService {
             return normalized.substring(index + 1);
         }
         return "template.docx";
-    }
-
-    private Optional<Object> readPath(Object root, String path) {
-        if (path == null || path.isBlank()) {
-            return Optional.empty();
-        }
-        Object current = root;
-        for (String segment : path.split("\\.")) {
-            current = readSegment(current, segment);
-            if (current == null) {
-                return Optional.empty();
-            }
-        }
-        return Optional.of(current);
-    }
-
-    private Object readSegment(Object current, String segment) {
-        if (segment == null || segment.isBlank()) {
-            return null;
-        }
-        var key = segment;
-        Integer index = null;
-        var bracketStart = segment.indexOf('[');
-        if (bracketStart >= 0 && segment.endsWith("]")) {
-            key = segment.substring(0, bracketStart);
-            var rawIndex = segment.substring(bracketStart + 1, segment.length() - 1);
-            try {
-                index = Integer.parseInt(rawIndex);
-            } catch (NumberFormatException ex) {
-                return null;
-            }
-        }
-        Object value = current;
-        if (!key.isBlank()) {
-            if (!(current instanceof Map<?, ?> map)) {
-                return null;
-            }
-            value = map.get(key);
-        }
-        if (index == null) {
-            return value;
-        }
-        if (value instanceof List<?> list && index >= 0 && index < list.size()) {
-            return list.get(index);
-        }
-        return null;
-    }
-
-    private record LayoutBindingResult(
-            Map<String, Object> sections,
-            Map<String, Object> templateFields
-    ) {
     }
 
     @SuppressWarnings("unchecked")
@@ -938,88 +520,6 @@ public class DocumentJobService {
             return report.templateId();
         }
         return configuration.template().revisionId();
-    }
-
-    private Map<String, Object> configurationSnapshot(ResolvedDocumentConfiguration configuration) {
-        var snapshot = new LinkedHashMap<String, Object>();
-        snapshot.put("officeId", configuration.officeId());
-        snapshot.put("reportType", configuration.reportType());
-        snapshot.put("template", templateSnapshot(configuration.template()));
-        snapshot.put("workflow", configPartSnapshot(configuration.workflow()));
-        snapshot.put("ruleSet", configPartSnapshot(configuration.ruleSet()));
-        snapshot.put("outputLayout", configPartSnapshot(configuration.outputLayout()));
-        return snapshot;
-    }
-
-    private Map<String, Object> templateSnapshot(ResolvedDocumentTemplateConfig template) {
-        var snapshot = new LinkedHashMap<String, Object>();
-        snapshot.put("source", template.source().name());
-        snapshot.put("definitionId", template.definitionId());
-        snapshot.put("revisionId", template.revisionId());
-        snapshot.put("code", template.code());
-        snapshot.put("name", template.name());
-        snapshot.put("reportType", template.reportType());
-        snapshot.put("version", template.version());
-        snapshot.put("storageKind", template.templateStorageKind());
-        snapshot.put("storageRef", template.templateStorageRef());
-        snapshot.put("schema", template.schema());
-        snapshot.put("composePolicy", template.composePolicy());
-        snapshot.put("aiPrompts", template.aiPrompts());
-        return snapshot;
-    }
-
-    private Map<String, Object> configPartSnapshot(ResolvedDocumentConfigPart part) {
-        var snapshot = new LinkedHashMap<String, Object>();
-        snapshot.put("source", part.source().name());
-        snapshot.put("definitionId", part.definitionId());
-        snapshot.put("revisionId", part.revisionId());
-        snapshot.put("code", part.code());
-        snapshot.put("name", part.name());
-        snapshot.put("reportType", part.reportType());
-        snapshot.put("version", part.version());
-        snapshot.put("payload", part.payload());
-        return snapshot;
-    }
-
-    private Map<String, Object> stepSnapshot(InspectionReport report) {
-        var steps = new LinkedHashMap<String, Object>();
-        for (InspectionReportStep step : stepRepository.findByReportIdOrderById(report.id())) {
-            steps.put(step.stepCode(), Map.of(
-                    "payloadStorageMode", step.payloadStorageMode().name(),
-                    "payload", step.payloadJson() == null ? Map.of() : step.payloadJson(),
-                    "clientRevision", step.clientRevision(),
-                    "savedAt", step.savedAt().toString()));
-        }
-        return steps;
-    }
-
-    private List<Map<String, Object>> targetSnapshot(InspectionReport report) {
-        return reportTargetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(report.officeId(), report.id()).stream()
-                .map(target -> Map.<String, Object>of(
-                        "reportTargetId", target.id(),
-                        "targetId", target.targetId(),
-                        "role", target.role().name(),
-                        "snapshot", target.snapshotJson(),
-                        "createdAt", target.createdAt().toString()))
-                .toList();
-    }
-
-    private List<Map<String, Object>> photoSnapshot(InspectionReport report) {
-        var photos = new ArrayList<Map<String, Object>>();
-        for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
-            var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
-            var thumbnail = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.THUMBNAIL);
-            photos.add(Map.of(
-                    "photoId", photo.id(),
-                    "stepCode", photo.stepCode() == null ? "" : photo.stepCode(),
-                    "checklistItemId", photo.checklistItemId() == null ? "" : photo.checklistItemId(),
-                    "workingStorageRef", working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""),
-                    "thumbnailStorageRef", thumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""),
-                    "width", photo.width() == null ? "" : photo.width(),
-                    "height", photo.height() == null ? "" : photo.height(),
-                    "hashSha256", photo.hashSha256()));
-        }
-        return photos;
     }
 
     private List<com.archdox.document.PhotoAsset> toEnginePhotos(InspectionReport report) {

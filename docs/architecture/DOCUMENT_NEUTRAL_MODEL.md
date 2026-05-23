@@ -118,3 +118,12 @@ responsibilities into clearer components:
 
 This refactoring should be incremental. Do not introduce a broad generic DSL or
 large abstraction before repeated customer variation proves the need.
+
+Implemented foundation:
+
+- `cloud-api` now builds `document_jobs.input_snapshot_json` through
+  `DocumentSnapshotBuilder`.
+- Template field resolution is isolated in `TemplateBindingResolver`.
+- Output layout section compilation is isolated in `OutputLayoutCompiler`.
+- `DocumentJobService` remains responsible for job lifecycle, routing, progress,
+  and artifact metadata rather than low-level snapshot assembly.
