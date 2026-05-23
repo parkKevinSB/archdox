@@ -46,6 +46,12 @@ docker compose --profile app build archdox-agent
 docker run --rm --entrypoint soffice archdox/archdox-agent:local --version
 ```
 
+Run the Agent DOCX to PDF smoke path:
+
+```powershell
+.\scripts\smoke\archdox-agent-pdf-smoke.ps1
+```
+
 Start the optional Cloud API and ArchDox Agent app containers:
 
 ```powershell

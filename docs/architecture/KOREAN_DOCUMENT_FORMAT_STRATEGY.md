@@ -302,6 +302,12 @@ Implemented container runtime:
 - The Agent verifies `soffice --version` before advertising `PDF`,
   `DOCX_AND_PDF`, or `HTML_AND_PDF` capability. Enabling the property alone is
   not enough.
+- `DocumentRenderCommandExecutorPdfSmokeTest` verifies the Agent command path
+  can generate and store DOCX plus PDF artifacts through the real LibreOffice
+  exporter. It is disabled during normal Gradle tests and enabled by the Docker
+  `pdf-smoke-test` target.
+- `scripts/smoke/archdox-agent-pdf-smoke.ps1` builds the Agent image, verifies
+  `soffice --version`, and runs the Dockerized PDF smoke target.
 
 ## Reviewed HWP Source Templates
 

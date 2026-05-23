@@ -194,6 +194,9 @@ Implemented V1:
   and caches the result for the current executable path.
 - Compose uses the service name `archdox-agent` and the Docker image under
   `infra/docker/archdox-agent`.
+- The Docker `pdf-smoke-test` target exercises the real Agent command executor
+  with `DOCX_AND_PDF`, stores both artifacts through `AgentDocumentStore`, and
+  asserts the PDF begins with the `%PDF` signature.
 
 ## Worker And Storage Terms
 

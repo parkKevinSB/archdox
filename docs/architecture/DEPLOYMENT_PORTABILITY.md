@@ -276,3 +276,15 @@ DOCUMENT_EXPORT_LIBREOFFICE_PATH=soffice
 This is a deployment/runtime concern. Application source code still talks to the
 portable `DocumentArtifactExporter` boundary, and PDF routing still depends on
 the selected runtime advertising a verified `pdfExport` capability.
+
+PDF smoke verification:
+
+```powershell
+.\scripts\smoke\archdox-agent-pdf-smoke.ps1
+```
+
+The smoke script runs a Docker target that executes
+`DocumentRenderCommandExecutorPdfSmokeTest` with
+`-Darchdox.agent.pdf-smoke.enabled=true`. Normal `gradlew test` runs keep this
+test skipped so developer machines and CI do not need LibreOffice installed
+unless the smoke target is explicitly requested.

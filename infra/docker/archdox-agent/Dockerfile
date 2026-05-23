@@ -6,6 +6,30 @@ WORKDIR /workspace
 COPY --chown=gradle:gradle . .
 RUN chmod +x gradlew && ./gradlew :archdox-agent:bootJar --no-daemon
 
+FROM gradle:8.14-jdk21 AS pdf-smoke-test
+
+WORKDIR /workspace
+USER root
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        fontconfig \
+        fonts-noto-cjk \
+        fonts-noto-cjk-extra \
+        libreoffice-java-common \
+        libreoffice-writer \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f \
+    && chown -R gradle:gradle /workspace
+USER gradle
+COPY --chown=gradle:gradle . .
+ENV DOCUMENT_EXPORT_LIBREOFFICE_PATH=soffice \
+    SAL_USE_VCLPLUGIN=svp
+RUN chmod +x gradlew \
+    && ./gradlew :archdox-agent:test \
+        --tests "com.archdox.agent.cloud.DocumentRenderCommandExecutorPdfSmokeTest" \
+        -Darchdox.agent.pdf-smoke.enabled=true \
+        --no-daemon
+
 FROM eclipse-temurin:21-jre-jammy
 
 ENV LANG=C.UTF-8 \
