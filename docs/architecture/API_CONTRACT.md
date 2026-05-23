@@ -810,6 +810,69 @@ Response `200`:
 ]
 ```
 
+### GET `/api/v1/inspection-reports/{reportId}/workflow-definition`
+
+Resolves the report-writing flow that the normal client UI should render.
+
+Resolution order:
+
+1. active office override workflow revision for the report type
+2. published system workflow revision for the report type
+3. built-in report-writing fallback
+
+The endpoint also returns the active checklist schema selected for the report
+context when one exists. `siteType` comes from the report site. `targetType`
+comes from the primary attached inspection target snapshot when available.
+
+Response `200`:
+
+```json
+{
+  "reportId": 10,
+  "officeId": 1,
+  "reportType": "DAILY_SUPERVISION",
+  "siteType": "BUILDING",
+  "targetType": "BUILDING",
+  "flowId": "inspection-report-writing",
+  "title": "리포트 작성",
+  "source": "BUILT_IN_DEFAULT",
+  "definitionId": null,
+  "revisionId": null,
+  "version": null,
+  "checklistSchemaId": 500,
+  "checklistSchemaCode": "DAILY_SUPERVISION_DEFAULT",
+  "checklistSchemaVersion": 1,
+  "steps": [
+    {
+      "code": "BASIC_INFO",
+      "title": "기본 정보",
+      "description": "일자, 날씨, 담당자처럼 보고서가 공유하는 머리말 정보를 정리합니다.",
+      "stepType": "FORM",
+      "savePolicy": "ON_NAVIGATE",
+      "fields": [
+        {
+          "key": "inspectionDate",
+          "label": "점검일",
+          "type": "date",
+          "placeholder": null,
+          "required": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+Supported `stepType` values for the client are currently:
+
+- `FORM`
+- `CHECKLIST`
+- `PHOTO`
+
+Unsupported or missing config falls back to the built-in flow. Configuration
+must choose from supported step components; it must not attempt to render
+arbitrary React UI.
+
 ### PUT `/api/v1/inspection-reports/{reportId}/steps/{stepCode}`
 
 Request:

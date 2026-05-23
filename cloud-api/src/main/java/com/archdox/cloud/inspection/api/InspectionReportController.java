@@ -2,10 +2,12 @@ package com.archdox.cloud.inspection.api;
 
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.inspection.application.InspectionReportService;
+import com.archdox.cloud.inspection.application.ReportWorkflowDefinitionService;
 import com.archdox.cloud.inspection.domain.InspectionReportStatus;
 import com.archdox.cloud.inspection.dto.CreateInspectionReportRequest;
 import com.archdox.cloud.inspection.dto.InspectionReportResponse;
 import com.archdox.cloud.inspection.dto.InspectionStepResponse;
+import com.archdox.cloud.inspection.dto.ReportWorkflowDefinitionResponse;
 import com.archdox.cloud.inspection.dto.ReportSubmitValidationResponse;
 import com.archdox.cloud.inspection.dto.SaveInspectionStepRequest;
 import jakarta.validation.Valid;
@@ -26,9 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/inspection-reports")
 public class InspectionReportController {
     private final InspectionReportService inspectionReportService;
+    private final ReportWorkflowDefinitionService reportWorkflowDefinitionService;
 
-    public InspectionReportController(InspectionReportService inspectionReportService) {
+    public InspectionReportController(
+            InspectionReportService inspectionReportService,
+            ReportWorkflowDefinitionService reportWorkflowDefinitionService
+    ) {
         this.inspectionReportService = inspectionReportService;
+        this.reportWorkflowDefinitionService = reportWorkflowDefinitionService;
     }
 
     @GetMapping
@@ -57,6 +64,11 @@ public class InspectionReportController {
     @GetMapping("/{reportId}/steps")
     public List<InspectionStepResponse> listSteps(@PathVariable Long reportId) {
         return inspectionReportService.listSteps(reportId);
+    }
+
+    @GetMapping("/{reportId}/workflow-definition")
+    public ReportWorkflowDefinitionResponse workflowDefinition(@PathVariable Long reportId) {
+        return reportWorkflowDefinitionService.resolve(reportId);
     }
 
     @GetMapping("/{reportId}/submit-validation")

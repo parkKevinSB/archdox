@@ -3,8 +3,11 @@ import { reportStepDefinitions } from "./flow/reportFlowDefinition";
 
 export { reportStepDefinitions } from "./flow/reportFlowDefinition";
 
-export function isReportStepCode(value?: string | null): value is ReportStepCode {
-  return reportStepDefinitions.some((definition) => definition.code === value);
+export function isReportStepCode(
+  value?: string | null,
+  definitions: ReportStepDefinition[] = reportStepDefinitions
+): value is ReportStepCode {
+  return Boolean(value && definitions.some((definition) => definition.code === value));
 }
 
 export function payloadFieldValue(payload: Record<string, unknown>, key: string) {

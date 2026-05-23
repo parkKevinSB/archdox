@@ -390,6 +390,21 @@ Once report patterns repeat, let configuration registry influence:
 Keep React components stable and supported. Do not turn configuration into a
 free-form programming language.
 
+Initial V1 implementation status:
+
+- Cloud API exposes `GET /api/v1/inspection-reports/{reportId}/workflow-definition`.
+- The endpoint resolves office/system workflow configuration first and falls
+  back to a built-in report-writing flow when no usable config is published.
+- The response includes report context, source metadata, selected checklist
+  schema metadata, and supported UI step definitions.
+- `client/web` loads this definition before rendering the report step runner.
+- If the definition cannot be loaded, the client keeps the local built-in flow
+  as a defensive fallback so report writing is not blocked by configuration
+  rollout mistakes.
+
+Configuration may decide step order, step labels, and supported field schemas.
+React still owns the actual components through the step registry.
+
 ## Decision
 
 ArchDox should move toward a lightweight UI workflow orchestration layer:

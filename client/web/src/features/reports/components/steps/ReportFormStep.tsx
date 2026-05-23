@@ -29,9 +29,15 @@ export function ReportFormStep({ canWriteReports, definition, register, revision
           <label className={field.type === "textarea" ? "wide" : undefined} key={field.key}>
             {field.label}
             {field.type === "textarea" ? (
-              <textarea disabled={!canWriteReports} placeholder={field.placeholder} {...register(field.key)} />
+              <textarea
+                aria-required={field.required}
+                disabled={!canWriteReports}
+                placeholder={field.placeholder}
+                {...register(field.key)}
+              />
             ) : (
               <input
+                aria-required={field.required}
                 disabled={!canWriteReports}
                 placeholder={field.placeholder}
                 type={field.type ?? "text"}

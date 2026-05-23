@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { getInspectionSteps } from "../api";
+import { getInspectionSteps, getReportWorkflowDefinition } from "../api";
 import {
   isReportStepCode,
   payloadFieldValue,
   payloadFromForm,
   reportStepDefinitions
 } from "../reportSteps";
-import type { InspectionReport, InspectionStep, ReportStepCode, ReportWizardFormValues } from "../types";
+import type {
+  InspectionReport,
+  InspectionStep,
+  ReportFlowDefinition,
+  ReportStepCode,
+  ReportStepDefinition,
+  ReportWizardFormValues
+} from "../types";
 
 type UseReportWizardOptions = {
   canWriteReports: boolean;
@@ -31,9 +38,9 @@ export function useReportWizard({
   token
 }: UseReportWizardOptions) {
   const form = useForm<ReportWizardFormValues>({ defaultValues: {} });
-  const [activeStepCode, setActiveStepCode] = useState<ReportStepCode>(
-    isReportStepCode(report.currentStep) ? report.currentStep : reportStepDefinitions[0].code
-  );
+  const [stepDefinitions, setStepDefinitions] = useState<ReportStepDefinition[]>(reportStepDefinitions);
+  const [workflowDefinition, setWorkflowDefinition] = useState<ReportFlowDefinition | null>(null);
+  const [activeStepCode, setActiveStepCode] = useState<ReportStepCode>(reportStepDefinitions[0].code);
   const [savedSteps, setSavedSteps] = useState<Record<string, InspectionStep>>({});
   const [loadingSteps, setLoadingSteps] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,12 +51,12 @@ export function useReportWizard({
   const isDirty = form.formState.isDirty;
 
   const activeDefinition = useMemo(
-    () => reportStepDefinitions.find((definition) => definition.code === activeStepCode) ?? reportStepDefinitions[0],
-    [activeStepCode]
+    () => stepDefinitions.find((definition) => definition.code === activeStepCode) ?? stepDefinitions[0],
+    [activeStepCode, stepDefinitions]
   );
   const completedCount = useMemo(
-    () => reportStepDefinitions.filter((definition) => savedSteps[definition.code]).length,
-    [savedSteps]
+    () => stepDefinitions.filter((definition) => savedSteps[definition.code]).length,
+    [savedSteps, stepDefinitions]
   );
   const reportWriteAllowed = report.writeAllowed ?? canWriteReports;
   const canEdit = reportWriteAllowed && ["DRAFT", "STEP_SAVED"].includes(report.status);
@@ -63,14 +70,20 @@ export function useReportWizard({
     setLoadingSteps(true);
     setStepError(null);
     setNotice(null);
-    getInspectionSteps(token, officeId, report.id)
-      .then((steps) => {
+    Promise.all([
+      getReportWorkflowDefinition(token, officeId, report.id).catch(() => null),
+      getInspectionSteps(token, officeId, report.id)
+    ])
+      .then(([workflow, steps]) => {
         if (cancelled) {
           return;
         }
+        const nextDefinitions = workflow?.steps?.length ? workflow.steps : reportStepDefinitions;
         const nextSteps = Object.fromEntries(steps.map((step) => [step.stepCode, step]));
+        setWorkflowDefinition(workflow);
+        setStepDefinitions(nextDefinitions);
         setSavedSteps(nextSteps);
-        setActiveStepCode(isReportStepCode(report.currentStep) ? report.currentStep : reportStepDefinitions[0].code);
+        setActiveStepCode(isReportStepCode(report.currentStep, nextDefinitions) ? report.currentStep : nextDefinitions[0].code);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -85,7 +98,7 @@ export function useReportWizard({
     return () => {
       cancelled = true;
     };
-  }, [officeId, report.id, token]);
+  }, [officeId, report.currentStep, report.id, token]);
 
   useEffect(() => {
     const savedStep = savedSteps[activeStepCode];
@@ -187,8 +200,8 @@ export function useReportWizard({
   }
 
   async function moveStep(offset: number) {
-    const currentIndex = reportStepDefinitions.findIndex((definition) => definition.code === activeStepCode);
-    const nextDefinition = reportStepDefinitions[currentIndex + offset];
+    const currentIndex = stepDefinitions.findIndex((definition) => definition.code === activeStepCode);
+    const nextDefinition = stepDefinitions[currentIndex + offset];
     if (!nextDefinition) {
       return;
     }
@@ -232,8 +245,9 @@ export function useReportWizard({
     saveActiveStep,
     selectStep,
     stepSaveStatus,
-    stepDefinitions: reportStepDefinitions,
+    stepDefinitions,
     stepError,
-    submitReport
+    submitReport,
+    workflowDefinition
   };
 }

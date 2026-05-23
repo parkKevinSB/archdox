@@ -121,6 +121,37 @@ Workflow rules:
 - in-progress workflows should keep their selected workflow revision
 - changing a workflow definition should not mutate historical workflow meaning
 
+For report-writing UI, workflow configuration is intentionally narrower than
+backend Flower orchestration. It can describe supported client steps:
+
+```json
+{
+  "flowId": "daily-supervision-v1",
+  "title": "감리일지 작성",
+  "steps": [
+    {
+      "code": "BASIC_INFO",
+      "title": "기본 정보",
+      "description": "공통 머리말 정보를 입력합니다.",
+      "stepType": "FORM",
+      "fields": [
+        {
+          "key": "inspectionDate",
+          "label": "점검일",
+          "type": "date",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+This is not arbitrary UI JSON. `stepType` must map to known React step
+components such as `FORM`, `CHECKLIST`, or `PHOTO`. If configuration is missing
+or invalid, the client receives a built-in default flow and the admin can fix
+the published revision separately.
+
 ### 4. Rule Set
 
 Rule sets describe configurable business requirements.

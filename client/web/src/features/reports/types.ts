@@ -9,7 +9,7 @@ export type ReportFormValues = {
   title: string;
 };
 
-export type ReportStepCode = "BASIC_INFO" | "WORK_SUMMARY" | "CHECKLIST" | "PHOTOS" | "REMARKS";
+export type ReportStepCode = string;
 
 export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO";
 
@@ -19,6 +19,7 @@ export type ReportStepField = {
   key: string;
   label: string;
   placeholder?: string;
+  required?: boolean;
   type?: "text" | "date" | "number" | "textarea";
 };
 
@@ -32,8 +33,20 @@ export type ReportStepDefinition = {
 };
 
 export type ReportFlowDefinition = {
+  checklistSchemaCode?: string | null;
+  checklistSchemaId?: number | null;
+  checklistSchemaVersion?: number | null;
+  definitionId?: number | null;
   flowId: string;
+  officeId?: number;
+  reportId?: number;
+  reportType?: string;
+  revisionId?: number | null;
+  siteType?: string | null;
+  source?: string;
+  targetType?: string | null;
   title: string;
+  version?: number | null;
   steps: ReportStepDefinition[];
 };
 

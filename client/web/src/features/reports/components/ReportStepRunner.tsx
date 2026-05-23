@@ -60,7 +60,7 @@ export function ReportStepRunner({
   submitReport,
   token
 }: ReportStepRunnerProps) {
-  const StepComponent = reportStepRegistry[activeDefinition.stepType];
+  const StepComponent = reportStepRegistry[activeDefinition.stepType] ?? reportStepRegistry.FORM;
   const activeIndex = stepDefinitions.findIndex((definition) => definition.code === activeStepCode);
   const firstStep = activeIndex <= 0;
   const lastStep = activeIndex >= stepDefinitions.length - 1;

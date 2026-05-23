@@ -141,6 +141,37 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(jsonPath("$.submittedRevision").value(2));
     }
 
+    @Test
+    void resolvesWorkflowDefinitionForReportWritingUi() throws Exception {
+        var user = signup("workflow-definition@example.com", "Workflow Definition");
+        var projectId = createProject(user);
+        var reportId = createReport(user, projectId);
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/workflow-definition", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("BUILT_IN_DEFAULT"))
+                .andExpect(jsonPath("$.checklistSchemaCode").value("DAILY_SUPERVISION_DEFAULT"))
+                .andExpect(jsonPath("$.steps[*].code", hasItems("BASIC_INFO", "CHECKLIST", "PHOTOS")));
+
+        var definitionId = createWorkflowDefinition(user);
+        var revisionId = createWorkflowRevision(user, definitionId);
+        publishWorkflowRevision(user, revisionId);
+        assignWorkflowOverride(user, revisionId);
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/workflow-definition", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("OFFICE_OVERRIDE"))
+                .andExpect(jsonPath("$.revisionId").value(revisionId))
+                .andExpect(jsonPath("$.flowId").value("custom-daily-flow"))
+                .andExpect(jsonPath("$.steps", hasSize(1)))
+                .andExpect(jsonPath("$.steps[0].code").value("CUSTOM_INFO"))
+                .andExpect(jsonPath("$.steps[0].fields[0].key").value("memo"));
+    }
+
     private TestUser signup() throws Exception {
         return signup("submit-validation@example.com", "Submit Validation");
     }
@@ -194,6 +225,77 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createWorkflowDefinition(TestUser user) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/config/workflow-definitions")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "custom-daily-flow",
+                                  "name": "Custom Daily Flow",
+                                  "reportType": "daily_supervision"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createWorkflowRevision(TestUser user, long definitionId) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/config/workflow-definitions/{definitionId}/revisions", definitionId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {
+                                    "flowId": "custom-daily-flow",
+                                    "title": "Custom Daily Flow",
+                                    "steps": [
+                                      {
+                                        "code": "custom_info",
+                                        "title": "Custom Info",
+                                        "description": "Office-specific report step",
+                                        "stepType": "form",
+                                        "fields": [
+                                          {
+                                            "key": "memo",
+                                            "label": "Memo",
+                                            "type": "textarea",
+                                            "required": true
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private void publishWorkflowRevision(TestUser user, long revisionId) throws Exception {
+        mockMvc.perform(post("/api/v1/config/workflow-definition-revisions/{revisionId}/publish", revisionId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk());
+    }
+
+    private void assignWorkflowOverride(TestUser user, long revisionId) throws Exception {
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "workflowRevisionId": %d
+                                }
+                                """.formatted(revisionId)))
+                .andExpect(status().isOk());
     }
 
     private void saveBasicInfoStep(TestUser user, long reportId) throws Exception {
