@@ -118,7 +118,6 @@ src/
       flow/
         reportFlowDefinition.ts
         reportStepRegistry.tsx
-      reportTypes.ts
       reportSteps.ts
       types.ts
       components/
@@ -233,7 +232,7 @@ Owns:
 
 - report list UI
 - report start form
-- report type options
+- document type reads for report creation
 - report step definitions
 - report step payload conversion helpers
 - report step loading API
@@ -258,14 +257,16 @@ Current split:
 - `features/reports/hooks/useReportWizard.ts` owns active step, saved steps,
   step loading, save, next/previous movement, submit, notices, and errors.
 - `features/reports/flow/reportFlowDefinition.ts` owns the current lightweight
-  report flow definition.
+  fallback report flow definition.
 - `features/reports/flow/reportStepRegistry.tsx` maps supported report step
   types to React step components.
-- `features/reports/reportTypes.ts` owns report type options used by report
-  creation UI.
 - `features/reports/reportSteps.ts` keeps step-code checks and payload mapping
   helpers while re-exporting the active flow step definitions.
-- `features/reports/api.ts` owns report-step REST reads.
+- `features/reports/api.ts` owns document type and report-step REST reads.
+- `ReportStartForm` must use `/api/v1/document-types` data passed from the
+  workspace loader. Do not add a second hardcoded report type list in the
+  client; product-level document defaults belong to the Cloud API document type
+  registry.
 - `App.tsx` injects `features/checklists/components/ReportChecklistPanel.tsx`
   into `ReportWizard` through a render prop. This keeps `ReportWizard` focused
   on report-step composition while checklist answer editing remains a separate

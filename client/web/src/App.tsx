@@ -51,10 +51,11 @@ import { AuthScreen } from "./features/auth/AuthScreen";
 import { ReportChecklistPanel } from "./features/checklists/components/ReportChecklistPanel";
 import { DocumentWorkspace } from "./features/documents/components/DocumentWorkspace";
 import { PhotoWorkspace } from "./features/photos/components/PhotoWorkspace";
+import { getDocumentTypes } from "./features/reports/api";
 import { ReportList } from "./features/reports/components/ReportList";
 import { ReportStartForm } from "./features/reports/components/ReportStartForm";
 import { ReportWizard } from "./features/reports/components/ReportWizard";
-import type { ReportFormValues } from "./features/reports/types";
+import type { DocumentTypeDefinition, ReportFormValues } from "./features/reports/types";
 import type {
   InspectionReport,
   InspectionStep,
@@ -67,6 +68,7 @@ import type {
 } from "./types";
 
 type WorkspaceData = {
+  documentTypes: DocumentTypeDefinition[];
   projects: Project[];
   reports: InspectionReport[];
   sites: Site[];
@@ -107,6 +109,7 @@ const AUTH_STORAGE_KEY = "archdox.client.auth";
 const LEGACY_OFFICE_STORAGE_KEY = "archdox.client.officeId";
 
 const emptyWorkspace: WorkspaceData = {
+  documentTypes: [],
   projects: [],
   reports: [],
   sites: [],
@@ -314,11 +317,12 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [projects, reports] = await Promise.all([
+      const [projects, reports, documentTypes] = await Promise.all([
         getProjects(token, officeId),
-        getInspectionReports(token, officeId)
+        getInspectionReports(token, officeId),
+        getDocumentTypes(token, officeId)
       ]);
-      setWorkspace((current) => ({ ...current, projects, reports }));
+      setWorkspace((current) => ({ ...current, documentTypes, projects, reports }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "업무 데이터를 불러오지 못했습니다.");
     } finally {
@@ -672,6 +676,7 @@ export default function App() {
           )}
           {activeView === "projects" && (
             <ProjectsView
+              documentTypes={workspace.documentTypes}
               loading={loading}
               loadingSites={loadingSites}
               loadingTargets={loadingTargets}
@@ -816,6 +821,7 @@ function HomeView({
 }
 
 function ProjectsView({
+  documentTypes,
   loading,
   loadingSites,
   loadingTargets,
@@ -841,6 +847,7 @@ function ProjectsView({
   onSelectSite,
   onSelectTarget
 }: {
+  documentTypes: DocumentTypeDefinition[];
   loading: boolean;
   loadingSites: boolean;
   loadingTargets: boolean;
@@ -936,6 +943,7 @@ function ProjectsView({
                 {canWriteReports ? (
                   <ReportStartForm
                     busy={loading}
+                    documentTypes={documentTypes}
                     projects={projects}
                     selectedProjectId={selectedProjectId}
                     selectedSiteId={selectedSiteId}

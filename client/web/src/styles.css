@@ -1111,7 +1111,7 @@ button {
   font-weight: 800;
 }
 
-.compact-form label.wide {
+.compact-form .wide {
   grid-column: span 2;
 }
 
@@ -1131,6 +1131,55 @@ button {
 .compact-form select:focus {
   border-color: #2a7f70;
   box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.document-type-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e1e7e5;
+  border-radius: 8px;
+  background: #fafbfb;
+}
+
+.document-type-summary strong,
+.document-type-summary span {
+  display: block;
+}
+
+.document-type-summary strong {
+  color: #172321;
+  font-size: 14px;
+}
+
+.document-type-summary span {
+  margin-top: 3px;
+  color: #5c6e6a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.document-type-meta,
+.document-type-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.document-type-meta span,
+.document-type-steps span {
+  margin: 0;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef2f1;
+  color: #455956;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.document-type-steps span {
+  background: #f6f0dc;
+  color: #6a5420;
 }
 
 .wizard-shell {
@@ -1960,7 +2009,7 @@ button.list-row {
     justify-self: start;
   }
 
-  .compact-form label.wide {
+  .compact-form .wide {
     grid-column: auto;
   }
 

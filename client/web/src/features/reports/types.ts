@@ -11,7 +11,7 @@ export type ReportFormValues = {
 
 export type ReportStepCode = string;
 
-export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO";
+export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO" | (string & {});
 
 export type ReportStepSavePolicy = "ON_NAVIGATE";
 
@@ -47,6 +47,22 @@ export type ReportFlowDefinition = {
   targetType?: string | null;
   title: string;
   version?: number | null;
+  steps: ReportStepDefinition[];
+};
+
+export type DocumentTypeDefinition = {
+  id: number;
+  officeId?: number | null;
+  code: string;
+  reportType: string;
+  name: string;
+  description?: string | null;
+  category: string;
+  defaultTemplateCode?: string | null;
+  defaultTemplateStorageRef?: string | null;
+  checklistSchemaCode?: string | null;
+  defaultOutputFormat: string;
+  displayOrder: number;
   steps: ReportStepDefinition[];
 };
 
