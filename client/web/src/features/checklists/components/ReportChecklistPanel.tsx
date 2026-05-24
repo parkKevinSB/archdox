@@ -1,6 +1,6 @@
-import { CheckCircle2, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { CheckCircle2, Link2, Loader2, Save } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { InlineAlert, InlineNotice } from "../../../components/common";
 import { useReportChecklist } from "../hooks/useReportChecklist";
 import type {
@@ -19,6 +19,10 @@ type ReportChecklistPanelProps = {
   token: string;
 };
 
+type SaveOptions = {
+  quiet?: boolean;
+};
+
 export function ReportChecklistPanel({
   canWriteReports,
   officeId,
@@ -29,8 +33,10 @@ export function ReportChecklistPanel({
   const form = useForm<ChecklistFormValues>({ defaultValues: {} });
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(targets[0]?.id ?? null);
   const [busyItemCode, setBusyItemCode] = useState<string | null>(null);
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const values = form.watch();
   const {
     attachTarget,
     attachingTarget,
@@ -39,6 +45,17 @@ export function ReportChecklistPanel({
     loadError,
     saveAnswer
   } = useReportChecklist({ token, officeId, reportId: report.id });
+
+  const visibleAnswers = useMemo(
+    () => answersForTarget(checklist?.answers ?? [], selectedTargetId),
+    [checklist?.answers, selectedTargetId]
+  );
+  const persistedValues = useMemo(() => formValuesFromAnswers(visibleAnswers), [visibleAnswers]);
+  const answersByCode = useMemo(
+    () => new Map(visibleAnswers.map((answer) => [answer.itemCode, answer])),
+    [visibleAnswers]
+  );
+  const selectedTarget = selectedTargetId ? targets.find((target) => target.id === selectedTargetId) ?? null : null;
 
   useEffect(() => {
     if (selectedTargetId && targets.some((target) => target.id === selectedTargetId)) {
@@ -51,14 +68,49 @@ export function ReportChecklistPanel({
     if (!checklist) {
       return;
     }
-    form.reset(formValuesFromAnswers(checklist.answers));
-  }, [checklist, form]);
+    form.reset(formValuesFromAnswers(answersForTarget(checklist.answers, selectedTargetId)));
+  }, [checklist?.schema.id, form, report.id, selectedTargetId]);
 
-  async function saveItem(item: ChecklistItem) {
-    if (!canWriteReports) {
-      setLocalError("체크리스트 저장은 작성 권한이 필요합니다.");
-      return;
+  const dirtyItemCodes = useMemo(() => {
+    if (!checklist) {
+      return [];
     }
+    return checklist.schema.items
+      .filter((item) => isItemDirty(item, values, persistedValues))
+      .map((item) => item.itemCode);
+  }, [checklist, persistedValues, values]);
+
+  const summary = useMemo(() => {
+    if (!checklist) {
+      return { total: 0, answered: 0, issue: 0, dirty: 0 };
+    }
+    return checklist.schema.items.reduce(
+      (current, item) => {
+        const answer = answersByCode.get(item.itemCode);
+        const value = answer?.answer?.value;
+        return {
+          total: current.total + 1,
+          answered: current.answered + (isAnsweredValue(value) ? 1 : 0),
+          issue: current.issue + (isIssueValue(value) ? 1 : 0),
+          dirty: dirtyItemCodes.includes(item.itemCode) ? current.dirty + 1 : current.dirty
+        };
+      },
+      { total: 0, answered: 0, issue: 0, dirty: 0 }
+    );
+  }, [answersByCode, checklist, dirtyItemCodes]);
+
+  async function saveItem(item: ChecklistItem, options: SaveOptions = {}) {
+    if (!canWriteReports) {
+      setLocalError("체크리스트를 저장할 권한이 없습니다.");
+      return false;
+    }
+    const answerValue = form.getValues(answerKey(item.itemCode)) ?? "";
+    const noteValue = form.getValues(noteKey(item.itemCode)) ?? "";
+    const existingAnswer = answersByCode.get(item.itemCode);
+    if (!existingAnswer && !answerValue.trim() && !noteValue.trim()) {
+      return true;
+    }
+
     setBusyItemCode(item.itemCode);
     setNotice(null);
     setLocalError(null);
@@ -67,21 +119,46 @@ export function ReportChecklistPanel({
         itemCode: item.itemCode,
         body: {
           targetId: selectedTargetId,
-          answer: { value: normalizedChecklistValue(item, form.getValues(answerKey(item.itemCode)) ?? "") },
-          note: normalizeFormValue(form.getValues(noteKey(item.itemCode)) ?? "")
+          answer: { value: normalizedChecklistValue(item, answerValue) },
+          note: normalizeFormValue(noteValue)
         }
       });
-      setNotice(`${item.label} 답변을 저장했습니다.`);
+      if (!options.quiet) {
+        setNotice(`${item.label} 항목을 저장했습니다.`);
+      }
+      return true;
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "체크리스트 답변을 저장하지 못했습니다.");
+      setLocalError(err instanceof Error ? err.message : "체크리스트 항목을 저장하지 못했습니다.");
+      return false;
     } finally {
       setBusyItemCode(null);
     }
   }
 
+  async function saveDirtyItems() {
+    if (!checklist || dirtyItemCodes.length === 0) {
+      setNotice("저장할 변경 항목이 없습니다.");
+      return;
+    }
+    setBulkSaving(true);
+    setNotice(null);
+    setLocalError(null);
+    try {
+      for (const item of checklist.schema.items.filter((current) => dirtyItemCodes.includes(current.itemCode))) {
+        const saved = await saveItem(item, { quiet: true });
+        if (!saved) {
+          return;
+        }
+      }
+      setNotice(`${dirtyItemCodes.length}개 변경 항목을 저장했습니다.`);
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
   async function attachSelectedTarget() {
     if (!canWriteReports) {
-      setLocalError("리포트 대상 연결은 작성 권한이 필요합니다.");
+      setLocalError("리포트 대상을 연결할 권한이 없습니다.");
       return;
     }
     if (!selectedTargetId) {
@@ -131,76 +208,215 @@ export function ReportChecklistPanel({
             onClick={attachSelectedTarget}
             type="button"
           >
-            {attachingTarget ? <Loader2 className="spin" size={17} /> : <CheckCircle2 size={17} />}
+            {attachingTarget ? <Loader2 className="spin" size={17} /> : <Link2 size={17} />}
             주 대상 연결
           </button>
         </div>
       </div>
 
+      <div className="checklist-summary-bar">
+        <SummaryTile label="대상" value={selectedTarget?.name ?? "리포트 공통"} />
+        <SummaryTile label="응답" value={`${summary.answered}/${summary.total}`} />
+        <SummaryTile label="확인 필요" value={summary.issue} tone={summary.issue > 0 ? "warning" : "normal"} />
+        <SummaryTile label="미저장" value={summary.dirty} tone={summary.dirty > 0 ? "dirty" : "normal"} />
+      </div>
+
       {error ? <InlineAlert message={error} /> : null}
-      {!canWriteReports ? <InlineNotice message="이 계정은 체크리스트 쓰기 전용 권한이 없습니다." /> : null}
+      {!canWriteReports ? <InlineNotice message="이 계정은 체크리스트 쓰기 권한이 없습니다." /> : null}
       {notice ? <InlineNotice message={notice} /> : null}
+
+      <div className="checklist-toolbar">
+        <span>선택형 항목은 값을 누르면 바로 저장되고, 메모는 입력 후 변경 저장으로 반영합니다.</span>
+        <button
+          className="secondary-button"
+          disabled={bulkSaving || dirtyItemCodes.length === 0 || !canWriteReports}
+          onClick={saveDirtyItems}
+          type="button"
+        >
+          {bulkSaving ? <Loader2 className="spin" size={17} /> : <Save size={17} />}
+          변경 저장
+        </button>
+      </div>
 
       <div className="checklist-items">
         {checklist.schema.items.map((item) => (
-          <div className="checklist-item" key={item.id}>
-            <div>
-              <strong>{item.label}</strong>
-              <span>{item.description ?? (item.required ? "필수 항목" : "선택 항목")}</span>
-            </div>
-            <ChecklistAnswerInput disabled={!canWriteReports} item={item} register={form.register} />
-            <input disabled={!canWriteReports} placeholder="비고" {...form.register(noteKey(item.itemCode))} />
-            <button
-              className="secondary-button"
-              disabled={busyItemCode === item.itemCode || !canWriteReports}
-              onClick={() => saveItem(item)}
-              type="button"
-            >
-              {busyItemCode === item.itemCode ? <Loader2 className="spin" size={17} /> : <CheckCircle2 size={17} />}
-              저장
-            </button>
-          </div>
+          <ChecklistItemRow
+            busy={busyItemCode === item.itemCode || bulkSaving}
+            canWriteReports={canWriteReports}
+            dirty={dirtyItemCodes.includes(item.itemCode)}
+            form={form}
+            item={item}
+            key={item.id}
+            onSave={saveItem}
+            savedAnswer={answersByCode.get(item.itemCode)}
+            value={values[answerKey(item.itemCode)] ?? ""}
+          />
         ))}
       </div>
     </div>
   );
 }
 
+function SummaryTile({
+  label,
+  tone = "normal",
+  value
+}: {
+  label: string;
+  tone?: "dirty" | "normal" | "warning";
+  value: number | string;
+}) {
+  return (
+    <div className={`checklist-summary-tile ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ChecklistItemRow({
+  busy,
+  canWriteReports,
+  dirty,
+  form,
+  item,
+  onSave,
+  savedAnswer,
+  value
+}: {
+  busy: boolean;
+  canWriteReports: boolean;
+  dirty: boolean;
+  form: UseFormReturn<ChecklistFormValues>;
+  item: ChecklistItem;
+  onSave: (item: ChecklistItem, options?: SaveOptions) => Promise<boolean>;
+  savedAnswer?: ChecklistAnswer;
+  value: string;
+}) {
+  const noteRegistration = form.register(noteKey(item.itemCode));
+  return (
+    <div className={["checklist-item", dirty ? "dirty" : "", isIssueValue(value) ? "issue" : ""].filter(Boolean).join(" ")}>
+      <div className="checklist-item-main">
+        <div>
+          <strong>{item.label}</strong>
+          <span>{item.description ?? (item.required ? "필수 항목" : "선택 항목")}</span>
+        </div>
+        <div className="checklist-item-status">
+          {item.required ? <span className="required">필수</span> : null}
+          {dirty ? <span className="dirty">미저장</span> : null}
+          {savedAnswer && !dirty ? <span className="saved">저장됨</span> : null}
+        </div>
+      </div>
+      <ChecklistAnswerInput
+        disabled={!canWriteReports || busy}
+        form={form}
+        item={item}
+        onQuickSave={() => onSave(item, { quiet: true })}
+        value={value}
+      />
+      <input
+        disabled={!canWriteReports || busy}
+        placeholder="메모 또는 조치사항"
+        {...noteRegistration}
+        onBlur={(event) => {
+          noteRegistration.onBlur(event);
+          if (dirty) {
+            void onSave(item, { quiet: true });
+          }
+        }}
+      />
+      {busy ? <Loader2 className="spin checklist-row-spinner" size={17} /> : <CheckCircle2 className="checklist-row-icon" size={17} />}
+    </div>
+  );
+}
+
 function ChecklistAnswerInput({
   disabled,
+  form,
   item,
-  register
+  onQuickSave,
+  value
 }: {
   disabled: boolean;
+  form: UseFormReturn<ChecklistFormValues>;
   item: ChecklistItem;
-  register: ReturnType<typeof useForm<ChecklistFormValues>>["register"];
+  onQuickSave: () => Promise<boolean>;
+  value: string;
 }) {
-  const registration = register(answerKey(item.itemCode));
+  const key = answerKey(item.itemCode);
+  const registration = form.register(key);
+
   if (item.answerType === "TEXT") {
-    return <textarea disabled={disabled} placeholder="답변" {...registration} />;
-  }
-  if (item.answerType === "NUMBER") {
-    return <input disabled={disabled} placeholder="0" type="number" {...registration} />;
-  }
-  if (item.answerType === "YES_NO" || item.answerType === "CHECK") {
     return (
-      <select disabled={disabled} {...registration}>
-        <option value="">선택</option>
-        <option value="true">예</option>
-        <option value="false">아니오</option>
-      </select>
+      <textarea
+        disabled={disabled}
+        placeholder="응답"
+        {...registration}
+        onBlur={(event) => {
+          registration.onBlur(event);
+          void onQuickSave();
+        }}
+      />
     );
   }
+  if (item.answerType === "NUMBER") {
+    return (
+      <input
+        disabled={disabled}
+        placeholder="0"
+        type="number"
+        {...registration}
+        onBlur={(event) => {
+          registration.onBlur(event);
+          void onQuickSave();
+        }}
+      />
+    );
+  }
+
+  const options = answerOptions(item);
   return (
-    <select disabled={disabled} {...registration}>
-      <option value="">선택</option>
-      {item.options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
+    <div className="checklist-segmented" role="group" aria-label={`${item.label} 응답`}>
+      {options.map((option) => (
+        <button
+          className={[
+            "checklist-answer-button",
+            value === option.value ? "active" : "",
+            answerTone(option.value)
+          ].filter(Boolean).join(" ")}
+          disabled={disabled}
+          key={option.value}
+          onClick={() => {
+            form.setValue(key, option.value, { shouldDirty: true });
+            void onQuickSave();
+          }}
+          type="button"
+        >
+          {option.label}
+        </button>
       ))}
-    </select>
+    </div>
   );
+}
+
+function answerOptions(item: ChecklistItem) {
+  if (item.answerType === "YES_NO" || item.answerType === "CHECK") {
+    return [
+      { label: "예", value: "true" },
+      { label: "아니오", value: "false" }
+    ];
+  }
+  return item.options.length > 0
+    ? item.options.map((option) => ({ label: option, value: option }))
+    : [
+        { label: "적합", value: "적합" },
+        { label: "보완필요", value: "보완필요" },
+        { label: "부적합", value: "부적합" }
+      ];
+}
+
+function answersForTarget(answers: ChecklistAnswer[], targetId: number | null) {
+  return answers.filter((answer) => (answer.targetId ?? null) === targetId);
 }
 
 function formValuesFromAnswers(answers: ChecklistAnswer[]) {
@@ -209,6 +425,15 @@ function formValuesFromAnswers(answers: ChecklistAnswer[]) {
     values[noteKey(answer.itemCode)] = answer.note ?? "";
     return values;
   }, {});
+}
+
+function isItemDirty(
+  item: ChecklistItem,
+  values: ChecklistFormValues,
+  persistedValues: ChecklistFormValues
+) {
+  return (values[answerKey(item.itemCode)] ?? "") !== (persistedValues[answerKey(item.itemCode)] ?? "")
+    || (values[noteKey(item.itemCode)] ?? "") !== (persistedValues[noteKey(item.itemCode)] ?? "");
 }
 
 function checklistAnswerValue(answer: Record<string, unknown>) {
@@ -236,6 +461,25 @@ function normalizedChecklistValue(item: ChecklistItem, value: string) {
     return Number.isFinite(numericValue) ? numericValue : value;
   }
   return value;
+}
+
+function isAnsweredValue(value: unknown) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function isIssueValue(value: unknown) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return ["FALSE", "NO", "NEEDS_ACTION", "보완필요", "부적합", "미흡"].includes(normalized);
+}
+
+function answerTone(value: string) {
+  if (isIssueValue(value)) {
+    return "warning";
+  }
+  if (value === "적합" || value === "true") {
+    return "ok";
+  }
+  return "";
 }
 
 function answerKey(itemCode: string) {

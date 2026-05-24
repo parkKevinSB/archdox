@@ -226,6 +226,28 @@ Rules:
   `domain/permissions.ts` for office-level checks and loaded assignment data for
   project/report-specific checks.
 
+### `features/checklists`
+
+Owns:
+
+- report checklist schema loading
+- target-scoped checklist answers
+- checklist answer saving
+- checklist writing UI used inside report wizard steps
+
+Rules:
+
+- Checklist answers are scoped by `(reportId, itemCode, targetId)`. The client
+  must not merge answers for different targets into one visible row.
+- The normal writing UI should be fast: selectable answers use segmented
+  buttons, text/number answers use compact inputs, and a summary bar shows
+  answered/issue/dirty counts.
+- Avoid one large custom checklist engine. The UI supports the bounded answer
+  types returned by the API: `SELECT`, `YES_NO`, `CHECK`, `TEXT`, and `NUMBER`.
+- The Cloud API remains the source of truth for the checklist schema. The client
+  may improve presentation but must not hardcode document-specific checklist
+  items.
+
 ### `features/reports`
 
 Owns:

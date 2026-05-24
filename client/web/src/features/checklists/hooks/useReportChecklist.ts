@@ -54,6 +54,14 @@ function mergeChecklistAnswer(checklist: ReportChecklist | undefined, answer: Ch
   if (!checklist) {
     return checklist;
   }
-  const answers = checklist.answers.filter((current) => current.id !== answer.id && current.itemCode !== answer.itemCode);
+  const answers = checklist.answers.filter((current) => !sameAnswerScope(current, answer));
   return { ...checklist, answers: [...answers, answer] };
+}
+
+function sameAnswerScope(left: ChecklistAnswer, right: ChecklistAnswer) {
+  return left.itemCode === right.itemCode && normalizeTargetId(left.targetId) === normalizeTargetId(right.targetId);
+}
+
+function normalizeTargetId(targetId?: number | null) {
+  return targetId ?? null;
 }
