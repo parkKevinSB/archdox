@@ -54,6 +54,7 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Concrete", fields.get("constructionTrade"));
         assertEquals("Checked rebar", fields.get("supervisionContent"));
         assertEquals("None", fields.get("issueAndAction"));
+        assertEquals("None", fields.get("correctionResults"));
     }
 
     @Test
@@ -80,5 +81,30 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Jack support spacing", fields.get("inspectionCriteria"));
         assertEquals("Pass", fields.get("inspectionResult"));
         assertEquals("Tighten supports", fields.get("correctiveAction"));
+    }
+
+    @Test
+    void resolvesCompletionAndTemplateAliasFields() {
+        var fields = resolver.resolve(Map.of(
+                "report", Map.of("reportType", "DEMOLITION_COMPLETION_REPORT", "title", ""),
+                "project", Map.of("name", "Demolition Project"),
+                "steps", Map.of(
+                        "BASIC_INFO", Map.of("payload", Map.of(
+                                "architectAssistantName", "Park Architect",
+                                "supervisorOfficeName", "Arch Office",
+                                "contractorName", "Builder Co.",
+                                "serviceName", "Completion service",
+                                "reportDate", "2026-05-24")),
+                        "REMARKS", Map.of("payload", Map.of(
+                                "relationEngineerOpinion", "Reviewed",
+                                "comprehensiveOpinion", "Acceptable")))));
+
+        assertEquals("Park Architect", fields.get("assistantArchitectName"));
+        assertEquals("Arch Office", fields.get("supervisorOfficeName"));
+        assertEquals("Builder Co.", fields.get("contractorName"));
+        assertEquals("Completion service", fields.get("serviceName"));
+        assertEquals("2026-05-24", fields.get("reportDate"));
+        assertEquals("Reviewed", fields.get("relationEngineerOpinion"));
+        assertEquals("Acceptable", fields.get("comprehensiveOpinion"));
     }
 }

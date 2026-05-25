@@ -78,11 +78,16 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.BASIC_INFO.payload.architectAssistantName",
                 "steps.BASIC_INFO.payload.assistantSupervisorName"));
+        put(fields, "assistantArchitectName", fields.get("architectAssistantName"));
         put(fields, "assistantSupervisorName", readFirst(snapshot, "steps.BASIC_INFO.payload.assistantSupervisorName"));
         put(fields, "demolitionWorkerName", readFirst(
                 snapshot,
                 "steps.BASIC_INFO.payload.demolitionWorkerName",
                 "steps.DEMOLITION_SAFETY_CHECK.payload.demolitionWorkerName"));
+        put(fields, "supervisorOfficeName", readFirst(snapshot, "steps.BASIC_INFO.payload.supervisorOfficeName"));
+        put(fields, "contractorName", readFirst(snapshot, "steps.BASIC_INFO.payload.contractorName"));
+        put(fields, "serviceName", readFirst(snapshot, "steps.BASIC_INFO.payload.serviceName"));
+        put(fields, "reportDate", readFirst(snapshot, "steps.BASIC_INFO.payload.reportDate", "steps.REMARKS.payload.reportDate"));
 
         put(fields, "constructionTrade", readFirst(
                 snapshot,
@@ -122,12 +127,24 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.DAILY_LOG.payload.issueAndAction",
                 "steps.DAILY_LOG.payload.issueAndActionResult",
+                "steps.DEMOLITION_DAILY_LOG.payload.issueAndAction",
+                "steps.ISSUES.payload.issueAndAction"));
+        put(fields, "correctionResults", readFirst(
+                snapshot,
+                "steps.DAILY_LOG.payload.correctionResults",
+                "steps.DAILY_LOG.payload.issueAndAction",
+                "steps.DEMOLITION_DAILY_LOG.payload.issueAndAction",
                 "steps.ISSUES.payload.issueAndAction"));
         put(fields, "correctiveAction", readFirst(
                 snapshot,
                 "steps.SAFETY_CHECK.payload.correctiveAction",
                 "steps.DEMOLITION_SAFETY_CHECK.payload.correctiveAction",
                 "steps.ISSUES.payload.correctiveAction"));
+        put(fields, "relationEngineerOpinion", readFirst(snapshot, "steps.REMARKS.payload.relationEngineerOpinion"));
+        put(fields, "comprehensiveOpinion", readFirst(
+                snapshot,
+                "steps.REMARKS.payload.comprehensiveOpinion",
+                "steps.SUPERVISOR_DEPLOYMENT.payload.comprehensiveOpinion"));
         put(fields, "checklistSummary", readFirst(snapshot, "steps.CHECKLIST.payload.checklistSummary"));
         put(fields, "issueCount", readFirst(snapshot, "steps.CHECKLIST.payload.issueCount", "steps.ISSUES.payload.issueCount"));
 

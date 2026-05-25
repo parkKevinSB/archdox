@@ -644,6 +644,18 @@ Document types are the product-level defaults used when a report is created:
 they resolve the normalized `reportType`, default checklist pack, report wizard
 steps, default template, and neutral output layout.
 
+Default document type packs are not only labels. They are the first practical
+configuration layer for ordinary field workflows:
+
+- `workflow_json` describes the report-writing steps that the normal user UI
+  should render, such as basic information, checklist entry, photo evidence,
+  and issue/action follow-up.
+- `output_layout_json` describes neutral generated-document sections such as
+  `CHECKLIST_TABLE`, `CHECKLIST_PHOTO_TABLE`, and `PHOTO_TABLE`.
+- Office-specific configuration revisions may override these defaults later,
+  but new built-in document types should still provide a useful system default
+  pack.
+
 ### GET `/api/v1/document-types`
 
 Response `200`:

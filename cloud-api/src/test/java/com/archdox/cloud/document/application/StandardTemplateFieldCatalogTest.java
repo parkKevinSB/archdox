@@ -20,6 +20,26 @@ class StandardTemplateFieldCatalogTest {
     }
 
     @Test
+    void includesCanonicalKoreanDocumentTypeFieldsAndPresets() {
+        var constructionDaily = catalog.catalog("construction_daily_supervision_log");
+        assertTrue(hasField(constructionDaily, "constructionTrade"));
+        assertTrue(hasField(constructionDaily, "assistantArchitectName"));
+        assertTrue(hasField(constructionDaily, "correctionResults"));
+        assertTrue(hasPreset(constructionDaily, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
+
+        var demolitionSafety = catalog.catalog("demolition_safety_checklist");
+        assertTrue(hasField(demolitionSafety, "safetyChecklistItems"));
+        assertTrue(hasField(demolitionSafety, "checklistPhotoSummary"));
+        assertTrue(hasPreset(demolitionSafety, "KOREAN_DEMOLITION_SAFETY_CHECK_APPENDIX_1"));
+
+        var demolitionDaily = catalog.catalog("demolition_daily_supervision_log");
+        assertTrue(hasField(demolitionDaily, "assistantSupervisorName"));
+        assertTrue(hasField(demolitionDaily, "specialNotes"));
+        assertTrue(hasField(demolitionDaily, "issueAndAction"));
+        assertTrue(hasPreset(demolitionDaily, "KOREAN_DEMOLITION_DAILY_SUPERVISION_APPENDIX_2"));
+    }
+
+    @Test
     void includesAllFieldsWhenReportTypeIsBlank() {
         var allCatalog = catalog.catalog(null);
 

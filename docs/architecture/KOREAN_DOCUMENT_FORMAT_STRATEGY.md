@@ -401,7 +401,7 @@ The first supported field families are:
   `supervisionContent`, `specialNotes`, `issueAndAction`, `correctiveAction`
 - checklist/demolition content: `checklistSummary`, `issueCount`,
   `safetyCheckStage`, `demolitionWorkStage`, `inspectionCriteria`,
-  `inspectionResult`, `safetyChecklistItems`
+  `inspectionResult`, `safetyChecklistItems`, `checklistPhotoSummary`
 
 These are placeholder defaults, not a new physical document model. A template
 revision can override any field through `schema.bindings`, and rich sections

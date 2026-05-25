@@ -212,5 +212,15 @@ Implemented foundation:
 - Output layout section compilation is isolated in `OutputLayoutCompiler`.
 - `document_type_definitions` provides default workflow/checklist/template/
   output-layout packs for common Korean supervision and demolition documents.
+- Default document type packs now distinguish the user-facing report-writing
+  workflow from the generated document layout. For example, demolition safety
+  checklist writing has separate `BASIC_INFO`, `DEMOLITION_SAFETY_CHECK`,
+  `CHECKLIST`, `PHOTOS`, and `ISSUES` steps, while the output layout exposes
+  neutral sections such as `safetyChecklistSection`, `checklistPhotoSection`,
+  and `photoSection`.
+- Checklist-linked photo evidence is represented in the neutral snapshot first
+  as `checklistPhotos`. DOCX, HTML, PDF, HWP, or HWPX renderers may choose how
+  to display that section, but they must not make checklist-photo evidence a
+  format-specific data model.
 - `DocumentJobService` remains responsible for job lifecycle, routing, progress,
   and artifact metadata rather than low-level snapshot assembly.

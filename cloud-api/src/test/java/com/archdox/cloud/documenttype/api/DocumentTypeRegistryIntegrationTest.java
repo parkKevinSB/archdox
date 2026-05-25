@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +41,9 @@ class DocumentTypeRegistryIntegrationTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void defaultDocumentTypesDriveReportWorkflowAndChecklist() throws Exception {
@@ -74,7 +78,11 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(jsonPath("$.flowId").value("demolition-safety-checklist-writing"))
                 .andExpect(jsonPath("$.checklistSchemaCode").value("DEMOLITION_SAFETY_CHECKLIST_DEFAULT"))
                 .andExpect(jsonPath("$.steps[0].code").value("BASIC_INFO"))
-                .andExpect(jsonPath("$.steps[1].code").value("CHECKLIST"));
+                .andExpect(jsonPath("$.steps[1].code").value("DEMOLITION_SAFETY_CHECK"))
+                .andExpect(jsonPath("$.steps[1].fields[0].key").value("inspectionCriteria"))
+                .andExpect(jsonPath("$.steps[2].code").value("CHECKLIST"))
+                .andExpect(jsonPath("$.steps[3].code").value("PHOTOS"))
+                .andExpect(jsonPath("$.steps[4].code").value("ISSUES"));
 
         mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/checklist", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -82,11 +90,49 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schema.code").value("DEMOLITION_SAFETY_CHECKLIST_DEFAULT"))
                 .andExpect(jsonPath("$.schema.items[0].itemCode").value("DEMOLITION_SEQUENCE"));
+
+        var demolitionSafetyWorkflow = documentTypeJson("DEMOLITION_SAFETY_CHECKLIST", "workflow_json");
+        assertTrue(hasStepField(demolitionSafetyWorkflow, "DEMOLITION_SAFETY_CHECK", "correctiveAction"));
+        assertTrue(hasStepField(demolitionSafetyWorkflow, "ISSUES", "issueAndAction"));
+
+        var demolitionSafetyLayout = documentTypeJson("DEMOLITION_SAFETY_CHECKLIST", "output_layout_json");
+        assertTrue(hasSection(demolitionSafetyLayout, "safetyChecklistSection", "CHECKLIST_TABLE"));
+        assertTrue(hasSection(demolitionSafetyLayout, "checklistPhotoSection", "CHECKLIST_PHOTO_TABLE"));
+        assertTrue(hasSection(demolitionSafetyLayout, "photoSection", "PHOTO_TABLE"));
+
+        var constructionDailyWorkflow = documentTypeJson("CONSTRUCTION_DAILY_SUPERVISION_LOG", "workflow_json");
+        assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "constructionTrade"));
+        assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "issueAndAction"));
+
+        var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");
+        assertTrue(hasSection(constructionReportLayout, "reportOpinionSection", "CHECKLIST_TABLE"));
+        assertTrue(hasSection(constructionReportLayout, "photoSection", "PHOTO_TABLE"));
     }
 
     private boolean hasCode(JsonNode list, String code) {
         return StreamSupport.stream(list.spliterator(), false)
                 .anyMatch(item -> code.equals(item.get("code").asText()));
+    }
+
+    private JsonNode documentTypeJson(String code, String column) throws Exception {
+        var json = jdbcTemplate.queryForObject(
+                "select " + column + "::text from document_type_definitions where office_id is null and code = ?",
+                String.class,
+                code);
+        return objectMapper.readTree(json);
+    }
+
+    private boolean hasStepField(JsonNode workflow, String stepCode, String fieldKey) {
+        return StreamSupport.stream(workflow.path("steps").spliterator(), false)
+                .filter(step -> stepCode.equals(step.path("code").asText()))
+                .flatMap(step -> StreamSupport.stream(step.path("fields").spliterator(), false))
+                .anyMatch(field -> fieldKey.equals(field.path("key").asText()));
+    }
+
+    private boolean hasSection(JsonNode outputLayout, String key, String type) {
+        return StreamSupport.stream(outputLayout.path("sections").spliterator(), false)
+                .anyMatch(section -> key.equals(section.path("key").asText())
+                        && type.equals(section.path("type").asText()));
     }
 
     private TestUser signup(String email, String name) throws Exception {
