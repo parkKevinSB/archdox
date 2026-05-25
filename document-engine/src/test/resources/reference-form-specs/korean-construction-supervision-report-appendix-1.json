@@ -19,7 +19,11 @@
     "supervisionEndDate",
     "chiefSupervisorName",
     "supervisorName",
-    "specialNotes"
+    "relationEngineerOpinion",
+    "comprehensiveOpinion",
+    "reportDate",
+    "specialNotes",
+    "photoSection"
   ],
   "sections": [
     {

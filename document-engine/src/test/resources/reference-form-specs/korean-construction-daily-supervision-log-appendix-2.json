@@ -6,7 +6,8 @@
   "pages": 1,
   "reportTypes": [
     "DAILY_SUPERVISION",
-    "CONSTRUCTION_DAILY_LOG"
+    "CONSTRUCTION_DAILY_LOG",
+    "CONSTRUCTION_DAILY_SUPERVISION_LOG"
   ],
   "recommendedPlaceholders": [
     "documentTitle",
@@ -23,7 +24,9 @@
     "supervisionItem",
     "supervisionContent",
     "specialNotes",
-    "issueAndAction"
+    "issueAndAction",
+    "checklistPhotoSection",
+    "photoSection"
   ],
   "sections": [
     {

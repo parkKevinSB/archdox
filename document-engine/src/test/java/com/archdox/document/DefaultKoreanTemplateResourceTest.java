@@ -22,27 +22,32 @@ class DefaultKoreanTemplateResourceTest {
             new TemplateCase(
                     "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
                     "templates/korean/korean-construction-supervision-report-appendix-1.docx",
-                    List.of("reportOpinionSection"),
+                    Map.of(
+                            "reportOpinionSection", "CHECKLIST_TABLE",
+                            "photoSection", "PHOTO_TABLE"),
                     List.of("Project Alpha", "PERMIT-001", "Sample field note")),
             new TemplateCase(
                     "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
                     "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
-                    List.of("supervisionItemsSection"),
+                    Map.of(
+                            "supervisionItemsSection", "CHECKLIST_TABLE",
+                            "checklistPhotoSection", "CHECKLIST_PHOTO_TABLE",
+                            "photoSection", "PHOTO_TABLE"),
                     List.of("Project Alpha", "2026-05-23", "Sample field note")),
             new TemplateCase(
                     "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
                     "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
-                    List.of("safetyChecklistSection"),
+                    Map.of("safetyChecklistSection", "CHECKLIST_TABLE"),
                     List.of("2026-05-23", "Zone 1", "No critical issue")),
             new TemplateCase(
                     "KOREAN_DEMOLITION_DAILY_SUPERVISION_LOG_APPENDIX_2",
                     "templates/korean/korean-demolition-daily-supervision-log-appendix-2.docx",
-                    List.of("supervisionItemsSection"),
+                    Map.of("supervisionItemsSection", "CHECKLIST_TABLE"),
                     List.of("Project Alpha", "2026-05-23", "Sample field note")),
             new TemplateCase(
                     "KOREAN_DEMOLITION_COMPLETION_REPORT_APPENDIX_3",
                     "templates/korean/korean-demolition-completion-report-appendix-3.docx",
-                    List.of("supervisorDeploymentSection"),
+                    Map.of("supervisorDeploymentSection", "CHECKLIST_TABLE"),
                     List.of("Demolition supervision", "Seoul Test Address", "Acceptable with notes"))
     );
 
@@ -101,11 +106,9 @@ class DefaultKoreanTemplateResourceTest {
         assertTrue(BundledDocumentTemplates.read("missing.docx").isEmpty());
     }
 
-    private Map<String, Object> payload(List<String> richSections) {
+    private Map<String, Object> payload(Map<String, String> richSections) {
         var sections = new LinkedHashMap<String, Object>();
-        for (String richSection : richSections) {
-            sections.put(richSection, checklistSection());
-        }
+        richSections.forEach((key, type) -> sections.put(key, layoutSection(type)));
 
         return Map.of(
                 "templateFields", templateFields(),
@@ -129,7 +132,30 @@ class DefaultKoreanTemplateResourceTest {
                                 "note", "Sample field note")));
     }
 
-    private Map<String, Object> checklistSection() {
+    private Map<String, Object> layoutSection(String type) {
+        if ("PHOTO_TABLE".equals(type)) {
+            return Map.of(
+                    "type", "PHOTO_TABLE",
+                    "title", "Photo Section",
+                    "photosPerRow", 2,
+                    "tableStyle", "ArchDoxPhotoTable",
+                    "headerFill", "E8EEF5",
+                    "borderColor", "5E6A75");
+        }
+        if ("CHECKLIST_PHOTO_TABLE".equals(type)) {
+            return Map.of(
+                    "type", "CHECKLIST_PHOTO_TABLE",
+                    "title", "Checklist Photo Section",
+                    "includeTitle", true,
+                    "tableStyle", "ArchDoxInspectionTable",
+                    "headerFill", "EFE7C6",
+                    "borderColor", "8A7A46",
+                    "fields", List.of(
+                            Map.of("label", "Code", "source", "itemCode", "width", 1600),
+                            Map.of("label", "Item", "source", "label", "width", 3600),
+                            Map.of("label", "Photos", "source", "photoCount", "width", 1400),
+                            Map.of("label", "Photo IDs", "source", "photoIds", "width", 3000)));
+        }
         return Map.of(
                 "type", "CHECKLIST_TABLE",
                 "includeTitle", false,
@@ -227,7 +253,7 @@ class DefaultKoreanTemplateResourceTest {
     private record TemplateCase(
             String code,
             String storageRef,
-            List<String> richSections,
+            Map<String, String> richSections,
             List<String> expectedValues
     ) {
     }

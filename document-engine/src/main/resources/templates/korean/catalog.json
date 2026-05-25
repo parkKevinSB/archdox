@@ -8,7 +8,8 @@
       "title": "Construction supervision report appendix 1",
       "outputFormat": "DOCX",
       "richSections": [
-        "reportOpinionSection"
+        "reportOpinionSection",
+        "photoSection"
       ]
     },
     {
@@ -17,7 +18,9 @@
       "title": "Construction daily supervision log appendix 2",
       "outputFormat": "DOCX",
       "richSections": [
-        "supervisionItemsSection"
+        "supervisionItemsSection",
+        "checklistPhotoSection",
+        "photoSection"
       ]
     },
     {
