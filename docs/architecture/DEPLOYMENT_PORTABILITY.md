@@ -160,6 +160,70 @@ temporary original handoff, and derivative generation have photo-domain rules.
 New storage work should move toward the common `StorageService` boundary instead
 of creating more vendor-specific application code.
 
+## ArchDox Agent Storage Profiles
+
+The ArchDox Agent has its own runtime storage profile because it may run beside
+office files, on a cloud VM, or inside Docker.
+
+Supported profile kinds:
+
+- `LOCAL_FILE`: local disk or mounted drive on the Agent machine.
+- `NAS`: office network share or mapped NAS drive.
+- `S3_COMPATIBLE`: object storage such as AWS S3, MinIO, Wasabi, R2, or Naver
+  Object Storage.
+
+Phase 9-1 and Phase 9-2 implement the Agent storage foundation:
+
+- `LOCAL_FILE` and `NAS` share the same logical-ref-to-root-path resolver.
+- `S3_COMPATIBLE` uses the Agent S3-compatible adapter for MinIO/AWS
+  S3/Wasabi/R2-style object storage.
+- The public profile sent to Cloud must never expose local/NAS absolute paths.
+  Cloud sees `kind`, `fileSystemBacked`, `rootConfigured`, and optional
+  `bucket`/`prefix`; it stores only logical artifact/photo refs.
+
+Office PC without NAS:
+
+```yaml
+archdox:
+  agent:
+    deployment-mode: LOCAL_OFFICE
+    storage:
+      original:
+        kind: LOCAL_FILE
+        root-path: D:/ArchDoxStorage/originals
+      artifact:
+        kind: LOCAL_FILE
+        root-path: D:/ArchDoxStorage/artifacts
+```
+
+Office NAS:
+
+```yaml
+archdox:
+  agent:
+    deployment-mode: LOCAL_OFFICE
+    storage:
+      original:
+        kind: NAS
+        root-path: //office-nas/ArchDox/originals
+      artifact:
+        kind: NAS
+        root-path: Z:/ArchDox/artifacts
+```
+
+Cloud-managed Agent:
+
+```yaml
+archdox:
+  agent:
+    deployment-mode: CLOUD_MANAGED
+    storage:
+      artifact:
+        kind: S3_COMPATIBLE
+        bucket: archdox-artifacts
+        prefix: agents/cloud-1
+```
+
 ## AI Boundary
 
 Cloud API now has a text-generation port:

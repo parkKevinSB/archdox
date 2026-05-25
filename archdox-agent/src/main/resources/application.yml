@@ -29,17 +29,31 @@ archdox:
     local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}
     storage:
       original:
-        kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_ORIGINAL_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+        bucket: ${AGENT_ORIGINAL_BUCKET:}
+        prefix: ${AGENT_ORIGINAL_PREFIX:}
       working:
-        kind: ${AGENT_WORKING_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_WORKING_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_WORKING_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+        bucket: ${AGENT_WORKING_BUCKET:}
+        prefix: ${AGENT_WORKING_PREFIX:}
       artifact:
-        kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_ARTIFACT_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+        bucket: ${AGENT_ARTIFACT_BUCKET:}
+        prefix: ${AGENT_ARTIFACT_PREFIX:}
       template:
-        kind: ${AGENT_TEMPLATE_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_TEMPLATE_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_TEMPLATE_ROOT:${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}}
+        bucket: ${AGENT_TEMPLATE_BUCKET:}
+        prefix: ${AGENT_TEMPLATE_PREFIX:}
+      s3-compatible:
+        endpoint: ${AGENT_S3_ENDPOINT:${ARCHDOX_S3_ENDPOINT:}}
+        region: ${AGENT_S3_REGION:${ARCHDOX_S3_REGION:ap-northeast-2}}
+        access-key: ${AGENT_S3_ACCESS_KEY:${ARCHDOX_S3_ACCESS_KEY:}}
+        secret-key: ${AGENT_S3_SECRET_KEY:${ARCHDOX_S3_SECRET_KEY:}}
+        path-style-access: ${AGENT_S3_PATH_STYLE_ACCESS:${ARCHDOX_S3_PATH_STYLE_ACCESS:true}}
   documents:
     export:
       libre-office:

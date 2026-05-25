@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,11 +53,11 @@ public class HtmlPreviewDocumentRenderer {
                 .append("<h1>").append(escapeHtml(title)).append("</h1>")
                 .append("<p class=\"muted\">").append(escapeHtml(OffsetDateTime.now().toString())).append("</p>")
                 .append("</section>");
-        body.append(metadataSection(request));
         body.append(templateFieldsSection(request));
         body.append(layoutSections(request));
         body.append(defaultPhotoSection(request));
         body.append(defaultChecklistSection(request));
+        body.append(metadataSection(request));
         return """
                 <!doctype html>
                 <html lang="ko">
@@ -219,7 +220,7 @@ public class HtmlPreviewDocumentRenderer {
     private String metadataSection(DocumentGenerationRequest request) {
         return """
                 <section>
-                  <h2>문서 정보</h2>
+                  <h2>생성 정보</h2>
                   <table>
                     <tbody>
                       %s
@@ -242,25 +243,71 @@ public class HtmlPreviewDocumentRenderer {
             return "";
         }
         var items = new StringBuilder();
-        fields.forEach((key, value) -> {
-            if (isSimpleValue(value)) {
-                items.append("""
-                        <div class="field">
-                          <div class="field-label">%s</div>
-                          <div>%s</div>
-                        </div>
-                        """.formatted(escapeHtml(key), escapeHtml(valueOrBlank(value))));
+        for (var field : displayFieldLabels().entrySet()) {
+            var value = fields.get(field.getKey());
+            if (!isSimpleValue(value)) {
+                continue;
             }
-        });
+            var text = valueOrBlank(value).trim();
+            if (text.isBlank()) {
+                continue;
+            }
+            items.append("""
+                    <div class="field">
+                      <div class="field-label">%s</div>
+                      <div>%s</div>
+                    </div>
+                    """.formatted(escapeHtml(field.getValue()), escapeHtml(text)));
+        }
         if (items.isEmpty()) {
             return "";
         }
         return """
                 <section>
-                  <h2>주요 입력값</h2>
+                  <h2>문서 기본사항</h2>
                   <div class="field-grid">%s</div>
                 </section>
                 """.formatted(items);
+    }
+
+    private Map<String, String> displayFieldLabels() {
+        var labels = new LinkedHashMap<String, String>();
+        labels.put("constructionName", "공사명");
+        labels.put("constructionProjectName", "공사명");
+        labels.put("projectName", "프로젝트");
+        labels.put("siteName", "현장명");
+        labels.put("siteAddress", "현장 주소");
+        labels.put("inspectionLocation", "점검 위치");
+        labels.put("buildingName", "건축물명");
+        labels.put("lotNumber", "대지 위치");
+        labels.put("permitNumber", "허가 번호");
+        labels.put("permitDate", "허가일");
+        labels.put("inspectionDate", "점검일");
+        labels.put("safetyInspectionDate", "안전점검일");
+        labels.put("reportDate", "보고일");
+        labels.put("constructionStartDate", "공사 시작일");
+        labels.put("supervisionStartDate", "감리 시작일");
+        labels.put("supervisionEndDate", "감리 종료일");
+        labels.put("chiefSupervisorName", "총괄 감리자");
+        labels.put("supervisorName", "감리자");
+        labels.put("supervisorOfficeName", "감리 사무소");
+        labels.put("assistantSupervisorName", "보조 감리자");
+        labels.put("inspectorName", "점검자");
+        labels.put("architectAssistantName", "건축사보");
+        labels.put("assistantArchitectName", "보조 건축사");
+        labels.put("demolitionWorkerName", "해체 작업자");
+        labels.put("contractorName", "시공자");
+        labels.put("progressType", "진행 구분");
+        labels.put("safetyCheckStage", "안전점검 단계");
+        labels.put("weather", "날씨");
+        labels.put("inspectionCriteria", "점검 기준");
+        labels.put("inspectionResult", "점검 결과");
+        labels.put("correctiveAction", "조치사항");
+        labels.put("relationEngineerOpinion", "관계전문기술자 의견");
+        labels.put("comprehensiveOpinion", "종합 의견");
+        labels.put("specialNotes", "특이사항");
+        labels.put("issueAndAction", "지적사항 및 처리결과");
+        return labels;
     }
 
     private String layoutSections(DocumentGenerationRequest request) {
@@ -331,10 +378,14 @@ public class HtmlPreviewDocumentRenderer {
         var metadata = new StringBuilder();
         metadata.append("<div class=\"photo-meta\">");
         metadata.append("<div class=\"badge\">Photo ").append(escapeHtml(valueOrBlank(photo.photoId()))).append("</div>");
+        var seenValues = new HashSet<String>();
         for (var field : fields) {
-            var label = field.getOrDefault("label", field.getOrDefault("source", ""));
+            var label = PhotoDisplayTexts.label(field, photo);
             var value = photoFieldValue(photo, field.get("source"));
             if (!value.isBlank()) {
+                if (!seenValues.add(value.trim())) {
+                    continue;
+                }
                 metadata.append("<div><strong>")
                         .append(escapeHtml(label))
                         .append("</strong>: ")
@@ -447,8 +498,7 @@ public class HtmlPreviewDocumentRenderer {
     private List<Map<String, String>> defaultPhotoDescriptionFields() {
         return List.of(
                 Map.of("label", "설명", "source", "caption"),
-                Map.of("label", "단계", "source", "checklistItemKey"),
-                Map.of("label", "저장 위치", "source", "storageRef"));
+                Map.of("label", "항목", "source", "checklistItemKey"));
     }
 
     private List<Map<String, String>> defaultChecklistTableFields() {
@@ -469,15 +519,7 @@ public class HtmlPreviewDocumentRenderer {
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {
-        return switch (normalizeCode(source)) {
-            case "PHOTOID", "PHOTO_ID", "ID" -> valueOrBlank(photo.photoId());
-            case "CHECKLISTITEMKEY", "STEP", "STEPCODE", "STEP_CODE" -> valueOrBlank(photo.checklistItemKey());
-            case "STORAGEREF", "STORAGE_REF" -> valueOrBlank(photo.storageRef());
-            case "CAPTION", "DESCRIPTION" -> valueOrBlank(photo.caption());
-            case "LAYOUTSIZE", "LAYOUT_SIZE" -> photo.layoutSize() == null ? "" : photo.layoutSize().name();
-            case "MIMETYPE", "MIME_TYPE" -> valueOrBlank(photo.mimeType());
-            default -> "";
-        };
+        return PhotoDisplayTexts.value(photo, source);
     }
 
     private String checklistFieldValue(Object answer, String source) {

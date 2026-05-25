@@ -7,11 +7,20 @@ archdox:
     local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}
     storage:
       original:
-        kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_ORIGINAL_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/originals}
       working:
-        kind: ${AGENT_WORKING_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_WORKING_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_WORKING_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/working}
       artifact:
-        kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FS}
+        kind: ${AGENT_ARTIFACT_STORAGE_KIND:LOCAL_FILE}
         root-path: ${AGENT_ARTIFACT_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/artifacts}
+      template:
+        kind: ${AGENT_TEMPLATE_STORAGE_KIND:LOCAL_FILE}
+        root-path: ${AGENT_TEMPLATE_ROOT:${AGENT_LOCAL_STORAGE_ROOT:/var/lib/archdox-agent}/templates}
+      s3-compatible:
+        endpoint: ${AGENT_S3_ENDPOINT:${ARCHDOX_S3_ENDPOINT:http://minio:9000}}
+        region: ${AGENT_S3_REGION:${ARCHDOX_S3_REGION:ap-northeast-2}}
+        access-key: ${AGENT_S3_ACCESS_KEY:${ARCHDOX_S3_ACCESS_KEY:archdox}}
+        secret-key: ${AGENT_S3_SECRET_KEY:${ARCHDOX_S3_SECRET_KEY:archdox-password}}
+        path-style-access: ${AGENT_S3_PATH_STYLE_ACCESS:${ARCHDOX_S3_PATH_STYLE_ACCESS:true}}

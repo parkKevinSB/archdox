@@ -1,53 +1,58 @@
 package com.archdox.agent.document;
 
 import com.archdox.agent.cloud.ArchDoxAgentProperties;
+import com.archdox.agent.storage.AgentStorageService;
+import com.archdox.agent.storage.AgentStorageServiceFactory;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AgentDocumentStore {
-    private final Path root;
+    private final AgentStorageService storage;
+
+    @Autowired
+    public AgentDocumentStore(ArchDoxAgentProperties properties, AgentStorageServiceFactory storageServiceFactory) {
+        this.storage = storageServiceFactory.documentArtifacts();
+    }
 
     public AgentDocumentStore(ArchDoxAgentProperties properties) {
-        this.root = Paths.get(properties.artifactRootPath()).toAbsolutePath().normalize();
+        this.storage = new AgentStorageServiceFactory(
+                properties,
+                new com.archdox.agent.storage.S3CompatibleAgentObjectGateway()).documentArtifacts();
+    }
+
+    AgentDocumentStore(AgentStorageService storage) {
+        this.storage = storage;
     }
 
     public StoredDocument store(String logicalRef, byte[] content) throws IOException {
-        var normalizedRef = normalize(logicalRef);
-        var target = resolve(normalizedRef);
-        Files.createDirectories(target.getParent());
-        Files.write(target, content);
-        return new StoredDocument(normalizedRef, target, content.length);
+        var stored = storage.put(logicalRef, content, contentType(logicalRef));
+        return new StoredDocument(stored.logicalRef(), stored.storageLocation(), stored.bytes());
     }
 
     public byte[] read(String logicalRef) throws IOException {
-        return Files.readAllBytes(resolve(normalize(logicalRef)));
+        return storage.read(logicalRef);
     }
 
     public long size(String logicalRef) throws IOException {
-        return Files.size(resolve(normalize(logicalRef)));
+        return storage.size(logicalRef);
     }
 
-    private String normalize(String logicalRef) {
-        if (logicalRef == null || logicalRef.isBlank()) {
-            throw new IllegalArgumentException("agent document storage reference is required");
+    private String contentType(String logicalRef) {
+        var ref = logicalRef == null ? "" : logicalRef.toLowerCase(java.util.Locale.ROOT);
+        if (ref.endsWith(".docx")) {
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         }
-        return logicalRef.trim()
-                .replace('\\', '/')
-                .replaceFirst("^/+", "");
-    }
-
-    private Path resolve(String logicalRef) {
-        var target = root.resolve(logicalRef).normalize();
-        if (!target.startsWith(root)) {
-            throw new IllegalArgumentException("Invalid agent document storage reference");
+        if (ref.endsWith(".html") || ref.endsWith(".htm")) {
+            return "text/html";
         }
-        return target;
+        if (ref.endsWith(".pdf")) {
+            return "application/pdf";
+        }
+        return "application/octet-stream";
     }
 
-    public record StoredDocument(String logicalRef, Path path, long bytes) {
+    public record StoredDocument(String logicalRef, String storageLocation, long bytes) {
     }
 }

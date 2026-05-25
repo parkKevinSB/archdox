@@ -29,6 +29,8 @@ current architecture.
     balancing, stateless REST APIs, and multi-instance Agent command routing.
 12. Follow `docs/architecture/OPERATIONS_AND_ADMIN.md` when adding admin,
     monitoring, logging, audit, health check, or Ops Agent features.
+    Platform admin features must use `platform_admins` authorization and must
+    not be granted through office `OWNER`/`ADMIN` membership.
 13. Follow `docs/architecture/ARCHDOX_PLATFORM_IDENTITY.md`: ArchDox is a
     document workflow orchestration platform, not a narrow document generator.
 14. Follow `docs/architecture/FLOW_RECOVERY_POLICY.md` when changing Flower
@@ -264,6 +266,17 @@ current architecture.
 6. Docker Compose local operation should remain deployable with PostgreSQL,
    MinIO, MailHog, optional Cloud API/ArchDox Agent containers, and optional
    Ollama. Do not make local development depend on AWS-only services.
+7. ArchDox Agent storage profile kinds are `LOCAL_FILE`, `NAS`, and
+   `S3_COMPATIBLE`. `LOCAL_FS` may be accepted as a compatibility alias, but new
+   code and docs must use `LOCAL_FILE`.
+8. Do not send, persist, or expose Agent local/NAS absolute root paths through
+   Cloud API. The Agent may use root paths internally, but Cloud-facing
+   `storageProfile` metadata must be limited to safe fields such as `kind`,
+   `fileSystemBacked`, `rootConfigured`, `bucket`, and `prefix`.
+9. `LOCAL_FILE` and `NAS` may share filesystem-backed Agent code when they both
+   map logical refs under a configured root. `S3_COMPATIBLE` must be implemented
+   through an adapter; do not add S3/MinIO/AWS-specific logic directly into
+   command executors or document/photo domain services.
 
 ## API Rules
 
@@ -311,6 +324,12 @@ current architecture.
 11. Admin frontend API calls must go through Cloud API HTTP endpoints with
     normal authorization headers and `X-Office-Id`; do not read databases or
     internal files directly from the UI.
+12. Platform admin frontend/API code must be separated from office admin
+    behavior. Office admin views are tenant-scoped and require `X-Office-Id`;
+    platform views are cross-office and require `/api/v1/platform-admin/me`.
+13. Health/stuck detection may record `operation_events`, but new always-on
+    schedulers or polling loops still require explicit approval unless the user
+    asks for that specific automation phase.
 
 ## Testing Rules
 

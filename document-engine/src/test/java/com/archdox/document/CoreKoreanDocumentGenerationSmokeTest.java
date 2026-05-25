@@ -90,8 +90,8 @@ class CoreKoreanDocumentGenerationSmokeTest {
         var pdf = artifact(result, ArtifactType.PDF);
         var htmlText = new String(html.content(), StandardCharsets.UTF_8);
 
-        assertTrue(htmlText.contains("문서 정보"));
-        assertTrue(htmlText.contains("주요 입력값"));
+        assertTrue(htmlText.contains("생성 정보"));
+        assertTrue(htmlText.contains("문서 기본사항"));
         assertTrue(htmlText.contains("레퍼런스 타워 신축공사"));
         assertTrue(htmlText.contains("종합의견"));
         assertTrue(htmlText.contains("하중 전달 경로 검토"));

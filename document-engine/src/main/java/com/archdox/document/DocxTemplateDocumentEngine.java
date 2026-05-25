@@ -478,12 +478,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private List<String> photoDescriptionParagraphs(PhotoAsset photo, List<Map<String, String>> fields) {
         var paragraphs = new ArrayList<String>();
+        var seenValues = new HashSet<String>();
         for (var field : fields) {
             var value = photoFieldValue(photo, field.get("source"));
             if (value == null || value.isBlank()) {
                 continue;
             }
-            var label = field.get("label");
+            if (!seenValues.add(value.trim())) {
+                continue;
+            }
+            var label = PhotoDisplayTexts.label(field, photo);
             paragraphs.add(textParagraph(label == null || label.isBlank() ? value : label + ": " + value));
         }
         return paragraphs;
@@ -631,10 +635,8 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private List<Map<String, String>> defaultPhotoDescriptionFields() {
         return List.of(
-                Map.of("label", "Photo ID", "source", "photoId"),
-                Map.of("label", "Step", "source", "stepCode"),
-                Map.of("label", "Caption", "source", "caption"),
-                Map.of("label", "Storage", "source", "storageRef"));
+                Map.of("label", "설명", "source", "caption"),
+                Map.of("label", "항목", "source", "checklistItemKey"));
     }
 
     private List<Map<String, String>> defaultChecklistTableFields() {
@@ -655,16 +657,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {
-        return switch (normalizeCode(source)) {
-            case "PHOTOID", "PHOTO_ID", "ID" -> valueOrBlank(photo.photoId());
-            case "CHECKLISTITEMKEY", "CHECKLIST_ITEM_KEY", "STEPCODE", "STEP_CODE", "STEP" ->
-                    valueOrBlank(photo.checklistItemKey());
-            case "CAPTION", "DESCRIPTION", "DESC" -> valueOrBlank(photo.caption());
-            case "STORAGEREF", "STORAGE_REF", "WORKINGSTORAGEREF", "WORKING_STORAGE_REF" ->
-                    valueOrBlank(photo.storageRef());
-            case "MIMETYPE", "MIME_TYPE" -> valueOrBlank(photo.mimeType());
-            default -> "";
-        };
+        return PhotoDisplayTexts.value(photo, source);
     }
 
     private String checklistFieldValue(Object answer, String source) {
@@ -711,22 +704,25 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String drawingXml(DocxImage image) {
         return """
-                <w:drawing>
-                  <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">
+                <w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                           xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <wp:inline distT="0" distB="0" distL="0" distR="0">
                     <wp:extent cx="%d" cy="%d"/>
                     <wp:docPr id="%d" name="ArchDox Photo %d"/>
                     <wp:cNvGraphicFramePr>
-                      <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+                      <a:graphicFrameLocks noChangeAspect="1"/>
                     </wp:cNvGraphicFramePr>
-                    <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                    <a:graphic>
                       <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                        <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:pic>
                           <pic:nvPicPr>
                             <pic:cNvPr id="%d" name="%s"/>
                             <pic:cNvPicPr/>
                           </pic:nvPicPr>
                           <pic:blipFill>
-                            <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="%s"/>
+                            <a:blip r:embed="%s"/>
                             <a:stretch><a:fillRect/></a:stretch>
                           </pic:blipFill>
                           <pic:spPr>

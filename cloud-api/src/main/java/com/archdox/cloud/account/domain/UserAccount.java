@@ -66,4 +66,8 @@ public class UserAccount {
     public UserStatus status() {
         return status;
     }
+
+    public OffsetDateTime createdAt() {
+        return createdAt;
+    }
 }

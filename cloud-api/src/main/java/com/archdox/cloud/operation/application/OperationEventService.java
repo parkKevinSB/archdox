@@ -1,5 +1,6 @@
 package com.archdox.cloud.operation.application;
 
+import com.archdox.cloud.global.logging.CorrelationIds;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.operation.domain.OperationEvent;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
@@ -73,7 +74,7 @@ public class OperationEventService {
                 blankToNull(resourceType),
                 resourceId == null ? null : String.valueOf(resourceId),
                 actorUserId,
-                blankToNull(correlationId),
+                effectiveCorrelationId(correlationId),
                 required(message, "message"),
                 payload == null ? Map.of() : payload,
                 OffsetDateTime.now()));
@@ -103,7 +104,7 @@ public class OperationEventService {
                 .toList();
     }
 
-    private OperationEventResponse toResponse(OperationEvent event) {
+    public OperationEventResponse toResponse(OperationEvent event) {
         return new OperationEventResponse(
                 event.id(),
                 event.officeId(),
@@ -133,5 +134,10 @@ public class OperationEventService {
             return null;
         }
         return value.trim();
+    }
+
+    private String effectiveCorrelationId(String correlationId) {
+        var explicit = blankToNull(correlationId);
+        return explicit == null ? blankToNull(CorrelationIds.current()) : explicit;
     }
 }

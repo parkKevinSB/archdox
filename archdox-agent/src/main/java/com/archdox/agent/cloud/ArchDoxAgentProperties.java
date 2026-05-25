@@ -1,5 +1,6 @@
 package com.archdox.agent.cloud;
 
+import com.archdox.agent.storage.AgentStorageTargetProfile;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -154,27 +155,43 @@ public class ArchDoxAgentProperties {
     }
 
     public String originalRootPath() {
-        return storage.original.rootPath == null ? localStorageRoot : storage.original.rootPath;
+        return originalStorageProfile().rootPath();
     }
 
     public String artifactRootPath() {
-        return storage.artifact.rootPath == null ? localStorageRoot : storage.artifact.rootPath;
+        return artifactStorageProfile().rootPath();
     }
 
     public String workingRootPath() {
-        return storage.working.rootPath == null ? localStorageRoot : storage.working.rootPath;
+        return workingStorageProfile().rootPath();
     }
 
     public String templateRootPath() {
-        return storage.template.rootPath == null ? localStorageRoot : storage.template.rootPath;
+        return templateStorageProfile().rootPath();
+    }
+
+    public AgentStorageTargetProfile originalStorageProfile() {
+        return AgentStorageTargetProfile.from(storage.original, localStorageRoot);
+    }
+
+    public AgentStorageTargetProfile workingStorageProfile() {
+        return AgentStorageTargetProfile.from(storage.working, localStorageRoot);
+    }
+
+    public AgentStorageTargetProfile artifactStorageProfile() {
+        return AgentStorageTargetProfile.from(storage.artifact, localStorageRoot);
+    }
+
+    public AgentStorageTargetProfile templateStorageProfile() {
+        return AgentStorageTargetProfile.from(storage.template, localStorageRoot);
     }
 
     public Map<String, Object> storageProfile() {
         var profile = new LinkedHashMap<String, Object>();
-        profile.put("original", storage.original.asMap(localStorageRoot));
-        profile.put("working", storage.working.asMap(localStorageRoot));
-        profile.put("artifact", storage.artifact.asMap(localStorageRoot));
-        profile.put("template", storage.template.asMap(localStorageRoot));
+        profile.put("original", originalStorageProfile().publicProfile());
+        profile.put("working", workingStorageProfile().publicProfile());
+        profile.put("artifact", artifactStorageProfile().publicProfile());
+        profile.put("template", templateStorageProfile().publicProfile());
         return profile;
     }
 
@@ -183,6 +200,7 @@ public class ArchDoxAgentProperties {
         private StorageTarget working = new StorageTarget();
         private StorageTarget artifact = new StorageTarget();
         private StorageTarget template = new StorageTarget();
+        private S3Compatible s3Compatible = new S3Compatible();
 
         public StorageTarget getOriginal() {
             return original;
@@ -215,10 +233,18 @@ public class ArchDoxAgentProperties {
         public void setTemplate(StorageTarget template) {
             this.template = template == null ? new StorageTarget() : template;
         }
+
+        public S3Compatible getS3Compatible() {
+            return s3Compatible;
+        }
+
+        public void setS3Compatible(S3Compatible s3Compatible) {
+            this.s3Compatible = s3Compatible == null ? new S3Compatible() : s3Compatible;
+        }
     }
 
     public static class StorageTarget {
-        private String kind = "LOCAL_FS";
+        private String kind = "LOCAL_FILE";
         private String rootPath;
         private String bucket;
         private String prefix;
@@ -255,17 +281,53 @@ public class ArchDoxAgentProperties {
             this.prefix = prefix;
         }
 
-        Map<String, Object> asMap(String fallbackRootPath) {
-            var value = new LinkedHashMap<String, Object>();
-            value.put("kind", kind == null || kind.isBlank() ? "LOCAL_FS" : kind);
-            value.put("rootPath", rootPath == null || rootPath.isBlank() ? fallbackRootPath : rootPath);
-            if (bucket != null && !bucket.isBlank()) {
-                value.put("bucket", bucket);
-            }
-            if (prefix != null && !prefix.isBlank()) {
-                value.put("prefix", prefix);
-            }
-            return value;
+    }
+
+    public static class S3Compatible {
+        private String endpoint;
+        private String region = "ap-northeast-2";
+        private String accessKey;
+        private String secretKey;
+        private boolean pathStyleAccess = true;
+
+        public String getEndpoint() {
+            return endpoint;
+        }
+
+        public void setEndpoint(String endpoint) {
+            this.endpoint = endpoint;
+        }
+
+        public String getRegion() {
+            return region;
+        }
+
+        public void setRegion(String region) {
+            this.region = region;
+        }
+
+        public String getAccessKey() {
+            return accessKey;
+        }
+
+        public void setAccessKey(String accessKey) {
+            this.accessKey = accessKey;
+        }
+
+        public String getSecretKey() {
+            return secretKey;
+        }
+
+        public void setSecretKey(String secretKey) {
+            this.secretKey = secretKey;
+        }
+
+        public boolean isPathStyleAccess() {
+            return pathStyleAccess;
+        }
+
+        public void setPathStyleAccess(boolean pathStyleAccess) {
+            this.pathStyleAccess = pathStyleAccess;
         }
     }
 }

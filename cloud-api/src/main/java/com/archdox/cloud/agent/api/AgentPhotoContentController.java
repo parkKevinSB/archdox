@@ -3,10 +3,10 @@ package com.archdox.cloud.agent.api;
 import com.archdox.cloud.agent.application.ArchDoxAgentAuthenticationService;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
+import com.archdox.cloud.photo.application.PhotoStorageAdapterResolver;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.domain.PhotoStorageKind;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
-import com.archdox.cloud.photo.infra.PhotoLocalObjectStore;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import java.io.IOException;
 import org.springframework.http.HttpHeaders;
@@ -25,18 +25,18 @@ public class AgentPhotoContentController {
     private final ArchDoxAgentAuthenticationService authenticationService;
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
-    private final PhotoLocalObjectStore objectStore;
+    private final PhotoStorageAdapterResolver storageAdapterResolver;
 
     public AgentPhotoContentController(
             ArchDoxAgentAuthenticationService authenticationService,
             PhotoRepository photoRepository,
             PhotoAssetRepository photoAssetRepository,
-            PhotoLocalObjectStore objectStore
+            PhotoStorageAdapterResolver storageAdapterResolver
     ) {
         this.authenticationService = authenticationService;
         this.photoRepository = photoRepository;
         this.photoAssetRepository = photoAssetRepository;
-        this.objectStore = objectStore;
+        this.storageAdapterResolver = storageAdapterResolver;
     }
 
     @GetMapping("/{photoId}/assets/{assetType}/content")
@@ -54,15 +54,23 @@ public class AgentPhotoContentController {
                 .orElseThrow(() -> new NotFoundException("Photo not found"));
         var asset = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), assetType)
                 .orElseThrow(() -> new NotFoundException("Photo asset not found"));
-        if (asset.storageKind() != PhotoStorageKind.API_LOCAL) {
-            throw new BadRequestException("Agent API content download supports API_LOCAL storage only");
+        if (asset.storageKind() == PhotoStorageKind.AGENT_MANAGED || asset.storageKind() == PhotoStorageKind.DELETED) {
+            throw new BadRequestException("Photo asset content is not available through Cloud");
         }
-        var body = (StreamingResponseBody) outputStream -> objectStore.copyTo(asset.storageRef(), outputStream);
-        return ResponseEntity.ok()
+        var input = storageAdapterResolver.forStorageKind(asset.storageKind()).openContent(asset);
+        var body = (StreamingResponseBody) outputStream -> {
+            try (input) {
+                input.transferTo(outputStream);
+            }
+        };
+        var builder = ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(asset.mimeType()))
-                .contentLength(objectStore.size(asset.storageRef()))
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
-                .body(body);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline");
+        if (asset.bytes() != null && asset.bytes() >= 0) {
+            builder.contentLength(asset.bytes());
+        }
+        return builder.body(body);
     }
 
     private Long parseOfficeId(String value) {

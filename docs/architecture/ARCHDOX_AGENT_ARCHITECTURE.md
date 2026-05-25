@@ -50,7 +50,7 @@ archdox-agent
   photo
     Agent-side original photo pickup storage
   storage
-    Future storage adapter boundary: LOCAL_FS, NAS, S3_COMPATIBLE
+    Storage profile boundary: LOCAL_FILE, NAS, S3_COMPATIBLE
   config
     deploymentMode, Cloud API endpoint, credentials, storage profile
 ```
@@ -64,20 +64,67 @@ When the package grows, command executors should move to a dedicated
 Agent storage must be configuration-driven. Cloud must not infer storage from
 the agent name.
 
+Official storage kinds:
+
+- `LOCAL_FILE`: normal local disk or mounted drive path on the Agent machine.
+- `NAS`: office network storage or mapped network share.
+- `S3_COMPATIBLE`: AWS S3, MinIO, Wasabi, R2, Naver Object Storage, or similar.
+
+`LOCAL_FS` is accepted only as a compatibility alias for older local
+configuration. New configuration and documentation should use `LOCAL_FILE`.
+
+The Agent may know absolute paths. Cloud must not. The `storageProfile` sent to
+Cloud reports only safe capability metadata such as `kind`,
+`fileSystemBacked`, `rootConfigured`, `bucket`, and `prefix`. It must not
+include `rootPath` or any office PC/NAS absolute path.
+
 ```yaml
 archdox:
   agent:
     deployment-mode: LOCAL_OFFICE
     storage:
       original:
-        kind: LOCAL_FS
+        kind: LOCAL_FILE
         root-path: D:/ArchDox/original
       working:
-        kind: LOCAL_FS
+        kind: LOCAL_FILE
         root-path: D:/ArchDox/working
       artifact:
-        kind: LOCAL_FS
+        kind: LOCAL_FILE
         root-path: D:/ArchDox/artifacts
+      template:
+        kind: LOCAL_FILE
+        root-path: D:/ArchDox/templates
+```
+
+For an office PC without a NAS, this is still valid:
+
+```yaml
+archdox:
+  agent:
+    deployment-mode: LOCAL_OFFICE
+    storage:
+      original:
+        kind: LOCAL_FILE
+        root-path: D:/ArchDoxStorage/originals
+      artifact:
+        kind: LOCAL_FILE
+        root-path: D:/ArchDoxStorage/artifacts
+```
+
+For office NAS or a mapped network share:
+
+```yaml
+archdox:
+  agent:
+    deployment-mode: LOCAL_OFFICE
+    storage:
+      original:
+        kind: NAS
+        root-path: //office-nas/ArchDox/originals
+      artifact:
+        kind: NAS
+        root-path: Z:/ArchDox/artifacts
 ```
 
 For cloud-managed execution:
@@ -97,6 +144,18 @@ archdox:
         kind: S3_COMPATIBLE
         bucket: archdox-artifacts
 ```
+
+Implemented Phase 9-1/9-2 behavior:
+
+- `LOCAL_FILE` and `NAS` are filesystem-backed and use the same safe logical-ref
+  resolver inside the Agent.
+- `S3_COMPATIBLE` is implemented through an Agent-side S3-compatible adapter
+  using the same logical storage refs.
+- S3-compatible connection settings are runtime configuration:
+  `AGENT_S3_ENDPOINT`, `AGENT_S3_REGION`, `AGENT_S3_ACCESS_KEY`,
+  `AGENT_S3_SECRET_KEY`, and `AGENT_S3_PATH_STYLE_ACCESS`.
+- Logical refs such as `documents/jobs/7001/report.docx` are mapped under the
+  configured Agent root. Cloud stores logical refs, not physical roots.
 
 ## Connection Profile
 

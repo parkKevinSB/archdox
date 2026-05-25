@@ -50,6 +50,14 @@ archdox:
     secret: ${JWT_SECRET:dev-only-change-this-secret-for-archdox-local-256-bit}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
     refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:14}
+  platform-admin:
+    bootstrap-super-admin-emails: ${PLATFORM_ADMIN_BOOTSTRAP_EMAILS:}
+    health:
+      document-job-stuck-minutes: ${PLATFORM_HEALTH_DOCUMENT_JOB_STUCK_MINUTES:30}
+      agent-command-stuck-minutes: ${PLATFORM_HEALTH_AGENT_COMMAND_STUCK_MINUTES:15}
+      photo-pickup-stuck-minutes: ${PLATFORM_HEALTH_PHOTO_PICKUP_STUCK_MINUTES:30}
+      delivery-stuck-minutes: ${PLATFORM_HEALTH_DELIVERY_STUCK_MINUTES:15}
+      max-detected-items: ${PLATFORM_HEALTH_MAX_DETECTED_ITEMS:100}
   agent:
     shared-secret: ${AGENT_SHARED_SECRET:dev-agent-secret-change-me}
     command-ttl-minutes: ${AGENT_COMMAND_TTL_MINUTES:60}

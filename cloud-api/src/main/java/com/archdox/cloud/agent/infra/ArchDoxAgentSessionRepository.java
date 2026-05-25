@@ -29,6 +29,8 @@ public interface ArchDoxAgentSessionRepository extends JpaRepository<ArchDoxAgen
 
     long countByOfficeIdAndStatus(Long officeId, ArchDoxAgentSessionStatus status);
 
+    long countByStatus(ArchDoxAgentSessionStatus status);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update ArchDoxAgentSession session

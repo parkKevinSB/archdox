@@ -16,7 +16,11 @@ public interface ArchDoxAgentRepository extends JpaRepository<ArchDoxAgent, Long
 
     List<ArchDoxAgent> findByOfficeIdOrderByLastSeenAtDesc(Long officeId, Pageable pageable);
 
+    List<ArchDoxAgent> findAllByOrderByLastSeenAtDesc(Pageable pageable);
+
     long countByOfficeId(Long officeId);
 
     long countByOfficeIdAndStatus(Long officeId, ArchDoxAgentStatus status);
+
+    long countByStatus(ArchDoxAgentStatus status);
 }

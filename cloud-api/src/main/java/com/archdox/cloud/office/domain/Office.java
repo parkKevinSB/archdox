@@ -73,4 +73,8 @@ public class Office {
     public String planCode() {
         return planCode;
     }
+
+    public OfficeStatus status() {
+        return status;
+    }
 }

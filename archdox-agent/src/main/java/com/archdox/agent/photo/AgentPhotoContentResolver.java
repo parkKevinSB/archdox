@@ -1,6 +1,8 @@
 package com.archdox.agent.photo;
 
 import com.archdox.agent.cloud.ArchDoxAgentProperties;
+import com.archdox.agent.storage.AgentStorageService;
+import com.archdox.agent.storage.AgentStorageServiceFactory;
 import com.archdox.document.PhotoAsset;
 import com.archdox.document.PhotoContentResolver;
 import com.archdox.document.ResolvedPhotoContent;
@@ -9,9 +11,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -21,12 +20,12 @@ public class AgentPhotoContentResolver implements PhotoContentResolver {
     private static final Duration DOWNLOAD_TIMEOUT = Duration.ofMinutes(10);
 
     private final ArchDoxAgentProperties properties;
-    private final Path root;
+    private final AgentStorageService storage;
     private final HttpClient httpClient;
 
-    public AgentPhotoContentResolver(ArchDoxAgentProperties properties) {
+    public AgentPhotoContentResolver(ArchDoxAgentProperties properties, AgentStorageServiceFactory storageServiceFactory) {
         this.properties = properties;
-        this.root = Paths.get(properties.workingRootPath()).toAbsolutePath().normalize();
+        this.storage = storageServiceFactory.workingPhotos();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(15))
                 .build();
@@ -50,11 +49,8 @@ public class AgentPhotoContentResolver implements PhotoContentResolver {
         if (photo.storageRef() == null || photo.storageRef().isBlank()) {
             return Optional.empty();
         }
-        var target = resolvePath(photo.storageRef());
-        if (!Files.exists(target)) {
-            return Optional.empty();
-        }
-        return Optional.of(new ResolvedPhotoContent(Files.readAllBytes(target), photo.mimeType()));
+        return storage.readIfExists(photo.storageRef())
+                .map(content -> new ResolvedPhotoContent(content, photo.mimeType()));
     }
 
     private byte[] download(String downloadUrl) throws IOException {
@@ -109,19 +105,6 @@ public class AgentPhotoContentResolver implements PhotoContentResolver {
         if (storageRef == null || storageRef.isBlank() || content == null || content.length == 0) {
             return;
         }
-        var target = resolvePath(storageRef);
-        Files.createDirectories(target.getParent());
-        Files.write(target, content);
-    }
-
-    private Path resolvePath(String storageRef) {
-        var normalized = storageRef.trim()
-                .replace('\\', '/')
-                .replaceFirst("^/+", "");
-        var target = root.resolve(normalized).normalize();
-        if (!target.startsWith(root)) {
-            throw new IllegalArgumentException("Invalid agent photo storage reference");
-        }
-        return target;
+        storage.put(storageRef, content, "application/octet-stream");
     }
 }

@@ -2,6 +2,7 @@ package com.archdox.cloud.agent.infra;
 
 import com.archdox.cloud.agent.domain.ArchDoxAgentCommand;
 import com.archdox.cloud.agent.domain.ArchDoxAgentCommandStatus;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -21,9 +22,19 @@ public interface ArchDoxAgentCommandRepository extends JpaRepository<ArchDoxAgen
             Collection<ArchDoxAgentCommandStatus> statuses);
 
     @EntityGraph(attributePaths = "agent")
+    List<ArchDoxAgentCommand> findByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+            Collection<ArchDoxAgentCommandStatus> statuses,
+            OffsetDateTime createdBefore,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = "agent")
     Optional<ArchDoxAgentCommand> findById(Long id);
 
     long countByAgentIdAndStatusIn(Long agentId, Collection<ArchDoxAgentCommandStatus> statuses);
+
+    long countByStatusIn(Collection<ArchDoxAgentCommandStatus> statuses);
+
+    long countByStatus(ArchDoxAgentCommandStatus status);
 
     @Query("""
             select count(command)
@@ -45,6 +56,22 @@ public interface ArchDoxAgentCommandRepository extends JpaRepository<ArchDoxAgen
             order by command.createdAt desc, command.id desc
             """)
     List<ArchDoxAgentCommand> searchOfficeCommands(
+            Long officeId,
+            Long agentId,
+            ArchDoxAgentCommandStatus status,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = "agent")
+    @Query("""
+            select command
+            from ArchDoxAgentCommand command
+            join command.agent agent
+            where (:officeId is null or agent.officeId = :officeId)
+              and (:agentId is null or agent.id = :agentId)
+              and (:status is null or command.status = :status)
+            order by command.createdAt desc, command.id desc
+            """)
+    List<ArchDoxAgentCommand> searchPlatformCommands(
             Long officeId,
             Long agentId,
             ArchDoxAgentCommandStatus status,

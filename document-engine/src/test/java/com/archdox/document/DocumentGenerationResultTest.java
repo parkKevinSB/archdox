@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
 
 class DocumentGenerationResultTest {
@@ -144,13 +145,19 @@ class DocumentGenerationResultTest {
                 Map.of(
                         "templateFields", Map.of(
                                 "documentTitle", "공사감리 미리보기",
-                                "projectName", "서초동 근린생활시설"),
+                                "projectName", "서초동 근린생활시설",
+                                "safetyChecklistItems", "internal raw checklist summary",
+                                "supervisionItemsSection", "internal rich section summary",
+                                "checklistPhotoSection", "internal photo section summary"),
                         "layoutSections", Map.of(
                                 "photoSection", Map.of(
                                         "type", "PHOTO_TABLE",
                                         "title", "현장 사진",
                                         "photosPerRow", 2,
-                                        "fields", List.of(Map.of("label", "설명", "source", "caption"))),
+                                        "fields", List.of(
+                                                Map.of("label", "설명", "source", "caption"),
+                                                Map.of("label", "단계", "source", "stepCode"),
+                                                Map.of("label", "체크항목", "source", "checklistItemLabel"))),
                                 "checklistSection", Map.of(
                                         "type", "CHECKLIST_TABLE",
                                         "title", "감리 체크리스트",
@@ -165,7 +172,7 @@ class DocumentGenerationResultTest {
                                         "note", "도면과 일치"))),
                 List.of(new PhotoAsset(
                         "photo-1",
-                        "PHOTO_STEP",
+                        "INSTRUCTION_RESULT",
                         "photos/photo-1.png",
                         "전면부 확인",
                         PhotoLayoutSize.MEDIUM,
@@ -182,10 +189,17 @@ class DocumentGenerationResultTest {
         assertTrue(html.contains("현장 사진"));
         assertTrue(html.contains("data:image/png;base64,"));
         assertTrue(html.contains("전면부 확인"));
+        assertTrue(html.contains("항목"));
+        assertTrue(html.contains("지적사항 및 처리결과"));
+        assertTrue(!html.contains("INSTRUCTION_RESULT"));
         assertTrue(html.contains("감리 체크리스트"));
         assertTrue(html.contains("철근 배근 확인"));
         assertTrue(html.contains("적합"));
         assertTrue(html.contains("도면과 일치"));
+        assertTrue(!html.contains("safetyChecklistItems"));
+        assertTrue(!html.contains("supervisionItemsSection"));
+        assertTrue(!html.contains("checklistPhotoSection"));
+        assertTrue(!html.contains("internal raw checklist summary"));
     }
 
     @Test
@@ -310,10 +324,13 @@ class DocumentGenerationResultTest {
                 Map.of("layoutSections", Map.of(
                         "photoSection", Map.of(
                                 "type", "PHOTO_TABLE",
-                                "title", "Site Photos"))),
+                                "title", "Site Photos",
+                                "fields", List.of(
+                                        Map.of("label", "Description", "source", "caption"),
+                                        Map.of("label", "Step", "source", "stepCode"))))),
                 List.of(new PhotoAsset(
                         "photo-1",
-                        "BASIC_INFO",
+                        "INSTRUCTION_RESULT",
                         "photos/photo-1.png",
                         "Front view",
                         PhotoLayoutSize.MEDIUM,
@@ -324,10 +341,12 @@ class DocumentGenerationResultTest {
         assertEquals(GenerationStatus.COMPLETED, result.status());
         var content = result.artifacts().get(0).content();
         var documentXml = documentXml(content);
+        parseXml(documentXml);
         assertTrue(documentXml.contains("<w:tbl>"));
         assertTrue(documentXml.contains("Site Photos"));
-        assertTrue(documentXml.contains("Photo ID: photo-1"));
-        assertTrue(documentXml.contains("Caption: Front view"));
+        assertTrue(documentXml.contains("설명: Front view"));
+        assertTrue(documentXml.contains("항목: 지적사항 및 처리결과"));
+        assertTrue(!documentXml.contains("INSTRUCTION_RESULT"));
         assertTrue(!documentXml.contains("${photoSection}"));
         assertTrue(zipEntry(content, "word/_rels/document.xml.rels").contains("rIdArchDoxImage1"));
         assertTrue(zipEntry(content, "[Content_Types].xml").contains("Extension=\"png\""));
@@ -369,9 +388,9 @@ class DocumentGenerationResultTest {
         var documentXml = documentXml(content);
         assertTrue(documentXml.contains("Two Column Photos"));
         assertTrue(documentXml.contains("<w:gridCol w:w=\"4500\"/><w:gridCol w:w=\"4500\"/>"));
-        assertTrue(documentXml.contains("Caption: Front view"));
-        assertTrue(documentXml.contains("Caption: Rear view"));
-        assertTrue(documentXml.contains("Caption: Detail view"));
+        assertTrue(documentXml.contains("설명: Front view"));
+        assertTrue(documentXml.contains("설명: Rear view"));
+        assertTrue(documentXml.contains("설명: Detail view"));
         assertTrue(!documentXml.contains("Storage: photos/photo-1.png"));
         assertTrue(documentXml.contains("cx=\"1371600\" cy=\"1028700\""));
         assertNotNull(zipEntryBytes(content, "word/media/archdox-photo-3.png"));
@@ -631,6 +650,12 @@ class DocumentGenerationResultTest {
     private String zipEntry(byte[] docx, String name) throws Exception {
         var bytes = zipEntryBytes(docx, name);
         return bytes == null ? "" : new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private void parseXml(String xml) throws Exception {
+        var factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        factory.newDocumentBuilder().parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
     }
 
     private byte[] zipEntryBytes(byte[] docx, String name) throws Exception {

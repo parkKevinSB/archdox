@@ -254,17 +254,52 @@ Current limitation:
 
 ## Platform Admin Roles
 
-Add a platform-level admin model when cross-office operations begin.
+Phase 9-4 adds the platform-level admin model. This is separate from office
+membership.
 
-Suggested concepts:
+Implemented concepts:
 
 - `platform_admins`
 - roles: `SUPER_ADMIN`, `SUPPORT`, `READONLY_SUPPORT`, `BILLING`
 - status: `ACTIVE`, `DISABLED`
+- `GET /api/v1/platform-admin/me`
+- optional bootstrap through `PLATFORM_ADMIN_BOOTSTRAP_EMAILS`
 - optional IP allowlist or MFA requirement later
 
 Office roles such as `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` must not grant
 cross-tenant admin access.
+
+## Implemented Platform Ops API And UI
+
+Phase 9-5 and Phase 9-6 add a first platform operations layer.
+
+Implemented platform APIs:
+
+- `GET /api/v1/platform-admin/ops/summary`
+- `GET /api/v1/platform-admin/ops/users`
+- `GET /api/v1/platform-admin/ops/offices`
+- `GET /api/v1/platform-admin/ops/agents`
+- `GET /api/v1/platform-admin/ops/agent-commands`
+- `GET /api/v1/platform-admin/ops/document-jobs`
+- `GET /api/v1/platform-admin/ops/photos`
+- `GET /api/v1/platform-admin/ops/deliveries`
+- `GET /api/v1/platform-admin/ops/events`
+- `POST /api/v1/platform-admin/ops/health/detect-stuck`
+
+Implemented UI:
+
+- the existing admin React app now exposes a separate `Platform` section only
+  when `/api/v1/platform-admin/me` succeeds
+- office admin views still require `X-Office-Id` and office `OWNER`/`ADMIN`
+- platform views do not require selecting an office and can see cross-office
+  operational data
+
+Rules:
+
+- office admins must never gain platform access through office role alone
+- platform APIs must not expose secrets, device secret hashes, install tokens,
+  signed URLs, or raw file content
+- platform views are for support/operations, not normal office workflows
 
 ## Operational Event Model
 
@@ -312,11 +347,16 @@ Future event types:
 
 - `AGENT_CONNECTED`
 - `AGENT_DISCONNECTED`
-- `AGENT_COMMAND_STUCK`
-- `DOCUMENT_JOB_STUCK`
 - `INSTALL_TOKEN_ISSUED`
 - `USER_SUSPENDED`
 - `DB_INVARIANT_VIOLATION`
+
+Phase 9-7 stuck detection event types:
+
+- `AGENT_COMMAND_STUCK_DETECTED`
+- `DOCUMENT_JOB_STUCK_DETECTED`
+- `PHOTO_PICKUP_STUCK_DETECTED`
+- `DOCUMENT_DELIVERY_STUCK_DETECTED`
 
 Office member events:
 
@@ -462,8 +502,10 @@ Use layered logging:
 
 Initial implementation:
 
-- structured JSON logs if practical
-- correlation ID per request and flow
+- Logback rolling file appenders for Cloud API and ArchDox Agent
+- 30-day default rolling history
+- `X-Correlation-Id` request/response header
+- MDC fields: `correlationId`, `httpMethod`, `httpPath`
 - log important flow IDs: `officeId`, `reportId`, `documentJobId`,
   `photoId`, `agentId`, `commandId`
 - keep raw logs outside the business database
@@ -562,8 +604,15 @@ Examples:
 - cross-office reference violations
 - unusually high error count for one office, Agent, template, or API version
 
-These checks can first be implemented as read-only SQL/report queries, then
-promoted to scheduled operation events.
+Phase 9-7 implements the first on-demand detector:
+
+```text
+POST /api/v1/platform-admin/ops/health/detect-stuck
+```
+
+It records operation events for old in-flight document jobs, Agent commands,
+photo pickups, and document deliveries. It is intentionally on-demand first.
+Do not add an always-on scheduler for this detector without explicit approval.
 
 ## Audit Logging
 
@@ -589,15 +638,15 @@ Audit logs should be append-only and should not contain secrets.
 ### Ops Phase 1: Admin Read Models
 
 - office-scoped ops read APIs are implemented for Phase 5-1
-- platform admin role foundation
-- Admin APIs for users, offices, memberships
-- platform Admin APIs for document jobs, photo assets, Agents, commands,
-  sessions
-- admin UI list/detail pages
+- platform admin role foundation is implemented for Phase 9-4
+- platform Admin read APIs for users, offices, jobs, photos, Agents, commands,
+  deliveries, and operation events are implemented for Phase 9-5
+- admin UI has an office section and a platform section as of Phase 9-6
 
 ### Ops Phase 2: Operation Events And Audit Logs
 
 - `operation_events` foundation is implemented
+- request correlation id and rolling file logs are implemented for Phase 9-3
 - audit log table
 - more important events from Agent connect/disconnect and auth flows
 - Admin search UI
@@ -607,8 +656,9 @@ Audit logs should be append-only and should not contain secrets.
 - `cloud_api_instances`
 - API instance heartbeat
 - protected Actuator endpoints
-- Agent/session stale detection
-- stuck job detection
+- on-demand stuck detection is implemented for Phase 9-7
+- always-on Agent/session stale detection remains future work until scheduler or
+  queue-based monitoring is explicitly approved
 
 ### Ops Phase 4: Metrics Stack
 

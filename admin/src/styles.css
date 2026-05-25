@@ -300,6 +300,23 @@ button {
   gap: 12px;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: #14201f;
+  font-size: 20px;
+}
+
+.platform-view .panel {
+  border-color: #d9e1e0;
+}
+
 .metric-card {
   display: grid;
   gap: 8px;

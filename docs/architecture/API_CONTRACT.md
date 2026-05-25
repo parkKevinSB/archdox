@@ -1877,7 +1877,7 @@ device credentials. `AGENT_SHARED_SECRET` is a development fallback only.
   "version": "0.0.1-dev",
   "deploymentMode": "LOCAL_OFFICE",
   "capabilities": {
-    "nas": true,
+    "nas": false,
     "photoPickup": true,
     "documentGeneration": true,
     "documentRender": true,
@@ -1886,9 +1886,10 @@ device credentials. `AGENT_SHARED_SECRET` is a development fallback only.
     "outputFormats": ["DOCX", "HTML"]
   },
   "storageProfile": {
-    "original": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/original"},
-    "working": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/working"},
-    "artifact": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/artifacts"}
+    "original": {"kind": "LOCAL_FILE", "fileSystemBacked": true, "rootConfigured": true},
+    "working": {"kind": "LOCAL_FILE", "fileSystemBacked": true, "rootConfigured": true},
+    "artifact": {"kind": "LOCAL_FILE", "fileSystemBacked": true, "rootConfigured": true},
+    "template": {"kind": "LOCAL_FILE", "fileSystemBacked": true, "rootConfigured": true}
   }
 }
 ```
@@ -1927,9 +1928,10 @@ the install token.
     "outputFormats": ["DOCX", "HTML", "PDF", "DOCX_AND_PDF", "HTML_AND_PDF"]
   },
   "storageProfile": {
-    "original": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/original"},
-    "working": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/working"},
-    "artifact": {"kind": "LOCAL_FS", "rootPath": "D:/ArchDox/artifacts"}
+    "original": {"kind": "NAS", "fileSystemBacked": true, "rootConfigured": true},
+    "working": {"kind": "NAS", "fileSystemBacked": true, "rootConfigured": true},
+    "artifact": {"kind": "NAS", "fileSystemBacked": true, "rootConfigured": true},
+    "template": {"kind": "NAS", "fileSystemBacked": true, "rootConfigured": true}
   }
 }
 ```
@@ -1947,6 +1949,10 @@ Cloud response:
 Development fallback `authMode=SHARED_SECRET` keeps the previous
 `officeId + agentCode + token` shape only when explicitly allowed by Cloud
 configuration.
+
+`storageProfile` is safe capability metadata. It must not include local or NAS
+absolute `rootPath` values. `LOCAL_FS` may be accepted by old Agent
+configuration as an alias, but WebSocket contracts should report `LOCAL_FILE`.
 
 ### Agent -> Cloud: `HEARTBEAT`
 
@@ -2706,6 +2712,58 @@ Query parameters:
 Returns recent document delivery requests. Prepared storage references are not
 returned from this office ops view.
 
+## Platform Admin Ops
+
+All platform admin endpoints require an authenticated user with an active
+`platform_admins` row. Office `OWNER` or `ADMIN` membership is not enough.
+
+### GET `/api/v1/platform-admin/me`
+
+Returns the current platform admin identity:
+
+```json
+{
+  "userId": 1,
+  "email": "owner@example.com",
+  "role": "SUPER_ADMIN"
+}
+```
+
+### GET `/api/v1/platform-admin/ops/summary`
+
+Returns cross-office counts for users, offices, Agents, commands, document
+jobs, photo pickups, and deliveries.
+
+### Read APIs
+
+- `GET /api/v1/platform-admin/ops/users`
+- `GET /api/v1/platform-admin/ops/offices`
+- `GET /api/v1/platform-admin/ops/agents`
+- `GET /api/v1/platform-admin/ops/agent-commands`
+- `GET /api/v1/platform-admin/ops/document-jobs`
+- `GET /api/v1/platform-admin/ops/photos`
+- `GET /api/v1/platform-admin/ops/deliveries`
+- `GET /api/v1/platform-admin/ops/events`
+
+Supported filters vary by resource, but all list APIs support `limit`. Most
+workflow resources also support `officeId` and `status`.
+
+### POST `/api/v1/platform-admin/ops/health/detect-stuck`
+
+On-demand stuck-state detector. It records `operation_events` for old in-flight
+document jobs, Agent commands, photo pickups, and document deliveries.
+
+```json
+{
+  "stuckDocumentJobs": 1,
+  "stuckAgentCommands": 2,
+  "stuckPhotoPickups": 0,
+  "stuckDeliveries": 1,
+  "detectedAt": "2026-05-25T12:30:00Z",
+  "total": 4
+}
+```
+
 ## Planned APIs
 
 The following APIs are planned but not yet implemented. Add exact DTOs before
@@ -2717,7 +2775,6 @@ coding them:
 - Platform admin user/office/member management APIs
 - Admin plan, usage, billing-state, and quota APIs
 - Admin Cloud API instance health APIs
-- Platform admin ArchDox Agent session/command monitoring APIs
-- Platform admin document job/photo pipeline/delivery monitoring APIs
-- Platform admin operation event and audit log search APIs
+- Platform admin mutation APIs for user suspension, office repair, command
+  retry/cancel, and support actions
 - Ops Agent read-only report/log-manifest APIs

@@ -35,6 +35,7 @@ import {
   createDocumentTemplateRevision,
   createOfficeInvitation,
   deactivateOfficeMember,
+  detectPlatformStuckHealth,
   downloadDocumentTemplateRevisionContent,
   getAgentCommands,
   getAgentSessions,
@@ -49,6 +50,16 @@ import {
   getOfficeMembers,
   getOperationEvents,
   getPhotos,
+  getPlatformAdminMe,
+  getPlatformAgents,
+  getPlatformCommands,
+  getPlatformDeliveries,
+  getPlatformDocumentJobs,
+  getPlatformEvents,
+  getPlatformOffices,
+  getPlatformPhotos,
+  getPlatformSummary,
+  getPlatformUsers,
   getSummary,
   login,
   me,
@@ -74,6 +85,16 @@ import type {
   OfficeConfigOverride,
   OfficeOpsSummary,
   OperationEvent,
+  PlatformAdminMe,
+  PlatformAgentCommandOps,
+  PlatformAgentOps,
+  PlatformDeliveryOps,
+  PlatformDocumentJobOps,
+  PlatformHealthDetection,
+  PlatformOfficeOps,
+  PlatformOpsSummary,
+  PlatformPhotoOps,
+  PlatformUserOps,
   Photo,
   TemplateFieldCatalog,
   TemplateFieldDefinition
@@ -88,7 +109,8 @@ type ViewKey =
   | "templates"
   | "photos"
   | "deliveries"
-  | "events";
+  | "events"
+  | "platform";
 
 type AdminState = {
   accessToken: string;
@@ -107,6 +129,18 @@ type OpsData = {
   events: OperationEvent[];
 };
 
+type PlatformOpsData = {
+  summary: PlatformOpsSummary | null;
+  users: PlatformUserOps[];
+  offices: PlatformOfficeOps[];
+  agents: PlatformAgentOps[];
+  commands: PlatformAgentCommandOps[];
+  documents: PlatformDocumentJobOps[];
+  photos: PlatformPhotoOps[];
+  deliveries: PlatformDeliveryOps[];
+  events: OperationEvent[];
+};
+
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
 const OFFICE_STORAGE_KEY = "archdox.admin.officeId";
 
@@ -114,6 +148,18 @@ const emptyOpsData: OpsData = {
   summary: null,
   agents: [],
   sessions: [],
+  commands: [],
+  documents: [],
+  photos: [],
+  deliveries: [],
+  events: []
+};
+
+const emptyPlatformOpsData: PlatformOpsData = {
+  summary: null,
+  users: [],
+  offices: [],
+  agents: [],
   commands: [],
   documents: [],
   photos: [],
@@ -146,6 +192,10 @@ export default function App() {
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<ViewKey>("dashboard");
   const [opsData, setOpsData] = useState<OpsData>(emptyOpsData);
+  const [platformAdmin, setPlatformAdmin] = useState<PlatformAdminMe | null>(null);
+  const [platformChecked, setPlatformChecked] = useState(false);
+  const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
+  const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -165,6 +215,24 @@ export default function App() {
     () => auth?.user.offices.filter((office) => adminRoles.has(office.role)) ?? [],
     [auth]
   );
+
+  useEffect(() => {
+    if (!auth) {
+      setPlatformAdmin(null);
+      setPlatformChecked(true);
+      return;
+    }
+    setPlatformChecked(false);
+    getPlatformAdminMe(auth.accessToken)
+      .then((admin) => {
+        setPlatformAdmin(admin);
+        if (adminOffices.length === 0) {
+          setActiveView("platform");
+        }
+      })
+      .catch(() => setPlatformAdmin(null))
+      .finally(() => setPlatformChecked(true));
+  }, [auth?.accessToken, adminOffices.length]);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -199,6 +267,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.accessToken, selectedOfficeId]);
 
+  useEffect(() => {
+    if (activeView === "platform") {
+      refreshPlatform();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, platformAdmin?.role]);
+
   async function refresh() {
     if (!auth || !selectedOfficeId) {
       return;
@@ -219,6 +294,49 @@ export default function App() {
       setOpsData({ summary, agents, sessions, commands, documents, photos, deliveries, events });
     } catch (err) {
       setError(err instanceof Error ? err.message : "운영 데이터를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshPlatform() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const [summary, users, offices, agents, commands, documents, photos, deliveries, events] = await Promise.all([
+        getPlatformSummary(auth.accessToken),
+        getPlatformUsers(auth.accessToken, 100),
+        getPlatformOffices(auth.accessToken, 100),
+        getPlatformAgents(auth.accessToken, 100),
+        getPlatformCommands(auth.accessToken, 100),
+        getPlatformDocumentJobs(auth.accessToken, 100),
+        getPlatformPhotos(auth.accessToken, 100),
+        getPlatformDeliveries(auth.accessToken, 100),
+        getPlatformEvents(auth.accessToken, 100)
+      ]);
+      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Platform data could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPlatformDetection() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await detectPlatformStuckHealth(auth.accessToken);
+      setLastPlatformDetection(result);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Platform health detection failed.");
     } finally {
       setLoading(false);
     }
@@ -271,7 +389,16 @@ export default function App() {
     );
   }
 
-  if (adminOffices.length === 0) {
+  if (!platformChecked) {
+    return (
+      <FullScreenCenter>
+        <Loader2 className="spin" size={28} />
+        <p>Checking platform permissions.</p>
+      </FullScreenCenter>
+    );
+  }
+
+  if (adminOffices.length === 0 && !platformAdmin) {
     return (
       <FullScreenCenter>
         <ShieldCheck size={42} />
@@ -298,6 +425,9 @@ export default function App() {
 
         <nav className="main-nav" aria-label="운영 메뉴">
           {navItems.map((item) => {
+            if (item.key === "platform" && !platformAdmin) {
+              return null;
+            }
             const Icon = item.icon;
             return (
               <button
@@ -311,6 +441,16 @@ export default function App() {
               </button>
             );
           })}
+          {platformAdmin ? (
+            <button
+              className={activeView === "platform" ? "nav-item active" : "nav-item"}
+              type="button"
+              onClick={() => setActiveView("platform")}
+            >
+              <ShieldCheck size={18} />
+              Platform
+            </button>
+          ) : null}
         </nav>
 
         <div className="sidebar-footer">
@@ -398,6 +538,16 @@ export default function App() {
             />
           )}
           {activeView === "events" && <EventsView events={opsData.events} />}
+          {activeView === "platform" && (
+            <PlatformView
+              data={platformData}
+              platformAdmin={platformAdmin}
+              loading={loading}
+              onRefresh={refreshPlatform}
+              lastDetection={lastPlatformDetection}
+              onDetectStuck={runPlatformDetection}
+            />
+          )}
         </section>
       </main>
     </div>
@@ -1953,6 +2103,143 @@ function StatusBars({ groups }: { groups: Array<[string, Record<string, number>]
   );
 }
 
+function PlatformView({
+  data,
+  platformAdmin,
+  loading,
+  onRefresh,
+  lastDetection,
+  onDetectStuck
+}: {
+  data: PlatformOpsData;
+  platformAdmin: PlatformAdminMe | null;
+  loading: boolean;
+  onRefresh: () => void;
+  lastDetection: PlatformHealthDetection | null;
+  onDetectStuck: () => void;
+}) {
+  const summary = data.summary;
+  const failedJobs = summary?.documentJobs.FAILED ?? 0;
+  const failedCommands = (summary?.agentCommands.FAILED ?? 0) + (summary?.agentCommands.EXPIRED ?? 0);
+  const failedPickups = summary?.photoPickups.FAILED ?? 0;
+  const failedDeliveries = summary?.deliveries.FAILED ?? 0;
+  const attention = failedJobs + failedCommands + failedPickups + failedDeliveries;
+
+  return (
+    <div className="view-stack platform-view">
+      <div className="section-header">
+        <div>
+          <p className="eyebrow">Platform Admin</p>
+          <h2>전체 서비스 운영</h2>
+          <p className="muted">
+            {platformAdmin ? `${platformAdmin.email} / ${platformAdmin.role}` : "Platform permission required"}
+          </p>
+        </div>
+        <div className="topbar-actions">
+          <button className="button" onClick={onDetectStuck} type="button">
+            <AlertTriangle size={16} />
+            Detect stuck
+          </button>
+          <button className="button" onClick={onRefresh} type="button">
+            {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+            Refresh
+          </button>
+        </div>
+      </div>
+      {lastDetection ? (
+        <InlineNotice
+          message={`Detected ${lastDetection.total} stuck candidates at ${formatDate(lastDetection.detectedAt)}.`}
+        />
+      ) : null}
+
+      <div className="metric-grid">
+        <MetricCard icon={<Users size={20} />} label="Users" value={summary?.users ?? 0} detail="all accounts" tone="blue" />
+        <MetricCard icon={<HardDrive size={20} />} label="Offices" value={summary?.offices ?? 0} detail="all tenants" tone="slate" />
+        <MetricCard icon={<Server size={20} />} label="Agents" value={sumCounts(summary?.agents)} detail={`${summary?.agents.ONLINE ?? 0} online`} tone="green" />
+        <MetricCard icon={<Wifi size={20} />} label="Sessions" value={summary?.activeAgentSessions ?? 0} detail="active websocket" tone="blue" />
+        <MetricCard icon={<Command size={20} />} label="Commands" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="in flight" tone="amber" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="Attention" value={attention} detail="failed/stuck candidates" tone={attention > 0 ? "red" : "green"} />
+      </div>
+
+      <div className="dashboard-grid">
+        <Panel title="Platform workflow status" icon={<Gauge size={18} />}>
+          <StatusBars
+            groups={[
+              ["Document jobs", summary?.documentJobs ?? {}],
+              ["Photo pickups", summary?.photoPickups ?? {}],
+              ["Deliveries", summary?.deliveries ?? {}],
+              ["Agent commands", summary?.agentCommands ?? {}]
+            ]}
+          />
+        </Panel>
+        <Panel title="Recent platform events" icon={<Activity size={18} />}>
+          <EventList events={data.events.slice(0, 8)} />
+        </Panel>
+      </div>
+
+      <Panel title="Offices" icon={<HardDrive size={18} />} count={data.offices.length}>
+        <Table
+          columns={["Office", "Type", "Plan", "Status"]}
+          empty="No offices."
+          rows={data.offices.slice(0, 20).map((office) => [
+            <CellTitle key="office" title={office.displayName} subtitle={`${office.officeCode} / #${office.id}`} />,
+            office.type,
+            office.planCode,
+            <StatusBadge key="status" status={office.status} />
+          ])}
+        />
+      </Panel>
+
+      <Panel title="Agents" icon={<Server size={18} />} count={data.agents.length}>
+        <Table
+          columns={["Agent", "Office", "Status", "Mode", "Version", "Last seen"]}
+          empty="No agents."
+          rows={data.agents.slice(0, 20).map((agent) => [
+            <CellTitle key="agent" title={agent.agentCode} subtitle={`#${agent.id}`} />,
+            `#${agent.officeId}`,
+            <StatusBadge key="status" status={agent.status} />,
+            agent.deploymentMode,
+            agent.version ?? "-",
+            formatDate(agent.lastSeenAt)
+          ])}
+        />
+      </Panel>
+
+      <Panel title="Failed or recent document jobs" icon={<FileText size={18} />} count={data.documents.length}>
+        <Table
+          columns={["Job", "Office", "Status", "Progress", "Worker", "Updated", "Error"]}
+          empty="No document jobs."
+          rows={data.documents.slice(0, 20).map((job) => [
+            <CellTitle key="job" title={`Job #${job.id}`} subtitle={`report #${job.reportId} v${job.reportRevision}`} />,
+            `#${job.officeId}`,
+            <StatusBadge key="status" status={job.status} />,
+            <Progress key="progress" value={job.progressPercent} />,
+            job.workerType,
+            formatDate(job.updatedAt),
+            job.errorMessage ?? "-"
+          ])}
+        />
+      </Panel>
+
+      <Panel title="Users" icon={<Users size={18} />} count={data.users.length}>
+        <Table
+          columns={["User", "Status", "Created"]}
+          empty="No users."
+          rows={data.users.slice(0, 20).map((user) => [
+            <CellTitle key="user" title={user.name} subtitle={`${user.email} / #${user.id}`} />,
+            <StatusBadge key="status" status={user.status} />,
+            formatDate(user.createdAt)
+          ])}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function sumCounts(counts?: Record<string, number>) {
+  return Object.values(counts ?? {}).reduce((sum, count) => sum + count, 0);
+}
+
 function EventList({ events }: { events: OperationEvent[] }) {
   if (events.length === 0) {
     return <EmptyState message="최근 이벤트가 없습니다." />;
@@ -2005,6 +2292,9 @@ function FullScreenCenter({ children }: { children: ReactNode }) {
 }
 
 function viewTitle(view: ViewKey) {
+  if (view === "platform") {
+    return "Platform Ops";
+  }
   return navItems.find((item) => item.key === view)?.label ?? "대시보드";
 }
 

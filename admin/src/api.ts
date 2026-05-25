@@ -14,6 +14,16 @@ import type {
   OfficeMember,
   OfficeConfigOverride,
   OperationEvent,
+  PlatformAdminMe,
+  PlatformAgentCommandOps,
+  PlatformAgentOps,
+  PlatformDeliveryOps,
+  PlatformDocumentJobOps,
+  PlatformHealthDetection,
+  PlatformOfficeOps,
+  PlatformOpsSummary,
+  PlatformPhotoOps,
+  PlatformUserOps,
   Photo,
   TemplateFieldCatalog
 } from "./types";
@@ -395,5 +405,67 @@ export function updateOfficeConfigOverride(
     officeId,
     method: "PUT",
     body
+  });
+}
+
+export function getPlatformAdminMe(token: string) {
+  return request<PlatformAdminMe>("/api/v1/platform-admin/me", { token });
+}
+
+export function getPlatformSummary(token: string) {
+  return request<PlatformOpsSummary>("/api/v1/platform-admin/ops/summary", { token });
+}
+
+export function getPlatformUsers(token: string, limit = 50) {
+  return request<PlatformUserOps[]>("/api/v1/platform-admin/ops/users", { token, query: { limit } });
+}
+
+export function getPlatformOffices(token: string, limit = 50) {
+  return request<PlatformOfficeOps[]>("/api/v1/platform-admin/ops/offices", { token, query: { limit } });
+}
+
+export function getPlatformAgents(token: string, limit = 50) {
+  return request<PlatformAgentOps[]>("/api/v1/platform-admin/ops/agents", { token, query: { limit } });
+}
+
+export function getPlatformCommands(token: string, limit = 50, status?: string) {
+  return request<PlatformAgentCommandOps[]>("/api/v1/platform-admin/ops/agent-commands", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformDocumentJobs(token: string, limit = 50, status?: string) {
+  return request<PlatformDocumentJobOps[]>("/api/v1/platform-admin/ops/document-jobs", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformPhotos(token: string, limit = 50, status?: string, pickupStatus?: string) {
+  return request<PlatformPhotoOps[]>("/api/v1/platform-admin/ops/photos", {
+    token,
+    query: { limit, status, pickupStatus }
+  });
+}
+
+export function getPlatformDeliveries(token: string, limit = 50, status?: string) {
+  return request<PlatformDeliveryOps[]>("/api/v1/platform-admin/ops/deliveries", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformEvents(token: string, limit = 50) {
+  return request<OperationEvent[]>("/api/v1/platform-admin/ops/events", {
+    token,
+    query: { limit }
+  });
+}
+
+export function detectPlatformStuckHealth(token: string) {
+  return request<PlatformHealthDetection>("/api/v1/platform-admin/ops/health/detect-stuck", {
+    token,
+    method: "POST"
   });
 }

@@ -322,3 +322,122 @@ export type OfficeConfigOverride = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PlatformAdminMe = {
+  userId: number;
+  email: string;
+  role: string;
+};
+
+export type PlatformOpsSummary = {
+  users: number;
+  offices: number;
+  agents: Record<string, number>;
+  activeAgentSessions: number;
+  agentCommands: Record<string, number>;
+  documentJobs: Record<string, number>;
+  photos: Record<string, number>;
+  photoPickups: Record<string, number>;
+  deliveries: Record<string, number>;
+  generatedAt: string;
+};
+
+export type PlatformUserOps = {
+  id: number;
+  email: string;
+  name: string;
+  status: string;
+  createdAt: string;
+};
+
+export type PlatformOfficeOps = {
+  id: number;
+  officeCode: string;
+  displayName: string;
+  type: string;
+  planCode: string;
+  status: string;
+};
+
+export type PlatformAgentOps = {
+  id: number;
+  officeId: number;
+  agentCode: string;
+  deploymentMode: string;
+  status: string;
+  version?: string | null;
+  lastSeenAt?: string | null;
+  capabilities: Record<string, unknown>;
+  storageProfile: Record<string, unknown>;
+};
+
+export type PlatformAgentCommandOps = {
+  id: number;
+  officeId: number;
+  agentId: number;
+  agentCode: string;
+  commandType: string;
+  status: string;
+  attemptCount: number;
+  maxAttempts: number;
+  createdAt: string;
+  lastAttemptAt?: string | null;
+  nextAttemptAt?: string | null;
+  expiresAt: string;
+  errorMessage?: string | null;
+};
+
+export type PlatformDocumentJobOps = {
+  id: number;
+  officeId: number;
+  reportId: number;
+  projectId?: number | null;
+  reportRevision: number;
+  status: string;
+  progressStep: string;
+  progressPercent: number;
+  workerType: string;
+  outputFormat: string;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  requestedAt: string;
+  updatedAt: string;
+};
+
+export type PlatformPhotoOps = {
+  id: number;
+  officeId: number;
+  projectId?: number | null;
+  reportId?: number | null;
+  stepCode?: string | null;
+  status: string;
+  originalPickupStatus: string;
+  uploadTarget: string;
+  storageKind: string;
+  bytes?: number | null;
+  pickupErrorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PlatformDeliveryOps = {
+  id: number;
+  officeId: number;
+  documentJobId: number;
+  artifactId?: number | null;
+  channel: string;
+  status: string;
+  agentCommandId?: number | null;
+  errorMessage?: string | null;
+  requestedAt: string;
+  updatedAt: string;
+};
+
+export type PlatformHealthDetection = {
+  stuckDocumentJobs: number;
+  stuckAgentCommands: number;
+  stuckPhotoPickups: number;
+  stuckDeliveries: number;
+  detectedAt: string;
+  total: number;
+};
