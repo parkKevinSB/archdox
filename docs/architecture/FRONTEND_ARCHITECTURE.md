@@ -239,6 +239,10 @@ Rules:
 
 - Checklist answers are scoped by `(reportId, itemCode, targetId)`. The client
   must not merge answers for different targets into one visible row.
+- Checklist item photos are attached through the photo feature by sending
+  `checklistItemId` in the upload intent. Checklist screens may show item-level
+  photo counts/previews, but upload, preview, and polling behavior stays in
+  `features/photos`.
 - The normal writing UI should be fast: selectable answers use segmented
   buttons, text/number answers use compact inputs, and a summary bar shows
   answered/issue/dirty counts.
@@ -345,6 +349,8 @@ Rules:
   fields can grow without turning into ad hoc state maps.
 - Checklist schema and answers are server state and should be read/mutated
   through TanStack Query hooks.
+- Checklist item photo attachment must compose `usePhotoWorkspace`; do not add a
+  second photo upload pipeline inside `features/checklists`.
 
 ### `features/photos`
 
@@ -379,6 +385,9 @@ Rules:
   rather than duplicating upload behavior.
 - The UI creates an upload intent, uploads the selected image to the returned
   instruction, confirms the upload, then observes derivative/pickup state.
+- Upload intent callers may pass contextual ownership such as `stepCode` and
+  `checklistItemId`. The photo workspace hook owns that payload shape so report
+  steps and checklist rows do not duplicate upload-intent logic.
 - The normal user screen may show simple asset readiness, but should not expose
   raw storage references as a required concept.
 - Thumbnail/working previews must be fetched with auth headers and rendered via

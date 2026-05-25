@@ -260,7 +260,9 @@ button {
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.primary-button.disabled,
+.secondary-button:disabled,
+.secondary-button.disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
@@ -859,11 +861,6 @@ button {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-.primary-button.disabled {
-  cursor: not-allowed;
-  opacity: 0.72;
 }
 
 .photo-grid {
@@ -1512,7 +1509,7 @@ button {
 
 .checklist-summary-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 
@@ -1719,6 +1716,94 @@ button {
 
 .checklist-row-spinner {
   color: #2a7f70;
+}
+
+.checklist-item-photo-row {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #eef3f2;
+}
+
+.checklist-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.checklist-photo-actions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #536663;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.checklist-photo-actions input[type="file"] {
+  display: none;
+}
+
+.checklist-photo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checklist-photo-thumb,
+.checklist-photo-more {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+  width: 74px;
+  height: 58px;
+  overflow: hidden;
+  border: 1px solid #dce7e4;
+  border-radius: 7px;
+  background: #f8fbfa;
+  color: #60746f;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.checklist-photo-thumb {
+  position: relative;
+}
+
+.checklist-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checklist-photo-thumb > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.checklist-photo-thumb small {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgb(22 35 33 / 0.72);
+}
+
+.checklist-photo-more {
+  width: 48px;
+}
+
+.checklist-photo-empty {
+  color: #7a8b88;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .item-list {

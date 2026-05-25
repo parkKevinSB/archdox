@@ -16,6 +16,12 @@ type UsePhotoWorkspaceOptions = {
   officeId: number | null;
   report: PhotoWorkspaceReport | null;
   token: string;
+  uploadContext?: PhotoUploadContext;
+};
+
+export type PhotoUploadContext = {
+  checklistItemId?: number | null;
+  stepCode?: string | null;
 };
 
 type PreparedPhotoFile = {
@@ -27,7 +33,12 @@ type PreparedPhotoFile = {
   width?: number | null;
 };
 
-export function usePhotoWorkspace({ officeId, report, token }: UsePhotoWorkspaceOptions) {
+type PhotoUploadInput = {
+  context?: PhotoUploadContext;
+  files: File[];
+};
+
+export function usePhotoWorkspace({ officeId, report, token, uploadContext }: UsePhotoWorkspaceOptions) {
   const queryClient = useQueryClient();
   const reportId = report?.id ?? null;
   const photosQuery = useQuery({
@@ -47,17 +58,22 @@ export function usePhotoWorkspace({ officeId, report, token }: UsePhotoWorkspace
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (files: File[]) => {
+    mutationFn: async ({ context, files }: PhotoUploadInput) => {
       if (!officeId || !report) {
         throw new Error("사진을 연결할 리포트를 먼저 선택해야 합니다.");
       }
       const results: PhotoUploadFileResult[] = [];
       for (const file of files) {
         const prepared = await preparePhotoFile(file);
+        const resolvedContext = {
+          checklistItemId: context?.checklistItemId ?? uploadContext?.checklistItemId ?? null,
+          stepCode: context?.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
+        };
         const intent = await createPhotoUploadIntent(token, officeId, {
           projectId: report.projectId,
           reportId: report.id,
-          stepCode: report.currentStep ?? "FIELD_PHOTOS",
+          stepCode: resolvedContext.stepCode,
+          checklistItemId: resolvedContext.checklistItemId,
           captureKind: "UPLOAD",
           mime: prepared.mime,
           bytes: prepared.bytes,
@@ -92,10 +108,11 @@ export function usePhotoWorkspace({ officeId, report, token }: UsePhotoWorkspace
 
   return {
     error: photosQuery.error ?? uploadMutation.error,
+    allPhotos: photosQuery.data ?? [],
     loading: photosQuery.isLoading,
     photos: photosQuery.data ?? [],
     refreshPhotos: photosQuery.refetch,
-    uploadFiles: uploadMutation.mutateAsync,
+    uploadFiles: (files: File[], context?: PhotoUploadContext) => uploadMutation.mutateAsync({ files, context }),
     uploading: uploadMutation.isPending
   };
 }

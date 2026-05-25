@@ -1,7 +1,10 @@
-import { CheckCircle2, Link2, Loader2, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Camera, CheckCircle2, FileImage, ImagePlus, Link2, Loader2, Save } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { InlineAlert, InlineNotice } from "../../../components/common";
+import { usePhotoAssetPreview } from "../../photos/hooks/usePhotoAssetPreview";
+import { usePhotoWorkspace } from "../../photos/hooks/usePhotoWorkspace";
+import type { PhotoAssetType, PhotoResponse } from "../../photos/types";
 import { useReportChecklist } from "../hooks/useReportChecklist";
 import type {
   ChecklistAnswer,
@@ -34,6 +37,7 @@ export function ReportChecklistPanel({
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(targets[0]?.id ?? null);
   const [busyItemCode, setBusyItemCode] = useState<string | null>(null);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [uploadingPhotoItemId, setUploadingPhotoItemId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const values = form.watch();
@@ -45,6 +49,12 @@ export function ReportChecklistPanel({
     loadError,
     saveAnswer
   } = useReportChecklist({ token, officeId, reportId: report.id });
+  const photoWorkspace = usePhotoWorkspace({
+    officeId,
+    report,
+    token,
+    uploadContext: { stepCode: "CHECKLIST" }
+  });
 
   const visibleAnswers = useMemo(
     () => answersForTarget(checklist?.answers ?? [], selectedTargetId),
@@ -56,6 +66,14 @@ export function ReportChecklistPanel({
     [visibleAnswers]
   );
   const selectedTarget = selectedTargetId ? targets.find((target) => target.id === selectedTargetId) ?? null : null;
+  const photosByChecklistItem = useMemo(
+    () => groupPhotosByChecklistItem(photoWorkspace.allPhotos),
+    [photoWorkspace.allPhotos]
+  );
+  const checklistPhotoCount = useMemo(
+    () => photoWorkspace.allPhotos.filter((photo) => photo.checklistItemId !== null && photo.checklistItemId !== undefined).length,
+    [photoWorkspace.allPhotos]
+  );
 
   useEffect(() => {
     if (selectedTargetId && targets.some((target) => target.id === selectedTargetId)) {
@@ -174,11 +192,35 @@ export function ReportChecklistPanel({
     }
   }
 
+  async function uploadChecklistPhotos(item: ChecklistItem, files: File[]) {
+    if (!canWriteReports) {
+      setLocalError("체크리스트 사진을 추가할 권한이 없습니다.");
+      return;
+    }
+    if (files.length === 0) {
+      return;
+    }
+    setUploadingPhotoItemId(item.id);
+    setNotice(null);
+    setLocalError(null);
+    try {
+      await photoWorkspace.uploadFiles(files, {
+        checklistItemId: item.id,
+        stepCode: "CHECKLIST"
+      });
+      setNotice(`${item.label} 항목에 사진 ${files.length}장을 연결했습니다.`);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "체크리스트 항목 사진을 업로드하지 못했습니다.");
+    } finally {
+      setUploadingPhotoItemId(null);
+    }
+  }
+
   if (loading || !checklist) {
     return <InlineNotice message="체크리스트 스키마를 불러오는 중입니다." />;
   }
 
-  const error = localError ?? errorMessage(loadError);
+  const error = localError ?? errorMessage(loadError) ?? errorMessage(photoWorkspace.error);
 
   return (
     <div className="checklist-panel">
@@ -219,6 +261,7 @@ export function ReportChecklistPanel({
         <SummaryTile label="응답" value={`${summary.answered}/${summary.total}`} />
         <SummaryTile label="확인 필요" value={summary.issue} tone={summary.issue > 0 ? "warning" : "normal"} />
         <SummaryTile label="미저장" value={summary.dirty} tone={summary.dirty > 0 ? "dirty" : "normal"} />
+        <SummaryTile label="사진" value={`${checklistPhotoCount}장`} />
       </div>
 
       {error ? <InlineAlert message={error} /> : null}
@@ -247,8 +290,13 @@ export function ReportChecklistPanel({
             form={form}
             item={item}
             key={item.id}
+            linkedPhotos={photosByChecklistItem.get(item.id) ?? []}
             onSave={saveItem}
+            onUploadPhotos={uploadChecklistPhotos}
+            officeId={officeId}
+            photoUploading={uploadingPhotoItemId === item.id && photoWorkspace.uploading}
             savedAnswer={answersByCode.get(item.itemCode)}
+            token={token}
             value={values[answerKey(item.itemCode)] ?? ""}
           />
         ))}
@@ -280,8 +328,13 @@ function ChecklistItemRow({
   dirty,
   form,
   item,
+  linkedPhotos,
   onSave,
+  onUploadPhotos,
+  officeId,
+  photoUploading,
   savedAnswer,
+  token,
   value
 }: {
   busy: boolean;
@@ -289,11 +342,27 @@ function ChecklistItemRow({
   dirty: boolean;
   form: UseFormReturn<ChecklistFormValues>;
   item: ChecklistItem;
+  linkedPhotos: PhotoResponse[];
   onSave: (item: ChecklistItem, options?: SaveOptions) => Promise<boolean>;
+  onUploadPhotos: (item: ChecklistItem, files: File[]) => Promise<void>;
+  officeId: number;
+  photoUploading: boolean;
   savedAnswer?: ChecklistAnswer;
+  token: string;
   value: string;
 }) {
   const noteRegistration = form.register(noteKey(item.itemCode));
+  const visiblePhotos = linkedPhotos.slice(0, 4);
+
+  async function handlePhotoSelection(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+    event.target.value = "";
+    if (files.length === 0) {
+      return;
+    }
+    await onUploadPhotos(item, files);
+  }
+
   return (
     <div className={["checklist-item", dirty ? "dirty" : "", isIssueValue(value) ? "issue" : ""].filter(Boolean).join(" ")}>
       <div className="checklist-item-main">
@@ -326,7 +395,69 @@ function ChecklistItemRow({
         }}
       />
       {busy ? <Loader2 className="spin checklist-row-spinner" size={17} /> : <CheckCircle2 className="checklist-row-icon" size={17} />}
+      <div className="checklist-item-photo-row">
+        <div className="checklist-photo-actions">
+          <span>
+            <Camera size={15} />
+            연결 사진 {linkedPhotos.length}장
+          </span>
+          <label className={photoUploading || !canWriteReports ? "secondary-button disabled" : "secondary-button"}>
+            {photoUploading ? <Loader2 className="spin" size={16} /> : <ImagePlus size={16} />}
+            사진 추가
+            <input
+              accept="image/*"
+              disabled={photoUploading || !canWriteReports}
+              multiple
+              onChange={handlePhotoSelection}
+              type="file"
+            />
+          </label>
+        </div>
+        {visiblePhotos.length > 0 ? (
+          <div className="checklist-photo-strip">
+            {visiblePhotos.map((photo) => (
+              <ChecklistPhotoThumb key={photo.id} officeId={officeId} photo={photo} token={token} />
+            ))}
+            {linkedPhotos.length > visiblePhotos.length ? (
+              <span className="checklist-photo-more">+{linkedPhotos.length - visiblePhotos.length}</span>
+            ) : null}
+          </div>
+        ) : (
+          <span className="checklist-photo-empty">이 항목에 연결된 사진이 없습니다.</span>
+        )}
+      </div>
     </div>
+  );
+}
+
+function ChecklistPhotoThumb({
+  officeId,
+  photo,
+  token
+}: {
+  officeId: number;
+  photo: PhotoResponse;
+  token: string;
+}) {
+  const previewAssetType = selectChecklistPreviewAssetType(photo);
+  const preview = usePhotoAssetPreview({
+    assetType: previewAssetType,
+    officeId,
+    photoId: photo.id,
+    token
+  });
+
+  return (
+    <span className="checklist-photo-thumb">
+      {preview.url ? (
+        <img alt={`Photo ${photo.id}`} src={preview.url} />
+      ) : (
+        <span>
+          <FileImage size={15} />
+        </span>
+      )}
+      <small>#{photo.id}</small>
+    </span>
   );
 }
 
@@ -493,6 +624,30 @@ function noteKey(itemCode: string) {
 function normalizeFormValue(value: string) {
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
+}
+
+function groupPhotosByChecklistItem(photos: PhotoResponse[]) {
+  return photos.reduce<Map<number, PhotoResponse[]>>((groups, photo) => {
+    if (photo.checklistItemId === null || photo.checklistItemId === undefined) {
+      return groups;
+    }
+    const photosForItem = groups.get(photo.checklistItemId) ?? [];
+    photosForItem.push(photo);
+    groups.set(photo.checklistItemId, photosForItem);
+    return groups;
+  }, new Map());
+}
+
+function selectChecklistPreviewAssetType(photo: PhotoResponse): Exclude<PhotoAssetType, "ORIGINAL"> | null {
+  const thumbnail = photo.assets.find((asset) => asset.assetType === "THUMBNAIL");
+  const working = photo.assets.find((asset) => asset.assetType === "WORKING");
+  if (thumbnail?.status === "UPLOADED") {
+    return "THUMBNAIL";
+  }
+  if (working?.status === "UPLOADED") {
+    return "WORKING";
+  }
+  return null;
 }
 
 function errorMessage(error: unknown) {
