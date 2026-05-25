@@ -59,6 +59,38 @@ Current code keeps command executors under `cloud` because the MVP is small.
 When the package grows, command executors should move to a dedicated
 `command` package without changing the protocol.
 
+## Registration And Authentication
+
+ArchDox Agent must be registered before it can connect, even when the Agent runs
+on the same Linux host as Cloud API.
+
+The normal lifecycle is:
+
+1. Office admin or platform admin issues an install token for a specific
+   `agentCode` and `deploymentMode`.
+2. Cloud creates or reuses the `archdox_agents` row and binds the install token
+   to that Agent.
+3. The Agent sends `HELLO` with `authMode=INSTALL_TOKEN`, the same `agentCode`,
+   office id, deployment mode, and the one-time token.
+4. Cloud returns `agentId` and `deviceSecret` once.
+5. The operator stores `AGENT_ID` and `AGENT_DEVICE_SECRET`, removes
+   `AGENT_INSTALL_TOKEN`, and restarts.
+6. Future WebSocket connections use `authMode=DEVICE_SECRET`.
+
+The registered deployment mode is authoritative. A paired Agent cannot switch
+from `LOCAL_OFFICE` to `CLOUD_MANAGED`, or the reverse, just by changing local
+config. Register a separate Agent code for that.
+
+Naming recommendation:
+
+- office PC/NAS main runtime: `office-main`
+- additional office runtime: `office-backup-1`
+- managed cloud runtime: `cloud-managed-1`, `cloud-managed-2`
+
+`AGENT_SHARED_SECRET` is disabled by default. It is only a temporary development
+fallback when Cloud API is explicitly configured with
+`AGENT_ALLOW_SHARED_SECRET_AUTH=true`.
+
 ## Storage Profile
 
 Agent storage must be configuration-driven. Cloud must not infer storage from

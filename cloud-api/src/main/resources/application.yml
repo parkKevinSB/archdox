@@ -62,7 +62,7 @@ archdox:
     shared-secret: ${AGENT_SHARED_SECRET:dev-agent-secret-change-me}
     command-ttl-minutes: ${AGENT_COMMAND_TTL_MINUTES:60}
     install-token-ttl-minutes: ${AGENT_INSTALL_TOKEN_TTL_MINUTES:30}
-    allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:true}
+    allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:false}
   photos:
     pickup:
       max-attempts: ${PHOTO_PICKUP_MAX_ATTEMPTS:5}

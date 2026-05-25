@@ -103,6 +103,27 @@ public class ArchDoxAgent {
         this.updatedAt = now;
     }
 
+    public static ArchDoxAgent registerPendingPair(
+            Long officeId,
+            String agentCode,
+            ArchDoxAgentDeploymentMode deploymentMode,
+            OffsetDateTime now
+    ) {
+        var agent = new ArchDoxAgent(
+                officeId,
+                agentCode,
+                deploymentMode,
+                null,
+                Map.of(),
+                Map.of(),
+                now);
+        agent.status = ArchDoxAgentStatus.PENDING_PAIR;
+        agent.authMode = ArchDoxAgentAuthMode.INSTALL_TOKEN;
+        agent.lastSeenAt = null;
+        agent.lastAuthenticatedAt = null;
+        return agent;
+    }
+
     public void markOnline(
             ArchDoxAgentDeploymentMode deploymentMode,
             String version,

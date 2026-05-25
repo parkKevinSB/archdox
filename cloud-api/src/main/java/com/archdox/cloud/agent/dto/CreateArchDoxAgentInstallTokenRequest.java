@@ -1,6 +1,8 @@
 package com.archdox.cloud.agent.dto;
 
 public record CreateArchDoxAgentInstallTokenRequest(
-        Integer expiresInMinutes
+        Integer expiresInMinutes,
+        String agentCode,
+        String deploymentMode
 ) {
 }

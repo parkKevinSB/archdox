@@ -436,7 +436,7 @@ Admin should show:
 
 - registered Agents per office
 - deployment mode: `LOCAL_OFFICE` or `CLOUD_MANAGED`
-- auth mode and last authenticated time
+- auth mode, pairing status, and last authenticated time
 - current status
 - current `archdox_agent_sessions`
 - latest heartbeat

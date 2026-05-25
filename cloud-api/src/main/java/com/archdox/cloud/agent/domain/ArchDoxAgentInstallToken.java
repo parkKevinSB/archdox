@@ -20,6 +20,9 @@ public class ArchDoxAgentInstallToken {
     @Column(name = "office_id", nullable = false)
     private Long officeId;
 
+    @Column(name = "agent_id")
+    private Long agentId;
+
     @Column(name = "token_hash", nullable = false)
     private String tokenHash;
 
@@ -47,18 +50,30 @@ public class ArchDoxAgentInstallToken {
 
     public ArchDoxAgentInstallToken(
             Long officeId,
+            Long agentId,
             String tokenHash,
             OffsetDateTime expiresAt,
             Long createdBy,
             OffsetDateTime now
     ) {
         this.officeId = officeId;
+        this.agentId = agentId;
         this.tokenHash = tokenHash;
         this.status = ArchDoxAgentInstallTokenStatus.ACTIVE;
         this.expiresAt = expiresAt;
         this.createdBy = createdBy;
         this.createdAt = now;
         this.updatedAt = now;
+    }
+
+    public ArchDoxAgentInstallToken(
+            Long officeId,
+            String tokenHash,
+            OffsetDateTime expiresAt,
+            Long createdBy,
+            OffsetDateTime now
+    ) {
+        this(officeId, null, tokenHash, expiresAt, createdBy, now);
     }
 
     public boolean canUse(OffsetDateTime now) {
@@ -82,6 +97,10 @@ public class ArchDoxAgentInstallToken {
 
     public Long officeId() {
         return officeId;
+    }
+
+    public Long agentId() {
+        return agentId;
     }
 
     public String tokenHash() {

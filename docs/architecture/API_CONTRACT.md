@@ -1809,7 +1809,9 @@ and SHA-256 when the artifact has a valid hash.
 
 ### POST `/api/v1/archdox-agents/install-tokens`
 
-Creates a short-lived one-time install token for the active office.
+Creates or reuses a registered ArchDox Agent row for the active office and
+issues a short-lived one-time install token bound to that Agent. The token is
+not a generic office password.
 
 Headers:
 
@@ -1822,9 +1824,19 @@ Request:
 
 ```json
 {
-  "expiresInMinutes": 30
+  "expiresInMinutes": 30,
+  "agentCode": "office-main",
+  "deploymentMode": "LOCAL_OFFICE"
 }
 ```
+
+Defaults:
+
+- `agentCode`: `office-main`
+- `deploymentMode`: `LOCAL_OFFICE`
+
+For a managed cloud document Agent use a stable code such as
+`cloud-managed-1` and `deploymentMode=CLOUD_MANAGED`.
 
 Response `201`:
 
@@ -1832,13 +1844,17 @@ Response `201`:
 {
   "id": 12,
   "officeId": 10,
+  "agentId": 1,
+  "agentCode": "office-main",
+  "deploymentMode": "LOCAL_OFFICE",
   "status": "ACTIVE",
   "token": "one-time-install-token",
   "expiresAt": "2026-05-21T15:45:00+09:00"
 }
 ```
 
-The raw `token` is returned only once. Cloud stores only its hash.
+The raw `token` is returned only once. Cloud stores only its hash and the
+registered Agent id it was issued for.
 
 ## ArchDox Agent WebSocket
 
@@ -1860,7 +1876,19 @@ ws://{cloud-host}/agent/ws
 ```
 
 Default authentication uses install-token pairing followed by agent-specific
-device credentials. `AGENT_SHARED_SECRET` is a development fallback only.
+device credentials.
+
+Registration/authentication rules:
+
+- Every Agent, including `CLOUD_MANAGED` Agents running on the same server as
+  Cloud API, must be registered before it can connect.
+- `INSTALL_TOKEN` pairing must match the registered `agentId`, `agentCode`,
+  office, and deployment mode.
+- After pairing, the Agent reconnects with `agentId + deviceSecret`.
+- The registered deployment mode is authoritative; an already paired Agent
+  cannot reconnect as a different deployment mode by changing local config.
+- `AGENT_SHARED_SECRET` is disabled by default and is a development fallback
+  only when `AGENT_ALLOW_SHARED_SECRET_AUTH=true` is explicitly set.
 
 ### Agent -> Cloud: `HELLO` with install token
 
@@ -1945,7 +1973,8 @@ Cloud response:
 
 Development fallback `authMode=SHARED_SECRET` keeps the previous
 `officeId + agentCode + token` shape only when explicitly allowed by Cloud
-configuration.
+configuration. Production, AWS, and local server operations should keep it
+disabled.
 
 `storageProfile` is safe capability metadata. It must not include local or NAS
 absolute `rootPath` values. `LOCAL_FS` may be accepted by old Agent

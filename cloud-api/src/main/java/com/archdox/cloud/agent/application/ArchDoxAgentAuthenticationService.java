@@ -5,6 +5,7 @@ import com.archdox.cloud.agent.domain.ArchDoxAgentAuthMode;
 import com.archdox.cloud.agent.domain.ArchDoxAgentDeploymentMode;
 import com.archdox.cloud.agent.domain.ArchDoxAgentInstallToken;
 import com.archdox.cloud.agent.domain.ArchDoxAgentInstallTokenStatus;
+import com.archdox.cloud.agent.dto.CreateArchDoxAgentInstallTokenRequest;
 import com.archdox.cloud.agent.infra.ArchDoxAgentInstallTokenRepository;
 import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
 import com.archdox.cloud.global.api.BadRequestException;
@@ -15,6 +16,7 @@ import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.shared.MembershipRole;
 import com.archdox.shared.MembershipStatus;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,20 +46,36 @@ public class ArchDoxAgentAuthenticationService {
     }
 
     @Transactional
-    public IssuedArchDoxAgentInstallToken issueInstallToken(Long officeId, Long userId, Integer expiresInMinutes) {
+    public IssuedArchDoxAgentInstallToken issueInstallToken(
+            Long officeId,
+            Long userId,
+            CreateArchDoxAgentInstallTokenRequest request
+    ) {
         requireOfficeAdmin(userId, officeId);
         var now = OffsetDateTime.now();
-        var ttlMinutes = expiresInMinutes == null
+        var ttlMinutes = request == null || request.expiresInMinutes() == null
                 ? properties.safeInstallTokenTtlMinutes()
-                : Math.max(1, expiresInMinutes);
+                : Math.max(1, request.expiresInMinutes());
+        var agentCode = normalizedAgentCode(request == null ? null : request.agentCode());
+        var deploymentMode = deploymentMode(request == null ? null : request.deploymentMode());
+        var agent = agentRepository.findByOfficeIdAndAgentCode(officeId, agentCode)
+                .orElseGet(() -> agentRepository.save(ArchDoxAgent.registerPendingPair(
+                        officeId,
+                        agentCode,
+                        deploymentMode,
+                        now)));
+        if (agent.deploymentMode() != deploymentMode) {
+            throw new BadRequestException("Registered Agent deployment mode does not match requested install token");
+        }
         var rawToken = secretHasher.generateSecret();
         var entity = installTokenRepository.save(new ArchDoxAgentInstallToken(
                 officeId,
+                agent.id(),
                 secretHasher.hash(rawToken),
                 now.plusMinutes(ttlMinutes),
                 userId,
                 now));
-        return new IssuedArchDoxAgentInstallToken(entity, rawToken);
+        return new IssuedArchDoxAgentInstallToken(agent, entity, rawToken);
     }
 
     @Transactional
@@ -114,6 +132,20 @@ public class ArchDoxAgentAuthenticationService {
         if (!token.officeId().equals(hello.officeId())) {
             throw new UnauthorizedException("Install token does not belong to this office");
         }
+        if (token.agentId() == null) {
+            throw new UnauthorizedException("Install token is not bound to a registered Agent");
+        }
+        var agent = agentRepository.findById(token.agentId())
+                .orElseThrow(() -> new UnauthorizedException("Registered Agent not found"));
+        if (!agent.officeId().equals(hello.officeId())) {
+            throw new UnauthorizedException("Registered Agent does not belong to this office");
+        }
+        if (!agent.agentCode().equals(hello.agentCode().trim())) {
+            throw new UnauthorizedException("Install token is not issued for this Agent code");
+        }
+        if (agent.deploymentMode() != deploymentMode(hello.deploymentMode())) {
+            throw new UnauthorizedException("Install token is not issued for this deployment mode");
+        }
         if (!token.canUse(now)) {
             if (token.status() == ArchDoxAgentInstallTokenStatus.ACTIVE) {
                 token.markExpired(now);
@@ -123,18 +155,9 @@ public class ArchDoxAgentAuthenticationService {
         token.markUsed(now);
 
         var deviceSecret = secretHasher.generateSecret();
-        var agent = agentRepository.findByOfficeIdAndAgentCode(hello.officeId(), hello.agentCode().trim())
-                .orElseGet(() -> agentRepository.save(new ArchDoxAgent(
-                        hello.officeId(),
-                        hello.agentCode().trim(),
-                        deploymentMode(hello),
-                        hello.version(),
-                        hello.capabilities(),
-                        hello.storageProfile(),
-                        now)));
         agent.pairDeviceSecret(
                 secretHasher.hash(deviceSecret),
-                deploymentMode(hello),
+                agent.deploymentMode(),
                 hello.version(),
                 hello.capabilities(),
                 hello.storageProfile(),
@@ -147,7 +170,8 @@ public class ArchDoxAgentAuthenticationService {
             throw new BadRequestException("agentId is required for DEVICE_SECRET auth");
         }
         var agent = authenticateDevice(hello.agentId(), hello.deviceSecret());
-        agent.markOnline(deploymentMode(hello), hello.version(), hello.capabilities(), hello.storageProfile(), OffsetDateTime.now());
+        var requestedDeploymentMode = deploymentModeOrRegistered(agent, hello.deploymentMode());
+        agent.markOnline(requestedDeploymentMode, hello.version(), hello.capabilities(), hello.storageProfile(), OffsetDateTime.now());
         return new AgentConnection(agent, null);
     }
 
@@ -206,10 +230,32 @@ public class ArchDoxAgentAuthenticationService {
     }
 
     private ArchDoxAgentDeploymentMode deploymentMode(AgentHello hello) {
-        if (hello.deploymentMode() == null || hello.deploymentMode().isBlank()) {
+        return deploymentMode(hello.deploymentMode());
+    }
+
+    private ArchDoxAgentDeploymentMode deploymentMode(String deploymentMode) {
+        if (deploymentMode == null || deploymentMode.isBlank()) {
             return ArchDoxAgentDeploymentMode.LOCAL_OFFICE;
         }
-        return ArchDoxAgentDeploymentMode.valueOf(hello.deploymentMode().trim().toUpperCase(java.util.Locale.ROOT));
+        return ArchDoxAgentDeploymentMode.valueOf(deploymentMode.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private ArchDoxAgentDeploymentMode deploymentModeOrRegistered(ArchDoxAgent agent, String deploymentMode) {
+        if (deploymentMode == null || deploymentMode.isBlank()) {
+            return agent.deploymentMode();
+        }
+        var requestedDeploymentMode = deploymentMode(deploymentMode);
+        if (requestedDeploymentMode != agent.deploymentMode()) {
+            throw new UnauthorizedException("Agent deployment mode does not match registered Agent");
+        }
+        return requestedDeploymentMode;
+    }
+
+    private String normalizedAgentCode(String agentCode) {
+        if (agentCode == null || agentCode.isBlank()) {
+            return "office-main";
+        }
+        return agentCode.trim().toLowerCase(Locale.ROOT);
     }
 
     private void requireOfficeAdmin(Long userId, Long officeId) {

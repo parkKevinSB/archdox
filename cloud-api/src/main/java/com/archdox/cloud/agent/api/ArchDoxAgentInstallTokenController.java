@@ -32,11 +32,15 @@ public class ArchDoxAgentInstallTokenController {
         var issued = authenticationService.issueInstallToken(
                 OfficeContext.requireCurrentOfficeId(),
                 principal.userId(),
-                request == null ? null : request.expiresInMinutes());
+                request);
         var token = issued.installToken();
+        var agent = issued.agent();
         return new ArchDoxAgentInstallTokenResponse(
                 token.id(),
                 token.officeId(),
+                agent.id(),
+                agent.agentCode(),
+                agent.deploymentMode().name(),
                 token.status(),
                 issued.rawToken(),
                 token.expiresAt());

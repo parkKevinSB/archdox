@@ -395,8 +395,8 @@ ArchDox Agent runtime settings:
   materialized.
 - `AGENT_INSTALL_TOKEN`: one-time token used for first pairing.
 - `AGENT_ID` and `AGENT_DEVICE_SECRET`: credentials used after pairing.
-- `AGENT_SHARED_SECRET`: development fallback for WebSocket and Agent download
-  requests when shared-secret auth is explicitly allowed.
+- `AGENT_SHARED_SECRET`: disabled-by-default development fallback for WebSocket
+  and Agent download requests when shared-secret auth is explicitly allowed.
 - `PHOTO_PICKUP_MAX_ATTEMPTS`: retry budget for photo pickup.
 - `PHOTO_PICKUP_RETRY_BASE_DELAY_MS`: first retry delay.
 - `PHOTO_PICKUP_RETRY_MAX_DELAY_MS`: maximum backoff delay.

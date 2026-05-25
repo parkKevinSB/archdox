@@ -11,7 +11,7 @@ public class ArchDoxAgentProperties {
     private String sharedSecret = "dev-agent-secret-change-me";
     private int commandTtlMinutes = 60;
     private int installTokenTtlMinutes = 30;
-    private boolean allowSharedSecretAuth = true;
+    private boolean allowSharedSecretAuth = false;
 
     public String getApiInstanceId() {
         return apiInstanceId;
