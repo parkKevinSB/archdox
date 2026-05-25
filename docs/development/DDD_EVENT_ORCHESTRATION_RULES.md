@@ -168,11 +168,13 @@ REST create request
 
 Worker route rule:
 
-- `ARCHDOX_AGENT`: office plan route. Cloud dispatches a WebSocket command to the
-  authenticated office ArchDox Agent.
-- `CLOUD`: personal plan route. The current MVP may keep this in-process, but
-  the target is a `CLOUD_MANAGED` ArchDox Agent process behind the same flow
-  contract.
+- `ARCHDOX_AGENT`: the only document execution worker type. Cloud dispatches a
+  WebSocket command to the selected ArchDox Agent.
+- Agent deployment mode decides where that worker runs:
+  - `LOCAL_OFFICE`: office PC/NAS/local storage execution.
+  - `CLOUD_MANAGED`: managed cloud agent execution for personal users or offices
+    that do not operate a local agent.
+- Cloud API must not execute document-engine inline as a fallback.
 
 The same `document_jobs` and `document_artifacts` tables remain the source of
 truth for both routes. Route-specific ACK/completion events should update the
@@ -181,11 +183,8 @@ same progress fields so the web UI can poll one API contract.
 Implemented Phase 4-3 shape:
 
 ```text
-workerType=CLOUD
--> validate-job
--> render-cloud-document
-
 workerType=ARCHDOX_AGENT
+deploymentMode=LOCAL_OFFICE or CLOUD_MANAGED
 -> validate-job
 -> render-archdox-agent-document
    stepNo 0: dispatch GENERATE_DOCUMENT command

@@ -13,29 +13,24 @@ import org.junit.jupiter.api.Test;
 
 class DocumentGenerationRoutingServiceTest {
     @Test
-    void routesDocxToCloudWhenNoAgentIsAvailable() {
-        var service = service(false, false);
+    void routesToArchDoxAgentWhenCompatibleAgentIsAvailable() {
+        var service = service(true);
 
-        assertEquals(DocumentWorkerType.CLOUD, service.route(10L, OutputFormat.DOCX, null));
+        assertEquals(DocumentWorkerType.ARCHDOX_AGENT, service.route(10L, OutputFormat.DOCX, null));
     }
 
     @Test
-    void routesPdfToAgentWhenAgentSupportsItAndCloudConverterIsDisabled() {
-        var service = service(true, false);
+    void rejectsDocxWhenNoAgentIsAvailable() {
+        var service = service(false);
 
-        assertEquals(DocumentWorkerType.ARCHDOX_AGENT, service.route(10L, OutputFormat.PDF, null));
+        var error = assertThrows(BadRequestException.class, () -> service.route(10L, OutputFormat.DOCX, null));
+
+        assertEquals("DOCUMENT_WORKER_UNAVAILABLE", error.code());
     }
 
     @Test
-    void routesPdfToCloudWhenLibreOfficeIsEnabledAndNoAgentIsAvailable() {
-        var service = service(false, true);
-
-        assertEquals(DocumentWorkerType.CLOUD, service.route(10L, OutputFormat.PDF, null));
-    }
-
-    @Test
-    void rejectsPdfWhenNoWorkerSupportsIt() {
-        var service = service(false, false);
+    void rejectsPdfWhenNoAgentIsAvailable() {
+        var service = service(false);
 
         var error = assertThrows(BadRequestException.class, () -> service.route(10L, OutputFormat.PDF, null));
 
@@ -43,16 +38,16 @@ class DocumentGenerationRoutingServiceTest {
     }
 
     @Test
-    void rejectsExplicitCloudRouteWhenCloudCannotGenerateOutputFormat() {
-        var service = service(true, false);
+    void rejectsExplicitAgentRouteWhenNoAgentIsAvailable() {
+        var service = service(false);
 
         var error = assertThrows(BadRequestException.class, () ->
-                service.route(10L, OutputFormat.PDF, DocumentWorkerType.CLOUD));
+                service.route(10L, OutputFormat.PDF, DocumentWorkerType.ARCHDOX_AGENT));
 
         assertEquals("DOCUMENT_WORKER_UNSUPPORTED", error.code());
     }
 
-    private DocumentGenerationRoutingService service(boolean hasAgent, boolean cloudLibreOfficeEnabled) {
+    private DocumentGenerationRoutingService service(boolean hasAgent) {
         var commandService = mock(ArchDoxAgentCommandService.class);
         when(commandService.hasDocumentRenderTarget(10L, OutputFormat.DOCX)).thenReturn(hasAgent);
         when(commandService.hasDocumentRenderTarget(10L, OutputFormat.HTML)).thenReturn(hasAgent);
@@ -60,8 +55,6 @@ class DocumentGenerationRoutingServiceTest {
         when(commandService.hasDocumentRenderTarget(10L, OutputFormat.DOCX_AND_PDF)).thenReturn(hasAgent);
         when(commandService.hasDocumentRenderTarget(10L, OutputFormat.HTML_AND_PDF)).thenReturn(hasAgent);
 
-        var exportProperties = new DocumentExportProperties();
-        exportProperties.getLibreOffice().setEnabled(cloudLibreOfficeEnabled);
-        return new DocumentGenerationRoutingService(commandService, exportProperties);
+        return new DocumentGenerationRoutingService(commandService);
     }
 }

@@ -135,7 +135,7 @@ class ArchDoxFlowRecoveryServiceTest {
                 1,
                 null,
                 1L,
-                DocumentWorkerType.CLOUD,
+                DocumentWorkerType.ARCHDOX_AGENT,
                 OutputFormat.DOCX,
                 Map.of(),
                 now);

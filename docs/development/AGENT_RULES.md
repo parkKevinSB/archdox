@@ -10,8 +10,8 @@ current architecture.
 2. Preserve the multi-module boundary:
    - `cloud-api` owns HTTP APIs, auth, tenancy, persistence, orchestration.
    - `archdox-agent` owns the ArchDox Agent runtime. It can run as
-     `LOCAL_OFFICE` for office/NAS execution or later as `CLOUD_MANAGED` for
-     cloud document generation.
+      `LOCAL_OFFICE` for office/NAS execution or `CLOUD_MANAGED` for managed
+      cloud document generation.
    - `document-engine` owns reusable document generation primitives.
    - `domain-shared` owns small shared enums/value helpers only.
 3. Keep controllers thin. Put business rules in application services.
@@ -73,7 +73,12 @@ current architecture.
     scheduler-style background mechanisms without explicit user confirmation.
     If the behavior is orchestration with waiting, retry, timeout, or backoff,
     design it as a Flower flow/worker first.
-24. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
+24. Cloud API must not run document generation directly and must not add an
+    in-process fallback renderer. REST creates `document_jobs`; Flower routes the
+    job to `ARCHDOX_AGENT`; the selected `archdox-agent` instance performs the
+    render/export work. Personal users and offices without local agents use a
+    `CLOUD_MANAGED` ArchDox Agent, not Cloud API inline generation.
+25. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
     PR expectations, CI checks, and files that must never be committed.
 
 ## Tenant And Security Rules
@@ -125,8 +130,8 @@ current architecture.
    the job and returns a job response immediately; progress is read by polling
    the job detail API.
 8. Use one render flow contract for both office and personal plans. Office
-   plans route to `ARCHDOX_AGENT`; personal plans route to the `CLOUD` document
-   worker/agent path.
+   plans route to `ARCHDOX_AGENT` backed by a `LOCAL_OFFICE` runtime; personal
+   plans route to `ARCHDOX_AGENT` backed by a `CLOUD_MANAGED` runtime.
 9. Cloud API owns job state, tenant checks, progress, and artifact metadata.
    Render workers own execution and report ACK/completion/failure.
 10. ArchDox Agent document rendering uses the `GENERATE_DOCUMENT` command type.

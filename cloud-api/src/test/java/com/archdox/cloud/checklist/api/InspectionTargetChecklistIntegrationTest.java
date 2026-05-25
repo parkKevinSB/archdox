@@ -9,6 +9,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.archdox.cloud.agent.domain.ArchDoxAgent;
+import com.archdox.cloud.agent.domain.ArchDoxAgentDeploymentMode;
+import com.archdox.cloud.agent.domain.ArchDoxAgentSession;
+import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
+import com.archdox.cloud.agent.infra.ArchDoxAgentSessionRepository;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,9 +57,16 @@ class InspectionTargetChecklistIntegrationTest {
     @Autowired
     DocumentJobRepository documentJobRepository;
 
+    @Autowired
+    ArchDoxAgentRepository agentRepository;
+
+    @Autowired
+    ArchDoxAgentSessionRepository agentSessionRepository;
+
     @Test
     void createsTargetSavesChecklistAnswerAndSnapshotsDocumentInput() throws Exception {
         var user = signup("target-checklist@example.com", "Target Checklist");
+        registerDocumentAgent(user.officeId());
         var projectId = createProject(user);
         var siteId = createSite(user, projectId);
         var targetId = createTarget(user, projectId, siteId);
@@ -327,6 +339,25 @@ class InspectionTargetChecklistIntegrationTest {
 
     private String bearer(String token) {
         return "Bearer " + token;
+    }
+
+    private void registerDocumentAgent(long officeId) {
+        var now = java.time.OffsetDateTime.now();
+        var agent = agentRepository.save(new ArchDoxAgent(
+                officeId,
+                "docgen-agent-" + officeId,
+                ArchDoxAgentDeploymentMode.LOCAL_OFFICE,
+                "test",
+                Map.of(
+                        "documentGeneration", true,
+                        "outputFormats", List.of("DOCX")),
+                Map.of("artifact", Map.of("kind", "LOCAL_FS")),
+                now));
+        agentSessionRepository.save(new ArchDoxAgentSession(
+                agent,
+                "integration-test-api",
+                "integration-test-ws-" + officeId,
+                now));
     }
 
     private record TestUser(long officeId, String accessToken) {

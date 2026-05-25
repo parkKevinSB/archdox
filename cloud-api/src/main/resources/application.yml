@@ -95,10 +95,5 @@ archdox:
       step-timeout-ms: ${DOCUMENT_GENERATION_STEP_TIMEOUT_MS:60000}
       worker-interval-ms: ${DOCUMENT_GENERATION_WORKER_INTERVAL_MS:100}
       executor-threads: ${DOCUMENT_GENERATION_EXECUTOR_THREADS:2}
-    export:
-      libre-office:
-        enabled: ${DOCUMENT_EXPORT_LIBREOFFICE_ENABLED:false}
-        executable-path: ${DOCUMENT_EXPORT_LIBREOFFICE_PATH:soffice}
-        timeout-ms: ${DOCUMENT_EXPORT_LIBREOFFICE_TIMEOUT_MS:60000}
     storage:
       local-root: ${DOCUMENT_LOCAL_ROOT:build/document-storage}

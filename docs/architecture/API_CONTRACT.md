@@ -1389,11 +1389,10 @@ credential and office ownership before streaming `API_LOCAL` storage content.
 
 All document job endpoints require `Authorization` and `X-Office-Id`.
 
-Phase 4 MVP implements Cloud-side DOCX generation first. Job creation is
-asynchronous: Cloud creates `document_jobs`, then the REST entrypoint submits a
-`document-generation` Flower flow. PDF/HWP/HWPX/HTML export, ArchDox Agent
-rendering, and `CLOUD_MANAGED` ArchDox Agent execution are follow-up phases
-behind the same job contract.
+Document job creation is asynchronous: Cloud creates `document_jobs`, then the
+REST entrypoint submits a `document-generation` Flower flow. Cloud API owns the
+REST contract, tenancy, state, and progress records, but actual render/export
+execution belongs to `archdox-agent`.
 
 Document generation is a polling-based API flow:
 
@@ -1430,24 +1429,22 @@ Worker routing:
 
 - `workerType` is policy-routed by Cloud API when the client omits it. The UI
   should normally send only `outputFormat`.
-- Office plan with an installed ArchDox Agent should prefer
-  `workerType=ARCHDOX_AGENT` when an online Agent advertises the requested
-  document output capability.
-  Cloud API routes a `GENERATE_DOCUMENT` command to the office ArchDox Agent through the
-  WebSocket command channel. The ArchDox Agent runs `document-engine`, stores or
-  uploads the result according to policy, then reports completion.
-- Personal plan has no office-installed ArchDox Agent. It should use
-  `workerType=CLOUD`. In the MVP this can run inside the Cloud API process, but
-  the target architecture is an ArchDox Agent running with
-  `deploymentMode=CLOUD_MANAGED` that receives the render command and reports
-  completion through the same flow contract.
+- The only execution worker type is `ARCHDOX_AGENT`. Cloud API routes a
+  `GENERATE_DOCUMENT` command to a selected ArchDox Agent through the WebSocket
+  command channel. The ArchDox Agent runs `document-engine`, stores or uploads
+  the result according to policy, then reports completion.
+- Office plans with a local runtime should route to an online Agent with
+  `deploymentMode=LOCAL_OFFICE`.
+- Personal plans, and offices without a local runtime, should route to an online
+  managed Agent with `deploymentMode=CLOUD_MANAGED`.
+- Cloud API must not run `document-engine` directly and must not create an
+  in-process render fallback.
 - Cloud API must remain the owner of job state, progress state, tenant checks,
   and artifact metadata. Render workers own execution, not the public REST
   contract.
-- PDF-capable routing requires one of:
-  - Cloud exporter enabled by `archdox.documents.export.libre-office.enabled`.
-  - Online ArchDox Agent with `capabilities.outputFormats` containing `PDF`,
-    `DOCX_AND_PDF`, or `HTML_AND_PDF`, or `capabilities.pdfExport=true`.
+- PDF-capable routing requires an online ArchDox Agent with
+  `capabilities.outputFormats` containing `PDF`, `DOCX_AND_PDF`, or
+  `HTML_AND_PDF`, or `capabilities.pdfExport=true`.
 - Template Binding V1 reads the selected template revision's `storageRef` from
   document storage when available and replaces `${...}` placeholders using the
   job input snapshot. DOCX Placeholder Hardening V1 supports both intact
@@ -1561,8 +1558,8 @@ POST document-jobs
 -> snapshot selected revisions into document_jobs.input_snapshot_json
 -> return DocumentJobResponse with jobId immediately
 -> submit DocumentRenderFlow
--> choose ARCHDOX_AGENT or CLOUD worker route
--> dispatch GENERATE_DOCUMENT command for ARCHDOX_AGENT route
+-> choose a capable ARCHDOX_AGENT target
+-> dispatch GENERATE_DOCUMENT command
 -> receive ACK / COMPLETED / FAILED event
 -> update document_jobs progress/status
 -> UI polls GET document-jobs/{jobId}
@@ -1615,7 +1612,7 @@ Response `201`:
   "progressStep": "QUEUED",
   "progressPercent": 0,
   "progressMessage": "...",
-  "workerType": "CLOUD",
+  "workerType": "ARCHDOX_AGENT",
   "outputFormat": "DOCX",
   "errorCode": null,
   "errorMessage": null,

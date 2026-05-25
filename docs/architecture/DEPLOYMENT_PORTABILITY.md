@@ -80,8 +80,8 @@ Shared document export boundary:
 - `LibreOfficePdfExportOptions`
 - `LibreOfficeCommandRunner`
 
-Cloud API and ArchDox Agent both register the LibreOffice PDF exporter from the
-same runtime property prefix:
+ArchDox Agent registers the LibreOffice PDF exporter from the runtime property
+prefix:
 
 ```text
 archdox.documents.export.libre-office.enabled
@@ -97,6 +97,8 @@ This keeps PDF conversion portable:
   the office PC is the better place to render final artifacts.
 - Business code still requests `OutputFormat.PDF` or `DOCX_AND_PDF`; it does
   not know where LibreOffice is installed.
+- Cloud API does not host LibreOffice conversion as an in-process document
+  generation fallback.
 
 ArchDox does not auto-install LibreOffice from application code. Deployment is
 responsible for installing the converter and fonts in the selected runtime:

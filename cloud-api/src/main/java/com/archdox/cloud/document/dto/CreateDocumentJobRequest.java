@@ -10,8 +10,4 @@ public record CreateDocumentJobRequest(
     public OutputFormat normalizedOutputFormat() {
         return outputFormat == null ? OutputFormat.DOCX : outputFormat;
     }
-
-    public DocumentWorkerType normalizedWorkerType() {
-        return workerType == null ? DocumentWorkerType.CLOUD : workerType;
-    }
 }

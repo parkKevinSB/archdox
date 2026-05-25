@@ -24,20 +24,17 @@ import com.archdox.cloud.agent.domain.ArchDoxAgentSessionStatus;
 import com.archdox.cloud.agent.infra.ArchDoxAgentCommandRepository;
 import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
 import com.archdox.cloud.agent.infra.ArchDoxAgentSessionRepository;
-import com.archdox.cloud.document.event.DocumentGeneratedEvent;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
 import com.archdox.document.DocxTemplateDocumentEngine;
 import com.archdox.document.SimpleDocumentEngine;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.parkkevinsb.bloom.EventBus;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -89,9 +86,6 @@ class DocumentJobIntegrationTest {
     DocumentJobRepository documentJobRepository;
 
     @Autowired
-    EventBus eventBus;
-
-    @Autowired
     ArchDoxAgentRepository agentRepository;
 
     @Autowired
@@ -104,11 +98,8 @@ class DocumentJobIntegrationTest {
     ArchDoxAgentCommandService agentCommandService;
 
     @Test
-    void createsCloudDocumentJobAndStoresDocxArtifact() throws Exception {
-        var events = new ArrayList<DocumentGeneratedEvent>();
-        eventBus.subscribe(DocumentGeneratedEvent.class, events::add);
+    void rejectsDocumentJobWhenNoArchDoxAgentIsAvailable() throws Exception {
         var user = signup("document-user@example.com");
-        var templateOverride = createTemplateOverride(user);
         var projectId = createProject(user);
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
@@ -122,106 +113,13 @@ class DocumentJobIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
 
-        var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("REQUESTED"))
-                .andExpect(jsonPath("$.reportRevision").value(1))
-                .andExpect(jsonPath("$.progressStep").value("QUEUED"))
-                .andExpect(jsonPath("$.progressPercent").value(0))
-                .andReturn();
-
-        var created = objectMapper.readTree(createResult.getResponse().getContentAsString());
-        var jobId = created.get("id").asLong();
-        var generated = waitForGenerated(user, jobId);
-        assertTrue(generated.get("progressPercent").asInt() == 100);
-        assertTrue("GENERATED".equals(generated.get("progressStep").asText()));
-        assertSnapshotUsesTemplateOverride(jobId, templateOverride.revisionId(), templateOverride.storageRef());
-        var artifactId = generated.get("artifacts").get(0).get("id").asLong();
-        var storageRef = generated.get("artifacts").get(0).get("storageRef").asText();
-        assertTrue(objectStore.exists(storageRef));
-        assertTrue(events.stream().anyMatch(event -> event.documentJobId().equals(jobId)));
-
-        mockMvc.perform(get("/api/v1/document-jobs/{jobId}", jobId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(jobId))
-                .andExpect(jsonPath("$.reportRevision").value(1))
-                .andExpect(jsonPath("$.progressStep").value("GENERATED"))
-                .andExpect(jsonPath("$.progressPercent").value(100))
-                .andExpect(jsonPath("$.artifacts[0].storageRef").value(storageRef));
-
-        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}", reportId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("GENERATED"))
-                .andExpect(jsonPath("$.contentRevision").value(1))
-                .andExpect(jsonPath("$.submittedRevision").value(1))
-                .andExpect(jsonPath("$.generatedRevision").value(1))
-                .andExpect(jsonPath("$.lastDocumentJobId").value(jobId));
-
-        var deliveryResult = mockMvc.perform(post("/api/v1/document-jobs/{jobId}/delivery-requests", jobId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "artifactId": %d,
-                                  "channel": "DOWNLOAD"
-                                }
-                                """.formatted(artifactId)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.artifactId").value(artifactId))
-                .andExpect(jsonPath("$.downloadUrl").value("/api/v1/document-artifacts/" + artifactId + "/download"))
-                .andReturn();
-        var deliveryId = readId(deliveryResult.getResponse().getContentAsString());
-
-        mockMvc.perform(get("/api/v1/document-delivery-requests/{deliveryId}", deliveryId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(deliveryId))
-                .andExpect(jsonPath("$.downloadUrl").value("/api/v1/document-artifacts/" + artifactId + "/download"));
-
-        mockMvc.perform(get("/api/v1/document-jobs/{jobId}/delivery-requests", jobId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(deliveryId));
-
-        mockMvc.perform(get("/api/v1/document-artifacts/{artifactId}/download", artifactId)
-                        .header("Authorization", bearer(user.accessToken()))
-                        .header("X-Office-Id", user.officeId()))
-                .andExpect(status().isOk());
-        byte[] content;
-        try (var input = objectStore.open(storageRef)) {
-            content = input.readAllBytes();
-        }
-        assertTrue(content.length > 0);
-        assertTrue(content[0] == 'P' && content[1] == 'K');
-        var documentXml = docxText(content);
-        assertTrue(documentXml.contains("Project: Document Tower"));
-        assertTrue(documentXml.contains("Document title: Daily supervision report"));
-        assertTrue(documentXml.contains("Construction name: Document Tower"));
-        assertTrue(documentXml.contains("Site: North Site"));
-        assertTrue(documentXml.contains("Site address: Seoul"));
-        assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
-        assertTrue(documentXml.contains("Date parts: 2026-5-23 (\uD1A0)"));
-        assertTrue(documentXml.contains("Inspector: Document Job"));
-        assertTrue(documentXml.contains("Weather: Clear"));
-        assertTrue(documentXml.contains("Checklist summary: Checked"));
-        assertTrue(documentXml.contains("Issue count: 0"));
-        assertTrue(documentXml.contains("Photo Section"));
-        assertTrue(documentXml.contains("Step: PHOTOS"));
-        assertTrue(documentXml.contains("Checklist Section"));
-        assertTrue(documentXml.contains("Summary: Checked"));
-        assertTrue(documentXml.contains("Template: DAILY_TEMPLATE v1"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DOCUMENT_WORKER_UNAVAILABLE"));
     }
 
     @Test

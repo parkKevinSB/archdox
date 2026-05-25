@@ -458,8 +458,9 @@ Admin should show:
 
 - requested jobs
 - current status and progress step
-- worker type: `CLOUD` or `ARCHDOX_AGENT`
-- selected Agent/command if any
+- worker type: `ARCHDOX_AGENT`
+- selected Agent deployment mode: `LOCAL_OFFICE` or `CLOUD_MANAGED`
+- selected Agent/command
 - retry count and last failure
 - artifacts generated
 - delivery requests

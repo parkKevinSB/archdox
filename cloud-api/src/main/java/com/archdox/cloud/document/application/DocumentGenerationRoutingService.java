@@ -10,14 +10,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class DocumentGenerationRoutingService {
     private final ArchDoxAgentCommandService agentCommandService;
-    private final DocumentExportProperties exportProperties;
 
-    public DocumentGenerationRoutingService(
-            ArchDoxAgentCommandService agentCommandService,
-            DocumentExportProperties exportProperties
-    ) {
+    public DocumentGenerationRoutingService(ArchDoxAgentCommandService agentCommandService) {
         this.agentCommandService = agentCommandService;
-        this.exportProperties = exportProperties;
     }
 
     public DocumentWorkerType route(
@@ -33,9 +28,6 @@ public class DocumentGenerationRoutingService {
         if (agentCommandService.hasDocumentRenderTarget(officeId, normalizedOutputFormat)) {
             return DocumentWorkerType.ARCHDOX_AGENT;
         }
-        if (cloudSupports(normalizedOutputFormat)) {
-            return DocumentWorkerType.CLOUD;
-        }
         throw unavailable(normalizedOutputFormat);
     }
 
@@ -44,9 +36,6 @@ public class DocumentGenerationRoutingService {
             OutputFormat outputFormat,
             DocumentWorkerType workerType
     ) {
-        if (workerType == DocumentWorkerType.CLOUD && cloudSupports(outputFormat)) {
-            return;
-        }
         if (workerType == DocumentWorkerType.ARCHDOX_AGENT
                 && agentCommandService.hasDocumentRenderTarget(officeId, outputFormat)) {
             return;
@@ -54,19 +43,11 @@ public class DocumentGenerationRoutingService {
         throw unsupported(workerType, outputFormat);
     }
 
-    private boolean cloudSupports(OutputFormat outputFormat) {
-        return switch (outputFormat) {
-            case DOCX, HTML -> true;
-            case PDF, DOCX_AND_PDF, HTML_AND_PDF -> exportProperties.getLibreOffice().isEnabled();
-            case HWP, HWPX -> false;
-        };
-    }
-
     private BadRequestException unavailable(OutputFormat outputFormat) {
         return new BadRequestException(
                 "DOCUMENT_WORKER_UNAVAILABLE",
                 "errors.document.workerUnavailable",
-                "No document worker is available for output format " + outputFormat,
+                "No ArchDox Agent is available for output format " + outputFormat,
                 Map.of("outputFormat", outputFormat.name()));
     }
 

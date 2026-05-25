@@ -1,16 +1,13 @@
 package com.archdox.cloud.document.flow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.agent.application.ArchDoxAgentCommandService;
-import com.archdox.cloud.document.application.DocumentGenerationException;
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.document.domain.DocumentWorkerType;
@@ -33,73 +30,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class DocumentGenerationFlowFactoryTest {
-    @Test
-    void runsValidationAndCloudRenderSteps() {
-        var service = mock(DocumentJobService.class);
-        var commands = mock(ArchDoxAgentCommandService.class);
-        var worker = workerWith(LocalEventBus.create());
-        worker.submit(new DocumentGenerationFlowFactory(service, commands, Runnable::run, properties()).create(event(DocumentWorkerType.CLOUD)));
-
-        tick(worker, 8);
-
-        verify(service).validateJobReady(10L, 700L);
-        verify(service).generateCloudDocument(10L, 700L);
-    }
-
-    @Test
-    void retriesFailedRenderStepAfterBackoff() {
-        var service = mock(DocumentJobService.class);
-        var commands = mock(ArchDoxAgentCommandService.class);
-        doThrow(new DocumentGenerationException("TEMPORARY", "temporary"))
-                .doNothing()
-                .when(service)
-                .generateCloudDocument(10L, 700L);
-        var clock = new ManualClock();
-        var bloom = LocalEventBus.create();
-        var properties = properties();
-        properties.setMaxAttempts(2);
-        properties.setRetryBaseDelayMs(50);
-        properties.setRetryMaxDelayMs(50);
-        var worker = workerWith(bloom, clock);
-
-        worker.submit(new DocumentGenerationFlowFactory(service, commands, Runnable::run, properties).create(event(DocumentWorkerType.CLOUD)));
-        tick(worker, 20);
-        verify(service, times(1)).generateCloudDocument(10L, 700L);
-
-        clock.advance(50);
-        tick(worker, 20);
-
-        verify(service, times(2)).generateCloudDocument(10L, 700L);
-    }
-
-    @Test
-    void publishesFailureEventAfterRetryBudgetIsExhausted() {
-        var service = mock(DocumentJobService.class);
-        var commands = mock(ArchDoxAgentCommandService.class);
-        doThrow(new DocumentGenerationException("TEMPLATE_ERROR", "missing field"))
-                .when(service)
-                .generateCloudDocument(10L, 700L);
-        var clock = new ManualClock();
-        var bloom = LocalEventBus.create();
-        var published = new ArrayList<DocumentGenerationFailedEvent>();
-        bloom.subscribe(DocumentGenerationFailedEvent.class, published::add);
-        var properties = properties();
-        properties.setMaxAttempts(2);
-        properties.setRetryBaseDelayMs(50);
-        properties.setRetryMaxDelayMs(50);
-        var worker = workerWith(bloom, clock);
-
-        worker.submit(new DocumentGenerationFlowFactory(service, commands, Runnable::run, properties).create(event(DocumentWorkerType.CLOUD)));
-        tick(worker, 20);
-        clock.advance(50);
-        tick(worker, 20);
-
-        assertEquals(1, published.size());
-        assertEquals(700L, published.get(0).documentJobId());
-        assertEquals("render-cloud-document", published.get(0).stepId());
-        assertEquals(2, published.get(0).attempt());
-    }
-
     @Test
     void archDoxAgentRenderDispatchesContractPayloadAndStoresReturnedArtifacts() {
         var service = mock(DocumentJobService.class);

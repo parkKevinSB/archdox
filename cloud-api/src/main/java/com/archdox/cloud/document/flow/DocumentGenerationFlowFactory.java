@@ -3,10 +3,8 @@ package com.archdox.cloud.document.flow;
 import com.archdox.cloud.agent.application.ArchDoxAgentCommandService;
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentJobService;
-import com.archdox.cloud.document.domain.DocumentWorkerType;
 import com.archdox.cloud.document.event.DocumentGenerationRequested;
 import com.archdox.cloud.document.flow.step.ArchDoxAgentDocumentRenderStep;
-import com.archdox.cloud.document.flow.step.RenderCloudDocumentStep;
 import com.archdox.cloud.document.flow.step.ValidateDocumentJobStep;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import java.util.concurrent.Executor;
@@ -35,18 +33,11 @@ public class DocumentGenerationFlowFactory {
     }
 
     public Flow create(DocumentGenerationRequested event) {
-        var builder = Flow.builder(FLOW_TYPE, "job:" + event.documentJobId())
+        return Flow.builder(FLOW_TYPE, "job:" + event.documentJobId())
                 .step("validate-job", new ValidateDocumentJobStep(
-                        documentJobService, event, documentGenerationExecutor, properties));
-        if (event.workerType() == DocumentWorkerType.ARCHDOX_AGENT) {
-            return builder
-                    .step("render-archdox-agent-document", new ArchDoxAgentDocumentRenderStep(
-                            documentJobService, archDoxAgentCommandService, event, properties))
-                    .build();
-        }
-        return builder
-                .step("render-cloud-document", new RenderCloudDocumentStep(
                         documentJobService, event, documentGenerationExecutor, properties))
+                .step("render-archdox-agent-document", new ArchDoxAgentDocumentRenderStep(
+                        documentJobService, archDoxAgentCommandService, event, properties))
                 .build();
     }
 }

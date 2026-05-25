@@ -111,16 +111,14 @@ Implemented V1 rule:
 
 - `LibreOfficeDocumentArtifactExporter` supports `DOCX -> PDF`.
 - The exporter is registered only when `archdox.documents.export.libre-office.enabled`
-  is true.
-- Cloud API and ArchDox Agent use the same document-engine exporter class.
+  is true on the selected ArchDox Agent runtime.
+- ArchDox Agent uses the shared document-engine exporter class.
 - LibreOffice is a runtime dependency, not source code bundled into ArchDox.
   If `soffice` is not installed or the exporter is disabled, PDF-capable routes
-  are not advertised and PDF generation is rejected or fails with an explicit
-  error code.
-- Cloud API should not become the default heavy converter host. For production,
-  prefer Office ArchDox Agent or Cloud-managed ArchDox Agent/document-worker for
-  PDF conversion. Cloud API inline conversion is allowed for dev/simple personal
-  MVP only when explicitly enabled.
+  are not advertised by the Agent and PDF generation is rejected or fails with an
+  explicit error code.
+- Cloud API must not become a heavy converter host. Use `LOCAL_OFFICE` or
+  `CLOUD_MANAGED` ArchDox Agent execution for PDF conversion.
 - Runtime settings:
 
 ```yaml
@@ -255,15 +253,14 @@ missing infrastructure obvious while keeping the render/export boundary stable.
 
 Implemented routing policy:
 
-- UI sends `outputFormat`; it should not force `workerType=CLOUD`.
+- UI sends `outputFormat`; it should not force a worker type.
 - Cloud API selects `ARCHDOX_AGENT` when an online Agent advertises the
   requested output format.
-- If no capable Agent exists, Cloud API uses inline `CLOUD` only for formats it
-  can actually render/export in the current runtime.
-- PDF requires `DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true` on the selected
-  runtime and a working `soffice` executable. Otherwise create-time validation
-  returns `DOCUMENT_WORKER_UNAVAILABLE` or `DOCUMENT_WORKER_UNSUPPORTED` before
-  a doomed job is created.
+- Cloud API must not render/export documents inline as a fallback. If no capable
+  Agent exists, create-time validation returns `DOCUMENT_WORKER_UNAVAILABLE` or
+  `DOCUMENT_WORKER_UNSUPPORTED` before a doomed job is created.
+- PDF requires LibreOffice or another PDF exporter on the selected Agent runtime
+  and a working `soffice` executable when LibreOffice is used.
 
 Implemented HTML preview renderer:
 

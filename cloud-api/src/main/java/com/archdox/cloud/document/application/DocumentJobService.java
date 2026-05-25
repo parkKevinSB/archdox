@@ -31,11 +31,8 @@ import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
-import com.archdox.document.ArtifactType;
 import com.archdox.document.BundledDocumentTemplates;
-import com.archdox.document.DocumentEngine;
 import com.archdox.document.DocumentGenerationRequest;
-import com.archdox.document.GenerationStatus;
 import com.archdox.document.OutputFormat;
 import com.archdox.document.PhotoLayoutSize;
 import com.archdox.document.TemplateSpec;
@@ -62,7 +59,6 @@ public class DocumentJobService {
     private final DocumentJobRepository documentJobRepository;
     private final DocumentArtifactRepository documentArtifactRepository;
     private final DocumentLocalObjectStore objectStore;
-    private final DocumentEngine documentEngine;
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final ConfigurationRegistryService configurationRegistryService;
@@ -79,7 +75,6 @@ public class DocumentJobService {
             DocumentJobRepository documentJobRepository,
             DocumentArtifactRepository documentArtifactRepository,
             DocumentLocalObjectStore objectStore,
-            DocumentEngine documentEngine,
             EventBus eventBus,
             OperationEventService operationEventService,
             ConfigurationRegistryService configurationRegistryService,
@@ -95,7 +90,6 @@ public class DocumentJobService {
         this.documentJobRepository = documentJobRepository;
         this.documentArtifactRepository = documentArtifactRepository;
         this.objectStore = objectStore;
-        this.documentEngine = documentEngine;
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.configurationRegistryService = configurationRegistryService;
@@ -196,19 +190,6 @@ public class DocumentJobService {
             return;
         }
         job.updateProgress(progressStep, progressPercent, progressMessage, OffsetDateTime.now());
-    }
-
-    @Transactional(noRollbackFor = DocumentGenerationException.class)
-    public void generateCloudDocument(Long officeId, Long jobId) {
-        var job = requireFlowJob(officeId, jobId);
-        var report = requireFlowReport(officeId, job.reportId());
-        if (job.workerType() != DocumentWorkerType.CLOUD) {
-            throw new DocumentGenerationException("UNSUPPORTED_WORKER_TYPE", "Document job is not routed to CLOUD");
-        }
-        if (job.status() == DocumentJobStatus.GENERATED) {
-            return;
-        }
-        executeCloudGeneration(report, job);
     }
 
     @Transactional(readOnly = true)
@@ -375,67 +356,6 @@ public class DocumentJobService {
             return;
         }
         markFailed(report, job, errorCode, errorMessage);
-    }
-
-    private void executeCloudGeneration(InspectionReport report, DocumentJob job) {
-        var startedAt = OffsetDateTime.now();
-        job.markGenerating(startedAt);
-        job.updateProgress(
-                DocumentJobProgressStep.RENDERING,
-                35,
-                "문서 내용을 렌더링하는 중입니다.",
-                startedAt);
-        report.markGenerating(startedAt);
-
-        try {
-            var result = documentEngine.generate(toEngineRequest(job, report));
-            if (result.status() != GenerationStatus.COMPLETED) {
-                markFailed(report, job, result.errorCode(), result.errorMessage());
-                throw new DocumentGenerationException(
-                        result.errorCode() == null ? "DOCUMENT_GENERATION_FAILED" : result.errorCode(),
-                        result.errorMessage() == null ? "Document generation failed" : result.errorMessage());
-            }
-            var artifacts = new ArrayList<DocumentArtifact>();
-            documentArtifactRepository.deleteByDocumentJobId(job.id());
-            job.updateProgress(
-                    DocumentJobProgressStep.STORING_ARTIFACTS,
-                    75,
-                    "생성된 문서 파일을 저장하는 중입니다.",
-                    OffsetDateTime.now());
-            for (var generatedArtifact : result.artifacts()) {
-                if (generatedArtifact.content() == null || generatedArtifact.content().length == 0) {
-                    throw new IllegalStateException("Document engine returned artifact without content");
-                }
-                objectStore.write(generatedArtifact.storageRef(), generatedArtifact.content());
-                artifacts.add(documentArtifactRepository.save(new DocumentArtifact(
-                        job.officeId(),
-                        job.id(),
-                        job.reportId(),
-                        toCloudArtifactType(generatedArtifact.type()),
-                        DocumentArtifactStorageKind.API_LOCAL,
-                        generatedArtifact.storageRef(),
-                        generatedArtifact.fileName(),
-                        mimeType(generatedArtifact.type()),
-                        generatedArtifact.bytes(),
-                        generatedArtifact.sha256(),
-                        OffsetDateTime.now())));
-            }
-            var completedAt = OffsetDateTime.now();
-            job.markGenerated(completedAt);
-            report.markGenerated(job.reportRevision(), completedAt);
-            recordGenerated(job, "Cloud document generation completed.", artifacts.size());
-            publishAfterCommit(new DocumentGeneratedEvent(
-                    job.officeId(),
-                    job.reportId(),
-                    job.id(),
-                    artifacts.stream().map(DocumentArtifact::id).toList(),
-                    completedAt));
-        } catch (DocumentGenerationException ex) {
-            throw ex;
-        } catch (IOException | RuntimeException ex) {
-            markFailed(report, job, "DOCUMENT_GENERATION_FAILED", ex.getMessage());
-            throw new DocumentGenerationException("DOCUMENT_GENERATION_FAILED", ex.getMessage(), ex);
-        }
     }
 
     private void markFailed(InspectionReport report, DocumentJob job, String errorCode, String errorMessage) {
@@ -690,21 +610,6 @@ public class DocumentJobService {
         if (!report.canRequestGeneration()) {
             throw new BadRequestException("Inspection report cannot request document generation in status " + report.status());
         }
-    }
-
-    private DocumentArtifactType toCloudArtifactType(ArtifactType type) {
-        return DocumentArtifactType.valueOf(type.name());
-    }
-
-    private String mimeType(ArtifactType type) {
-        return switch (type) {
-            case DOCX -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case HTML -> "text/html";
-            case PDF -> "application/pdf";
-            case HWP -> "application/x-hwp";
-            case HWPX -> "application/vnd.hancom.hwpx";
-            case PRINT_LOG -> "application/json";
-        };
     }
 
     private List<Map<String, Object>> mapList(Object value) {
