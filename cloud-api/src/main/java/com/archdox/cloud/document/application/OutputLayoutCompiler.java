@@ -47,6 +47,8 @@ public class OutputLayoutCompiler {
                     renderListSection(section, title, listValue(snapshot.get("photos")), defaultPhotoFields());
             case "CHECKLIST_SUMMARY", "CHECKLIST_LIST", "CHECKLIST_TABLE" ->
                     renderListSection(section, title, listValue(snapshot.get("checklistAnswers")), defaultChecklistFields());
+            case "CHECKLIST_PHOTO_SUMMARY", "CHECKLIST_PHOTO_LIST", "CHECKLIST_PHOTO_TABLE" ->
+                    renderListSection(section, title, listValue(snapshot.get("checklistPhotos")), defaultChecklistPhotoFields());
             case "VALUE", "FIELD", "SNAPSHOT_VALUE" -> renderValueSection(section, title, snapshot);
             case "TEXT" -> renderTextSection(title, firstString(section, "text", "value"));
             default -> null;
@@ -208,7 +210,16 @@ public class OutputLayoutCompiler {
                 Map.of("label", "Item", "source", "itemCode"),
                 Map.of("label", "Label", "source", "label"),
                 Map.of("label", "Answer", "source", "answer.value"),
+                Map.of("label", "Photos", "source", "photoCount"),
                 Map.of("label", "Note", "source", "note"));
+    }
+
+    private List<Map<String, String>> defaultChecklistPhotoFields() {
+        return List.of(
+                Map.of("label", "Item", "source", "itemCode"),
+                Map.of("label", "Label", "source", "label"),
+                Map.of("label", "Photos", "source", "photoCount"),
+                Map.of("label", "Photo IDs", "source", "photoIds"));
     }
 
     public record OutputLayoutBinding(

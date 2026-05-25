@@ -204,6 +204,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return switch (normalizeCode(stringValue(section.get("type")))) {
             case "PHOTO_TABLE" -> buildPhotoTableXml(section, context);
             case "CHECKLIST_TABLE" -> buildChecklistTableXml(section, context);
+            case "CHECKLIST_PHOTO_TABLE" -> buildChecklistPhotoTableXml(section, context);
             default -> null;
         };
     }
@@ -217,7 +218,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         layoutSections.forEach((key, rawSection) -> {
             var section = mapValue(rawSection);
             var type = normalizeCode(stringValue(section.get("type")));
-            if ("PHOTO_TABLE".equals(type) || "CHECKLIST_TABLE".equals(type)) {
+            if ("PHOTO_TABLE".equals(type) || "CHECKLIST_TABLE".equals(type) || "CHECKLIST_PHOTO_TABLE".equals(type)) {
                 sections.put(key, section);
             }
         });
@@ -273,8 +274,22 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String buildChecklistTableXml(Map<String, Object> section, DocxRenderContext context) {
         var checklistAnswers = listValue(context.request().payload().get("checklistAnswers"));
+        return buildChecklistLikeTableXml(section, checklistAnswers, "No checklist answers.", defaultChecklistTableFields());
+    }
+
+    private String buildChecklistPhotoTableXml(Map<String, Object> section, DocxRenderContext context) {
+        var checklistPhotos = listValue(context.request().payload().get("checklistPhotos"));
+        return buildChecklistLikeTableXml(section, checklistPhotos, "No checklist photos.", defaultChecklistPhotoTableFields());
+    }
+
+    private String buildChecklistLikeTableXml(
+            Map<String, Object> section,
+            List<?> rowsSource,
+            String emptyFallback,
+            List<Map<String, String>> defaultFields
+    ) {
         var tableOptions = tableOptions(section);
-        var fields = sectionFields(section, defaultChecklistTableFields());
+        var fields = sectionFields(section, defaultFields);
         var columnWidths = checklistColumnWidths(section, fields, tableOptions.tableWidth());
         var rows = new StringBuilder();
         var title = stringValue(section.get("title"));
@@ -283,14 +298,14 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                     tableCell(List.of(textParagraph(title, true)), String.valueOf(tableOptions.tableWidth()), fields.size(), tableOptions.titleFill()))));
         }
         rows.append(tableRow(checklistHeaderCells(fields, columnWidths, tableOptions)));
-        if (checklistAnswers.isEmpty()) {
+        if (rowsSource.isEmpty()) {
             rows.append(tableRow(List.of(
                     tableCell(
-                            List.of(textParagraph(emptyText(section, "No checklist answers."))),
+                            List.of(textParagraph(emptyText(section, emptyFallback))),
                             String.valueOf(tableOptions.tableWidth()),
                             fields.size()))));
         } else {
-            for (var answer : checklistAnswers) {
+            for (var answer : rowsSource) {
                 rows.append(tableRow(checklistValueCells(answer, fields, columnWidths)));
             }
         }
@@ -627,7 +642,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 Map.of("label", "Item", "source", "itemCode"),
                 Map.of("label", "Label", "source", "label"),
                 Map.of("label", "Answer", "source", "answer.value"),
+                Map.of("label", "Photos", "source", "photoCount"),
                 Map.of("label", "Note", "source", "note"));
+    }
+
+    private List<Map<String, String>> defaultChecklistPhotoTableFields() {
+        return List.of(
+                Map.of("label", "Item", "source", "itemCode"),
+                Map.of("label", "Label", "source", "label"),
+                Map.of("label", "Photos", "source", "photoCount"),
+                Map.of("label", "Photo IDs", "source", "photoIds"));
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {

@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -73,8 +74,11 @@ public class DocumentSnapshotBuilder {
         snapshot.put("documentType", documentTypeSnapshot(report));
         snapshot.put("steps", stepSnapshot(report));
         snapshot.put("targets", targetSnapshot(report));
-        snapshot.put("checklistAnswers", checklistService.answerSnapshot(report));
-        snapshot.put("photos", photoSnapshot(report));
+        var photos = photoSnapshot(report);
+        var checklistAnswers = checklistAnswerSnapshot(report, photos);
+        snapshot.put("checklistAnswers", checklistAnswers);
+        snapshot.put("photos", photos);
+        snapshot.put("checklistPhotos", checklistPhotoSnapshot(photos));
 
         var templateFields = new LinkedHashMap<>(standardTemplateFieldResolver.resolve(snapshot));
         templateFields.putAll(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
@@ -230,21 +234,103 @@ public class DocumentSnapshotBuilder {
                 .toList();
     }
 
+    private List<Map<String, Object>> checklistAnswerSnapshot(
+            InspectionReport report,
+            List<Map<String, Object>> photos
+    ) {
+        var photosByChecklistItemId = photosByChecklistItemId(photos);
+        var answers = new ArrayList<Map<String, Object>>();
+        for (Map<String, Object> answer : checklistService.answerSnapshot(report)) {
+            var enriched = new LinkedHashMap<>(answer);
+            var linkedPhotos = photosByChecklistItemId.getOrDefault(longValue(answer.get("checklistItemId")), List.of());
+            enriched.put("photoCount", linkedPhotos.size());
+            enriched.put("photoIds", linkedPhotos.stream().map(photo -> photo.get("photoId")).toList());
+            enriched.put("photos", linkedPhotos);
+            answers.add(enriched);
+        }
+        return answers;
+    }
+
     private List<Map<String, Object>> photoSnapshot(InspectionReport report) {
+        var rawPhotos = photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id());
+        var checklistItemSnapshots = rawPhotos.stream().anyMatch(photo -> photo.checklistItemId() != null)
+                ? checklistService.itemSnapshotById(report)
+                : Map.<Long, Map<String, Object>>of();
         var photos = new ArrayList<Map<String, Object>>();
-        for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
+        for (Photo photo : rawPhotos) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
             var thumbnail = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.THUMBNAIL);
-            photos.add(Map.of(
-                    "photoId", photo.id(),
-                    "stepCode", photo.stepCode() == null ? "" : photo.stepCode(),
-                    "checklistItemId", photo.checklistItemId() == null ? "" : photo.checklistItemId(),
-                    "workingStorageRef", working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""),
-                    "thumbnailStorageRef", thumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""),
-                    "width", photo.width() == null ? "" : photo.width(),
-                    "height", photo.height() == null ? "" : photo.height(),
-                    "hashSha256", photo.hashSha256()));
+            var checklistItem = photo.checklistItemId() == null ? Map.<String, Object>of() : checklistItemSnapshots.getOrDefault(photo.checklistItemId(), Map.of());
+            var snapshot = new LinkedHashMap<String, Object>();
+            snapshot.put("photoId", photo.id());
+            snapshot.put("stepCode", photo.stepCode() == null ? "" : photo.stepCode());
+            snapshot.put("checklistItemId", photo.checklistItemId() == null ? "" : photo.checklistItemId());
+            snapshot.put("checklistItemCode", stringValue(checklistItem.get("itemCode")));
+            snapshot.put("checklistItemLabel", stringValue(checklistItem.get("label")));
+            snapshot.put("checklistLinked", photo.checklistItemId() != null);
+            snapshot.put("caption", checklistPhotoCaption(photo, checklistItem));
+            snapshot.put("workingStorageRef", working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
+            snapshot.put("thumbnailStorageRef", thumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
+            snapshot.put("mimeType", working.map(com.archdox.cloud.photo.domain.PhotoAsset::mimeType).orElse(photo.mimeType()));
+            snapshot.put("width", photo.width() == null ? "" : photo.width());
+            snapshot.put("height", photo.height() == null ? "" : photo.height());
+            snapshot.put("hashSha256", photo.hashSha256());
+            photos.add(snapshot);
         }
         return photos;
+    }
+
+    private Map<Long, List<Map<String, Object>>> photosByChecklistItemId(List<Map<String, Object>> photos) {
+        var grouped = new LinkedHashMap<Long, List<Map<String, Object>>>();
+        for (Map<String, Object> photo : photos) {
+            var checklistItemId = longValue(photo.get("checklistItemId"));
+            if (checklistItemId == null) {
+                continue;
+            }
+            grouped.computeIfAbsent(checklistItemId, ignored -> new ArrayList<>()).add(photo);
+        }
+        return grouped;
+    }
+
+    private List<Map<String, Object>> checklistPhotoSnapshot(List<Map<String, Object>> photos) {
+        var grouped = photosByChecklistItemId(photos);
+        var checklistPhotos = new ArrayList<Map<String, Object>>();
+        for (Map.Entry<Long, List<Map<String, Object>>> entry : grouped.entrySet()) {
+            var firstPhoto = entry.getValue().isEmpty() ? Map.<String, Object>of() : entry.getValue().get(0);
+            var snapshot = new LinkedHashMap<String, Object>();
+            snapshot.put("checklistItemId", entry.getKey());
+            snapshot.put("itemCode", stringValue(firstPhoto.get("checklistItemCode")));
+            snapshot.put("label", stringValue(firstPhoto.get("checklistItemLabel")));
+            snapshot.put("photoCount", entry.getValue().size());
+            snapshot.put("photoIds", entry.getValue().stream().map(photo -> photo.get("photoId")).filter(Objects::nonNull).toList());
+            snapshot.put("photos", entry.getValue());
+            checklistPhotos.add(snapshot);
+        }
+        return checklistPhotos;
+    }
+
+    private String checklistPhotoCaption(Photo photo, Map<String, Object> checklistItem) {
+        var label = stringValue(checklistItem.get("label"));
+        if (!label.isBlank()) {
+            return label;
+        }
+        if (photo.stepCode() != null && !photo.stepCode().isBlank()) {
+            return photo.stepCode();
+        }
+        return "Photo " + photo.id();
+    }
+
+    private Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return Long.parseLong(text);
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 }

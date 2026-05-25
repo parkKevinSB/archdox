@@ -1,5 +1,6 @@
 package com.archdox.cloud.photo.application;
 
+import com.archdox.cloud.checklist.application.ChecklistService;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.ConflictException;
 import com.archdox.cloud.global.api.NotFoundException;
@@ -34,6 +35,7 @@ import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -47,6 +49,7 @@ public class PhotoService {
     private final PhotoAssetRepository photoAssetRepository;
     private final ProjectService projectService;
     private final InspectionReportService inspectionReportService;
+    private final ChecklistService checklistService;
     private final PhotoStorageRefFactory storageRefFactory;
     private final PhotoStorageAdapterResolver storageAdapterResolver;
     private final EventBus eventBus;
@@ -56,6 +59,7 @@ public class PhotoService {
             PhotoAssetRepository photoAssetRepository,
             ProjectService projectService,
             InspectionReportService inspectionReportService,
+            ChecklistService checklistService,
             PhotoStorageRefFactory storageRefFactory,
             PhotoStorageAdapterResolver storageAdapterResolver,
             EventBus eventBus
@@ -64,6 +68,7 @@ public class PhotoService {
         this.photoAssetRepository = photoAssetRepository;
         this.projectService = projectService;
         this.inspectionReportService = inspectionReportService;
+        this.checklistService = checklistService;
         this.storageRefFactory = storageRefFactory;
         this.storageAdapterResolver = storageAdapterResolver;
         this.eventBus = eventBus;
@@ -73,11 +78,13 @@ public class PhotoService {
     public PhotoUploadIntentResponse createIntent(CreatePhotoUploadIntentRequest request, UserPrincipal principal) {
         var officeId = OfficeContext.requireCurrentOfficeId();
         var hash = normalizeHash(request.hash());
+        var resolved = resolveParent(request);
+        validateChecklistLink(request, resolved);
         var existing = photoRepository.findFirstByOfficeIdAndHashSha256AndStatus(
                 officeId,
                 hash,
                 PhotoStatus.UPLOADED);
-        if (existing.isPresent()) {
+        if (existing.isPresent() && isSameUploadContext(existing.get(), resolved, request)) {
             var photo = existing.get();
             return new PhotoUploadIntentResponse(
                     photo.id(),
@@ -88,8 +95,6 @@ public class PhotoService {
                     null,
                     toResponse(photo));
         }
-
-        var resolved = resolveParent(request);
         var now = OffsetDateTime.now();
         var mimeType = normalizeMime(request.mime());
         var refs = storageRefFactory.create(officeId, resolved.projectId(), resolved.reportId(), mimeType);
@@ -252,13 +257,30 @@ public class PhotoService {
             if (request.projectId() != null && !request.projectId().equals(report.projectId())) {
                 throw new BadRequestException("projectId does not match the report's project");
             }
-            return new ParentRef(report.projectId(), report.id());
+            return new ParentRef(report.projectId(), report.id(), report);
         }
         if (request.projectId() == null) {
             throw new BadRequestException("projectId or reportId is required");
         }
         var project = projectService.requireProject(request.projectId());
-        return new ParentRef(project.id(), null);
+        return new ParentRef(project.id(), null, null);
+    }
+
+    private void validateChecklistLink(CreatePhotoUploadIntentRequest request, ParentRef resolved) {
+        if (request.checklistItemId() == null) {
+            return;
+        }
+        if (resolved.report() == null) {
+            throw new BadRequestException("checklistItemId requires reportId");
+        }
+        checklistService.requireItemForReport(resolved.report(), request.checklistItemId());
+    }
+
+    private boolean isSameUploadContext(Photo photo, ParentRef resolved, CreatePhotoUploadIntentRequest request) {
+        return Objects.equals(photo.projectId(), resolved.projectId())
+                && Objects.equals(photo.reportId(), resolved.reportId())
+                && Objects.equals(photo.checklistItemId(), request.checklistItemId())
+                && Objects.equals(photo.stepCode(), normalizeStepCode(request.stepCode()));
     }
 
     private Photo requirePhoto(Long photoId) {
@@ -410,7 +432,7 @@ public class PhotoService {
         return stepCode.trim().toUpperCase(Locale.ROOT);
     }
 
-    private record ParentRef(Long projectId, Long reportId) {
+    private record ParentRef(Long projectId, Long reportId, InspectionReport report) {
     }
 
     private void publishAfterCommit(Object event) {

@@ -2444,6 +2444,8 @@ Supported V1 section types:
 
 - `PHOTO_SUMMARY`, `PHOTO_LIST`, `PHOTO_TABLE`
 - `CHECKLIST_SUMMARY`, `CHECKLIST_LIST`, `CHECKLIST_TABLE`
+- `CHECKLIST_PHOTO_SUMMARY`, `CHECKLIST_PHOTO_LIST`,
+  `CHECKLIST_PHOTO_TABLE`
 - `VALUE`, `FIELD`, `SNAPSHOT_VALUE`
 - `TEXT`
 
@@ -2469,8 +2471,14 @@ Supported `PHOTO_TABLE` layout options:
 `CHECKLIST_TABLE` is also a rich DOCX section. It renders the saved
 `checklistAnswers` snapshot as a Word table when the section placeholder is its
 own paragraph. Supported field sources include `itemCode`, `label`,
-`answer.value`, `answer.result`, and `note`. This is still a narrow table
-layout, not an arbitrary DOCX programming layer.
+`answer.value`, `answer.result`, `photoCount`, `photoIds`, `photos`, and
+`note`. This is still a narrow table layout, not an arbitrary DOCX programming
+layer.
+
+`CHECKLIST_PHOTO_TABLE` renders grouped checklist evidence rows from
+`input_snapshot_json.checklistPhotos`. Default field sources are `itemCode`,
+`label`, `photoCount`, and `photoIds`. Use this when the document needs a
+separate proof-photo summary by checklist item rather than a full photo grid.
 
 Shared rich table polish options:
 
@@ -2481,8 +2489,8 @@ Shared rich table polish options:
 - `borderColor`, `headerFill`, `titleFill`: six-digit hex colors with or
   without `#`.
 - `tableWidth`: Word DXA width; defaults to `9000`.
-- `CHECKLIST_TABLE` can use `fields[].width` or `columnWidths` to control
-  visible column widths.
+- `CHECKLIST_TABLE` and `CHECKLIST_PHOTO_TABLE` can use `fields[].width` or
+  `columnWidths` to control visible column widths.
 
 ### Office Config Overrides
 

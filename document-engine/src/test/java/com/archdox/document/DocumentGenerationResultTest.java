@@ -426,6 +426,49 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineReplacesChecklistPhotoTablePlaceholderWithTable() throws Exception {
+        var template = docxWithBodyXml("""
+                <w:p><w:r><w:t>${checklistPhotoSection}</w:t></w:r></w:p>
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-7-photo",
+                "office-1",
+                "report-7",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "layoutSections", Map.of(
+                                "checklistPhotoSection", Map.of(
+                                        "type", "CHECKLIST_PHOTO_TABLE",
+                                        "title", "Checklist Photos",
+                                        "fields", List.of(
+                                                Map.of("label", "Code", "source", "itemCode"),
+                                                Map.of("label", "Item", "source", "label"),
+                                                Map.of("label", "Photos", "source", "photoCount"),
+                                                Map.of("label", "Photo IDs", "source", "photoIds")))),
+                        "checklistPhotos", List.of(
+                                Map.of(
+                                        "itemCode", "CHK-1",
+                                        "label", "Guard rail",
+                                        "photoCount", 2,
+                                        "photoIds", List.of(100, 101)))),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("<w:tbl>"));
+        assertTrue(documentXml.contains("Checklist Photos"));
+        assertTrue(documentXml.contains("Guard rail"));
+        assertTrue(documentXml.contains("100"));
+        assertTrue(documentXml.contains("101"));
+        assertTrue(!documentXml.contains("${checklistPhotoSection}"));
+    }
+
+    @Test
     void docxTemplateEngineSupportsRichTableStyleOptions() throws Exception {
         var template = docxWithBodyXml("""
                 <w:p><w:r><w:t>${checklistSection}</w:t></w:r></w:p>

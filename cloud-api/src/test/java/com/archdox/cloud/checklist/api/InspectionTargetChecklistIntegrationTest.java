@@ -83,13 +83,15 @@ class InspectionTargetChecklistIntegrationTest {
                 .andExpect(jsonPath("$.role").value("PRIMARY"))
                 .andExpect(jsonPath("$.snapshot.name").value("Main Building"));
 
-        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/checklist", reportId)
+        var checklistResult = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/checklist", reportId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schema.code").value("PERIODIC_SAFETY_DEFAULT"))
                 .andExpect(jsonPath("$.schema.items", hasSize(4)))
-                .andExpect(jsonPath("$.answers", hasSize(0)));
+                .andExpect(jsonPath("$.answers", hasSize(0)))
+                .andReturn();
+        var crackCheckItemId = checklistItemId(checklistResult.getResponse().getContentAsString(), "CRACK_CHECK");
 
         mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/checklist/answers/{itemCode}", reportId, "CRACK_CHECK")
                         .header("Authorization", bearer(user.accessToken()))
@@ -110,7 +112,7 @@ class InspectionTargetChecklistIntegrationTest {
                 .andExpect(jsonPath("$.note").value("2층 복도 미세 균열 관찰"));
 
         saveBasicInfoStep(user, reportId);
-        uploadWorkingPhoto(user, projectId, reportId);
+        uploadWorkingPhoto(user, projectId, reportId, crackCheckItemId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -134,6 +136,17 @@ class InspectionTargetChecklistIntegrationTest {
         assertFalse(checklistAnswers.isEmpty());
         var firstAnswer = (Map<?, ?>) checklistAnswers.get(0);
         assertEquals("CRACK_CHECK", firstAnswer.get("itemCode"));
+        assertEquals(1, firstAnswer.get("photoCount"));
+        var answerPhotos = (List<?>) firstAnswer.get("photos");
+        assertFalse(answerPhotos.isEmpty());
+        var firstPhoto = (Map<?, ?>) answerPhotos.get(0);
+        assertEquals("CRACK_CHECK", firstPhoto.get("checklistItemCode"));
+        assertEquals(crackCheckItemId, ((Number) firstPhoto.get("checklistItemId")).longValue());
+        var checklistPhotos = (List<?>) snapshot.get("checklistPhotos");
+        assertFalse(checklistPhotos.isEmpty());
+        var firstChecklistPhotoGroup = (Map<?, ?>) checklistPhotos.get(0);
+        assertEquals("CRACK_CHECK", firstChecklistPhotoGroup.get("itemCode"));
+        assertEquals(1, firstChecklistPhotoGroup.get("photoCount"));
     }
 
     private TestUser signup(String email, String name) throws Exception {
@@ -248,7 +261,7 @@ class InspectionTargetChecklistIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private void uploadWorkingPhoto(TestUser user, long projectId, long reportId) throws Exception {
+    private void uploadWorkingPhoto(TestUser user, long projectId, long reportId, long checklistItemId) throws Exception {
         var bytes = "checklist-working-photo".getBytes(StandardCharsets.UTF_8);
         var hash = sha256(bytes);
         var intentResult = mockMvc.perform(post("/api/v1/photos/intent")
@@ -260,6 +273,7 @@ class InspectionTargetChecklistIntegrationTest {
                                   "projectId": %d,
                                   "reportId": %d,
                                   "stepCode": "PHOTOS",
+                                  "checklistItemId": %d,
                                   "captureKind": "UPLOAD",
                                   "mime": "image/png",
                                   "bytes": %d,
@@ -268,7 +282,7 @@ class InspectionTargetChecklistIntegrationTest {
                                   "height": 480,
                                   "wantsOriginal": false
                                 }
-                                """.formatted(projectId, reportId, bytes.length, hash)))
+                                """.formatted(projectId, reportId, checklistItemId, bytes.length, hash)))
                 .andExpect(status().isCreated())
                 .andReturn();
         var photoId = objectMapper.readTree(intentResult.getResponse().getContentAsString()).get("photoId").asLong();
@@ -300,6 +314,15 @@ class InspectionTargetChecklistIntegrationTest {
     private long readId(String json) throws Exception {
         JsonNode node = objectMapper.readTree(json);
         return node.get("id").asLong();
+    }
+
+    private long checklistItemId(String json, String itemCode) throws Exception {
+        for (JsonNode item : objectMapper.readTree(json).get("schema").get("items")) {
+            if (itemCode.equals(item.get("itemCode").asText())) {
+                return item.get("id").asLong();
+            }
+        }
+        throw new AssertionError("Checklist item not found: " + itemCode);
     }
 
     private String bearer(String token) {

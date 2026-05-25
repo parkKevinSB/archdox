@@ -275,6 +275,8 @@ public class HtmlPreviewDocumentRenderer {
                 rendered.append(photoSection(section, request.photos()));
             } else if ("CHECKLIST_TABLE".equals(type)) {
                 rendered.append(checklistSection(section, listValue(request.payload().get("checklistAnswers"))));
+            } else if ("CHECKLIST_PHOTO_TABLE".equals(type)) {
+                rendered.append(checklistSection(section, listValue(request.payload().get("checklistPhotos"))));
             }
         });
         return rendered.toString();
@@ -380,7 +382,11 @@ public class HtmlPreviewDocumentRenderer {
 
     private String checklistSection(Map<String, Object> section, List<?> answers) {
         var title = firstText(Optional.ofNullable(stringValue(section.get("title"))), Optional.of("체크리스트"));
-        var fields = sectionFields(section, defaultChecklistTableFields());
+        var fields = sectionFields(
+                section,
+                "CHECKLIST_PHOTO_TABLE".equals(normalizeCode(stringValue(section.get("type"))))
+                        ? defaultChecklistPhotoTableFields()
+                        : defaultChecklistTableFields());
         var rows = new StringBuilder();
         rows.append("<thead><tr>");
         for (var field : fields) {
@@ -449,7 +455,16 @@ public class HtmlPreviewDocumentRenderer {
                 Map.of("label", "Code", "source", "itemCode"),
                 Map.of("label", "Item", "source", "label"),
                 Map.of("label", "Result", "source", "answer.value"),
+                Map.of("label", "Photos", "source", "photoCount"),
                 Map.of("label", "Note", "source", "note"));
+    }
+
+    private List<Map<String, String>> defaultChecklistPhotoTableFields() {
+        return List.of(
+                Map.of("label", "Code", "source", "itemCode"),
+                Map.of("label", "Item", "source", "label"),
+                Map.of("label", "Photos", "source", "photoCount"),
+                Map.of("label", "Photo IDs", "source", "photoIds"));
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {

@@ -490,7 +490,7 @@ public class DocumentJobService {
                 String.valueOf(report.id()),
                 templateSpec(job, report),
                 job.inputSnapshotJson(),
-                toEnginePhotos(report),
+                toEnginePhotos(job, report),
                 job.outputFormat());
     }
 
@@ -554,7 +554,28 @@ public class DocumentJobService {
         return configuration.template().revisionId();
     }
 
-    private List<com.archdox.document.PhotoAsset> toEnginePhotos(InspectionReport report) {
+    private List<com.archdox.document.PhotoAsset> toEnginePhotos(DocumentJob job, InspectionReport report) {
+        var snapshotPhotos = listValue(job.inputSnapshotJson().get("photos"));
+        if (!snapshotPhotos.isEmpty()) {
+            var photos = new ArrayList<com.archdox.document.PhotoAsset>();
+            for (Object rawPhoto : snapshotPhotos) {
+                var photo = mapValue(rawPhoto);
+                var photoId = optionalStringValue(photo.get("photoId"), "");
+                var storageRef = firstNonBlank(photo, "workingStorageRef", "storageRef", "thumbnailStorageRef");
+                if (photoId.isBlank() && storageRef.isBlank()) {
+                    continue;
+                }
+                photos.add(new com.archdox.document.PhotoAsset(
+                        photoId,
+                        firstNonBlank(photo, "checklistItemCode", "stepCode", "checklistItemId"),
+                        storageRef,
+                        firstNonBlank(photo, "caption", "checklistItemLabel"),
+                        PhotoLayoutSize.MEDIUM,
+                        optionalStringValue(photo.get("mimeType"), "image/jpeg"),
+                        photoId.isBlank() ? null : "/agent/api/v1/photos/%s/assets/WORKING/content".formatted(photoId)));
+            }
+            return photos;
+        }
         var photos = new ArrayList<com.archdox.document.PhotoAsset>();
         for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
@@ -568,6 +589,13 @@ public class DocumentJobService {
                     working.map(asset -> "/agent/api/v1/photos/%d/assets/WORKING/content".formatted(photo.id())).orElse(null)));
         }
         return photos;
+    }
+
+    private List<?> listValue(Object value) {
+        if (value instanceof List<?> list) {
+            return list;
+        }
+        return List.of();
     }
 
     private Map<String, Object> mapValue(Object value) {
@@ -588,6 +616,16 @@ public class DocumentJobService {
             return fallback;
         }
         return String.valueOf(value);
+    }
+
+    private String firstNonBlank(Map<String, Object> map, String... keys) {
+        for (String key : keys) {
+            var value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return String.valueOf(value);
+            }
+        }
+        return "";
     }
 
     private int intValue(Object value, int fallback) {

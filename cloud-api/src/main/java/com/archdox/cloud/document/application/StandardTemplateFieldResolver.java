@@ -143,6 +143,7 @@ public class StandardTemplateFieldResolver {
         put(fields, "inspectionCriteria", readFirst(snapshot, "steps.DEMOLITION_SAFETY_CHECK.payload.inspectionCriteria"));
         put(fields, "inspectionResult", readFirst(snapshot, "steps.DEMOLITION_SAFETY_CHECK.payload.inspectionResult"));
         put(fields, "safetyChecklistItems", compactList(readPath(snapshot, "checklistAnswers").orElse(List.of())));
+        put(fields, "checklistPhotoSummary", compactList(readPath(snapshot, "checklistPhotos").orElse(List.of())));
         return fields;
     }
 
@@ -223,7 +224,14 @@ public class StandardTemplateFieldResolver {
                 var label = firstNonBlank(map, "label", "name", "itemName", "title", "checklistItemKey");
                 var result = firstNonBlank(map, "result", "status", "answer", "value");
                 var note = firstNonBlank(map, "note", "comment", "memo", "description");
+                var photoCount = firstNonBlank(map, "photoCount");
+                var photoSummary = photoCount == null || photoCount.isBlank() || "0".equals(photoCount)
+                        ? ""
+                        : "Photos: " + photoCount;
                 var row = String.join(" / ", List.of(label, result, note).stream()
+                        .filter(text -> text != null && !text.isBlank())
+                        .toList());
+                row = String.join(" / ", List.of(row, photoSummary).stream()
                         .filter(text -> text != null && !text.isBlank())
                         .toList());
                 if (!row.isBlank()) {

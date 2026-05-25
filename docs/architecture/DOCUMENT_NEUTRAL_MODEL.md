@@ -34,12 +34,32 @@ It should contain document-generation data such as:
 - `steps`
 - `photos`
 - `checklistAnswers`
+- `checklistPhotos`
 - `configuration`
 - `templateFields`
 - `layoutSections`
 
 Renderers and exporters may read this snapshot, but they must not mutate it or
 replace it as the source of truth.
+
+## Checklist Photo Links
+
+Checklist-linked photos are first-class neutral snapshot data.
+
+When a photo is uploaded for a checklist item, Cloud API validates that
+`checklistItemId` belongs to the active checklist schema for the report. During
+document job creation, the neutral snapshot exposes the relationship in three
+compatible places:
+
+- `photos[]`: every report photo, enriched with `checklistItemId`,
+  `checklistItemCode`, `checklistItemLabel`, and `caption`.
+- `checklistAnswers[]`: each saved answer includes `photoCount`, `photoIds`,
+  and `photos` for the same checklist item.
+- `checklistPhotos[]`: grouped checklist photo summary rows for document
+  sections such as `CHECKLIST_PHOTO_TABLE`.
+
+Renderers may use these fields to produce checklist evidence tables, but they
+must not re-query mutable report state instead of using the job snapshot.
 
 ## Document Type Registry
 

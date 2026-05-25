@@ -167,6 +167,36 @@ public class ChecklistService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ChecklistItem requireItemForReport(InspectionReport report, Long checklistItemId) {
+        var schema = resolveSchema(report);
+        var item = itemRepository.findById(checklistItemId)
+                .orElseThrow(() -> new NotFoundException("Checklist item not found"));
+        if (!item.checklistSchemaId().equals(schema.id())) {
+            throw new BadRequestException("Checklist item does not belong to the report schema");
+        }
+        return item;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, Map<String, Object>> itemSnapshotById(InspectionReport report) {
+        var schema = resolveSchema(report);
+        var snapshots = new LinkedHashMap<Long, Map<String, Object>>();
+        for (ChecklistItem item : itemRepository.findByChecklistSchemaIdOrderByDisplayOrderAscIdAsc(schema.id())) {
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("checklistSchemaId", item.checklistSchemaId());
+            snapshot.put("checklistItemId", item.id());
+            snapshot.put("itemCode", item.itemCode());
+            snapshot.put("label", item.label());
+            snapshot.put("description", item.description() == null ? "" : item.description());
+            snapshot.put("answerType", item.answerType().name());
+            snapshot.put("required", item.required());
+            snapshot.put("displayOrder", item.displayOrder());
+            snapshots.put(item.id(), snapshot);
+        }
+        return snapshots;
+    }
+
     private ChecklistSchemaResponse toSchemaResponse(ChecklistSchema schema, List<ChecklistItem> items) {
         return new ChecklistSchemaResponse(
                 schema.id(),
