@@ -583,3 +583,30 @@ When implementing `client/web`:
    possible.
 6. Do not expose admin-only operational concepts in normal user screens unless
    the workflow needs them.
+
+## Phase 8-8 UI Flow Baseline
+
+The normal user flow should now be treated as:
+
+```text
+project -> site -> document type -> report step runner -> submit
+-> document generation -> preview/download
+```
+
+Current baseline behavior:
+
+- Report start shows the selected project and site as fixed context.
+- The user chooses a document type from configured definitions, not a free-form
+  report string.
+- The selected document type previews its writing steps before the report is
+  created.
+- The report step runner autosaves before previous/next/step navigation.
+- The manual save button is secondary and exists only to reassure the user.
+- Generated reports are edited through an explicit edit revision flow, then
+  resubmitted before regenerating documents.
+- The document screen presents HTML preview, PDF generation, DOCX generation,
+  progress, revision history, and download actions as a single workflow surface.
+
+This is still a lightweight workflow UI, not a generic UI engine. New document
+types should first reuse the supported step components and rich layout sections.
+Only repeated real needs should become new reusable step components.

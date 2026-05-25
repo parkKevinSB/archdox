@@ -445,3 +445,44 @@ validated by `DefaultKoreanTemplateResourceTest`.
 Do not make `.hwp` the source of truth for business data. HWP/HWPX is an
 artifact format. The source of truth is the ArchDox report snapshot plus
 versioned template/layout/workflow configuration.
+
+## Template Change Rule
+
+Changing the visible document layout should normally be a template/configuration
+operation, not a code change.
+
+Safe ordinary changes:
+
+- revise the bundled DOCX template wording, spacing, table shape, page breaks,
+  logos, headers, and footers
+- upload an office-specific template revision with the same placeholder keys
+- adjust `output_layout_json` for supported rich sections such as
+  `CHECKLIST_TABLE`, `CHECKLIST_PHOTO_TABLE`, and `PHOTO_TABLE`
+- change step labels or step order through supported workflow configuration
+
+Changes that require a small engine/configuration update:
+
+- a new placeholder field that does not exist in the report snapshot or
+  template field catalog
+- a new repeated section type beyond the supported rich sections
+- a new artifact output family such as native HWPX renderer behavior
+- a new validation rule that changes report readiness
+
+The desired customer path is:
+
+```text
+same report snapshot
++ same field catalog
++ revised DOCX template/layout config
+= different document form without office-specific business code
+```
+
+Phase 8 smoke coverage now checks the two core Korean default templates with
+realistic sample report snapshots:
+
+- construction daily supervision log: `DOCX_AND_PDF`
+- construction supervision report: `HTML_AND_PDF`
+
+Those tests guard the important boundary: generated artifacts may change shape,
+but unresolved placeholders, missing core fields, or broken HTML/PDF routing
+should be caught before the template is treated as usable.

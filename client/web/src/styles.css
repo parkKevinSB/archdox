@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color: #1c2526;
   background: #f4f6f7;
   --highlight: #b8862b;
@@ -673,7 +673,7 @@ button {
 }
 
 .document-revision-section summary::before {
-  content: "▸";
+  content: ">";
   display: inline-flex;
   width: 14px;
   flex: 0 0 14px;
@@ -682,7 +682,7 @@ button {
 }
 
 .document-revision-section[open] summary::before {
-  content: "▾";
+  content: "v";
 }
 
 .document-revision-section summary > span {
@@ -1362,6 +1362,14 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.wizard-save-hint {
+  margin: -4px 0 0;
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
 }
 
 .save-state {

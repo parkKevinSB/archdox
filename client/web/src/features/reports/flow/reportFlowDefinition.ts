@@ -7,13 +7,13 @@ export const reportFlowDefinition: ReportFlowDefinition = {
     {
       code: "BASIC_INFO",
       title: "기본 정보",
-      description: "일자, 날씨, 담당자처럼 보고서가 공유하는 머리말 정보를 정리합니다.",
+      description: "일자, 날씨, 담당자처럼 모든 문서가 공유하는 머리말 정보를 정리합니다.",
       stepType: "FORM",
       savePolicy: "ON_NAVIGATE",
       fields: [
-        { key: "inspectionDate", label: "점검일", type: "date" },
+        { key: "inspectionDate", label: "점검일", type: "date", required: true },
         { key: "weather", label: "날씨", placeholder: "맑음" },
-        { key: "inspectorName", label: "담당자", placeholder: "홍길동" }
+        { key: "inspectorName", label: "담당자", placeholder: "홍길동", required: true }
       ]
     },
     {
@@ -35,7 +35,7 @@ export const reportFlowDefinition: ReportFlowDefinition = {
     {
       code: "CHECKLIST",
       title: "점검 결과",
-      description: "체크리스트 요약과 이슈 수를 정리합니다. 상세 체크리스트는 아래에서 관리합니다.",
+      description: "체크리스트 요약과 주요 이슈 수를 정리합니다. 세부 체크리스트는 아래 패널에서 관리합니다.",
       stepType: "CHECKLIST",
       savePolicy: "ON_NAVIGATE",
       fields: [
@@ -43,7 +43,7 @@ export const reportFlowDefinition: ReportFlowDefinition = {
           key: "checklistSummary",
           label: "점검 요약",
           type: "textarea",
-          placeholder: "양호/미흡 항목을 요약하세요."
+          placeholder: "양호, 미흡, 보완 필요 항목을 요약하세요."
         },
         { key: "issueCount", label: "이슈 수", type: "number", placeholder: "0" }
       ]
@@ -51,14 +51,14 @@ export const reportFlowDefinition: ReportFlowDefinition = {
     {
       code: "PHOTOS",
       title: "현장 사진",
-      description: "리포트에 포함될 사진을 올리고 원본 이관, 작업본, 썸네일 준비 상태를 확인합니다.",
+      description: "리포트에 포함할 사진을 올리고 원본 이관, 작업본, 썸네일 준비 상태를 확인합니다.",
       stepType: "PHOTO",
       savePolicy: "ON_NAVIGATE",
       fields: []
     },
     {
       code: "REMARKS",
-      title: "비고/조치",
+      title: "비고와 조치",
       description: "특이사항, 다음 조치, 고객 전달 메모를 정리합니다.",
       stepType: "FORM",
       savePolicy: "ON_NAVIGATE",

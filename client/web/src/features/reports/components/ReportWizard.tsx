@@ -5,14 +5,14 @@ import {
   Panel,
   StatusBadge
 } from "../../../components/common";
-import { useReportWizard } from "../hooks/useReportWizard";
-import { ReportStepRunner } from "./ReportStepRunner";
 import type {
   InspectionReport,
   InspectionStep,
   Project,
   Site
 } from "../../../types";
+import { useReportWizard } from "../hooks/useReportWizard";
+import { ReportStepRunner } from "./ReportStepRunner";
 
 type ReportWizardProps = {
   canWriteReports: boolean;
@@ -93,7 +93,10 @@ export function ReportWizard({
         </div>
 
         {loadingSteps ? <InlineNotice message="작성 단계를 불러오는 중입니다." /> : null}
-        {!canWriteReports ? <InlineNotice message="이 계정은 리포트 쓰기 전용 권한이 없습니다." /> : null}
+        {!canWriteReports ? <InlineNotice message="이 계정은 리포트 작성 권한이 없습니다." /> : null}
+        {!canEdit && canReopen ? (
+          <InlineNotice message="이미 제출 또는 생성된 리포트입니다. 내용을 바꾸려면 수정본 만들기를 눌러 새 revision을 작성하세요." />
+        ) : null}
         {stepError ? <InlineAlert message={stepError} /> : null}
         {notice ? <InlineNotice message={notice} /> : null}
 
@@ -112,12 +115,12 @@ export function ReportWizard({
           officeId={officeId}
           report={report}
           renderChecklistPanel={renderChecklistPanel}
+          reopenReport={reopenReport}
           savedSteps={savedSteps}
           saveActiveStep={saveActiveStep}
           selectStep={selectStep}
-          stepSaveStatus={stepSaveStatus}
           stepDefinitions={stepDefinitions}
-          reopenReport={reopenReport}
+          stepSaveStatus={stepSaveStatus}
           submitReport={submitReport}
           token={token}
         />

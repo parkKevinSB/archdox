@@ -122,7 +122,7 @@ export function useReportWizard({
     }
     if (!canEdit) {
       setStepSaveStatus("failed");
-      setStepError("이미 제출되었거나 생성된 리포트입니다. 수정하려면 먼저 수정본을 만드세요.");
+      setStepError("이미 제출 또는 생성된 리포트입니다. 수정하려면 먼저 수정본을 만드세요.");
       return false;
     }
     if (busy || loadingSteps) {
@@ -130,7 +130,7 @@ export function useReportWizard({
     }
     if (!form.formState.isDirty && savedSteps[activeDefinition.code]) {
       setStepSaveStatus("saved");
-      setNotice(`${activeDefinition.title} 단계가 이미 저장되었습니다.`);
+      setNotice(`${activeDefinition.title} 단계가 이미 저장되어 있습니다.`);
       return true;
     }
     setBusy(true);
@@ -180,8 +180,8 @@ export function useReportWizard({
       if (!canReopen) {
         setStepError(
           reportWriteAllowed
-            ? "현재 상태에서는 수정본을 만들 수 없습니다. 진행 중인 문서 생성 작업이 끝난 뒤 다시 시도해주세요."
-            : "이 리포트를 수정할 권한이 없습니다. 사무소 관리자에게 리포트 WRITER 권한 배정을 요청해주세요."
+            ? "현재 상태에서는 수정본을 만들 수 없습니다. 진행 중인 문서 생성 작업이 끝난 뒤 다시 시도하세요."
+            : "이 리포트를 수정할 권한이 없습니다. 사무소 관리자에게 리포트 WRITER 권한 배정을 요청하세요."
         );
       }
       return;
@@ -191,7 +191,7 @@ export function useReportWizard({
     setNotice(null);
     try {
       await onReopenReport(report.id);
-      setNotice("수정본을 만들었습니다. 저장하면 새 revision으로 문서 재생성이 필요합니다.");
+      setNotice("수정본을 만들었습니다. 저장 후 다시 제출하면 새 revision으로 문서를 재생성할 수 있습니다.");
     } catch (err) {
       setStepError(err instanceof Error ? err.message : "수정본을 만들지 못했습니다.");
     } finally {

@@ -30,8 +30,8 @@ export function ReportPhotoStep({
       <div className="report-photo-step">
         <PhotoPipelinePanel
           canUpload={canWriteReports}
-          emptyText="이 단계에서 올린 사진은 작업본/썸네일 생성과 원본 이관 흐름으로 이어지고, 문서 생성에는 작업본이 사용됩니다."
-          emptyTitle="이 리포트에 연결된 사진이 없습니다"
+          emptyText="이 단계에서 올린 사진은 작업본과 썸네일 생성 상태를 함께 확인합니다. 문서 생성에는 작업본 이미지가 사용됩니다."
+          emptyTitle="리포트에 연결된 사진이 없습니다"
           officeId={officeId}
           report={report}
           token={token}

@@ -321,6 +321,12 @@ Initial implementation status:
   photo feature's pipeline panel instead of duplicating upload logic.
 - `useReportWizard` remains the controller name for now to avoid churn, but its
   responsibility matches the future `useReportWorkflow` direction.
+- Phase 8-8 polish keeps previous/next/step selection as autosave transitions.
+  The manual save button remains as a reassurance action, and the step runner
+  now shows clearer saved/dirty/failed states in Korean.
+- Report creation starts with project and site context, then document type
+  selection. The selected document type previews its configured writing steps so
+  the user understands what will happen before creating the report.
 
 ### UI Phase 3: Mobile-First Project/Site/Report Path
 
@@ -354,6 +360,10 @@ Initial implementation status:
 - It creates delivery requests before downloading generated artifacts.
 - It polls active delivery requests and shows whether an artifact is preparing
   or ready to download.
+- Phase 8-8 polish makes the document surface read as a user workflow:
+  submit edit revision first, generate HTML/PDF/DOCX, watch progress, then
+  download the generated artifact. Revision history remains visible, with the
+  newest generated job expanded and older generated jobs collapsed.
 
 ### UI Phase 4-1: Photo Surface
 

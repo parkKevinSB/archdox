@@ -38,6 +38,8 @@ export function ReportStartForm({
     () => documentTypes.find((documentType) => documentType.code === selectedReportType) ?? null,
     [documentTypes, selectedReportType]
   );
+  const selectedProject = projects.find((project) => project.id === selectedProjectId);
+  const selectedSite = sites.find((site) => site.id === selectedSiteId);
   const canStart = Boolean(selectedProjectId && selectedSiteId && documentTypes.length > 0);
 
   useEffect(() => {
@@ -68,14 +70,11 @@ export function ReportStartForm({
     <form className="compact-form" onSubmit={form.handleSubmit(submit)}>
       <label className="wide">
         프로젝트
-        <input
-          readOnly
-          value={projects.find((project) => project.id === selectedProjectId)?.name ?? "프로젝트를 선택하세요"}
-        />
+        <input readOnly value={selectedProject?.name ?? "프로젝트를 선택하세요"} />
       </label>
       <label className="wide">
         현장
-        <input readOnly value={sites.find((site) => site.id === selectedSiteId)?.name ?? "현장을 선택하세요"} />
+        <input readOnly value={selectedSite?.name ?? "현장을 선택하세요"} />
       </label>
       <label>
         문서 유형
@@ -83,26 +82,31 @@ export function ReportStartForm({
           {documentTypes.length === 0 ? <option value="">문서 유형을 불러오는 중입니다</option> : null}
           {documentTypes.map((documentType) => (
             <option key={documentType.code} value={documentType.code}>
-              {documentType.name} · {categoryLabel(documentType.category)}
+              {documentType.name} / {categoryLabel(documentType.category)}
             </option>
           ))}
         </select>
       </label>
       <label className="wide">
-        제목
+        리포트 제목
         <input placeholder="비워두면 문서 유형 이름으로 생성됩니다" {...form.register("title")} />
       </label>
       {selectedDocumentType ? (
         <div className="document-type-summary wide">
           <div>
             <strong>{selectedDocumentType.name}</strong>
-            <span>{selectedDocumentType.description ?? "선택한 문서 유형의 기본 작성 흐름을 사용합니다."}</span>
+            <span>
+              {selectedDocumentType.description
+                ?? "선택한 문서 유형의 기본 작성 흐름, 체크리스트, 출력 포맷을 사용합니다."}
+            </span>
           </div>
           <div className="document-type-meta">
-            <span>{selectedDocumentType.defaultOutputFormat}</span>
-            {selectedDocumentType.checklistSchemaCode ? <span>{selectedDocumentType.checklistSchemaCode}</span> : null}
+            <span>출력 {selectedDocumentType.defaultOutputFormat}</span>
+            {selectedDocumentType.checklistSchemaCode ? (
+              <span>체크리스트 {selectedDocumentType.checklistSchemaCode}</span>
+            ) : null}
           </div>
-          <div className="document-type-steps" aria-label="문서 작성 단계">
+          <div className="document-type-steps" aria-label="리포트 작성 흐름">
             {selectedDocumentType.steps.map((step, index) => (
               <span key={step.code}>
                 {index + 1}. {step.title}

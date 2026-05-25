@@ -42,6 +42,7 @@ public class HtmlPreviewDocumentRenderer {
         var title = firstText(
                 readTextPath(request.payload(), "templateFields.documentTitle"),
                 readTextPath(request.payload(), "templateFields.reportTitle"),
+                readTextPath(request.payload(), "templateFields.constructionName"),
                 readTextPath(request.payload(), "templateFields.projectName"),
                 Optional.ofNullable(request.template().templateCode()),
                 Optional.of("ArchDox Document Preview"));
@@ -397,7 +398,7 @@ public class HtmlPreviewDocumentRenderer {
             rows.append("<tr><td colspan=\"")
                     .append(fields.size())
                     .append("\" class=\"muted\">")
-                    .append(escapeHtml(emptyText(section, "저장된 체크리스트 답변이 없습니다.")))
+                    .append(escapeHtml(emptyText(section, "저장된 체크리스트 응답이 없습니다.")))
                     .append("</td></tr>");
         } else {
             for (var answer : answers) {
@@ -445,26 +446,26 @@ public class HtmlPreviewDocumentRenderer {
 
     private List<Map<String, String>> defaultPhotoDescriptionFields() {
         return List.of(
-                Map.of("label", "Caption", "source", "caption"),
-                Map.of("label", "Step", "source", "checklistItemKey"),
-                Map.of("label", "Storage", "source", "storageRef"));
+                Map.of("label", "설명", "source", "caption"),
+                Map.of("label", "단계", "source", "checklistItemKey"),
+                Map.of("label", "저장 위치", "source", "storageRef"));
     }
 
     private List<Map<String, String>> defaultChecklistTableFields() {
         return List.of(
-                Map.of("label", "Code", "source", "itemCode"),
-                Map.of("label", "Item", "source", "label"),
-                Map.of("label", "Result", "source", "answer.value"),
-                Map.of("label", "Photos", "source", "photoCount"),
-                Map.of("label", "Note", "source", "note"));
+                Map.of("label", "코드", "source", "itemCode"),
+                Map.of("label", "항목", "source", "label"),
+                Map.of("label", "결과", "source", "answer.value"),
+                Map.of("label", "사진", "source", "photoCount"),
+                Map.of("label", "비고", "source", "note"));
     }
 
     private List<Map<String, String>> defaultChecklistPhotoTableFields() {
         return List.of(
-                Map.of("label", "Code", "source", "itemCode"),
-                Map.of("label", "Item", "source", "label"),
-                Map.of("label", "Photos", "source", "photoCount"),
-                Map.of("label", "Photo IDs", "source", "photoIds"));
+                Map.of("label", "코드", "source", "itemCode"),
+                Map.of("label", "항목", "source", "label"),
+                Map.of("label", "사진 수", "source", "photoCount"),
+                Map.of("label", "사진 ID", "source", "photoIds"));
     }
 
     private String photoFieldValue(PhotoAsset photo, String source) {

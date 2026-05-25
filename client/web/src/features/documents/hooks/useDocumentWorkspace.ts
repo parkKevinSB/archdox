@@ -121,9 +121,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       if (!officeId) {
         throw new Error("사무소 선택이 필요합니다.");
       }
-      return createDocumentJob(token, officeId, reportId, {
-        outputFormat
-      });
+      return createDocumentJob(token, officeId, reportId, { outputFormat });
     },
     onSuccess: async () => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["document-jobs"] }), onRefreshWorkspace()]);
@@ -155,7 +153,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         throw new Error("사무소 선택이 필요합니다.");
       }
       if (!delivery.downloadUrl) {
-        throw new Error("문서 파일을 아직 준비 중입니다.");
+        throw new Error("문서 파일이 아직 준비 중입니다.");
       }
       await downloadDocumentUrl(token, officeId, delivery.downloadUrl, defaultDownloadFileName(artifact));
       return delivery;
@@ -201,7 +199,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         downloadUrl = delivery.downloadUrl ?? null;
       }
       if (!downloadUrl) {
-        throw new Error("HTML 미리보기 파일을 준비 중입니다. 잠시 후 다시 시도해주세요.");
+        throw new Error("HTML 미리보기 파일이 준비 중입니다. 잠시 후 다시 시도하세요.");
       }
       const html = await fetchDocumentTextUrl(token, officeId, downloadUrl);
       setPreview({ artifact, html, job });

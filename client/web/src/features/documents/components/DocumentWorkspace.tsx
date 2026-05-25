@@ -41,20 +41,25 @@ export function DocumentWorkspace({
 
   return (
     <div className="view-stack">
-      <ViewHeader title="문서" text="제출된 리포트의 문서를 생성하고, revision별 생성 이력과 다운로드 상태를 확인합니다." />
+      <ViewHeader
+        title="문서"
+        text="제출된 리포트의 문서를 생성하고 revision별 생성 이력과 다운로드 상태를 확인합니다."
+      />
 
       <div className="metric-row compact">
         <MetricTile label="생성 가능" value={readyReports.length} detail="제출 완료" />
-        <MetricTile label="재제출 필요" value={staleDraftReports.length} detail="수정본 작성중" />
+        <MetricTile label="재제출 필요" value={staleDraftReports.length} detail="수정본 작성 중" />
         <MetricTile label="진행 중" value={activeReports.length} detail="생성 요청/진행" />
         <MetricTile label="완료" value={generatedReports.length} detail="다운로드 가능" />
       </div>
 
-      {workspace.error ? <InlineAlert message={workspace.error instanceof Error ? workspace.error.message : "문서 작업을 불러오지 못했습니다."} /> : null}
+      {workspace.error ? (
+        <InlineAlert message={workspace.error instanceof Error ? workspace.error.message : "문서 작업을 불러오지 못했습니다."} />
+      ) : null}
 
       <div className="document-workspace">
         <Panel
-          title="문서 생성 및 이력"
+          title="문서 생성과 이력"
           action={
             <button className="text-button" onClick={() => workspace.refreshJobs()} type="button">
               {workspace.loading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
@@ -77,9 +82,9 @@ export function DocumentWorkspace({
                     downloadingArtifactId={workspace.downloadingArtifactId}
                     jobs={jobs}
                     key={report.id}
+                    previewingArtifactId={workspace.previewingArtifactId}
                     projectName={project?.name}
                     report={report}
-                    previewingArtifactId={workspace.previewingArtifactId}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
                     onCreate={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "DOCX" })}
                     onCreatePdf={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "PDF" })}
@@ -98,14 +103,14 @@ export function DocumentWorkspace({
           <div className="settings-list">
             <div>
               <strong>revision 기준 생성</strong>
-              <span>문서 job은 생성 당시의 report revision을 저장합니다. 수정본을 만들면 이전 문서는 이력으로 남습니다.</span>
+              <span>문서 job은 생성 당시 report revision을 저장합니다. 수정본을 만들면 이전 문서는 이력으로 남습니다.</span>
             </div>
             <div>
               <strong>수정 후 재제출</strong>
-              <span>생성 완료 리포트를 수정하면 먼저 다시 제출해야 새 문서를 생성할 수 있습니다.</span>
+              <span>생성 완료 리포트를 수정하면 먼저 다시 제출해야 새 revision 문서를 생성할 수 있습니다.</span>
             </div>
             <div>
-              <strong>다운로드 이력</strong>
+              <strong>다운로드 준비</strong>
               <span>최신 생성본과 이전 생성본을 구분해서 보여주고, 필요한 산출물만 다운로드 준비합니다.</span>
             </div>
           </div>
@@ -170,7 +175,7 @@ function DocumentReportCard({
         </div>
         <div>
           <strong>{report.title || report.reportNo}</strong>
-          <span>{projectName ?? `project #${report.projectId}`} · {report.reportType}</span>
+          <span>{projectName ?? `project #${report.projectId}`} / {report.reportType}</span>
         </div>
         <StatusBadge status={latestJob?.status ?? report.status} />
       </div>
@@ -207,7 +212,9 @@ function DocumentReportCard({
             />
           ))}
           {generatedJobs.length === 1 ? (
-            <p className="document-muted">아직 이전 생성본은 없습니다. 수정 전에 생성 완료된 문서가 있어야 이전본으로 남습니다.</p>
+            <p className="document-muted">
+              아직 이전 생성본은 없습니다. 수정 후 다시 생성하면 기존 완료 문서는 이전본으로 남습니다.
+            </p>
           ) : null}
         </div>
       ) : null}
@@ -216,7 +223,7 @@ function DocumentReportCard({
         <span className="document-action-hint">{action.hint}</span>
         <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
           {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-          HTML Preview
+          HTML 미리보기
         </button>
         <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
           {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
@@ -266,14 +273,14 @@ function DocumentPreviewDialog({
 }) {
   return (
     <div className="document-preview-backdrop" role="presentation">
-      <section className="document-preview-dialog" role="dialog" aria-modal="true" aria-label="HTML document preview">
+      <section className="document-preview-dialog" role="dialog" aria-modal="true" aria-label="HTML 문서 미리보기">
         <header className="document-preview-header">
           <div>
-            <span>HTML Preview</span>
+            <span>HTML 미리보기</span>
             <strong>{preview.artifact.fileName}</strong>
-            <small>job #{preview.job.id} · revision v{preview.job.reportRevision}</small>
+            <small>job #{preview.job.id} / revision v{preview.job.reportRevision}</small>
           </div>
-          <button className="icon-button" onClick={onClose} type="button" aria-label="Close preview">
+          <button className="icon-button" onClick={onClose} type="button" aria-label="미리보기 닫기">
             <X size={18} />
           </button>
         </header>
@@ -292,7 +299,7 @@ function JobProgress({ job }: { job: DocumentJobResponse }) {
   return (
     <div className="document-progress">
       <div>
-        <span>{job.progressStep} · v{job.reportRevision}</span>
+        <span>{job.progressStep} / v{job.reportRevision}</span>
         <strong>{job.progressPercent}%</strong>
       </div>
       <div className="progress-track" aria-hidden="true">
@@ -375,14 +382,11 @@ function GeneratedJobArtifacts({
           const downloadBusy = downloadingArtifactId === artifact.id || requestingDeliveryArtifactId === artifact.id;
           const previewBusy = previewingArtifactId === artifact.id;
           return (
-            <div
-              className="artifact-row"
-              key={artifact.id}
-            >
+            <div className="artifact-row" key={artifact.id}>
               <span>
                 <strong>{artifact.fileName}</strong>
                 <small>
-                  {artifact.artifactType} · {formatBytes(artifact.bytes)} · {deliveryLabel(delivery)}
+                  {artifact.artifactType} / {formatBytes(artifact.bytes)} / {deliveryLabel(delivery)}
                 </small>
               </span>
               <div className="artifact-actions">
@@ -394,7 +398,7 @@ function GeneratedJobArtifacts({
                     type="button"
                   >
                     {previewBusy ? <Loader2 className="spin" size={15} /> : <Eye size={15} />}
-                    Preview
+                    미리보기
                   </button>
                 ) : null}
                 <button
@@ -408,7 +412,7 @@ function GeneratedJobArtifacts({
                   type="button"
                 >
                   {downloadBusy || deliveryActive ? <Loader2 className="spin" size={15} /> : <Download size={15} />}
-                  Download
+                  다운로드
                 </button>
               </div>
             </div>
@@ -430,12 +434,12 @@ function documentAction(report: InspectionReport, latestJob: DocumentJobResponse
     return { label: "다시 생성", hint: "실패한 문서 생성을 다시 요청할 수 있습니다." };
   }
   if (report.status === "GENERATED") {
-    return { label: "재생성", hint: "같은 revision 기준으로 새 문서를 만들 수 있습니다." };
+    return { label: "DOCX 재생성", hint: "같은 revision 기준으로 새 문서를 만들 수 있습니다." };
   }
   if (report.status === "READY_TO_GENERATE") {
-    return { label: "문서 생성", hint: "제출된 revision으로 문서를 생성합니다." };
+    return { label: "DOCX 생성", hint: "제출된 revision으로 문서를 생성합니다." };
   }
-  return { label: "문서 생성", hint: "문서 생성 가능한 상태가 아닙니다." };
+  return { label: "DOCX 생성", hint: "문서 생성 가능한 상태가 아닙니다." };
 }
 
 function needsSubmitBeforeGeneration(report: InspectionReport) {
