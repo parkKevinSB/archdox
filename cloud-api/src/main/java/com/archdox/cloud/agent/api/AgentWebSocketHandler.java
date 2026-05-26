@@ -2,8 +2,10 @@ package com.archdox.cloud.agent.api;
 
 import com.archdox.cloud.agent.application.AgentInboundMessage;
 import com.archdox.cloud.agent.application.AgentOutboundMessage;
+import com.archdox.cloud.agent.application.ArchDoxAgentProperties;
 import com.archdox.cloud.agent.application.ArchDoxAgentAuthenticationService;
 import com.archdox.cloud.agent.application.ArchDoxAgentCommandService;
+import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthService;
 import com.archdox.cloud.agent.application.ArchDoxAgentSessionRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -15,20 +17,32 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 public class AgentWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
+    private final ArchDoxAgentProperties properties;
     private final ArchDoxAgentAuthenticationService authenticationService;
     private final ArchDoxAgentCommandService commandService;
+    private final ArchDoxAgentConnectionHealthService connectionHealthService;
     private final ArchDoxAgentSessionRegistry sessionRegistry;
 
     public AgentWebSocketHandler(
             ObjectMapper objectMapper,
+            ArchDoxAgentProperties properties,
             ArchDoxAgentAuthenticationService authenticationService,
             ArchDoxAgentCommandService commandService,
+            ArchDoxAgentConnectionHealthService connectionHealthService,
             ArchDoxAgentSessionRegistry sessionRegistry
     ) {
         this.objectMapper = objectMapper;
+        this.properties = properties;
         this.authenticationService = authenticationService;
         this.commandService = commandService;
+        this.connectionHealthService = connectionHealthService;
         this.sessionRegistry = sessionRegistry;
+    }
+
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) {
+        session.setTextMessageSizeLimit(properties.safeWebsocketMaxTextMessageBufferBytes());
+        session.setBinaryMessageSizeLimit(properties.safeWebsocketMaxBinaryMessageBufferBytes());
     }
 
     @Override
@@ -40,7 +54,13 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 case "HEARTBEAT" -> commandService.heartbeat(requireAgent(session), inbound.toHeartbeat());
                 case "ACK" -> commandService.ack(requireAgent(session), inbound.commandId());
                 case "COMPLETE" -> commandService.complete(requireAgent(session), inbound.commandId(), inbound.result());
-                case "FAIL" -> commandService.fail(requireAgent(session), inbound.commandId(), inbound.errorMessage(), inbound.result());
+                case "FAIL" -> commandService.fail(
+                        requireAgent(session),
+                        inbound.commandId(),
+                        inbound.errorCode(),
+                        inbound.retryable(),
+                        inbound.errorMessage(),
+                        inbound.result());
                 default -> send(session, AgentOutboundMessage.error("Unsupported message type: " + inbound.type()));
             }
         } catch (Exception ex) {
@@ -57,6 +77,12 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     private void handleHello(WebSocketSession session, AgentInboundMessage inbound) throws Exception {
         var connection = authenticationService.connect(inbound.toHello());
         var agent = connection.agent();
+        connectionHealthService.disconnectHeartbeatTimedOutSessions(agent.id());
+        if (connectionHealthService.hasActiveSession(agent.id())) {
+            send(session, AgentOutboundMessage.error("ArchDox Agent is already connected"));
+            session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
         sessionRegistry.register(agent, session);
         send(session, AgentOutboundMessage.welcome(agent.id(), connection.issuedDeviceSecret()));
         commandService.deliverPending(agent.id());

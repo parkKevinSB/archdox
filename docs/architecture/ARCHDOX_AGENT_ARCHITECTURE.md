@@ -213,6 +213,117 @@ instance. Command truth stays in `archdox_agent_commands`, connection visibility
 stays in `archdox_agent_sessions`, and the instance with the live WebSocket acts
 only as transport.
 
+## Connection Health Monitoring
+
+Agent connection health is controlled by Cloud API Flower orchestration.
+
+- ArchDox Agent sends lightweight `HEARTBEAT` messages over WebSocket.
+- `AgentWebSocketHandler` only decodes transport messages and updates session
+  visibility through application services.
+- `archdox_agent_sessions.last_seen_at` is the durable connection signal.
+- The `monitoring` Flower worker submits a long-lived
+  `agent-connection-health-monitor` flow on application startup.
+- The monitor flow loops through `CHECK -> WAIT -> CHECK` using `stepNo`.
+- On heartbeat timeout, Cloud marks the stale session `DISCONNECTED`, records
+  `AGENT_HEARTBEAT_TIMEOUT`, and marks the Agent `OFFLINE` only if no ACTIVE
+  session remains.
+- When an Agent becomes disconnected and no ACTIVE session remains, Cloud fails
+  that Agent's in-flight commands. For `GENERATE_DOCUMENT`, Cloud publishes a
+  non-retryable `DocumentRenderCommandFailedEvent` with
+  `ARCHDOX_AGENT_DISCONNECTED`, and the document generation Flower flow marks
+  the current document job/report failed.
+
+Flower owns the periodic decision. It does not own WebSocket objects. The
+in-memory session registry is only asked to close a local socket when the stale
+session belongs to the current API process.
+
+## Duplicate Connection Policy
+
+The same `agentId` must not have two healthy WebSocket sessions at the same
+time.
+
+```text
+same agentId HELLO
+-> clean heartbeat-timed-out sessions for that agent
+-> if ACTIVE session still exists, reject the new socket
+-> if no ACTIVE session remains, register the new socket
+```
+
+Do not let a new process silently take over a healthy Agent identity. If a real
+second runtime is needed, register a separate `agentCode`, for example
+`office-backup-1` or `cloud-managed-2`.
+
+## WebSocket Command Payload Policy
+
+The Agent WebSocket is the control plane. It carries small command envelopes,
+ACK/COMPLETE/FAIL events, heartbeat, and routing state. It must not carry large
+document snapshots, full photo lists with binary data, template content, or
+generated artifacts.
+
+For document rendering, Cloud sends `GENERATE_DOCUMENT` with only the job
+identity and a render package reference:
+
+```json
+{
+  "documentJobId": 7001,
+  "officeId": 10,
+  "reportId": 1000,
+  "outputFormat": "DOCX",
+  "renderPackageMethod": "GET",
+  "renderPackageUrl": "/agent/api/v1/document-jobs/7001/render-package",
+  "resultStorageKind": "ARCHDOX_AGENT"
+}
+```
+
+The ArchDox Agent resolves relative URLs against its configured Cloud HTTP base
+URL, authenticates with its Agent credentials, then downloads the render package
+through HTTP. The render package contains the neutral job snapshot, selected
+template revision metadata, template download URL, photo metadata, and photo
+download URLs.
+
+Template bytes, working-photo bytes, original-photo bytes, generated artifacts,
+and delivery uploads must move through HTTP or S3-compatible storage adapters.
+They must not be embedded in WebSocket command payloads.
+
+## Agent Failure Contract
+
+When a command fails, the Agent reports a machine-readable failure contract:
+
+```json
+{
+  "type": "FAIL",
+  "commandId": 56,
+  "errorCode": "TEMPLATE_INVALID_DOCX",
+  "retryable": false,
+  "errorMessage": "Document template content could not be read",
+  "result": {
+    "errorCode": "TEMPLATE_INVALID_DOCX",
+    "retryable": false,
+    "message": "Document template content could not be read"
+  }
+}
+```
+
+Flower owns the retry decision. For `GENERATE_DOCUMENT`, retryable Agent
+failures re-enter the document render flow backoff path. Non-retryable Agent
+failures fail the job immediately with the Agent error code.
+
+Examples of retryable failures:
+
+- temporary HTTP/S3/MinIO/NAS/network failures
+- timeout while fetching a render package or uploading an artifact
+- interrupted command execution during shutdown
+
+Examples of non-retryable failures:
+
+- invalid command payload
+- missing required template/report data
+- unreadable or corrupt DOCX template
+- unsupported output format
+- Agent authentication failure
+- storage profile not configured
+- PDF converter unavailable
+
 ## Cloud API Responsibilities
 
 `cloud-api` owns:

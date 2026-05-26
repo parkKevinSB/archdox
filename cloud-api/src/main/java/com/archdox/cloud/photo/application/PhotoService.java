@@ -166,15 +166,14 @@ public class PhotoService {
             throw new ConflictException("Agent-managed photo content is not available through Cloud preview");
         }
         var input = storageAdapterResolver.forStorageKind(asset.storageKind()).openContent(asset);
-        return new PhotoAssetContent(
-                previewFileName(photo.id(), assetType, asset.mimeType()),
-                asset.mimeType(),
-                asset.bytes(),
-                outputStream -> {
-                    try (input) {
-                        input.transferTo(outputStream);
-                    }
-                });
+        try (input) {
+            var content = input.readAllBytes();
+            return new PhotoAssetContent(
+                    previewFileName(photo.id(), assetType, asset.mimeType()),
+                    asset.mimeType(),
+                    asset.bytes(),
+                    content);
+        }
     }
 
     @Transactional
@@ -227,7 +226,7 @@ public class PhotoService {
             throw new BadRequestException("Use the returned upload URL for storage kind " + asset.storageKind());
         }
         storageAdapterResolver.forStorageKind(asset.storageKind()).storeContent(asset, contentLength, input);
-        asset.markUploaded(contentLength == null || contentLength < 0 ? null : contentLength, OffsetDateTime.now());
+        asset.markUploaded(contentLength == null || contentLength <= 0 ? null : contentLength, OffsetDateTime.now());
     }
 
     @Transactional

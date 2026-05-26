@@ -63,6 +63,14 @@ archdox:
     command-ttl-minutes: ${AGENT_COMMAND_TTL_MINUTES:60}
     install-token-ttl-minutes: ${AGENT_INSTALL_TOKEN_TTL_MINUTES:30}
     allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:false}
+    websocket-max-text-message-buffer-bytes: ${AGENT_WS_MAX_TEXT_MESSAGE_BUFFER_BYTES:2097152}
+    websocket-max-binary-message-buffer-bytes: ${AGENT_WS_MAX_BINARY_MESSAGE_BUFFER_BYTES:2097152}
+    connection-health:
+      enabled: ${AGENT_CONNECTION_HEALTH_ENABLED:true}
+      heartbeat-timeout-ms: ${AGENT_HEARTBEAT_TIMEOUT_MS:90000}
+      check-interval-ms: ${AGENT_CONNECTION_HEALTH_CHECK_INTERVAL_MS:10000}
+      worker-interval-ms: ${AGENT_CONNECTION_HEALTH_WORKER_INTERVAL_MS:1000}
+      max-sessions-per-check: ${AGENT_CONNECTION_HEALTH_MAX_SESSIONS_PER_CHECK:200}
   photos:
     pickup:
       max-attempts: ${PHOTO_PICKUP_MAX_ATTEMPTS:5}

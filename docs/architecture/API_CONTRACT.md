@@ -2036,29 +2036,9 @@ For document rendering, Cloud sends `commandType=GENERATE_DOCUMENT`:
     "documentJobId": 7001,
     "officeId": 10,
     "reportId": 1000,
-    "projectId": 100,
     "outputFormat": "DOCX",
-    "template": {
-      "templateCode": "INSPECTION_REPORT",
-      "version": 1,
-      "storageRef": "templates/default.docx",
-      "schemaJson": "{}",
-      "composePolicyJson": "{}",
-      "downloadMethod": "GET",
-      "downloadUrl": "/agent/api/v1/document-jobs/7001/template/content"
-    },
-    "inputSnapshot": {},
-    "photos": [
-      {
-        "photoId": "9881",
-        "checklistItemKey": "BASIC_INFO",
-        "storageRef": "offices/10/reports/1000/photos/.../working.jpg",
-        "caption": "Front view",
-        "layoutSize": "MEDIUM",
-        "mimeType": "image/jpeg",
-        "downloadUrl": "/agent/api/v1/photos/9881/assets/WORKING/content"
-      }
-    ],
+    "renderPackageMethod": "GET",
+    "renderPackageUrl": "/agent/api/v1/document-jobs/7001/render-package",
     "resultStorageKind": "ARCHDOX_AGENT",
     "attempt": 1,
     "maxAttempts": 3,
@@ -2067,14 +2047,66 @@ For document rendering, Cloud sends `commandType=GENERATE_DOCUMENT`:
 }
 ```
 
-When `downloadUrl` is present, the ArchDox Agent resolves relative URLs against
-`CLOUD_API_BASE_URL`, authenticates with its agent credentials, downloads the
-DOCX template, and may cache it under its template storage root by `storageRef`.
+The WebSocket command payload is intentionally small. It is a control-plane
+envelope only. The ArchDox Agent then fetches the full render package over
+Agent-authenticated HTTP.
+
+### Agent -> Cloud: render package
+
+`GET /agent/api/v1/document-jobs/{documentJobId}/render-package`
+
+Headers:
+
+- `X-Agent-Id`
+- `X-Agent-Device-Secret`
+- `X-Agent-Office-Id`
+
+Development installs may use `X-Agent-Token` only when explicitly enabled.
+
+Response `200`:
+
+```json
+{
+  "documentJobId": 7001,
+  "officeId": 10,
+  "reportId": 1000,
+  "outputFormat": "DOCX",
+  "resultStorageKind": "ARCHDOX_AGENT",
+  "template": {
+    "templateCode": "INSPECTION_REPORT",
+    "version": 1,
+    "storageRef": "templates/default.docx",
+    "schemaJson": "{}",
+    "composePolicyJson": "{}",
+    "downloadMethod": "GET",
+    "downloadUrl": "/agent/api/v1/document-jobs/7001/template/content"
+  },
+  "inputSnapshot": {},
+  "photos": [
+    {
+      "photoId": "9881",
+      "checklistItemKey": "BASIC_INFO",
+      "storageRef": "offices/10/reports/1000/photos/.../working.jpg",
+      "caption": "Front view",
+      "layoutSize": "MEDIUM",
+      "mimeType": "image/jpeg",
+      "downloadUrl": "/agent/api/v1/photos/9881/assets/WORKING/content"
+    }
+  ]
+}
+```
+
+When `downloadUrl` is present in the render package, the ArchDox Agent resolves
+relative URLs against `CLOUD_API_BASE_URL`, authenticates with its agent
+credentials, downloads the DOCX template or working photo, and may cache it
+under its configured storage root by `storageRef`.
 If the template is already cached locally, the Agent can render without
-downloading again because template revisions are immutable.
-Photo `downloadUrl` follows the same relative URL and agent-authentication
-rules. It is used only when the Agent cannot already resolve the working image
-from its configured local working-photo storage.
+downloading again because template revisions are immutable. Photo `downloadUrl`
+is used only when the Agent cannot already resolve the working image from its
+configured local working-photo storage.
+
+Older command payloads may contain full render inputs during migration, but new
+Cloud implementations must use the render-package URL shape above.
 
 For Agent-backed document delivery, Cloud sends
 `commandType=UPLOAD_DOCUMENT_ARTIFACT`:
@@ -2184,10 +2216,23 @@ response.
 {
   "type": "FAIL",
   "commandId": 55,
+  "errorCode": "AGENT_REMOTE_SERVICE_UNAVAILABLE",
+  "retryable": true,
   "errorMessage": "NAS unavailable",
-  "result": {}
+  "result": {
+    "errorCode": "AGENT_REMOTE_SERVICE_UNAVAILABLE",
+    "retryable": true,
+    "message": "NAS unavailable"
+  }
 }
 ```
+
+`errorCode` is the machine-readable failure reason. `retryable` tells the
+Flower flow whether the failed attempt may be retried. New Agent
+implementations should send both as top-level fields and also mirror them in
+`result` for older command handlers. If `retryable` is missing, Cloud must treat
+the Agent-reported failure as non-retryable unless a bounded error-code policy
+explicitly says otherwise.
 
 For `PHOTO_PICKUP`, Cloud records the command as failed and publishes a Bloom
 event. The `photo-pickup` Flower flow treats the failed command attempt as

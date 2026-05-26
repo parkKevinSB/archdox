@@ -3,6 +3,7 @@ package com.archdox.cloud.document.flow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -31,11 +32,11 @@ import org.junit.jupiter.api.Test;
 
 class DocumentGenerationFlowFactoryTest {
     @Test
-    void archDoxAgentRenderDispatchesContractPayloadAndStoresReturnedArtifacts() {
+    void archDoxAgentRenderDispatchesCommandEnvelopeAndStoresReturnedArtifacts() {
         var service = mock(DocumentJobService.class);
         var commands = mock(ArchDoxAgentCommandService.class);
-        var payload = archDoxAgentRenderPayload();
-        when(service.buildArchDoxAgentRenderPayload(10L, 700L)).thenReturn(payload);
+        var payload = archDoxAgentRenderCommandPayload();
+        when(service.buildArchDoxAgentRenderCommandPayload(10L, 700L)).thenReturn(payload);
         when(commands.enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(1), eq(3)))
                 .thenReturn(Optional.of(99L));
         var bloom = LocalEventBus.create();
@@ -74,8 +75,8 @@ class DocumentGenerationFlowFactoryTest {
     void archDoxAgentRenderPublishesFailureWhenAgentReportsFailure() {
         var service = mock(DocumentJobService.class);
         var commands = mock(ArchDoxAgentCommandService.class);
-        var payload = archDoxAgentRenderPayload();
-        when(service.buildArchDoxAgentRenderPayload(10L, 700L)).thenReturn(payload);
+        var payload = archDoxAgentRenderCommandPayload();
+        when(service.buildArchDoxAgentRenderCommandPayload(10L, 700L)).thenReturn(payload);
         when(commands.enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(1), eq(3)))
                 .thenReturn(Optional.of(99L));
         var bloom = LocalEventBus.create();
@@ -98,12 +99,52 @@ class DocumentGenerationFlowFactoryTest {
         verify(service).markGenerationFailed(
                 10L,
                 700L,
-                "ARCHDOX_AGENT_DOCUMENT_RENDER_FAILED",
+                "RENDERER_FAILED",
                 "Renderer failed");
         assertEquals(1, published.size());
         assertEquals(700L, published.get(0).documentJobId());
         assertEquals("render-archdox-agent-document", published.get(0).stepId());
         assertEquals("Renderer failed", published.get(0).reason());
+    }
+
+    @Test
+    void archDoxAgentRenderRetriesWhenAgentFailureIsRetryable() {
+        var service = mock(DocumentJobService.class);
+        var commands = mock(ArchDoxAgentCommandService.class);
+        var payload = archDoxAgentRenderCommandPayload();
+        when(service.buildArchDoxAgentRenderCommandPayload(10L, 700L)).thenReturn(payload);
+        when(commands.enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(1), eq(2)))
+                .thenReturn(Optional.of(99L));
+        when(commands.enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(2), eq(2)))
+                .thenReturn(Optional.of(100L));
+        var clock = new ManualClock();
+        var bloom = LocalEventBus.create();
+        var properties = properties();
+        properties.setMaxAttempts(2);
+        properties.setRetryBaseDelayMs(50);
+        properties.setRetryMaxDelayMs(50);
+        var worker = workerWith(bloom, clock);
+        worker.submit(new DocumentGenerationFlowFactory(service, commands, Runnable::run, properties)
+                .create(event(DocumentWorkerType.ARCHDOX_AGENT)));
+
+        tick(worker, 8);
+        bloom.publish(new DocumentRenderCommandFailedEvent(
+                10L,
+                700L,
+                99L,
+                "AGENT_REMOTE_SERVICE_UNAVAILABLE",
+                true,
+                "Render package download failed with HTTP 503",
+                Map.of("errorCode", "AGENT_REMOTE_SERVICE_UNAVAILABLE", "retryable", true),
+                OffsetDateTime.now()));
+        tick(worker, 4);
+
+        clock.advance(50);
+        tick(worker, 8);
+
+        verify(commands).enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(1), eq(2));
+        verify(commands).enqueueDocumentRender(eq(10L), eq(700L), same(payload), eq(2), eq(2));
+        verify(service, never()).markGenerationFailed(eq(10L), eq(700L), eq("AGENT_REMOTE_SERVICE_UNAVAILABLE"), org.mockito.Mockito.any());
     }
 
     private Worker workerWith(LocalEventBus bloom) {
@@ -134,34 +175,14 @@ class DocumentGenerationFlowFactoryTest {
         return properties;
     }
 
-    private Map<String, Object> archDoxAgentRenderPayload() {
+    private Map<String, Object> archDoxAgentRenderCommandPayload() {
         var payload = new LinkedHashMap<String, Object>();
         payload.put("documentJobId", 700L);
         payload.put("officeId", 10L);
         payload.put("reportId", 1000L);
-        payload.put("reportRevision", 2);
-        payload.put("projectId", 100L);
-        payload.put("siteId", 200L);
-        payload.put("outputFormat", "DOCX_AND_PDF");
-        payload.put("inputSnapshot", Map.of(
-                "report", Map.of("title", "Safety inspection"),
-                "steps", Map.of("BASIC_INFO", Map.of("inspectionDate", "2026-05-23"))));
-        payload.put("template", Map.of(
-                "templateCode", "INSPECTION_REPORT",
-                "version", 3,
-                "storageRef", "templates/inspection-report-v3.docx",
-                "schemaJson", "{}",
-                "composePolicyJson", "{}",
-                "downloadMethod", "GET",
-                "downloadUrl", "/agent/api/v1/document-jobs/700/template/content"));
-        payload.put("photos", List.of(Map.of(
-                "photoId", "9881",
-                "checklistItemKey", "BASIC_INFO",
-                "storageRef", "offices/10/reports/1000/photos/9881/working.jpg",
-                "caption", "Front view",
-                "layoutSize", "MEDIUM",
-                "mimeType", "image/jpeg",
-                "downloadUrl", "/agent/api/v1/photos/9881/assets/WORKING/content")));
+        payload.put("outputFormat", "DOCX");
+        payload.put("renderPackageMethod", "GET");
+        payload.put("renderPackageUrl", "/agent/api/v1/document-jobs/700/render-package");
         payload.put("resultStorageKind", "ARCHDOX_AGENT");
         return payload;
     }

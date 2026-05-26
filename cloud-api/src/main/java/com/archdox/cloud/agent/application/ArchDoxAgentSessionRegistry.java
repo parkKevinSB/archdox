@@ -2,6 +2,7 @@ package com.archdox.cloud.agent.application;
 
 import com.archdox.cloud.agent.domain.ArchDoxAgent;
 import com.archdox.cloud.agent.domain.ArchDoxAgentSession;
+import com.archdox.cloud.agent.domain.ArchDoxAgentSessionStatus;
 import com.archdox.cloud.agent.infra.ArchDoxAgentSessionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -98,6 +99,30 @@ public class ArchDoxAgentSessionRegistry {
             }
         }
         return false;
+    }
+
+    public boolean closeLocalSession(Long agentId, String websocketSessionId, String reason) {
+        if (agentId == null || websocketSessionId == null || websocketSessionId.isBlank()) {
+            return false;
+        }
+        var sessions = sessionsByAgentId.get(agentId);
+        if (sessions == null) {
+            return false;
+        }
+        var session = sessions.remove(websocketSessionId);
+        if (sessions.isEmpty()) {
+            sessionsByAgentId.remove(agentId);
+        }
+        sessionRefsByWebSocketId.remove(websocketSessionId);
+        if (session == null || !session.isOpen()) {
+            return false;
+        }
+        try {
+            session.close();
+            return true;
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 
     private void removeLocalSession(Long agentId, String websocketSessionId) {

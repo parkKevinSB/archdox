@@ -8,26 +8,50 @@ import com.archdox.document.OutputFormat;
 import com.archdox.document.PhotoAsset;
 import com.archdox.document.PhotoLayoutSize;
 import com.archdox.document.TemplateSpec;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.archdox.agent.document.AgentDocumentStore;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DocumentRenderCommandExecutor {
+    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofMinutes(5);
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
+    };
+
     private final DocumentEngine documentEngine;
     private final AgentDocumentStore agentDocumentStore;
+    private final ArchDoxAgentProperties properties;
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
-    public DocumentRenderCommandExecutor(DocumentEngine documentEngine, AgentDocumentStore agentDocumentStore) {
+    public DocumentRenderCommandExecutor(
+            DocumentEngine documentEngine,
+            AgentDocumentStore agentDocumentStore,
+            ArchDoxAgentProperties properties,
+            ObjectMapper objectMapper
+    ) {
         this.documentEngine = documentEngine;
         this.agentDocumentStore = agentDocumentStore;
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
     }
 
     public Map<String, Object> execute(CloudInboundMessage inbound) throws IOException {
-        var payload = inbound.payload() == null ? Map.<String, Object>of() : inbound.payload();
+        var payload = resolveRenderPayload(inbound.payload() == null ? Map.<String, Object>of() : inbound.payload());
         var jobId = stringValue(payload.get("documentJobId"), "documentJobId");
         var reportId = stringValue(payload.get("reportId"), "reportId");
         var officeId = stringValue(payload.get("officeId"), "officeId");
@@ -70,6 +94,65 @@ public class DocumentRenderCommandExecutor {
         result.put("reportId", reportId);
         result.put("artifacts", artifacts);
         return result;
+    }
+
+    private Map<String, Object> resolveRenderPayload(Map<String, Object> commandPayload) throws IOException {
+        var renderPackageUrl = optionalStringValue(commandPayload.get("renderPackageUrl"));
+        if (renderPackageUrl == null) {
+            return commandPayload;
+        }
+        var method = optionalStringValue(commandPayload.get("renderPackageMethod"), "GET");
+        if (!"GET".equalsIgnoreCase(method)) {
+            throw new IOException("Unsupported render package download method: " + method);
+        }
+        var renderPackage = fetchRenderPackage(renderPackageUrl);
+        var merged = new LinkedHashMap<String, Object>(commandPayload);
+        merged.putAll(renderPackage);
+        return merged;
+    }
+
+    private Map<String, Object> fetchRenderPackage(String renderPackageUrl) throws IOException {
+        var uri = resolveDownloadUri(renderPackageUrl);
+        try {
+            var response = httpClient.send(buildRequest(uri), HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IOException("Render package download failed with HTTP " + response.statusCode());
+            }
+            return objectMapper.readValue(response.body(), MAP_TYPE);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Render package download was interrupted", ex);
+        }
+    }
+
+    private HttpRequest buildRequest(URI uri) {
+        var builder = HttpRequest.newBuilder(uri)
+                .timeout(DOWNLOAD_TIMEOUT)
+                .GET();
+        if (requiresAgentAuth(uri)) {
+            if (properties.getAgentId() != null
+                    && properties.getDeviceSecret() != null
+                    && !properties.getDeviceSecret().isBlank()) {
+                builder.header("X-Agent-Id", String.valueOf(properties.getAgentId()));
+                builder.header("X-Agent-Device-Secret", properties.getDeviceSecret());
+            } else {
+                builder.header("X-Agent-Token", properties.getToken());
+            }
+            builder.header("X-Agent-Office-Id", String.valueOf(properties.getOfficeId()));
+        }
+        return builder.build();
+    }
+
+    private URI resolveDownloadUri(String downloadUrl) {
+        var uri = URI.create(downloadUrl);
+        if (uri.isAbsolute()) {
+            return uri;
+        }
+        return URI.create(properties.getCloudHttpBaseUrl()).resolve(uri);
+    }
+
+    private boolean requiresAgentAuth(URI uri) {
+        return uri.getPath() != null && uri.getPath().startsWith("/agent/api/");
     }
 
     private TemplateSpec templateSpec(Object value) {

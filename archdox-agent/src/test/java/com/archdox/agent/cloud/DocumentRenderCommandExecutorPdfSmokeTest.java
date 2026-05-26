@@ -13,6 +13,7 @@ import com.archdox.document.LibreOfficeDocumentArtifactExporter;
 import com.archdox.document.LibreOfficePdfExportOptions;
 import com.archdox.document.ProcessLibreOfficeCommandRunner;
 import com.archdox.document.SimpleDocumentEngine;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -47,7 +48,11 @@ class DocumentRenderCommandExecutorPdfSmokeTest {
                 spec -> Optional.of(template),
                 new SimpleDocumentEngine(exportService),
                 exportService);
-        var executor = new DocumentRenderCommandExecutor(engine, new AgentDocumentStore(properties));
+        var executor = new DocumentRenderCommandExecutor(
+                engine,
+                new AgentDocumentStore(properties),
+                properties,
+                new ObjectMapper());
         var payload = Map.<String, Object>of(
                 "documentJobId", "job-pdf-smoke",
                 "officeId", "office-smoke",

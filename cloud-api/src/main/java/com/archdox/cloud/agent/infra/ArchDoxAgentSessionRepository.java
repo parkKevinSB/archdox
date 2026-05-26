@@ -25,6 +25,16 @@ public interface ArchDoxAgentSessionRepository extends JpaRepository<ArchDoxAgen
 
     List<ArchDoxAgentSession> findByOfficeIdOrderByLastSeenAtDesc(Long officeId, Pageable pageable);
 
+    List<ArchDoxAgentSession> findByStatusAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+            ArchDoxAgentSessionStatus status,
+            OffsetDateTime lastSeenAt,
+            Pageable pageable);
+
+    List<ArchDoxAgentSession> findByAgentIdAndStatusAndLastSeenAtBeforeOrderByLastSeenAtAsc(
+            Long agentId,
+            ArchDoxAgentSessionStatus status,
+            OffsetDateTime lastSeenAt);
+
     boolean existsByAgentIdAndStatus(Long agentId, ArchDoxAgentSessionStatus status);
 
     long countByOfficeIdAndStatus(Long officeId, ArchDoxAgentSessionStatus status);
@@ -43,6 +53,42 @@ public interface ArchDoxAgentSessionRepository extends JpaRepository<ArchDoxAgen
             """)
     int markActiveSessionsDisconnectedForApiInstance(
             String apiInstanceId,
+            ArchDoxAgentSessionStatus activeStatus,
+            ArchDoxAgentSessionStatus status,
+            OffsetDateTime disconnectedAt,
+            String disconnectReason);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update ArchDoxAgentSession session
+            set session.status = :status,
+                session.lastSeenAt = :disconnectedAt,
+                session.disconnectedAt = :disconnectedAt,
+                session.disconnectReason = :disconnectReason
+            where session.agent.id = :agentId
+              and session.apiInstanceId = :apiInstanceId
+              and session.status = :activeStatus
+            """)
+    int markActiveSessionsDisconnectedForAgentAndApiInstance(
+            Long agentId,
+            String apiInstanceId,
+            ArchDoxAgentSessionStatus activeStatus,
+            ArchDoxAgentSessionStatus status,
+            OffsetDateTime disconnectedAt,
+            String disconnectReason);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update ArchDoxAgentSession session
+            set session.status = :status,
+                session.lastSeenAt = :disconnectedAt,
+                session.disconnectedAt = :disconnectedAt,
+                session.disconnectReason = :disconnectReason
+            where session.agent.id = :agentId
+              and session.status = :activeStatus
+            """)
+    int markActiveSessionsDisconnectedForAgent(
+            Long agentId,
             ArchDoxAgentSessionStatus activeStatus,
             ArchDoxAgentSessionStatus status,
             OffsetDateTime disconnectedAt,

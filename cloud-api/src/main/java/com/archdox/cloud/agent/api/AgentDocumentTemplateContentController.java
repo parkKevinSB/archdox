@@ -4,6 +4,7 @@ import com.archdox.cloud.agent.application.ArchDoxAgentAuthenticationService;
 import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.global.api.BadRequestException;
 import java.io.IOException;
+import java.util.Map;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,6 +28,19 @@ public class AgentDocumentTemplateContentController {
     ) {
         this.authenticationService = authenticationService;
         this.documentJobService = documentJobService;
+    }
+
+    @GetMapping("/{documentJobId}/render-package")
+    public Map<String, Object> renderPackage(
+            @PathVariable Long documentJobId,
+            @RequestHeader(name = "X-Agent-Token", required = false) String token,
+            @RequestHeader(name = "X-Agent-Id", required = false) Long agentId,
+            @RequestHeader(name = "X-Agent-Device-Secret", required = false) String deviceSecret,
+            @RequestHeader(name = "X-Agent-Office-Id", required = false) String officeHeader
+    ) {
+        var officeId = parseOfficeId(officeHeader);
+        authenticationService.authenticateDownload(agentId, deviceSecret, token, officeId);
+        return documentJobService.buildArchDoxAgentRenderPayload(officeId, documentJobId);
     }
 
     @GetMapping("/{documentJobId}/template/content")

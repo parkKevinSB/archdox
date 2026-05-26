@@ -79,7 +79,7 @@ public final class ArchDoxAgentDocumentRenderStep extends Step {
         attempt++;
         try {
             documentJobService.markArchDoxAgentRenderDispatched(event.officeId(), event.documentJobId());
-            var payload = documentJobService.buildArchDoxAgentRenderPayload(event.officeId(), event.documentJobId());
+            var payload = documentJobService.buildArchDoxAgentRenderCommandPayload(event.officeId(), event.documentJobId());
             var command = archDoxAgentCommandService.enqueueDocumentRender(
                     event.officeId(),
                     event.documentJobId(),
@@ -164,10 +164,14 @@ public final class ArchDoxAgentDocumentRenderStep extends Step {
 
     private StepResult failFromAgent(StepContext ctx, DocumentRenderCommandFailedEvent failed) {
         var message = reasonOf(failed.errorMessage());
+        var errorCode = errorCodeOf(failed);
+        if (Boolean.TRUE.equals(retryableOf(failed))) {
+            return handleFailure(ctx, new DocumentGenerationException(errorCode, message));
+        }
         documentJobService.markGenerationFailed(
                 event.officeId(),
                 event.documentJobId(),
-                "ARCHDOX_AGENT_DOCUMENT_RENDER_FAILED",
+                errorCode,
                 message);
         ctx.eventBus().publish(new DocumentGenerationFailedEvent(
                 event.officeId(),
@@ -177,7 +181,7 @@ public final class ArchDoxAgentDocumentRenderStep extends Step {
                 attempt,
                 message,
                 now(ctx)));
-        return StepResult.fail(new DocumentGenerationException("ARCHDOX_AGENT_DOCUMENT_RENDER_FAILED", message));
+        return StepResult.fail(new DocumentGenerationException(errorCode, message));
     }
 
     private StepResult handleFailure(StepContext ctx, RuntimeException cause) {
@@ -218,6 +222,31 @@ public final class ArchDoxAgentDocumentRenderStep extends Step {
             return message;
         }
         return "ArchDox Agent document render failed";
+    }
+
+    private static String errorCodeOf(DocumentRenderCommandFailedEvent failed) {
+        if (failed.errorCode() != null && !failed.errorCode().isBlank()) {
+            return failed.errorCode();
+        }
+        var fromResult = failed.result() == null ? null : failed.result().get("errorCode");
+        if (fromResult != null && !String.valueOf(fromResult).isBlank()) {
+            return String.valueOf(fromResult);
+        }
+        return "ARCHDOX_AGENT_DOCUMENT_RENDER_FAILED";
+    }
+
+    private static Boolean retryableOf(DocumentRenderCommandFailedEvent failed) {
+        if (failed.retryable() != null) {
+            return failed.retryable();
+        }
+        var fromResult = failed.result() == null ? null : failed.result().get("retryable");
+        if (fromResult instanceof Boolean bool) {
+            return bool;
+        }
+        if (fromResult instanceof String text && !text.isBlank()) {
+            return Boolean.parseBoolean(text);
+        }
+        return false;
     }
 
     private static OffsetDateTime now(StepContext ctx) {

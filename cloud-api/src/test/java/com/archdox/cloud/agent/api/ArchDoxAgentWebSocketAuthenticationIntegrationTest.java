@@ -103,6 +103,42 @@ class ArchDoxAgentWebSocketAuthenticationIntegrationTest {
                 .allMatch(session -> "ws-auth-test-api".equals(session.apiInstanceId())));
     }
 
+    @Test
+    void duplicateDeviceSecretHelloIsRejectedWhileExistingSessionIsActive() throws Exception {
+        var user = signup();
+        var installToken = issueInstallToken(user);
+        var open = openHello(Map.of(
+                "type", "HELLO",
+                "authMode", "INSTALL_TOKEN",
+                "officeId", user.officeId(),
+                "agentCode", "office-main",
+                "installToken", installToken,
+                "version", "0.0.1-test",
+                "capabilities", Map.of("photoPickup", true, "documentGeneration", true)));
+        try {
+            assertEquals("WELCOME", open.welcome().type());
+            assertNotNull(open.welcome().agentId());
+
+            var duplicate = sendHello(Map.of(
+                    "type", "HELLO",
+                    "authMode", "DEVICE_SECRET",
+                    "agentId", open.welcome().agentId(),
+                    "deviceSecret", open.welcome().deviceSecret(),
+                    "version", "0.0.1-test",
+                    "capabilities", Map.of("photoPickup", true, "documentGeneration", true)));
+
+            assertEquals("ERROR", duplicate.type());
+            assertEquals("ArchDox Agent is already connected", duplicate.message());
+            var sessions = sessionRepository.findByAgentIdOrderByConnectedAtAsc(open.welcome().agentId());
+            assertEquals(1, sessions.size());
+            assertEquals(ArchDoxAgentSessionStatus.ACTIVE, sessions.get(0).status());
+        } finally {
+            if (open.session().isOpen()) {
+                open.session().close(CloseStatus.NORMAL);
+            }
+        }
+    }
+
     private AgentOutboundMessage sendHello(Map<String, Object> hello) throws Exception {
         var response = new CompletableFuture<AgentOutboundMessage>();
         var sessionRef = new CompletableFuture<WebSocketSession>();
@@ -134,6 +170,35 @@ class ArchDoxAgentWebSocketAuthenticationIntegrationTest {
             session.close(CloseStatus.NORMAL);
         }
         return outbound;
+    }
+
+    private OpenAgentSocket openHello(Map<String, Object> hello) throws Exception {
+        var response = new CompletableFuture<AgentOutboundMessage>();
+        var sessionRef = new CompletableFuture<WebSocketSession>();
+        var client = new StandardWebSocketClient();
+        var handler = new TextWebSocketHandler() {
+            @Override
+            public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+                sessionRef.complete(session);
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(hello)));
+            }
+
+            @Override
+            protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+                response.complete(objectMapper.readValue(message.getPayload(), AgentOutboundMessage.class));
+            }
+
+            @Override
+            public void handleTransportError(WebSocketSession session, Throwable exception) {
+                response.completeExceptionally(exception);
+            }
+        };
+
+        client.execute(handler, "ws://localhost:" + port + "/agent/ws")
+                .get(Duration.ofSeconds(5).toMillis(), TimeUnit.MILLISECONDS);
+        return new OpenAgentSocket(
+                response.get(Duration.ofSeconds(5).toMillis(), TimeUnit.MILLISECONDS),
+                sessionRef.get(Duration.ofSeconds(5).toMillis(), TimeUnit.MILLISECONDS));
     }
 
     private TestUser signup() throws Exception {
@@ -194,5 +259,8 @@ class ArchDoxAgentWebSocketAuthenticationIntegrationTest {
     }
 
     private record TestUser(long officeId, String accessToken) {
+    }
+
+    private record OpenAgentSocket(AgentOutboundMessage welcome, WebSocketSession session) {
     }
 }

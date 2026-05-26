@@ -1,6 +1,7 @@
 package com.archdox.agent.cloud;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.websocket.ContainerProvider;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -63,7 +65,20 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         this.session = session;
+        session.setTextMessageSizeLimit(properties.safeWebsocketMaxTextMessageBufferBytes());
+        session.setBinaryMessageSizeLimit(properties.safeWebsocketMaxBinaryMessageBufferBytes());
         send(CloudOutboundMessage.hello(properties, capabilityProvider.capabilities()));
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        log.warn("ArchDox Cloud WebSocket closed: {}", status);
+        this.session = null;
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        log.warn("ArchDox Cloud WebSocket transport error", exception);
     }
 
     @Override
@@ -72,6 +87,9 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         if ("WELCOME".equals(inbound.type())) {
             log.info("Connected to ArchDox Cloud as ArchDox Agent {}", inbound.agentId());
             if (inbound.deviceSecret() != null && !inbound.deviceSecret().isBlank()) {
+                properties.setAgentId(inbound.agentId());
+                properties.setDeviceSecret(inbound.deviceSecret());
+                properties.setAuthMode("DEVICE_SECRET");
                 log.warn("Agent pairing issued a device secret. Store AGENT_ID={} and AGENT_DEVICE_SECRET securely, then remove AGENT_INSTALL_TOKEN.", inbound.agentId());
             }
             return;
@@ -87,7 +105,10 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
 
     private void connect() {
         try {
-            new StandardWebSocketClient()
+            var container = ContainerProvider.getWebSocketContainer();
+            container.setDefaultMaxTextMessageBufferSize(properties.safeWebsocketMaxTextMessageBufferBytes());
+            container.setDefaultMaxBinaryMessageBufferSize(properties.safeWebsocketMaxBinaryMessageBufferBytes());
+            new StandardWebSocketClient(container)
                     .execute(this, properties.getCloudWsUrl())
                     .get();
         } catch (InterruptedException ex) {
@@ -121,10 +142,14 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
             log.info("PHOTO_PICKUP command {} completed", inbound.commandId());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            send(CloudOutboundMessage.fail(inbound.commandId(), "PHOTO_PICKUP interrupted"));
+            send(CloudOutboundMessage.fail(inbound.commandId(), AgentCommandFailureClassifier.classify(
+                    ex,
+                    "PHOTO_PICKUP_FAILED")));
         } catch (Exception ex) {
             log.warn("PHOTO_PICKUP command {} failed", inbound.commandId(), ex);
-            send(CloudOutboundMessage.fail(inbound.commandId(), ex.getMessage()));
+            send(CloudOutboundMessage.fail(inbound.commandId(), AgentCommandFailureClassifier.classify(
+                    ex,
+                    "PHOTO_PICKUP_FAILED")));
         }
     }
 
@@ -135,7 +160,9 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
             log.info("GENERATE_DOCUMENT command {} completed", inbound.commandId());
         } catch (Exception ex) {
             log.warn("GENERATE_DOCUMENT command {} failed", inbound.commandId(), ex);
-            send(CloudOutboundMessage.fail(inbound.commandId(), ex.getMessage()));
+            send(CloudOutboundMessage.fail(inbound.commandId(), AgentCommandFailureClassifier.classify(
+                    ex,
+                    "DOCUMENT_RENDER_FAILED")));
         }
     }
 
@@ -146,7 +173,9 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
             log.info("UPLOAD_DOCUMENT_ARTIFACT command {} completed", inbound.commandId());
         } catch (Exception ex) {
             log.warn("UPLOAD_DOCUMENT_ARTIFACT command {} failed", inbound.commandId(), ex);
-            send(CloudOutboundMessage.fail(inbound.commandId(), ex.getMessage()));
+            send(CloudOutboundMessage.fail(inbound.commandId(), AgentCommandFailureClassifier.classify(
+                    ex,
+                    "DOCUMENT_ARTIFACT_DELIVERY_FAILED")));
         }
     }
 

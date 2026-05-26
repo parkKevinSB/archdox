@@ -241,6 +241,23 @@ public class DocumentJobService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> buildArchDoxAgentRenderCommandPayload(Long officeId, Long jobId) {
+        var job = requireFlowJob(officeId, jobId);
+        if (job.workerType() != DocumentWorkerType.ARCHDOX_AGENT) {
+            throw new DocumentGenerationException("UNSUPPORTED_WORKER_TYPE", "Document job is not routed to ARCHDOX_AGENT");
+        }
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("documentJobId", job.id());
+        payload.put("officeId", job.officeId());
+        payload.put("reportId", job.reportId());
+        payload.put("outputFormat", job.outputFormat().name());
+        payload.put("renderPackageMethod", "GET");
+        payload.put("renderPackageUrl", "/agent/api/v1/document-jobs/%d/render-package".formatted(job.id()));
+        payload.put("resultStorageKind", DocumentArtifactStorageKind.ARCHDOX_AGENT.name());
+        return payload;
+    }
+
+    @Transactional(readOnly = true)
     public DocumentArtifactDownload downloadArchDoxAgentTemplate(Long officeId, Long jobId) throws IOException {
         var job = requireFlowJob(officeId, jobId);
         var report = requireFlowReport(officeId, job.reportId());

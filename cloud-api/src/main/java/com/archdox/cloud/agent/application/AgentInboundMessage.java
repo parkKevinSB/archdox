@@ -20,6 +20,8 @@ public record AgentInboundMessage(
         Integer pendingJobs,
         Integer recentErrorCount,
         Map<String, Object> result,
+        String errorCode,
+        Boolean retryable,
         String errorMessage
 ) {
     public AgentHello toHello() {

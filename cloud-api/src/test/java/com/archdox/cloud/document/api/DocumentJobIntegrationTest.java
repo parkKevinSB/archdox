@@ -24,6 +24,7 @@ import com.archdox.cloud.agent.domain.ArchDoxAgentSessionStatus;
 import com.archdox.cloud.agent.infra.ArchDoxAgentCommandRepository;
 import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
 import com.archdox.cloud.agent.infra.ArchDoxAgentSessionRepository;
+import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
 import com.archdox.document.DocxTemplateDocumentEngine;
@@ -84,6 +85,9 @@ class DocumentJobIntegrationTest {
 
     @Autowired
     DocumentJobRepository documentJobRepository;
+
+    @Autowired
+    DocumentJobService documentJobService;
 
     @Autowired
     ArchDoxAgentRepository agentRepository;
@@ -163,14 +167,18 @@ class DocumentJobIntegrationTest {
         assertTrue(command.status() == ArchDoxAgentCommandStatus.PENDING
                 || command.status() == ArchDoxAgentCommandStatus.DELIVERED);
         assertTrue("DOCX".equals(command.payloadJson().get("outputFormat")));
-        assertTrue(command.payloadJson().containsKey("inputSnapshot"));
-        assertTrue(command.payloadJson().containsKey("template"));
-        assertTrue(command.payloadJson().containsKey("photos"));
+        assertTrue(command.payloadJson().containsKey("renderPackageUrl"));
+        assertTrue("/agent/api/v1/document-jobs/%d/render-package".formatted(jobId)
+                .equals(command.payloadJson().get("renderPackageUrl")));
+        assertTrue(!command.payloadJson().containsKey("inputSnapshot"));
+        assertTrue(!command.payloadJson().containsKey("template"));
+        assertTrue(!command.payloadJson().containsKey("photos"));
+        var renderPayload = documentJobService.buildArchDoxAgentRenderPayload(user.officeId(), jobId);
         @SuppressWarnings("unchecked")
-        var templatePayload = (Map<String, Object>) command.payloadJson().get("template");
+        var templatePayload = (Map<String, Object>) renderPayload.get("template");
         assertTrue(Boolean.TRUE.equals(templatePayload.get("contentRequired")));
 
-        var agentResult = executeAgentDocumentRender(command, agentStorage);
+        var agentResult = executeAgentDocumentRender(command, renderPayload, agentStorage);
         agentCommandService.ack(agentId, command.id());
         agentCommandService.complete(agentId, command.id(), agentResult);
 
@@ -422,6 +430,7 @@ class DocumentJobIntegrationTest {
 
     private Map<String, Object> executeAgentDocumentRender(
             ArchDoxAgentCommand command,
+            Map<String, Object> renderPayload,
             Path agentStorage
     ) throws Exception {
         var agentProperties = new ArchDoxAgentProperties();
@@ -434,7 +443,11 @@ class DocumentJobIntegrationTest {
                 return java.util.Optional.of(input.readAllBytes());
             }
         }, new SimpleDocumentEngine());
-        var executor = new DocumentRenderCommandExecutor(engine, new AgentDocumentStore(agentProperties));
+        var executor = new DocumentRenderCommandExecutor(
+                engine,
+                new AgentDocumentStore(agentProperties),
+                agentProperties,
+                objectMapper);
         return executor.execute(new CloudInboundMessage(
                 "COMMAND",
                 null,
@@ -442,7 +455,7 @@ class DocumentJobIntegrationTest {
                 null,
                 command.id(),
                 command.commandType().name(),
-                command.payloadJson(),
+                renderPayload,
                 null));
     }
 

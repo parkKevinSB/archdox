@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/v1/photos")
@@ -59,7 +58,7 @@ public class PhotoController {
     }
 
     @GetMapping("/{photoId}/assets/{assetType}/content")
-    public ResponseEntity<StreamingResponseBody> previewContent(
+    public ResponseEntity<byte[]> previewContent(
             @PathVariable Long photoId,
             @PathVariable PhotoAssetType assetType
     ) throws IOException {
@@ -74,7 +73,7 @@ public class PhotoController {
         if (content.bytes() != null && content.bytes() >= 0) {
             builder.contentLength(content.bytes());
         }
-        return builder.body(content.body());
+        return builder.body(content.content());
     }
 
     @PutMapping("/{photoId}/content/{kind}")

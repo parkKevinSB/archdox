@@ -135,45 +135,53 @@ current architecture.
 9. Cloud API owns job state, tenant checks, progress, and artifact metadata.
    Render workers own execution and report ACK/completion/failure.
 10. ArchDox Agent document rendering uses the `GENERATE_DOCUMENT` command type.
-    WebSocket messages should carry command status only; artifact binaries stay
-    in ArchDox Agent/NAS storage unless a delivery flow explicitly uploads or
-    shares them.
-11. Document download APIs may directly stream only `API_LOCAL` artifacts.
+    WebSocket messages should carry command envelopes and status only. The
+    command payload must stay small: `documentJobId`, tenant identity,
+    `outputFormat`, `renderPackageMethod`, and `renderPackageUrl`.
+    Full render inputs such as `inputSnapshot`, `template`, `photos`, template
+    bytes, photo bytes, and artifact binaries must be fetched or uploaded
+    through Agent-authenticated HTTP or S3-compatible storage. Generated
+    artifacts stay in ArchDox Agent/NAS/storage-profile storage unless a
+    delivery flow explicitly uploads or shares them.
+11. Agent `FAIL` messages must include a stable `errorCode` and `retryable`
+    value. Flower, not controllers, decides whether to retry based on that
+    contract and the current retry budget.
+12. Document download APIs may directly stream only `API_LOCAL` artifacts.
     `ARCHDOX_AGENT` artifacts require a delivery request and a later ArchDox Agent
     delivery/upload/share flow.
-12. Agent-backed document delivery uses `UPLOAD_DOCUMENT_ARTIFACT`. The Agent
+13. Agent-backed document delivery uses `UPLOAD_DOCUMENT_ARTIFACT`. The Agent
     uploads a prepared Cloud copy for a specific delivery request; Cloud must not
     expose the Agent/NAS path directly.
-13. Agent-backed document delivery orchestration must use the
+14. Agent-backed document delivery orchestration must use the
     `document-delivery` Flower flow. Delivery retry/backoff and terminal
     failure decisions belong in Flower steps.
-14. Photo original pickup for office `CLOUD_MEDIATED` uploads must use the
+15. Photo original pickup for office `CLOUD_MEDIATED` uploads must use the
     `photo-pickup` Flower flow. The ArchDox Agent command service may create
     and send `PHOTO_PICKUP` commands, but retry/backoff, timeout, and final
     pickup failure decisions belong in the Flower step.
-15. Do not hard-code office-specific document layouts, labels, templates, photo
+16. Do not hard-code office-specific document layouts, labels, templates, photo
     table shapes, or approval behavior in Java branches. Resolve versioned
     templates/configuration and pass the result to `document-engine` or the
     Flower flow.
-16. Report submission readiness is a Cloud API responsibility. The UI may guide
+17. Report submission readiness is a Cloud API responsibility. The UI may guide
     the user, but `cloud-api` must validate required steps, checklist state, and
     working photo availability before moving a report to `READY_TO_GENERATE`.
-17. Generated document artifacts are immutable history for a specific
+18. Generated document artifacts are immutable history for a specific
     `reportRevision`. Editing a submitted/generated report must reopen it as a
     new `contentRevision`; do not mutate or silently replace prior artifacts.
-18. The source of truth for document generation is the neutral document snapshot
+19. The source of truth for document generation is the neutral document snapshot
     in `document_jobs.input_snapshot_json`, not DOCX, HTML, PDF, HWP, or any
     customer-specific artifact.
-19. Add new document data to the neutral snapshot first, then expose it through
+20. Add new document data to the neutral snapshot first, then expose it through
     `templateFields`, `layoutSections`, or bounded renderer/exporter behavior.
-20. Common public-form placeholders may be supplied by
+21. Common public-form placeholders may be supplied by
     `StandardTemplateFieldResolver`, but they must remain report-domain neutral.
     Do not use it for office-specific layouts or customer-specific branches.
     Explicit template schema bindings override these standard defaults.
-21. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
+22. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
     must stay inside document-engine renderers/exporters or deployment-specific
     converter adapters.
-22. Configured template revisions are content-required render inputs. If the
+23. Configured template revisions are content-required render inputs. If the
     selected revision's DOCX content is missing or unreadable, fail the document
     job clearly; do not silently generate a different fallback document.
 
@@ -226,6 +234,18 @@ current architecture.
     across time.
 11. New scheduler-style code requires explicit user confirmation. The default
     choice for orchestration is Flower.
+12. Agent connection health checks must use the `monitoring` Flower worker.
+    WebSocket handlers and registries may update/touch/close transport state,
+    but heartbeat timeout decisions belong in a Flower flow that reads
+    `archdox_agent_sessions` and records `operation_events`.
+13. A healthy ACTIVE session for the same `agentId` must block a duplicate
+    WebSocket HELLO. Do not silently replace a connected Agent. Only allow the
+    new connection after stale sessions have been disconnected by heartbeat
+    timeout cleanup.
+14. When an Agent disconnect is confirmed and no ACTIVE session remains, fail
+    its in-flight commands. For document rendering, publish a non-retryable
+    Agent-disconnected failure so the current document job becomes FAILED
+    instead of waiting for an ambiguous automatic resume.
 
 ## Image Upload And Storage Rules
 
@@ -301,6 +321,13 @@ current architecture.
 10. Agent WebSocket connection visibility belongs in `archdox_agent_sessions`.
     Prefer ACTIVE session rows when choosing a command target, but never depend
     on memory alone.
+11. Agent WebSocket is a control/event channel. Use it for HELLO, HEARTBEAT,
+    command envelopes, ACK, COMPLETE, and FAIL. Move large render packages,
+    photos, templates, and artifacts through Agent-authenticated HTTP or
+    S3-compatible storage.
+12. Do not use duplicate Agent connection as a takeover mechanism. A forced
+    takeover, if ever needed, must be a separate platform-admin operation with
+    explicit command/job failure behavior.
 
 ## Operations And Admin Rules
 

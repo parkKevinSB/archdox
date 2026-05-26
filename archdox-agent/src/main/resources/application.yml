@@ -26,6 +26,8 @@ archdox:
     device-secret: ${AGENT_DEVICE_SECRET:}
     version: ${AGENT_VERSION:0.0.1-dev}
     heartbeat-interval-ms: ${AGENT_HEARTBEAT_INTERVAL_MS:30000}
+    websocket-max-text-message-buffer-bytes: ${AGENT_WS_MAX_TEXT_MESSAGE_BUFFER_BYTES:2097152}
+    websocket-max-binary-message-buffer-bytes: ${AGENT_WS_MAX_BINARY_MESSAGE_BUFFER_BYTES:2097152}
     local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}
     storage:
       original:

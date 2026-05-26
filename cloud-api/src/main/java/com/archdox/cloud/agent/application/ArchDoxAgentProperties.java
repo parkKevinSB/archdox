@@ -12,6 +12,8 @@ public class ArchDoxAgentProperties {
     private int commandTtlMinutes = 60;
     private int installTokenTtlMinutes = 30;
     private boolean allowSharedSecretAuth = false;
+    private int websocketMaxTextMessageBufferBytes = 2 * 1024 * 1024;
+    private int websocketMaxBinaryMessageBufferBytes = 2 * 1024 * 1024;
 
     public String getApiInstanceId() {
         return apiInstanceId;
@@ -55,7 +57,31 @@ public class ArchDoxAgentProperties {
         this.allowSharedSecretAuth = allowSharedSecretAuth;
     }
 
+    public int getWebsocketMaxTextMessageBufferBytes() {
+        return websocketMaxTextMessageBufferBytes;
+    }
+
+    public void setWebsocketMaxTextMessageBufferBytes(int websocketMaxTextMessageBufferBytes) {
+        this.websocketMaxTextMessageBufferBytes = websocketMaxTextMessageBufferBytes;
+    }
+
+    public int getWebsocketMaxBinaryMessageBufferBytes() {
+        return websocketMaxBinaryMessageBufferBytes;
+    }
+
+    public void setWebsocketMaxBinaryMessageBufferBytes(int websocketMaxBinaryMessageBufferBytes) {
+        this.websocketMaxBinaryMessageBufferBytes = websocketMaxBinaryMessageBufferBytes;
+    }
+
     public int safeInstallTokenTtlMinutes() {
         return Math.max(1, installTokenTtlMinutes);
+    }
+
+    public int safeWebsocketMaxTextMessageBufferBytes() {
+        return Math.max(64 * 1024, websocketMaxTextMessageBufferBytes);
+    }
+
+    public int safeWebsocketMaxBinaryMessageBufferBytes() {
+        return Math.max(64 * 1024, websocketMaxBinaryMessageBufferBytes);
     }
 }

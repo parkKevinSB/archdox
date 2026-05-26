@@ -160,8 +160,51 @@ stale session must not lose commands because pending commands remain in
 
 `api_instance_id` must be unique per running Cloud API process. On Cloud API
 startup, ACTIVE sessions for the same `api_instance_id` are marked
-DISCONNECTED. This protects stable instance IDs from restart leftovers. Later,
-a heartbeat timeout cleaner can mark sessions from crashed instances stale.
+DISCONNECTED. This protects stable instance IDs from restart leftovers.
+
+Heartbeat timeout cleanup is an always-on Flower flow, not a Spring scheduler.
+The `monitoring` worker runs `agent-connection-health-monitor` as a long-lived
+flow:
+
+```text
+stepNo 0 CHECK
+-> find ACTIVE archdox_agent_sessions where last_seen_at is older than timeout
+-> ask the in-memory session registry to close the local socket if this API owns it
+-> mark the session DISCONNECTED
+-> mark the Agent OFFLINE only when no ACTIVE session remains
+-> record AGENT_HEARTBEAT_TIMEOUT operation event
+-> stepNo 100 WAIT
+-> timeout
+-> stepNo 0 CHECK
+```
+
+The Flower flow reads durable session state and delegates socket cleanup to the
+registry. It must not keep WebSocket objects inside the flow or step state.
+
+When an Agent opens a new WebSocket session, ACTIVE sessions for the same
+logical `agent_id` are not automatically replaced. Cloud API must first clean
+up heartbeat-timed-out sessions for that Agent. If an ACTIVE session still
+exists after that cleanup, the new HELLO is rejected with an Agent channel
+error and the new socket is closed.
+
+This prevents a healthy Agent that may be rendering a document from being
+silently displaced by another process using the same `AGENT_ID` and
+`AGENT_DEVICE_SECRET`. One registered Agent should have one current transport
+session; additional runtime capacity should be registered as separate Agent
+codes.
+
+If the old session is confirmed disconnected, any in-flight commands owned by
+that Agent are failed. For document rendering this publishes a
+`DocumentRenderCommandFailedEvent` with `ARCHDOX_AGENT_DISCONNECTED` and
+`retryable=false`, so the document generation flow fails the current
+`document_job`. The user can request a fresh document generation after the
+Agent reconnects.
+
+During command dispatch, if the current API instance has no open in-memory
+WebSocket for the selected Agent, it must not pretend the command was delivered.
+The command remains pending, and ACTIVE sessions for that same
+`agent_id + api_instance_id` are marked DISCONNECTED as stale. Sessions owned by
+other API instances are not force-disconnected by this local check.
 
 ## Agent Selection
 

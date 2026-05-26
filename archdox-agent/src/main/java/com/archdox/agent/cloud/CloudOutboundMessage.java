@@ -20,6 +20,8 @@ public record CloudOutboundMessage(
         Integer pendingJobs,
         Integer recentErrorCount,
         Map<String, Object> result,
+        String errorCode,
+        Boolean retryable,
         String errorMessage
 ) {
     public static CloudOutboundMessage hello(ArchDoxAgentProperties properties, Map<String, Object> capabilities) {
@@ -36,6 +38,8 @@ public record CloudOutboundMessage(
                 properties.getDeploymentMode(),
                 capabilities == null ? Map.of() : capabilities,
                 properties.storageProfile(),
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -63,25 +67,33 @@ public record CloudOutboundMessage(
                 0,
                 0,
                 null,
+                null,
+                null,
                 null);
     }
 
     public static CloudOutboundMessage ack(Long commandId) {
-        return command(commandId, "ACK", Map.of(), null);
+        return command(commandId, "ACK", Map.of(), null, null, null);
     }
 
     public static CloudOutboundMessage complete(Long commandId, Map<String, Object> result) {
-        return command(commandId, "COMPLETE", result, null);
+        return command(commandId, "COMPLETE", result, null, null, null);
     }
 
     public static CloudOutboundMessage fail(Long commandId, String errorMessage) {
-        return command(commandId, "FAIL", Map.of(), errorMessage);
+        return fail(commandId, new AgentCommandFailure("AGENT_COMMAND_FAILED", false, errorMessage));
+    }
+
+    public static CloudOutboundMessage fail(Long commandId, AgentCommandFailure failure) {
+        return command(commandId, "FAIL", failure.result(), failure.errorCode(), failure.retryable(), failure.message());
     }
 
     private static CloudOutboundMessage command(
             Long commandId,
             String type,
             Map<String, Object> result,
+            String errorCode,
+            Boolean retryable,
             String errorMessage
     ) {
         return new CloudOutboundMessage(
@@ -102,6 +114,8 @@ public record CloudOutboundMessage(
                 null,
                 null,
                 result,
+                errorCode,
+                retryable,
                 errorMessage);
     }
 }

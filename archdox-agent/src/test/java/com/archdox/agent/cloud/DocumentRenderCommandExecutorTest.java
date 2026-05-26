@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.archdox.document.DocxTemplateDocumentEngine;
 import com.archdox.document.SimpleDocumentEngine;
 import com.archdox.agent.document.AgentDocumentStore;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
@@ -31,7 +32,9 @@ class DocumentRenderCommandExecutorTest {
                     assertTrue(spec.contentRequired());
                     return Optional.of(template);
                 }, new SimpleDocumentEngine()),
-                new AgentDocumentStore(properties));
+                new AgentDocumentStore(properties),
+                properties,
+                new ObjectMapper());
         var payload = Map.<String, Object>of(
                 "documentJobId", 700L,
                 "officeId", 10L,

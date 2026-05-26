@@ -22,6 +22,8 @@ public class ArchDoxAgentProperties {
     private String deviceSecret;
     private String version = "0.0.1-dev";
     private long heartbeatIntervalMs = 30000;
+    private int websocketMaxTextMessageBufferBytes = 2 * 1024 * 1024;
+    private int websocketMaxBinaryMessageBufferBytes = 2 * 1024 * 1024;
     private String localStorageRoot = "build/archdox-agent-storage";
     private Storage storage = new Storage();
 
@@ -136,6 +138,30 @@ public class ArchDoxAgentProperties {
 
     public void setHeartbeatIntervalMs(long heartbeatIntervalMs) {
         this.heartbeatIntervalMs = heartbeatIntervalMs;
+    }
+
+    public int getWebsocketMaxTextMessageBufferBytes() {
+        return websocketMaxTextMessageBufferBytes;
+    }
+
+    public void setWebsocketMaxTextMessageBufferBytes(int websocketMaxTextMessageBufferBytes) {
+        this.websocketMaxTextMessageBufferBytes = websocketMaxTextMessageBufferBytes;
+    }
+
+    public int getWebsocketMaxBinaryMessageBufferBytes() {
+        return websocketMaxBinaryMessageBufferBytes;
+    }
+
+    public void setWebsocketMaxBinaryMessageBufferBytes(int websocketMaxBinaryMessageBufferBytes) {
+        this.websocketMaxBinaryMessageBufferBytes = websocketMaxBinaryMessageBufferBytes;
+    }
+
+    public int safeWebsocketMaxTextMessageBufferBytes() {
+        return Math.max(64 * 1024, websocketMaxTextMessageBufferBytes);
+    }
+
+    public int safeWebsocketMaxBinaryMessageBufferBytes() {
+        return Math.max(64 * 1024, websocketMaxBinaryMessageBufferBytes);
     }
 
     public String getLocalStorageRoot() {

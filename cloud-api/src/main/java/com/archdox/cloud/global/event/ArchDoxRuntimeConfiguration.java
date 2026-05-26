@@ -1,5 +1,6 @@
 package com.archdox.cloud.global.event;
 
+import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthProperties;
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentDeliveryProperties;
 import com.archdox.cloud.photo.application.PhotoDerivativeProperties;
@@ -21,6 +22,7 @@ public class ArchDoxRuntimeConfiguration {
     public static final String PHOTO_PICKUP_WORKER = "photo-pickup";
     public static final String DOCUMENT_GENERATION_WORKER = "document-generation";
     public static final String DOCUMENT_DELIVERY_WORKER = "document-delivery";
+    public static final String MONITORING_WORKER = "monitoring";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -33,7 +35,8 @@ public class ArchDoxRuntimeConfiguration {
             PhotoDerivativeProperties photoProperties,
             PhotoPickupProperties photoPickupProperties,
             DocumentGenerationProperties documentProperties,
-            DocumentDeliveryProperties documentDeliveryProperties
+            DocumentDeliveryProperties documentDeliveryProperties,
+            ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties
     ) {
         return Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
@@ -48,6 +51,9 @@ public class ArchDoxRuntimeConfiguration {
                         .build())
                 .worker(Worker.builder(DOCUMENT_DELIVERY_WORKER)
                         .intervalMillis(documentDeliveryProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(MONITORING_WORKER)
+                        .intervalMillis(agentConnectionHealthProperties.safeWorkerIntervalMs())
                         .build())
                 .build();
     }

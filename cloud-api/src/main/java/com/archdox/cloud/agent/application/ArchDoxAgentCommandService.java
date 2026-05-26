@@ -38,7 +38,12 @@ import java.util.Map;
 import java.util.Optional;
 import io.github.parkkevinsb.bloom.EventBus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class ArchDoxAgentCommandService {
@@ -52,6 +57,7 @@ public class ArchDoxAgentCommandService {
     private final ArchDoxAgentProperties properties;
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
+    private final TransactionTemplate commandDeliveryTransactionTemplate;
 
     public ArchDoxAgentCommandService(
             ArchDoxAgentRepository agentRepository,
@@ -63,7 +69,8 @@ public class ArchDoxAgentCommandService {
             ArchDoxAgentSessionRegistry sessionRegistry,
             ArchDoxAgentProperties properties,
             EventBus eventBus,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            PlatformTransactionManager transactionManager
     ) {
         this.agentRepository = agentRepository;
         this.heartbeatRepository = heartbeatRepository;
@@ -75,6 +82,8 @@ public class ArchDoxAgentCommandService {
         this.properties = properties;
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
+        this.commandDeliveryTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.commandDeliveryTransactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional
@@ -110,8 +119,10 @@ public class ArchDoxAgentCommandService {
         if (sessionRepository.existsByAgentIdAndStatus(agentId, ArchDoxAgentSessionStatus.ACTIVE)) {
             return;
         }
+        var now = OffsetDateTime.now();
         agentRepository.findById(agentId)
-                .ifPresent(agent -> agent.markOffline(OffsetDateTime.now()));
+                .ifPresent(agent -> agent.markOffline(now));
+        failInFlightCommandsForDisconnectedAgent(agentId, now);
     }
 
     @Transactional
@@ -149,8 +160,8 @@ public class ArchDoxAgentCommandService {
                 now,
                 expiresAt));
         command.configureRetry(1, now);
-        deliver(command);
         recordCommandEvent(command, OperationEventSeverity.INFO, "AGENT_COMMAND_ENQUEUED", "PHOTO_PICKUP command enqueued.");
+        deliverAfterCommit(command.id());
         return Optional.of(command.id());
     }
 
@@ -182,8 +193,8 @@ public class ArchDoxAgentCommandService {
                 now,
                 expiresAt));
         command.configureRetry(1, now);
-        deliver(command);
         recordCommandEvent(command, OperationEventSeverity.INFO, "AGENT_COMMAND_ENQUEUED", "GENERATE_DOCUMENT command enqueued.");
+        deliverAfterCommit(command.id());
         return Optional.of(command.id());
     }
 
@@ -230,8 +241,8 @@ public class ArchDoxAgentCommandService {
                 now,
                 expiresAt));
         command.configureRetry(1, now);
-        deliver(command);
         recordCommandEvent(command, OperationEventSeverity.INFO, "AGENT_COMMAND_ENQUEUED", "UPLOAD_DOCUMENT_ARTIFACT command enqueued.");
+        deliverAfterCommit(command.id());
         return Optional.of(command.id());
     }
 
@@ -258,6 +269,67 @@ public class ArchDoxAgentCommandService {
             recordCommandEvent(command, OperationEventSeverity.WARN, "AGENT_COMMAND_EXPIRED_FOR_RECOVERY", "Agent command expired during Cloud API flow recovery.");
         });
         return commands.size();
+    }
+
+    private void failInFlightCommandsForDisconnectedAgent(Long agentId, OffsetDateTime now) {
+        var message = "ArchDox Agent disconnected before command completed";
+        var errorCode = "ARCHDOX_AGENT_DISCONNECTED";
+        var commands = commandRepository.findByAgentIdAndStatusInOrderByCreatedAtAsc(
+                agentId,
+                List.of(
+                        ArchDoxAgentCommandStatus.PENDING,
+                        ArchDoxAgentCommandStatus.DELIVERED,
+                        ArchDoxAgentCommandStatus.ACKED));
+        commands.forEach(command -> {
+            if (command.isTerminal()) {
+                return;
+            }
+            var result = failureResult(errorCode, false, message, Map.of());
+            command.fail(message, result, now);
+            recordCommandEvent(
+                    command,
+                    OperationEventSeverity.WARN,
+                    "AGENT_COMMAND_FAILED_AGENT_DISCONNECTED",
+                    message);
+            publishAgentDisconnectedFailure(command, errorCode, message, result, now);
+        });
+    }
+
+    private void publishAgentDisconnectedFailure(
+            ArchDoxAgentCommand command,
+            String errorCode,
+            String message,
+            Map<String, Object> result,
+            OffsetDateTime now
+    ) {
+        switch (command.commandType()) {
+            case PHOTO_PICKUP -> eventBus.publish(new PhotoPickupCommandFailedEvent(
+                    command.agent().officeId(),
+                    photoId(command),
+                    command.id(),
+                    message,
+                    result,
+                    now));
+            case GENERATE_DOCUMENT -> eventBus.publish(new DocumentRenderCommandFailedEvent(
+                    command.agent().officeId(),
+                    documentJobId(command),
+                    command.id(),
+                    errorCode,
+                    false,
+                    message,
+                    result,
+                    now));
+            case UPLOAD_DOCUMENT_ARTIFACT -> eventBus.publish(new DocumentDeliveryCommandFailedEvent(
+                    command.agent().officeId(),
+                    documentDeliveryRequestId(command),
+                    command.id(),
+                    message,
+                    result,
+                    now));
+            case RELOAD_TEMPLATE -> {
+                // No flow currently waits for RELOAD_TEMPLATE completion.
+            }
+        }
     }
 
     @Transactional
@@ -328,14 +400,21 @@ public class ArchDoxAgentCommandService {
     }
 
     @Transactional
-    public void fail(Long agentId, Long commandId, String errorMessage, Map<String, Object> result) {
+    public void fail(
+            Long agentId,
+            Long commandId,
+            String errorCode,
+            Boolean retryable,
+            String errorMessage,
+            Map<String, Object> result
+    ) {
         var command = requireCommandForAgent(agentId, commandId);
         if (command.isTerminal()) {
             return;
         }
         var now = OffsetDateTime.now();
         var message = errorMessage == null ? "Command failed" : errorMessage;
-        var safeResult = result == null ? Map.<String, Object>of() : result;
+        var safeResult = failureResult(errorCode, retryable, message, result);
         command.fail(message, safeResult, now);
         recordCommandEvent(command, OperationEventSeverity.WARN, "AGENT_COMMAND_FAILED", message);
         if (command.commandType() == ArchDoxAgentCommandType.PHOTO_PICKUP) {
@@ -352,6 +431,8 @@ public class ArchDoxAgentCommandService {
                     command.agent().officeId(),
                     documentJobId(command),
                     command.id(),
+                    firstText(errorCode, stringValue(safeResult.get("errorCode"))),
+                    firstBoolean(retryable, safeResult.get("retryable")),
                     message,
                     safeResult,
                     now));
@@ -373,7 +454,60 @@ public class ArchDoxAgentCommandService {
                 command.agent().id(),
                 AgentOutboundMessage.command(command.id(), command.commandType(), command.payloadJson()))) {
             command.markDelivered(now);
+            return;
         }
+        var disconnected = sessionRepository.markActiveSessionsDisconnectedForAgentAndApiInstance(
+                command.agent().id(),
+                properties.getApiInstanceId(),
+                ArchDoxAgentSessionStatus.ACTIVE,
+                ArchDoxAgentSessionStatus.DISCONNECTED,
+                now,
+                "No open WebSocket in API instance during command dispatch");
+        if (disconnected > 0) {
+            recordCommandEvent(
+                    command,
+                    OperationEventSeverity.WARN,
+                    "AGENT_SESSION_STALE",
+                    "Marked stale ArchDox Agent session disconnected during command dispatch.");
+        }
+    }
+
+    private void deliverAfterCommit(Long commandId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deliverCommittedCommand(commandId);
+                }
+            });
+            return;
+        }
+        deliverCommittedCommand(commandId);
+    }
+
+    private void deliverCommittedCommand(Long commandId) {
+        commandDeliveryTransactionTemplate.executeWithoutResult(status -> commandRepository.findById(commandId)
+                .filter(command -> command.status() == ArchDoxAgentCommandStatus.PENDING)
+                .ifPresent(this::deliver));
+    }
+
+    private Map<String, Object> failureResult(
+            String errorCode,
+            Boolean retryable,
+            String message,
+            Map<String, Object> result
+    ) {
+        var safeResult = new LinkedHashMap<String, Object>(result == null ? Map.of() : result);
+        if (errorCode != null && !errorCode.isBlank()) {
+            safeResult.putIfAbsent("errorCode", errorCode);
+        }
+        if (retryable != null) {
+            safeResult.putIfAbsent("retryable", retryable);
+        }
+        if (message != null && !message.isBlank()) {
+            safeResult.putIfAbsent("message", message);
+        }
+        return safeResult;
     }
 
     private Optional<ArchDoxAgent> selectCommandTargetAgent(Long officeId, boolean allowLastKnownFallback) {
@@ -516,6 +650,33 @@ public class ArchDoxAgentCommandService {
             throw new UnauthorizedException("Command does not belong to this agent");
         }
         return command;
+    }
+
+    private String firstText(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second;
+    }
+
+    private String stringValue(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
+    private Boolean firstBoolean(Boolean first, Object second) {
+        if (first != null) {
+            return first;
+        }
+        if (second instanceof Boolean bool) {
+            return bool;
+        }
+        if (second instanceof String text && !text.isBlank()) {
+            return Boolean.parseBoolean(text);
+        }
+        return null;
     }
 
     private Long longValue(Object value) {
