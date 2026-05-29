@@ -9,6 +9,32 @@ dependencyManagement {
     }
 }
 
+val flowerAiHarnessVersion = "0.1.0-SNAPSHOT"
+val vendoredHarnessDir = rootProject.file("libs/flower-ai-harness-jars")
+
+fun harnessJar(module: String) = vendoredHarnessDir.resolve("$module-$flowerAiHarnessVersion.jar")
+
+fun DependencyHandlerScope.addHarnessRuntimeDependencies() {
+    val starterJar = harnessJar("flower-ai-harness-spring-boot-starter")
+    if (starterJar.exists()) {
+        listOf(
+            "flower-ai-harness-core",
+            "flower-ai-harness-validator-jackson",
+            "flower-ai-harness-spring-ai",
+            "flower-ai-harness-spring-boot-starter",
+        ).forEach { module ->
+            implementation(files(harnessJar(module)))
+        }
+    } else {
+        implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-spring-boot-starter:$flowerAiHarnessVersion") {
+            exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
+        }
+        implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-validator-jackson:$flowerAiHarnessVersion") {
+            exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
+        }
+    }
+}
+
 dependencies {
     implementation(project(":domain-shared"))
     implementation(project(":archdox-ai-harness"))
@@ -18,12 +44,7 @@ dependencies {
     implementation(project(":flower-core"))
     implementation(project(":flower-bloom-adapter"))
 
-    implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-spring-boot-starter:0.1.0-SNAPSHOT") {
-        exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
-    }
-    implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-validator-jackson:0.1.0-SNAPSHOT") {
-        exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
-    }
+    addHarnessRuntimeDependencies()
     implementation("org.springframework.ai:spring-ai-starter-model-openai")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
 
