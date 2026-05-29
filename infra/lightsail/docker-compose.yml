@@ -80,6 +80,8 @@ services:
       PLATFORM_OPS_AI_PROVIDER_CODE: fake-ops
       PLATFORM_OPS_AI_MODEL: fake-ops-model
       PLATFORM_ADMIN_BOOTSTRAP_EMAILS: vvzerg@test.co.kr
+    volumes:
+      - archdox-api-logs:/var/log/archdox
 
   archdox-agent-personal:
     build:
@@ -105,6 +107,7 @@ services:
       DOCUMENT_EXPORT_LIBREOFFICE_PATH: soffice
     volumes:
       - archdox-agent-personal-data:/var/lib/archdox-agent
+      - archdox-agent-personal-logs:/var/log/archdox
 
   archdox-agent-inwoo:
     build:
@@ -131,6 +134,7 @@ services:
       DOCUMENT_EXPORT_LIBREOFFICE_PATH: soffice
     volumes:
       - archdox-agent-inwoo-data:/var/lib/archdox-agent
+      - archdox-agent-inwoo-logs:/var/log/archdox
 
   web:
     build:
@@ -147,5 +151,8 @@ services:
 volumes:
   archdox-postgres-data:
   archdox-minio-data:
+  archdox-api-logs:
   archdox-agent-personal-data:
+  archdox-agent-personal-logs:
   archdox-agent-inwoo-data:
+  archdox-agent-inwoo-logs:

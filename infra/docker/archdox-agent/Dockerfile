@@ -50,8 +50,8 @@ RUN apt-get update \
     && fc-cache -f
 
 RUN useradd --create-home --shell /usr/sbin/nologin archdox \
-    && mkdir -p /var/lib/archdox-agent /tmp/archdox \
-    && chown -R archdox:archdox /var/lib/archdox-agent /tmp/archdox /home/archdox
+    && mkdir -p /var/lib/archdox-agent /var/log/archdox /tmp/archdox \
+    && chown -R archdox:archdox /var/lib/archdox-agent /var/log/archdox /tmp/archdox /home/archdox
 
 WORKDIR /app
 COPY --from=builder /workspace/archdox-agent/build/libs/archdox-agent-*.jar /app/archdox-agent.jar
@@ -59,6 +59,7 @@ COPY --from=builder /workspace/archdox-agent/build/libs/archdox-agent-*.jar /app
 ENV SPRING_PROFILES_ACTIVE=local \
     HOME=/home/archdox \
     TMPDIR=/tmp/archdox \
+    LOG_PATH=/var/log/archdox \
     SAL_USE_VCLPLUGIN=svp \
     AGENT_LOCAL_STORAGE_ROOT=/var/lib/archdox-agent \
     DOCUMENT_EXPORT_LIBREOFFICE_ENABLED=true \

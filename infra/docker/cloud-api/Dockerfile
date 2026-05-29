@@ -20,15 +20,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --shell /usr/sbin/nologin archdox \
-    && mkdir -p /var/lib/archdox /tmp/archdox \
-    && chown -R archdox:archdox /var/lib/archdox /tmp/archdox /home/archdox
+    && mkdir -p /var/lib/archdox /var/log/archdox /tmp/archdox \
+    && chown -R archdox:archdox /var/lib/archdox /var/log/archdox /tmp/archdox /home/archdox
 
 WORKDIR /app
 COPY --from=builder /workspace/cloud-api/build/libs/cloud-api-*.jar /app/cloud-api.jar
 
 ENV SPRING_PROFILES_ACTIVE=local \
     HOME=/home/archdox \
-    TMPDIR=/tmp/archdox
+    TMPDIR=/tmp/archdox \
+    LOG_PATH=/var/log/archdox
 
 USER archdox
 EXPOSE 8080
