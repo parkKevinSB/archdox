@@ -1,0 +1,11 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="760" height="390" viewBox="0 0 760 390">
+  <title>archdox archdox-v3-asymmetric-initial-layout logo concept</title>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round">
+  <text x="78" y="166" fill="#f4f8f6" font-family="Segoe UI, Arial, sans-serif" font-size="104" font-weight="700">arch</text>
+  <text x="246" y="244" fill="#f4f8f6" font-family="Segoe UI, Arial, sans-serif" font-size="62" font-weight="700">do</text>
+  <path d="M398 70L618 316" stroke="#f4f8f6" stroke-width="36"/>
+  <path d="M618 70L398 316" stroke="#8fd6c8" stroke-width="36"/>
+  <path d="M78 196H348M78 216H222" stroke="#8fd6c8" stroke-width="4" opacity=".72"/>
+  <rect x="358" y="188" width="15" height="15" fill="#b8872f" stroke="none"/>
+</g>
+</svg>

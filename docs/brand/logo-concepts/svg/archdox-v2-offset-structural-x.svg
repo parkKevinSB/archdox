@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="980" height="300" viewBox="0 0 980 300">
+  <title>archdox archdox-v2-offset-structural-x logo concept</title>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round">
+  <text x="78" y="178" fill="#f4f8f6" font-family="Segoe UI, Arial, sans-serif" font-size="112" font-weight="700">archdo</text>
+  <path d="M590 42L828 282" stroke="#f4f8f6" stroke-width="34"/>
+  <path d="M828 42L590 282" stroke="#8fd6c8" stroke-width="34"/>
+  <path d="M600 270H850" stroke="#8fd6c8" stroke-width="3" stroke-dasharray="9 9" opacity=".7"/>
+  <circle cx="711" cy="270" r="7" fill="#b8872f" stroke="none"/>
+</g>
+</svg>

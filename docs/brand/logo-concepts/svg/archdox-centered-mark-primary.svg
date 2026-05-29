@@ -1,0 +1,14 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520">
+  <title>archdox centered mark logo</title>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round">
+    <path d="M501 170V109C501 62 535 44 550 44C565 44 599 62 599 109V170" stroke="#0c4956" stroke-width="22"/>
+    <rect x="531" y="98" width="46" height="60" fill="#ffffff" opacity=".95" stroke="none"/>
+    <path d="M557 98L577 120H557Z" fill="#768c9a" opacity=".55" stroke="none"/>
+    <path d="M532 116V183M519 153H584" stroke="#395c6b" stroke-width="2.4" opacity=".9"/>
+    <path d="M519 138A57 57 0 0 1 584 196" stroke="#395c6b" stroke-width="2.1" stroke-dasharray="8 8" opacity=".9"/>
+    <rect x="527" y="148" width="8" height="8" fill="#b8872f" stroke="none"/>
+    <text x="185" y="374" fill="#161b1f" font-family="Segoe UI, Arial, sans-serif" font-size="130" font-weight="700" stroke="none">archdo</text>
+    <path d="M775 251L891 383" stroke="#161b1f" stroke-width="24"/>
+    <path d="M891 251L775 383" stroke="#0c4956" stroke-width="24"/>
+  </g>
+</svg>

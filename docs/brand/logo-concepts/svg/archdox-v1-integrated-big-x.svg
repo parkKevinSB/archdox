@@ -1,0 +1,11 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="260" viewBox="0 0 1020 260">
+  <title>archdox archdox-v1-integrated-big-x logo concept</title>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="round">
+  <path d="M85 188V119C85 68 121 45 137 45C153 45 188 68 188 119V188" stroke="#8fd6c8" stroke-width="22"/>
+  <path d="M113 123V200M85 188H158" stroke="#8fd6c8" stroke-width="3" opacity=".72"/>
+  <rect x="108" y="181" width="11" height="11" fill="#b8872f" stroke="none"/>
+  <text x="214" y="167" fill="#f4f8f6" font-family="Segoe UI, Arial, sans-serif" font-size="122" font-weight="700">rchdo</text>
+  <path d="M724 64L836 188" stroke="#f4f8f6" stroke-width="25"/>
+  <path d="M836 64L724 188" stroke="#8fd6c8" stroke-width="25"/>
+</g>
+</svg>
