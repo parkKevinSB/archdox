@@ -66,6 +66,7 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("archdox.agent.api-instance-id", () -> "agent-render-connection-test-api");
         registry.add("archdox.agent.connection-health.heartbeat-timeout-ms", () -> "1000");
+        registry.add("archdox.ai-review.worker-interval-ms", () -> "10");
         registry.add("archdox.documents.generation.worker-interval-ms", () -> "10");
         registry.add("archdox.documents.generation.retry-base-delay-ms", () -> "10");
         registry.add("archdox.documents.storage.local-root", () -> "build/test-document-storage");
@@ -119,6 +120,7 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
             saveChecklistStep(user, reportId);
             uploadWorkingPhoto(user, projectId, reportId);
             submitReport(user, reportId);
+            passPreflight(user, reportId);
 
             var jobId = createArchDoxAgentDocumentJob(user, reportId);
             var command = agent.nextCommand().get(WAIT.toMillis(), TimeUnit.MILLISECONDS);
@@ -471,6 +473,26 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+    }
+
+    private void passPreflight(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isCreated());
+        for (int i = 0; i < 80; i++) {
+            var result = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                            .header("Authorization", bearer(user.accessToken()))
+                            .header("X-Office-Id", user.officeId()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            var runs = objectMapper.readTree(result.getResponse().getContentAsString());
+            if (runs.size() > 0 && "PASSED".equals(runs.get(0).get("status").asText())) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        fail("Preflight review did not reach PASSED status");
     }
 
     private long createArchDoxAgentDocumentJob(TestUser user, long reportId) throws Exception {

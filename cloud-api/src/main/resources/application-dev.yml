@@ -1,4 +1,14 @@
 archdox:
+  ai-review:
+    enabled: ${DOCUMENT_AI_REVIEW_ENABLED:true}
+  ai:
+    credentials:
+      master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:dev-only-archdox-ai-credential-key-change-me}
+    fake-provider:
+      enabled: ${ARCHDOX_AI_FAKE_PROVIDER_ENABLED:true}
+    dev-bootstrap:
+      enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_ENABLED:true}
+      attach-to-existing-offices: ${ARCHDOX_AI_DEV_BOOTSTRAP_ATTACH_OFFICES:true}
   storage:
     active: LOCAL_FILE
     local-file:
@@ -11,5 +21,9 @@ archdox:
   documents:
     storage:
       local-root: ${DOCUMENT_LOCAL_ROOT:build/document-storage}
-  ai:
-    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}
+  platform-admin:
+    ops:
+      ai-diagnosis:
+        enabled: ${PLATFORM_OPS_AI_DIAGNOSIS_ENABLED:true}
+        provider-code: ${PLATFORM_OPS_AI_PROVIDER_CODE:fake-ops}
+        model: ${PLATFORM_OPS_AI_MODEL:fake-ops-model}

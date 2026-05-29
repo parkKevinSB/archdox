@@ -2,6 +2,11 @@ import type {
   Agent,
   AgentCommand,
   AgentSession,
+  AiModelCallLog,
+  AiModelPricingRule,
+  AiHarnessTraceEvent,
+  AiProviderCredential,
+  AiUsageSummary,
   AuthTokenResponse,
   ConfigDefinition,
   DocumentDelivery,
@@ -21,9 +26,14 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsFinding,
+  PlatformOpsIncident,
+  PlatformOpsRun,
   PlatformOpsSummary,
   PlatformPhotoOps,
+  PlatformReportPreflightFinding,
   PlatformUserOps,
+  OfficeAiPolicy,
   Photo,
   TemplateFieldCatalog
 } from "./types";
@@ -467,5 +477,171 @@ export function detectPlatformStuckHealth(token: string) {
   return request<PlatformHealthDetection>("/api/v1/platform-admin/ops/health/detect-stuck", {
     token,
     method: "POST"
+  });
+}
+
+export function getPlatformOpsRuns(token: string, limit = 50, status?: string) {
+  return request<PlatformOpsRun[]>("/api/v1/platform-admin/ops/ops-runs", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformOpsIncidents(token: string, limit = 50, status?: string) {
+  return request<PlatformOpsIncident[]>("/api/v1/platform-admin/ops/incidents", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformOpsFindings(token: string, limit = 50, incidentId?: number) {
+  return request<PlatformOpsFinding[]>("/api/v1/platform-admin/ops/findings", {
+    token,
+    query: { limit, incidentId }
+  });
+}
+
+export function diagnosePlatformOpsIncident(token: string, incidentId: number) {
+  return request<PlatformOpsRun>(`/api/v1/platform-admin/ops/incidents/${incidentId}/diagnose`, {
+    token,
+    method: "POST"
+  });
+}
+
+export function getPlatformAiProviders(token: string) {
+  return request<AiProviderCredential[]>("/api/v1/platform-admin/ai/providers", { token });
+}
+
+export function createPlatformAiProvider(
+  token: string,
+  body: {
+    providerCode: string;
+    displayName: string;
+    providerType: string;
+    baseUrl?: string | null;
+    defaultModel?: string | null;
+    apiKey?: string | null;
+  }
+) {
+  return request<AiProviderCredential>("/api/v1/platform-admin/ai/providers", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function updatePlatformAiProvider(
+  token: string,
+  providerId: number,
+  body: {
+    displayName: string;
+    providerType: string;
+    baseUrl?: string | null;
+    defaultModel?: string | null;
+    apiKey?: string | null;
+  }
+) {
+  return request<AiProviderCredential>(`/api/v1/platform-admin/ai/providers/${providerId}`, {
+    token,
+    method: "PUT",
+    body
+  });
+}
+
+export function publishPlatformAiProvider(token: string, providerId: number) {
+  return request<AiProviderCredential>(`/api/v1/platform-admin/ai/providers/${providerId}/publish`, {
+    token,
+    method: "POST"
+  });
+}
+
+export function getPlatformOfficeAiPolicies(token: string, limit = 100) {
+  return request<OfficeAiPolicy[]>("/api/v1/platform-admin/ai/office-policies", {
+    token,
+    query: { limit }
+  });
+}
+
+export function getPlatformAiCallLogs(token: string, limit = 100, status?: string) {
+  return request<AiModelCallLog[]>("/api/v1/platform-admin/ai/call-logs", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function getPlatformAiUsageSummary(token: string) {
+  return request<AiUsageSummary>("/api/v1/platform-admin/ai/usage-summary", { token });
+}
+
+export function getPlatformAiHarnessTraces(token: string, limit = 100, harnessRunId?: string) {
+  return request<AiHarnessTraceEvent[]>("/api/v1/platform-admin/ai/harness-traces", {
+    token,
+    query: { limit, harnessRunId }
+  });
+}
+
+export function getPlatformAiPreflightFindings(
+  token: string,
+  limit = 100,
+  resolutionStatus?: string,
+  severity?: string
+) {
+  return request<PlatformReportPreflightFinding[]>("/api/v1/platform-admin/ai/preflight-findings", {
+    token,
+    query: { limit, resolutionStatus, severity }
+  });
+}
+
+export function getPlatformAiPricingRules(token: string, limit = 100, status?: string) {
+  return request<AiModelPricingRule[]>("/api/v1/platform-admin/ai/pricing-rules", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function createPlatformAiPricingRule(
+  token: string,
+  body: {
+    providerCode: string;
+    modelName: string;
+    currency: string;
+    inputTokenPricePerMillion: number;
+    outputTokenPricePerMillion: number;
+  }
+) {
+  return request<AiModelPricingRule>("/api/v1/platform-admin/ai/pricing-rules", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function disablePlatformAiPricingRule(token: string, pricingRuleId: number) {
+  return request<AiModelPricingRule>(`/api/v1/platform-admin/ai/pricing-rules/${pricingRuleId}/disable`, {
+    token,
+    method: "POST"
+  });
+}
+
+export function updatePlatformOfficeAiPolicy(
+  token: string,
+  officeId: number,
+  body: {
+    aiEnabled: boolean;
+    documentReviewAiEnabled: boolean;
+    documentGenerationAiEnabled: boolean;
+    preferredProviderCredentialId?: number | null;
+    credentialDeliveryMode: string;
+    budgetEnforcementEnabled?: boolean;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+  }
+) {
+  return request<OfficeAiPolicy>(`/api/v1/platform-admin/ai/office-policies/${officeId}`, {
+    token,
+    method: "PUT",
+    body
   });
 }

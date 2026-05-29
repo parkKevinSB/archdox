@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.websocket.ContainerProvider;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -27,7 +28,8 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     private final DocumentRenderCommandExecutor documentRenderCommandExecutor;
     private final DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor;
     private final Object sendLock = new Object();
-    private WebSocketSession session;
+    private final AtomicBoolean connecting = new AtomicBoolean(false);
+    private volatile WebSocketSession session;
 
     public CloudAgentWebSocketClient(
             ArchDoxAgentProperties properties,
@@ -62,6 +64,17 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         send(CloudOutboundMessage.heartbeat(properties));
     }
 
+    @Scheduled(fixedDelayString = "${archdox.agent.reconnect-interval-ms:5000}")
+    public void reconnectIfDisconnected() {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        if (session != null && session.isOpen()) {
+            return;
+        }
+        connect();
+    }
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         this.session = session;
@@ -73,12 +86,17 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         log.warn("ArchDox Cloud WebSocket closed: {}", status);
-        this.session = null;
+        if (this.session == session) {
+            this.session = null;
+        }
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         log.warn("ArchDox Cloud WebSocket transport error", exception);
+        if (this.session == session && !session.isOpen()) {
+            this.session = null;
+        }
     }
 
     @Override
@@ -86,12 +104,17 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         var inbound = objectMapper.readValue(message.getPayload(), CloudInboundMessage.class);
         if ("WELCOME".equals(inbound.type())) {
             log.info("Connected to ArchDox Cloud as ArchDox Agent {}", inbound.agentId());
+            logAiPolicy(inbound.aiPolicy());
             if (inbound.deviceSecret() != null && !inbound.deviceSecret().isBlank()) {
                 properties.setAgentId(inbound.agentId());
                 properties.setDeviceSecret(inbound.deviceSecret());
                 properties.setAuthMode("DEVICE_SECRET");
                 log.warn("Agent pairing issued a device secret. Store AGENT_ID={} and AGENT_DEVICE_SECRET securely, then remove AGENT_INSTALL_TOKEN.", inbound.agentId());
             }
+            return;
+        }
+        if ("AI_POLICY_CHANGED".equals(inbound.type())) {
+            logAiPolicy(inbound.aiPolicy());
             return;
         }
         if ("COMMAND".equals(inbound.type())) {
@@ -104,6 +127,12 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     }
 
     private void connect() {
+        if (session != null && session.isOpen()) {
+            return;
+        }
+        if (!connecting.compareAndSet(false, true)) {
+            return;
+        }
         try {
             var container = ContainerProvider.getWebSocketContainer();
             container.setDefaultMaxTextMessageBufferSize(properties.safeWebsocketMaxTextMessageBufferBytes());
@@ -116,6 +145,8 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
             log.warn("Interrupted while connecting to ArchDox Cloud WebSocket", ex);
         } catch (ExecutionException ex) {
             log.warn("Failed to connect to ArchDox Cloud WebSocket", ex);
+        } finally {
+            connecting.set(false);
         }
     }
 
@@ -190,5 +221,18 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         } catch (Exception ex) {
             log.warn("Failed to send Cloud WebSocket message", ex);
         }
+    }
+
+    private void logAiPolicy(java.util.Map<String, Object> aiPolicy) {
+        if (aiPolicy == null || aiPolicy.isEmpty()) {
+            return;
+        }
+        log.info(
+                "ArchDox Agent AI policy updated: enabled={}, documentReview={}, documentGeneration={}, deliveryMode={}, apiKeyDelivered={}",
+                aiPolicy.get("enabled"),
+                aiPolicy.get("documentReviewEnabled"),
+                aiPolicy.get("documentGenerationEnabled"),
+                aiPolicy.get("credentialDeliveryMode"),
+                aiPolicy.get("apiKeyDelivered"));
     }
 }

@@ -11,6 +11,25 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  ai:
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:none}
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        transcription: none
+        speech: none
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4.1-mini}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        model: ${OLLAMA_MODEL:llama3.1}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -37,21 +56,87 @@ archdox:
       access-key: ${ARCHDOX_S3_ACCESS_KEY:}
       secret-key: ${ARCHDOX_S3_SECRET_KEY:}
       path-style-access: ${ARCHDOX_S3_PATH_STYLE_ACCESS:true}
+  ai-review:
+    enabled: ${DOCUMENT_AI_REVIEW_ENABLED:false}
+    worker-interval-ms: ${DOCUMENT_AI_REVIEW_WORKER_INTERVAL_MS:250}
   ai:
-    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}
-    openai:
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      api-key: ${OPENAI_API_KEY:}
-      model: ${OPENAI_MODEL:gpt-4.1-mini}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model: ${OLLAMA_MODEL:llama3.1}
+    credentials:
+      master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:}
+    fake-provider:
+      enabled: ${ARCHDOX_AI_FAKE_PROVIDER_ENABLED:false}
+      provider-code-prefix: ${ARCHDOX_AI_FAKE_PROVIDER_CODE_PREFIX:fake-}
+      latency-ms: ${ARCHDOX_AI_FAKE_PROVIDER_LATENCY_MS:5}
+    dev-bootstrap:
+      enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_ENABLED:false}
+      attach-to-existing-offices: ${ARCHDOX_AI_DEV_BOOTSTRAP_ATTACH_OFFICES:true}
+      document-review-ai-enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_DOCUMENT_REVIEW_ENABLED:true}
+      document-generation-ai-enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_DOCUMENT_GENERATION_ENABLED:false}
+      provider-code: ${ARCHDOX_AI_DEV_BOOTSTRAP_PROVIDER_CODE:fake-review}
+      provider-display-name: ${ARCHDOX_AI_DEV_BOOTSTRAP_PROVIDER_NAME:Development Fake AI}
+      default-model: ${ARCHDOX_AI_DEV_BOOTSTRAP_MODEL:fake-review-model}
+      ops-provider-code: ${ARCHDOX_AI_DEV_BOOTSTRAP_OPS_PROVIDER_CODE:fake-ops}
+      ops-provider-display-name: ${ARCHDOX_AI_DEV_BOOTSTRAP_OPS_PROVIDER_NAME:Development Fake Ops AI}
+      ops-default-model: ${ARCHDOX_AI_DEV_BOOTSTRAP_OPS_MODEL:fake-ops-model}
+    spring-ai-adapter:
+      enabled: ${ARCHDOX_AI_SPRING_AI_ADAPTER_ENABLED:false}
+      provider-code-prefix: ${ARCHDOX_AI_SPRING_AI_PROVIDER_CODE_PREFIX:spring-ai-}
+      poll-interval-ms: ${ARCHDOX_AI_SPRING_AI_POLL_INTERVAL_MS:10}
   jwt:
     secret: ${JWT_SECRET:dev-only-change-this-secret-for-archdox-local-256-bit}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
     refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:14}
+  security:
+    cors:
+      allowed-origins: ${ARCHDOX_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
+    rate-limit:
+      enabled: ${ARCHDOX_RATE_LIMIT_ENABLED:true}
+      use-forwarded-headers: ${ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS:false}
+      max-tracked-keys: ${ARCHDOX_RATE_LIMIT_MAX_TRACKED_KEYS:50000}
+      login:
+        max-requests: ${ARCHDOX_RATE_LIMIT_LOGIN_MAX_REQUESTS:8}
+        window: ${ARCHDOX_RATE_LIMIT_LOGIN_WINDOW:1m}
+      signup:
+        max-requests: ${ARCHDOX_RATE_LIMIT_SIGNUP_MAX_REQUESTS:4}
+        window: ${ARCHDOX_RATE_LIMIT_SIGNUP_WINDOW:1m}
+      refresh:
+        max-requests: ${ARCHDOX_RATE_LIMIT_REFRESH_MAX_REQUESTS:30}
+        window: ${ARCHDOX_RATE_LIMIT_REFRESH_WINDOW:1m}
+      platform-admin:
+        max-requests: ${ARCHDOX_RATE_LIMIT_PLATFORM_ADMIN_MAX_REQUESTS:120}
+        window: ${ARCHDOX_RATE_LIMIT_PLATFORM_ADMIN_WINDOW:1m}
+      office-ops:
+        max-requests: ${ARCHDOX_RATE_LIMIT_OFFICE_OPS_MAX_REQUESTS:180}
+        window: ${ARCHDOX_RATE_LIMIT_OFFICE_OPS_WINDOW:1m}
+      agent-websocket:
+        max-requests: ${ARCHDOX_RATE_LIMIT_AGENT_WS_MAX_REQUESTS:20}
+        window: ${ARCHDOX_RATE_LIMIT_AGENT_WS_WINDOW:1m}
+      agent-api:
+        max-requests: ${ARCHDOX_RATE_LIMIT_AGENT_API_MAX_REQUESTS:120}
+        window: ${ARCHDOX_RATE_LIMIT_AGENT_API_WINDOW:1m}
+      upload:
+        max-requests: ${ARCHDOX_RATE_LIMIT_UPLOAD_MAX_REQUESTS:60}
+        window: ${ARCHDOX_RATE_LIMIT_UPLOAD_WINDOW:1m}
+      document-generation:
+        max-requests: ${ARCHDOX_RATE_LIMIT_DOCUMENT_GENERATION_MAX_REQUESTS:20}
+        window: ${ARCHDOX_RATE_LIMIT_DOCUMENT_GENERATION_WINDOW:1m}
+      api:
+        max-requests: ${ARCHDOX_RATE_LIMIT_API_MAX_REQUESTS:900}
+        window: ${ARCHDOX_RATE_LIMIT_API_WINDOW:1m}
+    login-protection:
+      enabled: ${ARCHDOX_LOGIN_PROTECTION_ENABLED:true}
+      max-failures-per-email: ${ARCHDOX_LOGIN_MAX_FAILURES_PER_EMAIL:5}
+      max-failures-per-ip: ${ARCHDOX_LOGIN_MAX_FAILURES_PER_IP:25}
+      failure-window: ${ARCHDOX_LOGIN_FAILURE_WINDOW:15m}
+      lock-duration: ${ARCHDOX_LOGIN_LOCK_DURATION:15m}
   platform-admin:
     bootstrap-super-admin-emails: ${PLATFORM_ADMIN_BOOTSTRAP_EMAILS:}
+    ops:
+      ai-diagnosis:
+        enabled: ${PLATFORM_OPS_AI_DIAGNOSIS_ENABLED:false}
+        provider-code: ${PLATFORM_OPS_AI_PROVIDER_CODE:}
+        model: ${PLATFORM_OPS_AI_MODEL:}
+        max-attempts: ${PLATFORM_OPS_AI_MAX_ATTEMPTS:2}
+        timeout-seconds: ${PLATFORM_OPS_AI_TIMEOUT_SECONDS:90}
     health:
       document-job-stuck-minutes: ${PLATFORM_HEALTH_DOCUMENT_JOB_STUCK_MINUTES:30}
       agent-command-stuck-minutes: ${PLATFORM_HEALTH_AGENT_COMMAND_STUCK_MINUTES:15}

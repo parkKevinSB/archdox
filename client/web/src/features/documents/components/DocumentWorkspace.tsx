@@ -1,4 +1,6 @@
-import { Download, Eye, FileClock, FileText, History, Loader2, RefreshCw, UploadCloud, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent } from "react";
+import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, History, Loader2, PenLine, RefreshCw, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
 import {
   EmptyState,
   InlineAlert,
@@ -12,8 +14,13 @@ import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
+  DocumentOutputFormat,
+  DocumentSignatureInput,
   InspectionReport,
-  Project
+  Project,
+  ReportPreflightFindingResolutionStatus,
+  ReportPreflightReviewFindingResponse,
+  ReportPreflightReviewRunResponse
 } from "../types";
 
 type DocumentWorkspaceProps = {
@@ -32,12 +39,52 @@ export function DocumentWorkspace({
   token
 }: DocumentWorkspaceProps) {
   const workspace = useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, token });
+  const [signatureRequest, setSignatureRequest] = useState<{
+    outputFormat: DocumentOutputFormat;
+    report: InspectionReport;
+  } | null>(null);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
   const readyReports = workspace.documentReports.filter((report) => report.status === "READY_TO_GENERATE");
   const activeReports = workspace.documentReports.filter((report) =>
     ["GENERATION_REQUESTED", "GENERATING"].includes(report.status)
   );
   const staleDraftReports = workspace.documentReports.filter((report) => needsSubmitBeforeGeneration(report));
   const generatedReports = workspace.documentReports.filter((report) => report.status === "GENERATED");
+  const requestSignedGeneration = (report: InspectionReport, outputFormat: DocumentOutputFormat) => {
+    setSignatureError(null);
+    setSignatureRequest({ outputFormat, report });
+  };
+  const submitSignature = async (signature: DocumentSignatureInput) => {
+    if (!signatureRequest) {
+      return;
+    }
+    try {
+      await workspace.createDocumentJob({
+        outputFormat: signatureRequest.outputFormat,
+        reportId: signatureRequest.report.id,
+        signature
+      });
+      setSignatureRequest(null);
+      setSignatureError(null);
+    } catch (error) {
+      setSignatureError(error instanceof Error ? error.message : "문서 생성 요청에 실패했습니다.");
+    }
+  };
+  const submitWithoutSignature = async () => {
+    if (!signatureRequest) {
+      return;
+    }
+    try {
+      await workspace.createDocumentJob({
+        outputFormat: signatureRequest.outputFormat,
+        reportId: signatureRequest.report.id
+      });
+      setSignatureRequest(null);
+      setSignatureError(null);
+    } catch (error) {
+      setSignatureError(error instanceof Error ? error.message : "문서 생성 요청에 실패했습니다.");
+    }
+  };
 
   return (
     <div className="view-stack">
@@ -74,6 +121,8 @@ export function DocumentWorkspace({
               {workspace.documentReports.map((report) => {
                 const project = projects.find((item) => item.id === report.projectId);
                 const jobs = workspace.jobsByReport[report.id] ?? [];
+                const preflightRun = workspace.preflightRunsByReport[report.id]?.[0] ?? null;
+                const preflightFindings = preflightRun ? workspace.preflightFindingsByRun[preflightRun.id] ?? [] : [];
                 return (
                   <DocumentReportCard
                     creating={workspace.creatingReportId === report.id}
@@ -82,15 +131,23 @@ export function DocumentWorkspace({
                     downloadingArtifactId={workspace.downloadingArtifactId}
                     jobs={jobs}
                     key={report.id}
+                    preflightFindings={preflightFindings}
+                    preflightRun={preflightRun}
                     previewingArtifactId={workspace.previewingArtifactId}
                     projectName={project?.name}
                     report={report}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
-                    onCreate={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "DOCX" })}
-                    onCreatePdf={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "PDF" })}
-                    onCreatePreview={() => workspace.createDocumentJob({ reportId: report.id, outputFormat: "HTML" })}
+                    reviewing={workspace.reviewingReportId === report.id}
+                    resolvingPreflightFindingId={workspace.resolvingPreflightFindingId}
+                    onCreate={() => requestSignedGeneration(report, "DOCX")}
+                    onCreatePdf={() => requestSignedGeneration(report, "PDF")}
+                    onCreatePreview={() => requestSignedGeneration(report, "HTML")}
                     onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
                     onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
+                    onRequestPreflightReview={() => workspace.requestPreflightReview(report.id)}
+                    onResolvePreflightFinding={(runId, findingId, status) =>
+                      workspace.resolvePreflightFinding({ reportId: report.id, runId, findingId, status })
+                    }
                     onRequestDelivery={(artifact, job) => workspace.requestArtifactDelivery({ artifact, job })}
                   />
                 );
@@ -119,6 +176,22 @@ export function DocumentWorkspace({
       {workspace.preview ? (
         <DocumentPreviewDialog preview={workspace.preview} onClose={workspace.closePreview} />
       ) : null}
+      {signatureRequest ? (
+        <DocumentSignatureDialog
+          error={signatureError}
+          outputFormat={signatureRequest.outputFormat}
+          report={signatureRequest.report}
+          submitting={workspace.creatingReportId === signatureRequest.report.id}
+          onClose={() => {
+            if (!workspace.creatingReportId) {
+              setSignatureRequest(null);
+              setSignatureError(null);
+            }
+          }}
+          onSkip={submitWithoutSignature}
+          onSubmit={submitSignature}
+        />
+      ) : null}
     </div>
   );
 }
@@ -129,15 +202,21 @@ function DocumentReportCard({
   deliveriesByArtifact,
   downloadingArtifactId,
   jobs,
+  preflightFindings,
+  preflightRun,
   projectName,
   report,
   previewingArtifactId,
   requestingDeliveryArtifactId,
+  reviewing,
+  resolvingPreflightFindingId,
   onCreate,
   onCreatePdf,
   onCreatePreview,
   onDownloadPrepared,
   onPreviewArtifact,
+  onRequestPreflightReview,
+  onResolvePreflightFinding,
   onRequestDelivery
 }: {
   creating: boolean;
@@ -145,15 +224,25 @@ function DocumentReportCard({
   deliveriesByArtifact: Record<number, DocumentDeliveryRequestResponse>;
   downloadingArtifactId: number | null;
   jobs: DocumentJobResponse[];
+  preflightFindings: ReportPreflightReviewFindingResponse[];
+  preflightRun: ReportPreflightReviewRunResponse | null;
   projectName?: string;
   report: InspectionReport;
   previewingArtifactId: number | null;
   requestingDeliveryArtifactId: number | null;
-  onCreate: () => Promise<DocumentJobResponse>;
-  onCreatePdf: () => Promise<DocumentJobResponse>;
-  onCreatePreview: () => Promise<DocumentJobResponse>;
+  reviewing: boolean;
+  resolvingPreflightFindingId: number | null;
+  onCreate: () => void;
+  onCreatePdf: () => void;
+  onCreatePreview: () => void;
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
   onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
+  onRequestPreflightReview: () => Promise<ReportPreflightReviewRunResponse>;
+  onResolvePreflightFinding: (
+    runId: number,
+    findingId: number,
+    status: ReportPreflightFindingResolutionStatus
+  ) => Promise<ReportPreflightReviewFindingResponse>;
   onRequestDelivery: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
 }) {
   const latestJob = jobs[0] ?? null;
@@ -161,8 +250,17 @@ function DocumentReportCard({
   const generatedJobs = jobs.filter((job) => job.status === "GENERATED");
   const latestGeneratedJob = generatedJobs[0] ?? null;
   const active = Boolean(activeJob);
-  const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status) && !active;
+  const preflightActive = preflightRun ? isPreflightActive(preflightRun) : false;
+  const preflightBlocking = preflightRun ? isPreflightBlocking(preflightRun) : false;
+  const preflightCurrent = preflightRun ? preflightRun.reportRevision === generationRevision(report) : false;
+  const preflightReady = Boolean(preflightRun && preflightCurrent && preflightRun.status === "PASSED");
+  const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status)
+    && !active
+    && preflightReady
+    && !preflightActive
+    && !preflightBlocking;
   const action = documentAction(report, latestJob, active);
+  const actionHint = preflightReady ? action.hint : preflightGateHint(preflightRun, report);
   const creatingDocx = creating && (creatingOutputFormat === null || creatingOutputFormat === "DOCX");
   const creatingHtml = creating && creatingOutputFormat === "HTML";
   const creatingPdf = creating && creatingOutputFormat === "PDF";
@@ -189,6 +287,17 @@ function DocumentReportCard({
       )}
 
       <InlineDocumentGuide report={report} latestGeneratedJob={latestGeneratedJob} />
+
+      <PreflightReviewPanel
+        findings={preflightFindings}
+        currentRevision={generationRevision(report)}
+        report={report}
+        reviewing={reviewing || preflightActive}
+        resolvingFindingId={resolvingPreflightFindingId}
+        run={preflightRun}
+        onRequestReview={onRequestPreflightReview}
+        onResolveFinding={onResolvePreflightFinding}
+      />
 
       {generatedJobs.length > 0 ? (
         <div className="document-history">
@@ -220,7 +329,7 @@ function DocumentReportCard({
       ) : null}
 
       <div className="document-actions">
-        <span className="document-action-hint">{action.hint}</span>
+        <span className="document-action-hint">{actionHint}</span>
         <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
           {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
           HTML 미리보기
@@ -235,6 +344,318 @@ function DocumentReportCard({
         </button>
       </div>
     </article>
+  );
+}
+
+function DocumentSignatureDialog({
+  error,
+  outputFormat,
+  report,
+  submitting,
+  onClose,
+  onSkip,
+  onSubmit
+}: {
+  error: string | null;
+  outputFormat: DocumentOutputFormat;
+  report: InspectionReport;
+  submitting: boolean;
+  onClose: () => void;
+  onSkip: () => Promise<void>;
+  onSubmit: (signature: DocumentSignatureInput) => Promise<void>;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const [empty, setEmpty] = useState(true);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [name, setName] = useState(() => localStorage.getItem("archdox.signature.name") ?? "");
+  const [role, setRole] = useState(() => localStorage.getItem("archdox.signature.role") ?? "작성자");
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * scale));
+      canvas.height = Math.max(1, Math.floor(rect.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        return;
+      }
+      context.scale(scale, scale);
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.lineWidth = 2.2;
+      context.strokeStyle = "#111827";
+      setEmpty(true);
+    };
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
+  }, []);
+
+  const point = (event: PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
+  };
+  const startDrawing = (event: PointerEvent<HTMLCanvasElement>) => {
+    const context = event.currentTarget.getContext("2d");
+    if (!context) {
+      return;
+    }
+    const current = point(event);
+    drawingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    context.beginPath();
+    context.moveTo(current.x, current.y);
+  };
+  const draw = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) {
+      return;
+    }
+    const context = event.currentTarget.getContext("2d");
+    if (!context) {
+      return;
+    }
+    const current = point(event);
+    context.lineTo(current.x, current.y);
+    context.stroke();
+    setEmpty(false);
+  };
+  const stopDrawing = (event: PointerEvent<HTMLCanvasElement>) => {
+    drawingRef.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) {
+      return;
+    }
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    setEmpty(true);
+    setLocalError(null);
+  };
+  const submit = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setLocalError("서명자 이름을 입력해주세요.");
+      return;
+    }
+    if (empty || !canvasRef.current) {
+      setLocalError("서명을 입력해주세요.");
+      return;
+    }
+    localStorage.setItem("archdox.signature.name", trimmedName);
+    localStorage.setItem("archdox.signature.role", role.trim());
+    setLocalError(null);
+    await onSubmit({
+      signedByName: trimmedName,
+      signedByRole: role.trim() || null,
+      signatureImageDataUrl: canvasRef.current.toDataURL("image/png"),
+      signatureImageMimeType: "image/png"
+    });
+  };
+
+  return (
+    <div className="document-preview-backdrop" role="presentation">
+      <section className="document-signature-dialog" role="dialog" aria-modal="true" aria-label="문서 서명">
+        <header className="document-preview-header">
+          <div>
+            <span>문서 생성 서명</span>
+            <strong>{report.title || report.reportNo}</strong>
+            <small>{outputFormat} 생성 전에 필요한 경우 서명을 남길 수 있습니다. 서명 없이 생성하면 서명란은 비워집니다.</small>
+          </div>
+          <button className="icon-button" disabled={submitting} onClick={onClose} type="button" aria-label="서명 창 닫기">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="signature-dialog-body">
+          <div className="signature-form-grid">
+            <label>
+              <span>서명자</span>
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="이름" />
+            </label>
+            <label>
+              <span>역할</span>
+              <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="작성자 / 점검자" />
+            </label>
+          </div>
+          <div className="signature-pad-wrap">
+            <div className="signature-pad-head">
+              <strong>서명</strong>
+              <button className="secondary-button compact-button" disabled={submitting} onClick={clearSignature} type="button">
+                <Trash2 size={14} />
+                지우기
+              </button>
+            </div>
+            <canvas
+              className="signature-pad"
+              ref={canvasRef}
+              onPointerCancel={stopDrawing}
+              onPointerDown={startDrawing}
+              onPointerLeave={stopDrawing}
+              onPointerMove={draw}
+              onPointerUp={stopDrawing}
+            />
+          </div>
+          {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
+        </div>
+        <footer className="signature-dialog-actions">
+          <button className="secondary-button" disabled={submitting} onClick={onClose} type="button">
+            취소
+          </button>
+          <button className="secondary-button" disabled={submitting} onClick={onSkip} type="button">
+            {submitting ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+            서명 없이 생성
+          </button>
+          <button className="primary-button" disabled={submitting} onClick={submit} type="button">
+            {submitting ? <Loader2 className="spin" size={17} /> : <PenLine size={17} />}
+            서명 후 생성
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function PreflightReviewPanel({
+  currentRevision,
+  findings,
+  report,
+  reviewing,
+  resolvingFindingId,
+  run,
+  onRequestReview,
+  onResolveFinding
+}: {
+  currentRevision: number;
+  findings: ReportPreflightReviewFindingResponse[];
+  report: InspectionReport;
+  reviewing: boolean;
+  resolvingFindingId: number | null;
+  run: ReportPreflightReviewRunResponse | null;
+  onRequestReview: () => Promise<ReportPreflightReviewRunResponse>;
+  onResolveFinding: (
+    runId: number,
+    findingId: number,
+    status: ReportPreflightFindingResolutionStatus
+  ) => Promise<ReportPreflightReviewFindingResponse>;
+}) {
+  const blockingCount = findings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const deterministicFindings = findings.filter((finding) => finding.source === "DETERMINISTIC");
+  const aiFindings = findings.filter((finding) => finding.source !== "DETERMINISTIC");
+  const deterministicBlockingCount = deterministicFindings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const aiBlockingCount = aiFindings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const warningCount = findings.filter((finding) => !isOpenBlockingFinding(finding)).length;
+  const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
+  const stale = run ? run.reportRevision !== currentRevision : false;
+  const warning = stale || (run && isPreflightBlocking(run));
+  const aiMode = run ? preflightAiMode(run) : null;
+
+  return (
+    <section className={warning ? "preflight-panel warning" : "preflight-panel"}>
+      <div className="preflight-summary">
+        <div className={warning ? "row-icon amber" : "row-icon blue"}>
+          {warning ? <AlertTriangle size={17} /> : <ShieldCheck size={17} />}
+        </div>
+        <div>
+          <strong>{preflightTitle(run, stale)}</strong>
+          <span className="preflight-copy">
+            {preflightDescription(run, stale, currentRevision, blockingCount, warningCount)}
+          </span>
+        </div>
+        <span className={`status-badge ${warning ? "amber" : run?.status === "PASSED" ? "green" : "slate"}`}>
+          {preflightStatusLabel(run, stale)}
+        </span>
+      </div>
+
+      <div className="preflight-gate-grid">
+        <div className={deterministicBlockingCount > 0 ? "preflight-gate-item blocking" : "preflight-gate-item pass"}>
+          <strong>코드 검증</strong>
+          <span>
+            {run
+              ? deterministicBlockingCount > 0
+                ? `수정 필요 ${deterministicBlockingCount}건`
+                : deterministicFindings.length > 0
+                  ? `경고 ${deterministicFindings.length}건`
+                  : "필수값/사진/상태 통과"
+              : "검토 실행 전"}
+          </span>
+        </div>
+        <div className={aiBlockingCount > 0 ? "preflight-gate-item blocking" : "preflight-gate-item pass"}>
+          <strong>AI 검토</strong>
+          <span>{run ? preflightAiDescription(run) : "검토 실행 전"}</span>
+        </div>
+        <div className={stale ? "preflight-gate-item blocking" : run?.status === "PASSED" ? "preflight-gate-item pass" : "preflight-gate-item"}>
+          <strong>생성 가능 여부</strong>
+          <span>{preflightGateHint(run, report)}</span>
+        </div>
+      </div>
+
+      {aiMode ? (
+        <div className={`preflight-ai-banner ${aiMode.kind}`}>
+          <strong>{aiMode.title}</strong>
+          <span>{aiMode.description}</span>
+        </div>
+      ) : null}
+
+      {findings.length > 0 ? (
+        <div className="preflight-finding-list">
+          {findings.slice(0, 4).map((finding) => (
+            <div className={isOpenBlockingFinding(finding) ? "preflight-finding blocking" : "preflight-finding"} key={finding.id}>
+              {isOpenBlockingFinding(finding) ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
+              <span>
+                <strong>{finding.message}</strong>
+                <small>
+                  {preflightSourceLabel(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
+                </small>
+                <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
+              </span>
+              {run && !stale && isOpenBlockingFinding(finding) ? (
+                <div className="preflight-finding-actions">
+                  <button
+                    className="secondary-button compact-button"
+                    disabled={resolvingFindingId === finding.id}
+                    onClick={() => onResolveFinding(run.id, finding.id, "RESOLVED")}
+                    type="button"
+                  >
+                    {resolvingFindingId === finding.id ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
+                    수정 완료
+                  </button>
+                  <button
+                    className="secondary-button compact-button"
+                    disabled={resolvingFindingId === finding.id}
+                    onClick={() => onResolveFinding(run.id, finding.id, "ACCEPTED")}
+                    type="button"
+                  >
+                    리스크 수용
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {findings.length > 4 ? (
+            <span className="preflight-more">외 {findings.length - 4}건</span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="preflight-actions">
+        <button className="secondary-button compact-button" disabled={!canReview || reviewing} onClick={onRequestReview} type="button">
+          {reviewing ? <Loader2 className="spin" size={15} /> : <ShieldCheck size={15} />}
+          생성 전 검토
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -421,6 +842,208 @@ function GeneratedJobArtifacts({
       </div>
     </details>
   );
+}
+
+function preflightTitle(run: ReportPreflightReviewRunResponse | null, stale: boolean) {
+  if (!run) {
+    return "생성 전 검토 전";
+  }
+  if (stale) {
+    return "최신 revision 재검토 필요";
+  }
+  if (run.status === "PASSED") {
+    return "생성 전 검토 통과";
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return "생성 전 확인 필요";
+  }
+  if (run.status === "FAILED") {
+    return "생성 전 검토 실패";
+  }
+  return "생성 전 검토 중";
+}
+
+function preflightDescription(
+  run: ReportPreflightReviewRunResponse | null,
+  stale: boolean,
+  currentRevision: number,
+  blockingCount: number,
+  warningCount: number
+) {
+  if (!run) {
+    return "문서 생성 전에 누락된 항목과 사진 상태를 확인할 수 있습니다.";
+  }
+  if (run.status === "PASSED") {
+    if (stale) {
+      return `검토는 v${run.reportRevision} 기준입니다. 현재 제출 v${currentRevision} 기준으로 다시 검토해 주세요.`;
+    }
+    return warningCount > 0 ? `경고 ${warningCount}건이 있지만 생성은 가능합니다.` : "막히는 문제가 없습니다.";
+  }
+  if (stale) {
+    return `검토는 v${run.reportRevision} 기준입니다. 현재 제출 v${currentRevision} 기준으로 다시 검토해 주세요.`;
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return `수정이 필요한 항목 ${blockingCount}건이 있습니다.`;
+  }
+  if (run.status === "FAILED") {
+    return "검토 중 오류가 발생했습니다. 다시 실행해 주세요.";
+  }
+  return "검토 결과를 준비하고 있습니다.";
+}
+
+function preflightAiDescription(run: ReportPreflightReviewRunResponse) {
+  if (!run.aiReviewPlanned) {
+    return "정책상 AI 검토 생략";
+  }
+  const status = harnessStatusLabel(run.harnessStatus ?? "QUEUED");
+  const model = run.aiModelId ?? run.aiProviderCode ?? "설정된 모델";
+  const attempt = run.harnessAttempt > 0 ? ` / ${run.harnessAttempt}회 시도` : "";
+  return `${status}${attempt} / ${model}`;
+}
+
+function preflightAiMode(run: ReportPreflightReviewRunResponse) {
+  if (!run.aiReviewPlanned) {
+    return {
+      kind: "skipped",
+      title: "AI 검토 생략",
+      description: "사무소 정책 또는 서버 설정에 따라 코드 검증만 실행했습니다."
+    };
+  }
+  if (run.aiProviderCode?.startsWith("fake-") || run.aiModelId?.startsWith("fake-")) {
+    return {
+      kind: "fake",
+      title: "개발용 Fake AI",
+      description: "외부 AI API를 호출하지 않고 로컬 테스트용 응답으로 검토 흐름만 검증했습니다."
+    };
+  }
+  return {
+    kind: "real",
+    title: "실제 AI 검토",
+    description: `${run.aiProviderCode ?? "provider"} 설정을 통해 외부 또는 로컬 모델 호출 결과를 반영했습니다.`
+  };
+}
+
+function preflightGateHint(run: ReportPreflightReviewRunResponse | null, report: InspectionReport) {
+  if (needsSubmitBeforeGeneration(report)) {
+    return "수정본을 먼저 제출해야 합니다.";
+  }
+  if (!run) {
+    return "최신 제출본 기준 생성 전 검토가 필요합니다.";
+  }
+  const currentRevision = generationRevision(report);
+  if (run.reportRevision !== currentRevision) {
+    return `검토 기준 v${run.reportRevision}, 현재 제출본 v${currentRevision}`;
+  }
+  if (run.status === "PASSED") {
+    return "문서 생성 가능";
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return "수정 필요 항목 처리 후 생성 가능";
+  }
+  if (run.status === "FAILED") {
+    return "검토 실패, 다시 실행 필요";
+  }
+  return "검토 진행 중";
+}
+
+function preflightStatusLabel(run: ReportPreflightReviewRunResponse | null, stale: boolean) {
+  if (!run) {
+    return "검토 전";
+  }
+  if (stale) {
+    return "재검토 필요";
+  }
+  if (run.status === "PASSED") {
+    return "생성 가능";
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return "확인 필요";
+  }
+  if (run.status === "FAILED") {
+    return "검토 실패";
+  }
+  return "검토 중";
+}
+
+function preflightSourceLabel(finding: ReportPreflightReviewFindingResponse) {
+  if (finding.source === "DETERMINISTIC") {
+    return "코드 검증";
+  }
+  if (finding.source === "AI") {
+    return "AI 검토";
+  }
+  return finding.source;
+}
+
+function findingSeverityLabel(severity: string) {
+  if (severity === "CRITICAL") {
+    return "긴급";
+  }
+  if (severity === "HIGH") {
+    return "높음";
+  }
+  if (severity === "MEDIUM") {
+    return "보통";
+  }
+  if (severity === "LOW") {
+    return "낮음";
+  }
+  if (severity === "INFO") {
+    return "정보";
+  }
+  return severity;
+}
+
+function harnessStatusLabel(status: string) {
+  if (status === "COMPLETED" || status === "SUCCEEDED" || status === "READY") {
+    return "AI 완료";
+  }
+  if (status === "FAILED") {
+    return "AI 실패";
+  }
+  if (status === "RUNNING") {
+    return "AI 실행 중";
+  }
+  if (status === "SKIPPED") {
+    return "AI 생략";
+  }
+  return "AI 대기";
+}
+
+function isPreflightActive(run: ReportPreflightReviewRunResponse) {
+  return run.status === "REQUESTED" || run.status === "RUNNING";
+}
+
+function isPreflightBlocking(run: ReportPreflightReviewRunResponse) {
+  return run.status === "NEEDS_ATTENTION" || run.status === "FAILED";
+}
+
+function generationRevision(report: InspectionReport) {
+  return report.submittedRevision ?? report.contentRevision;
+}
+
+function isBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
+  return finding.severity === "HIGH" || finding.severity === "CRITICAL";
+}
+
+function isOpenBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
+  return isBlockingFinding(finding) && finding.resolutionStatus === "OPEN";
+}
+
+function findingMetaLabel(finding: ReportPreflightReviewFindingResponse) {
+  const category = finding.attributes?.category;
+  const location = finding.location || finding.code;
+  return category ? `${category} / ${location}` : location;
+}
+
+function findingResolutionLabel(finding: ReportPreflightReviewFindingResponse) {
+  if (finding.resolutionStatus === "RESOLVED") {
+    return finding.resolvedAt ? `수정 완료 / ${new Date(finding.resolvedAt).toLocaleString()}` : "수정 완료";
+  }
+  if (finding.resolutionStatus === "ACCEPTED") {
+    return finding.resolvedAt ? `리스크 수용 / ${new Date(finding.resolvedAt).toLocaleString()}` : "리스크 수용";
+  }
+  return "미처리";
 }
 
 function documentAction(report: InspectionReport, latestJob: DocumentJobResponse | null, active: boolean) {

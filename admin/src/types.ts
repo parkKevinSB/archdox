@@ -440,4 +440,213 @@ export type PlatformHealthDetection = {
   stuckDeliveries: number;
   detectedAt: string;
   total: number;
+  opsRunId?: number | null;
+  incidentCount?: number;
+  findingCount?: number;
+};
+
+export type PlatformOpsRun = {
+  id: number;
+  triggerType: string;
+  status: string;
+  startedByUserId?: number | null;
+  incidentId?: number | null;
+  inputSnapshotJson: Record<string, unknown>;
+  aiHarnessRunId?: string | null;
+  startedAt: string;
+  completedAt?: string | null;
+  failureCode?: string | null;
+};
+
+export type PlatformOpsIncident = {
+  id: number;
+  status: string;
+  severity: string;
+  category: string;
+  title: string;
+  summary: string;
+  officeId?: number | null;
+  primaryResourceType?: string | null;
+  primaryResourceId?: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt?: string | null;
+  createdByRunId?: number | null;
+};
+
+export type PlatformOpsFinding = {
+  id: number;
+  incidentId?: number | null;
+  runId: number;
+  officeId?: number | null;
+  severity: string;
+  source: string;
+  code: string;
+  category: string;
+  title: string;
+  message: string;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  workflowType?: string | null;
+  workflowKey?: string | null;
+  evidenceJson: Record<string, unknown>;
+  recommendation?: string | null;
+  createdAt: string;
+};
+
+export type AiProviderType = "OPENAI" | "OLLAMA" | "GEMINI" | "ANTHROPIC" | "CUSTOM_HTTP";
+export type AiProviderCredentialStatus = "DRAFT" | "ACTIVE" | "DISABLED";
+export type AiCredentialDeliveryMode = "PROXY_ONLY" | "EPHEMERAL_TOKEN" | "DIRECT_SECRET";
+
+export type AiProviderCredential = {
+  id: number;
+  providerCode: string;
+  displayName: string;
+  providerType: AiProviderType;
+  status: AiProviderCredentialStatus;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  credentialVersion: number;
+  apiKeyFingerprint?: string | null;
+  apiKeyMasked?: string | null;
+  apiKeyConfigured: boolean;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string | null;
+};
+
+export type OfficeAiPolicy = {
+  officeId: number;
+  officeCode: string;
+  officeName: string;
+  aiEnabled: boolean;
+  documentReviewAiEnabled: boolean;
+  documentGenerationAiEnabled: boolean;
+  preferredProviderCredentialId?: number | null;
+  preferredProviderCode?: string | null;
+  preferredProviderType?: string | null;
+  credentialDeliveryMode: AiCredentialDeliveryMode;
+  budgetEnforcementEnabled: boolean;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency: string;
+  dailyCallLimit?: number | null;
+  monthlyTokenLimit?: number | null;
+  policyVersion: number;
+  effectiveAiEnabled: boolean;
+  effectiveMessage?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AiUsageGroup = {
+  officeId?: number | null;
+  feature: string;
+  callCount: number;
+  succeededCount: number;
+  failedCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedTotalCost: number;
+};
+
+export type AiUsageSummary = {
+  periodFrom: string;
+  periodTo: string;
+  currency: string;
+  callCount: number;
+  succeededCount: number;
+  failedCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedTotalCost: number;
+  groups: AiUsageGroup[];
+};
+
+export type AiHarnessTraceEvent = {
+  id: number;
+  officeId?: number | null;
+  harnessRunId: string;
+  harnessId: string;
+  eventType: string;
+  status?: string | null;
+  attempt?: number | null;
+  modelId?: string | null;
+  callId?: string | null;
+  promptId?: string | null;
+  promptVersion?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  latencyMs?: number | null;
+  findingCount?: number | null;
+  validationValid?: boolean | null;
+  validationErrorCount?: number | null;
+  errorType?: string | null;
+  message?: string | null;
+  attributes: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type PlatformReportPreflightFinding = {
+  id: number;
+  officeId: number;
+  reportId: number;
+  reviewRunId: number;
+  reviewRunStatus?: string | null;
+  reviewRunTerminalReason?: string | null;
+  source: string;
+  code: string;
+  severity: string;
+  location?: string | null;
+  message: string;
+  evidence?: string | null;
+  attributes: Record<string, string>;
+  resolutionStatus: "OPEN" | "RESOLVED" | "ACCEPTED";
+  resolutionNote?: string | null;
+  resolvedBy?: number | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+};
+
+export type AiModelCallLog = {
+  id: number;
+  callId: string;
+  officeId?: number | null;
+  providerCredentialId?: number | null;
+  providerCode: string;
+  providerType: string;
+  modelId: string;
+  modelName: string;
+  feature?: string | null;
+  workflowType?: string | null;
+  workflowKey?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  status: "SUCCEEDED" | "FAILED";
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  latencyMs?: number | null;
+  finishReason?: string | null;
+  providerResponseId?: string | null;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  pricingRuleId?: number | null;
+  costCurrency?: string | null;
+  estimatedInputCost?: number | null;
+  estimatedOutputCost?: number | null;
+  estimatedTotalCost?: number | null;
+  requestedAt: string;
+  completedAt: string;
+};
+
+export type AiModelPricingRule = {
+  id: number;
+  providerCode: string;
+  modelName: string;
+  currency: string;
+  inputTokenPricePerMillion: number;
+  outputTokenPricePerMillion: number;
+  status: "ACTIVE" | "DISABLED";
+  createdByUserId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  disabledAt?: string | null;
 };

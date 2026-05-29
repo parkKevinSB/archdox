@@ -553,6 +553,19 @@ revisions.
   photo/checklist/configuration context. Template-specific aliases belong under
   `templateFields`; layout-specific repeated sections belong under
   `layoutSections`.
+- Rule: document generation may include a user signature under
+  `input_snapshot_json.signature`. The UI can offer a pre-generation signing
+  step, but signature input is optional. When the user skips signing, generation
+  continues and signature areas are rendered blank.
+- Rule: whether a signature is rendered is document-type/template policy, not a
+  global rule. Daily supervision log defaults render a signature area; other
+  document types render signatures only when their template/layout asks for it.
+  Renderer-specific code must consume the neutral snapshot field instead of
+  reading UI state or user profile data again.
+- Rule: signature template aliases such as `signedByName`, `signedByRole`,
+  `signedAt`, `signatureSignedByName`, and `signatureSignedAt` belong under
+  `templateFields`. Signature images are MVP snapshot data and may later move to
+  a storage-backed asset without changing the document flow contract.
 - Rule: new document-generation features should add or normalize neutral
   snapshot data before adding artifact-format-specific renderer behavior.
 - Rule: every job stores `report_revision`; document artifacts produced by the

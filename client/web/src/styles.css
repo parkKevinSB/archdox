@@ -403,6 +403,12 @@ button {
   align-items: start;
 }
 
+.report-detail-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
 .workflow-path {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -623,6 +629,202 @@ button {
   background: #fff9ea;
 }
 
+.preflight-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d7e5e2;
+  border-radius: 8px;
+  background: #fbfdfd;
+}
+
+.preflight-panel.warning {
+  border-color: #ead5a4;
+  background: #fffaf0;
+}
+
+.preflight-summary {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.preflight-summary strong,
+.preflight-summary span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preflight-summary strong {
+  color: #172724;
+  font-size: 13px;
+}
+
+.preflight-summary span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.preflight-summary .preflight-copy {
+  white-space: normal;
+}
+
+.preflight-gate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preflight-gate-item {
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid #e2e9e7;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.preflight-gate-item strong,
+.preflight-gate-item span {
+  display: block;
+  min-width: 0;
+}
+
+.preflight-gate-item strong {
+  color: #223633;
+  font-size: 12px;
+}
+
+.preflight-gate-item span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.preflight-gate-item.pass {
+  border-color: #cfe4df;
+  background: #f3fbf8;
+}
+
+.preflight-gate-item.blocking {
+  border-color: #ead5a4;
+  background: #fff8e8;
+}
+
+.preflight-ai-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid #dde6e4;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.preflight-ai-banner strong,
+.preflight-ai-banner span {
+  display: block;
+}
+
+.preflight-ai-banner strong {
+  flex: 0 0 auto;
+  color: #223633;
+  font-size: 12px;
+}
+
+.preflight-ai-banner span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.preflight-ai-banner.fake {
+  border-color: #ead5a4;
+  background: #fff9ea;
+}
+
+.preflight-ai-banner.real {
+  border-color: #cfe4df;
+  background: #f3fbf8;
+}
+
+.preflight-ai-banner.skipped {
+  background: #f7fbfa;
+}
+
+.preflight-ai-meta {
+  display: block;
+  margin-top: 2px;
+  color: #7a6a31;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.preflight-finding-list {
+  display: grid;
+  gap: 7px;
+}
+
+.preflight-finding {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid #e2e9e7;
+  border-radius: 6px;
+  color: #38504c;
+  background: #ffffff;
+}
+
+.preflight-finding.blocking {
+  border-color: #efd9a6;
+  color: #6d5116;
+  background: #fff8e8;
+}
+
+.preflight-finding span,
+.preflight-finding strong,
+.preflight-finding small {
+  display: block;
+  min-width: 0;
+}
+
+.preflight-finding strong {
+  color: inherit;
+  font-size: 12px;
+}
+
+.preflight-finding small,
+.preflight-more {
+  color: #60746f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.preflight-resolution {
+  margin-top: 3px;
+}
+
+.preflight-finding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.preflight-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .document-history {
   display: grid;
   gap: 10px;
@@ -810,6 +1012,92 @@ button {
   height: 100%;
   border: 0;
   background: #f6f7f9;
+}
+
+.document-signature-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(640px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border: 1px solid #cfd9d8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+}
+
+.signature-dialog-body {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.signature-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.signature-form-grid label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #334642;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.signature-form-grid input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid #d4dfdc;
+  border-radius: 6px;
+  background: #fbfdfc;
+  color: #14201f;
+  font: inherit;
+}
+
+.signature-form-grid input:focus {
+  outline: 2px solid rgba(29, 93, 81, 0.14);
+  border-color: #8fb8b0;
+}
+
+.signature-pad-wrap {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.signature-pad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #14201f;
+  font-size: 13px;
+}
+
+.signature-pad {
+  width: 100%;
+  height: 190px;
+  touch-action: none;
+  border: 1px dashed #b9c8c5;
+  border-radius: 8px;
+  background: #fbfdfc;
+  cursor: crosshair;
+}
+
+.signature-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid #dde6e4;
+  background: #f7fbfa;
 }
 
 .document-action-hint {
@@ -1870,6 +2158,11 @@ button.list-row {
   background: #e2eefb;
 }
 
+.row-icon.amber {
+  color: #7b5b13;
+  background: #fff1c8;
+}
+
 .list-row strong,
 .list-row span {
   display: block;
@@ -2233,6 +2526,7 @@ button.list-row {
   .support-grid,
   .workflow-path,
   .document-workspace,
+  .preflight-gate-grid,
   .photo-workspace,
   .report-workbench,
   .photo-grid,
@@ -2247,7 +2541,8 @@ button.list-row {
   }
 
   .assignment-form,
-  .assignment-row {
+  .assignment-row,
+  .signature-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2346,5 +2641,22 @@ button.list-row {
 
   .auth-panel {
     padding: 22px;
+  }
+
+  .document-preview-backdrop {
+    padding: 10px;
+  }
+
+  .document-signature-dialog {
+    max-height: calc(100vh - 20px);
+  }
+
+  .signature-pad {
+    height: 160px;
+  }
+
+  .signature-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

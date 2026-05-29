@@ -41,6 +41,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, ex);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    ResponseEntity<ApiError> handleTooManyRequests(TooManyRequestsException ex) {
+        return error(HttpStatus.TOO_MANY_REQUESTS, ex);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         var fieldErrors = ex.getBindingResult().getFieldErrors().stream()

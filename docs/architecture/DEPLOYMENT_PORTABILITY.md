@@ -42,7 +42,7 @@ Agent install tokens, device secrets, and later mTLS still apply.
 Business code must depend on ArchDox ports, not vendor names:
 
 - `StorageService`
-- `AiTextGenerationService`
+- `AiModelGateway`
 - Agent WebSocket URL properties
 - Spring profiles and environment variables
 
@@ -67,11 +67,20 @@ Cloud API storage boundary:
 
 Cloud API AI boundary:
 
-- `com.archdox.cloud.ai.application.AiTextGenerationService`
-- `OpenAiTextGenerationService`
-- `OllamaTextGenerationService`
-- `AiTextGenerationServiceResolver`
-- `AiGenerationProperties`
+- `archdox-ai-harness` owns ArchDox document QA, report preflight, and ops
+  diagnosis prompts, schemas, and finding extraction.
+- `flower-ai-harness-core` owns the AI harness flow contract:
+  `AiModelGateway`, prompt rendering, output validation, retry/refine, and
+  finding emission.
+- `flower-ai-harness-spring-ai` adapts Spring AI `ChatClient` to
+  `AiModelGateway`.
+- `flower-ai-harness-spring-boot-starter` auto-registers the Spring AI backed
+  `AiModelGateway` when a `ChatClient` bean is available.
+- Cloud API owns only ArchDox run/finding persistence, operation events, and
+  REST APIs.
+- If harness observation, trace export, or provider health monitoring becomes
+  reusable outside ArchDox, those parts may later be extracted into
+  `flower-ai-harness-*` modules. Until then they stay ArchDox-specific.
 
 Shared document export boundary:
 
@@ -228,27 +237,44 @@ archdox:
 
 ## AI Boundary
 
-Cloud API now has a text-generation port:
+ArchDox must not own provider-specific AI clients. AI provider integration is
+delegated to Spring AI and the flower-ai-harness Spring adapter:
 
 ```text
-AiTextGenerationService
-  -> OpenAiTextGenerationService
-  -> OllamaTextGenerationService
+DocumentAiReviewService
+-> AiModelGateway
+-> flower-ai-harness-spring-ai
+-> Spring AI ChatClient
+-> OpenAI or Ollama
 ```
 
-Use OpenAI for hosted/cloud operation and Ollama for local/private operation
-when a local model is available. AI features must call the port/resolver, not a
-provider-specific client directly.
+Cloud API stores ArchDox-specific state such as `document_ai_review_runs`,
+`document_ai_review_findings`, `document_jobs`, and `operation_events`.
+OpenAI/Ollama HTTP details, provider SDKs, and provider model clients belong to
+Spring AI or a future harness provider module, not to ArchDox business code.
+
+Runtime selection uses Spring AI properties:
+
+```yaml
+spring:
+  ai:
+    model:
+      chat: none | openai | ollama
+```
+
+Cloud/API defaults keep AI disabled with `none`. `application-local.yml` selects
+`ollama` unless overridden, and `application-aws.yml` selects `openai` unless
+overridden. Set `SPRING_AI_MODEL_CHAT=none` to run without AI review.
 
 ## Profiles
 
 Cloud API profile files:
 
 - `application-dev.yml`: local developer defaults, local files, AI disabled
-- `application-aws.yml`: S3-compatible storage, OpenAI-ready, shared Agent
+- `application-aws.yml`: S3-compatible storage, Spring AI OpenAI-ready, shared Agent
   secret auth disabled by default
 - `application-local.yml`: local server defaults, MinIO/S3-compatible storage,
-  optional Ollama
+  Spring AI Ollama-ready
 
 ArchDox Agent profile files:
 
@@ -294,8 +320,8 @@ Use these rules when choosing a deployment shape:
   provider.
 - NAS/local filesystem storage is allowed only behind `StorageService`; business
   tables must store logical references, not absolute paths.
-- AI providers are optional. Features must tolerate `DISABLED` AI mode unless a
-  specific feature explicitly requires AI.
+- AI providers are optional. Features must tolerate `spring.ai.model.chat=none`
+  unless a specific feature explicitly requires AI.
 - React clients and mobile clients should call the same Cloud API contract. They
   must not know whether files ultimately live in AWS S3, MinIO, NAS, or local
   disk.

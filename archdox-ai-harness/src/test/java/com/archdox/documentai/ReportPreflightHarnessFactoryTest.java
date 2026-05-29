@@ -1,0 +1,101 @@
+package com.archdox.documentai;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.parkkevinsb.flower.ai.harness.finding.AiFinding;
+import io.github.parkkevinsb.flower.ai.harness.finding.FindingSink;
+import io.github.parkkevinsb.flower.ai.harness.test.AiHarnessTestExtension;
+import io.github.parkkevinsb.flower.ai.harness.test.fake.FakeResponseProgram;
+import io.github.parkkevinsb.flower.core.flow.FlowState;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+class ReportPreflightHarnessFactoryTest {
+    @RegisterExtension
+    final AiHarnessTestExtension harness = new AiHarnessTestExtension();
+
+    @Test
+    void validPreflightResponseEmitsFindings() {
+        var sink = new RecordingFindingSink();
+        harness.gateway().respondToAny(new FakeResponseProgram.ImmediateText("""
+                {
+                  "status": "WARN",
+                  "summary": "The report needs attention.",
+                  "confidence": "HIGH",
+                  "issues": [
+                    {
+                      "code": "VAGUE_SAFETY_REMARK",
+                      "category": "COMPLIANCE",
+                      "severity": "MEDIUM",
+                      "location": "steps.CHECKLIST.payload.safetyRemark",
+                      "message": "The safety remark is too vague for document generation.",
+                      "evidence": "safetyRemark=good",
+                      "suggestion": "Describe the checked condition and observed result."
+                    }
+                  ]
+                }
+                """));
+
+        var spec = new ReportPreflightHarnessFactory(new ObjectMapper()).spec(sink);
+        var flow = harness.runHarness(spec, input());
+
+        assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
+        assertThat(sink.findings)
+                .hasSize(1)
+                .first()
+                .satisfies(finding -> {
+                    assertThat(finding.code()).isEqualTo("VAGUE_SAFETY_REMARK");
+                    assertThat(finding.attributes()).containsEntry("source", "AI");
+                    assertThat(finding.attributes()).containsEntry("category", "COMPLIANCE");
+                    assertThat(finding.attributes()).containsEntry("reviewStatus", "WARN");
+                });
+    }
+
+    @Test
+    void malformedJsonIsRefinedBeforeSuccess() {
+        var sink = new RecordingFindingSink();
+        harness.gateway().respondToAny(new FakeResponseProgram.Sequence(List.of(
+                new FakeResponseProgram.ImmediateText("not-json"),
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "PASS",
+                          "summary": "Ready for generation.",
+                          "confidence": "MEDIUM",
+                          "issues": []
+                        }
+                        """))));
+
+        var spec = new ReportPreflightHarnessFactory(new ObjectMapper()).spec(sink);
+        var flow = harness.runHarness(spec, input());
+
+        assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
+        assertThat(flow.context().attempt()).isEqualTo(2);
+        assertThat(sink.findings).isEmpty();
+    }
+
+    private static ReportPreflightInput input() {
+        return new ReportPreflightInput(
+                "1",
+                "20",
+                "CONSTRUCTION_SUPERVISION_DAILY_LOG",
+                "Daily report",
+                "READY_TO_GENERATE",
+                3,
+                Map.of("reportNo", "R-001"),
+                Map.of("CHECKLIST", Map.of("payload", Map.of("safetyRemark", "good"))),
+                List.of());
+    }
+
+    private static final class RecordingFindingSink implements FindingSink {
+        private final List<AiFinding> findings = new ArrayList<>();
+
+        @Override
+        public void accept(List<AiFinding> findings, io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunContext ctx) {
+            this.findings.addAll(findings);
+        }
+    }
+}

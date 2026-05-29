@@ -8,6 +8,12 @@ Phase 4-8 establishes the first database-backed operation event log. It is not
 full observability, full audit logging, or a metrics stack yet. It is the
 minimum durable event trail for workflow and operational facts.
 
+AI Harness observer foundation is intentionally kept inside Cloud API for now.
+`archdox-ai-harness` owns ArchDox prompt/schema/finding definitions, while Cloud
+API owns `ai_harness_trace_events`, Platform Admin trace APIs, and the Admin UI
+observer panel. This keeps business harness definitions free from DB/Admin
+dependencies and still gives the platform operator a timeline of harness runs.
+
 ## Goal
 
 ArchDox must be operable after it becomes more than a single developer machine.
@@ -293,6 +299,10 @@ Implemented UI:
 - office admin views still require `X-Office-Id` and office `OWNER`/`ADMIN`
 - platform views do not require selecting an office and can see cross-office
   operational data
+- the platform view shows platform ops incidents, run history, findings, and a
+  diagnosis detail panel that expands the latest redacted `MANUAL_DIAGNOSIS`
+  snapshot into incident context, finding count, related operation event count,
+  redaction policy, and future AI harness status
 
 Rules:
 
@@ -443,6 +453,45 @@ Admin should show:
 - capabilities and storage profile
 - pending/delivered/acked/failed commands
 - recent disconnect reasons
+
+## AI Operations Monitoring
+
+AI is an operational and cost-bearing platform capability. Platform Admin must
+be able to monitor AI usage without querying the database manually.
+
+Admin should show:
+
+- AI provider credentials and publication status
+- active model pricing rules
+- office AI enablement policy
+- document review AI and document generation AI switches
+- office budget guard settings
+- this-month call count, success/failure count, token count, and estimated cost
+- usage grouped by office and feature
+- recent AI call logs with provider, model, feature, workflow reference,
+  latency, token usage, estimated cost, and trimmed error
+- preflight/document AI findings that still need attention
+
+Operational checks should detect:
+
+- monthly cost or token spikes
+- one office using a disproportionate amount of AI
+- repeated provider failures
+- missing pricing rules when budget enforcement is enabled
+- AI calls failing because of budget guard, disabled provider, disabled office
+  policy, or missing credentials
+- platform ops diagnosis flows becoming too frequent or too expensive
+
+Rules:
+
+- AI cost visibility is platform-admin scoped first.
+- Office admin billing/usage views may be added later, but must only show that
+  office's aggregate usage.
+- Cost is an estimate based on stored token usage and snapshotted pricing rules.
+- Raw prompts, raw provider responses, API keys, and secrets must not be shown
+  in admin usage tables.
+- Ops Diagnosis Harness may analyze AI usage/cost anomalies, but it may only
+  create findings and recommendations until a platform admin approves an action.
 
 Important stuck states:
 
@@ -615,6 +664,325 @@ It records operation events for old in-flight document jobs, Agent commands,
 photo pickups, and document deliveries. It is intentionally on-demand first.
 Do not add an always-on scheduler for this detector without explicit approval.
 
+The detector now runs through the `platform-ops` Flower worker and writes the
+first platform ops workflow records:
+
+- `platform_ops_runs`
+- `platform_ops_incidents`
+- `platform_ops_findings`
+
+These records are deterministic detector output. They are the future parent
+state for an Ops Diagnosis Harness, but this phase does not call AI.
+
+Implemented diagnosis foundation:
+
+```text
+POST /api/v1/platform-admin/ops/incidents/{incidentId}/diagnose
+-> create platform_ops_runs row with trigger_type=MANUAL_DIAGNOSIS
+-> submit PlatformOpsDiagnosisFlow to the platform-ops Flower worker
+-> build a redacted snapshot from the incident, recent findings, and related
+   operation_events
+-> persist OPS_DIAGNOSIS_SNAPSHOT_READY as source=SYSTEM_DIAGNOSIS
+-> optionally submit OpsDiagnosisHarness to the platform-ops-ai Flower worker
+   when platform ops AI diagnosis is enabled and a provider/model is configured
+-> wait for the child harness terminal state
+-> persist AI_HARNESS findings separately from deterministic findings
+-> complete or fail the run
+```
+
+The default remains deterministic-only because AI diagnosis is disabled unless
+explicitly configured. When enabled, the AI harness receives only the redacted
+snapshot, creates findings/recommendations for a platform admin, and never
+executes repair actions.
+
+Configuration:
+
+```yaml
+archdox:
+  platform-admin:
+    ops:
+      ai-diagnosis:
+        enabled: false
+        provider-code: openai-main
+        model: gpt-4.1-mini
+        max-attempts: 2
+        timeout-seconds: 90
+```
+
+## Platform Ops Harness Architecture
+
+Platform operations should also be modeled as workflow. The goal is not to let
+AI "run operations" by itself. The goal is to collect structured operational
+signals, detect concrete problems with deterministic code first, then use an AI
+harness to summarize, correlate, and suggest operator actions.
+
+Recommended first shape:
+
+```text
+operation_events / DB read models / summarized logs
+-> deterministic detectors
+-> ops snapshot
+-> PlatformOpsDiagnosisFlow
+-> OpsDiagnosisHarness
+-> ops findings / incident summary
+-> platform admin review
+-> optional approved recovery action
+```
+
+### Module Boundary
+
+Keep this inside the ArchDox repository first. Do not create a separate git
+project or standalone service at the beginning.
+
+Suggested `cloud-api` package boundary:
+
+```text
+com.archdox.cloud.platformops
+  api
+    PlatformOpsIncidentController
+    PlatformOpsDiagnosisController
+  application
+    PlatformOpsDetectionService
+    PlatformOpsSnapshotService
+    PlatformOpsDiagnosisFlowSubmitter
+    PlatformOpsFindingService
+    PlatformOpsActionService
+  domain
+    PlatformOpsIncident
+    PlatformOpsIncidentStatus
+    PlatformOpsFinding
+    PlatformOpsAction
+    PlatformOpsRun
+  infra
+    PlatformOpsIncidentRepository
+    PlatformOpsFindingRepository
+    PlatformOpsRunRepository
+  flow
+    PlatformOpsDiagnosisFlowFactory
+    steps/*
+```
+
+Relationship to existing packages:
+
+- `platformadmin` owns platform admin identity, authorization, and existing
+  read APIs.
+- `operation` owns the generic `operation_events` event log.
+- `platformops` owns operational incident/detection/diagnosis workflow.
+- `aipolicy` owns provider credentials, AI enablement, budgets, and model call
+  accounting.
+- `documentai` and `reportai` own document/report AI use cases only.
+- future `ops-ai-harness` or `platform-ops-harness` may hold prompt builders and
+  schemas for operational diagnosis if the code grows beyond `cloud-api`.
+
+This is the same direction as the rest of ArchDox: keep the implementation in
+the monorepo, draw a strong module boundary, and only split the process later.
+
+### Flower Responsibility
+
+The ArchDox Flower flow owns the operational business process. The AI harness is
+only a child execution unit.
+
+```text
+PlatformOpsDiagnosisFlow
+  load-ops-context
+  run-deterministic-detectors
+  build-redacted-ops-snapshot
+  decide-whether-ai-is-needed
+  submit-ops-diagnosis-harness
+  await-ops-diagnosis-harness
+  persist-findings
+  classify-incident
+  complete-or-await-operator-action
+```
+
+The flow owns:
+
+- which detectors run
+- whether AI is skipped because deterministic checks are enough
+- how operation events, stuck jobs, agent sessions, document jobs, photo pickup,
+  deliveries, and error clusters are summarized
+- how findings become incidents
+- when an operator must approve a repair action
+- retry/backoff/timeout for the diagnosis workflow
+
+The harness owns:
+
+- prompt rendering for one operational snapshot
+- provider call lifecycle through `flower-ai-harness`
+- schema validation
+- retry/refine/model fallback for the AI response
+- normalized operational findings
+
+### Deterministic Detectors First
+
+AI must not be the first detector. Code should first detect exact and cheap
+conditions such as:
+
+- `document_jobs` stuck in `REQUESTED`, `GENERATING`, or `WAITING_FOR_AGENT`
+- `archdox_agent_commands` stuck in `PENDING`, `DELIVERED`, or `ACKED`
+- stale `archdox_agent_sessions.last_seen_at`
+- `photos.original_pickup_status=PENDING` beyond policy
+- missing `WORKING` or `THUMBNAIL` photo assets
+- generated document jobs without artifacts
+- delivery requests stuck in `SENDING`
+- repeated `DOCUMENT_JOB_FAILED` events for one office, template, Agent, or
+  API version
+- 401/403/429/500 spikes by IP, user, office, or route
+- AI call failures, cost spikes, or budget guard blocks
+
+If deterministic findings are already clear and actionable, the flow may skip
+AI and persist the incident directly.
+
+### Redaction Boundary
+
+Operational AI input must be a redacted snapshot, not raw logs or raw database
+rows.
+
+Allowed:
+
+- counts, statuses, durations, timestamps, IDs, route names, event types
+- sanitized exception class names and short stack fingerprints
+- office/user/agent numeric IDs where needed for support correlation
+- template/report/document type codes
+- already stored operation event messages after secret scrubbing
+
+Forbidden:
+
+- passwords, refresh/access tokens, device secrets, install tokens
+- provider API keys or signed URLs
+- raw uploaded files, original document content, raw image content
+- unmasked personal data beyond what is required for operator diagnosis
+- full raw logs when a summarized fingerprint is enough
+
+### Data Model Candidate
+
+Use separate tables when on-demand detection grows beyond simple
+`operation_events` rows.
+
+```text
+platform_ops_incidents
+  id
+  status
+  severity
+  category
+  title
+  summary
+  office_id nullable
+  primary_resource_type
+  primary_resource_id
+  first_seen_at
+  last_seen_at
+  resolved_at
+  created_by_run_id
+
+platform_ops_runs
+  id
+  trigger_type
+  status
+  started_by_user_id nullable
+  incident_id nullable
+  input_snapshot_json redacted
+  ai_harness_run_id nullable
+  started_at
+  completed_at
+  failure_code nullable
+
+platform_ops_findings
+  id
+  incident_id
+  run_id
+  severity
+  code
+  title
+  message
+  evidence_json redacted
+  recommendation
+  source DETECTOR | SYSTEM_DIAGNOSIS | AI_HARNESS
+
+platform_ops_actions
+  id
+  incident_id
+  action_type
+  status
+  requested_by_user_id
+  approved_by_user_id nullable
+  executed_at nullable
+  result_json redacted
+```
+
+For MVP, do not add all tables at once. Start with operation events and a small
+incident/run/finding set only when platform admin needs history beyond the
+existing event timeline.
+
+### Trigger Policy
+
+Start with explicit triggers:
+
+- platform admin clicks "detect stuck"
+- platform admin clicks "run diagnosis"
+- a severe deterministic event creates an incident and asks for diagnosis
+
+Do not introduce an always-on Spring scheduler for this by default. If ongoing
+monitoring is needed, use an explicitly approved Flower monitor worker pattern:
+
+```text
+CHECK
+-> WAIT 30s/60s/5m depending on detector type
+-> CHECK
+```
+
+That monitor flow should keep only lightweight state and submit child diagnosis
+flows when an actual abnormal condition is found.
+
+### Operator Action Policy
+
+AI findings are not repair actions. Suggested actions must remain suggestions
+until a platform admin approves them.
+
+Possible future actions:
+
+- retry a document job
+- expire or requeue an Agent command
+- mark an incident ignored
+- request Agent reconnect
+- notify an office admin
+- create an internal maintenance note
+
+Dangerous actions such as deleting rows, deleting files, changing office
+membership, changing billing state, or mass-cancelling jobs are non-goals until
+a dedicated approval/audit model exists.
+
+### Future Process Split
+
+Initial runtime:
+
+```text
+cloud-api
+  - platform ops REST APIs
+  - deterministic detectors
+  - Flower PlatformOpsDiagnosisFlow
+  - AI harness child execution
+  - incident/finding persistence
+```
+
+Future split, only if needed:
+
+```text
+cloud-api
+  - request/authorization/status APIs
+  - durable ops run records
+
+platform-ops-worker
+  - Flower runtime
+  - detector execution
+  - ops AI harness execution
+  - finding persistence
+```
+
+Split only when operational diagnosis becomes heavy enough to affect API
+latency, when log access moves outside the API server, or when a separate
+high-privilege read-only runtime is required.
+
 ## Audit Logging
 
 Audit logs are required for security and support.
@@ -677,6 +1045,47 @@ Audit logs should be append-only and should not contain secrets.
 - owner summary report
 - optional notification channel
 
+### Ops Phase 6: Platform Ops Workflow Foundation
+
+- `platformops` package boundary in `cloud-api` is implemented
+- `platform-ops` Flower worker and `PlatformOpsDetectionFlow` are implemented
+- current stuck detection is extracted into deterministic detector classes
+- redacted ops snapshot DTOs are defined through run/finding evidence payloads
+- `platform_ops_runs`, `platform_ops_incidents`, and `platform_ops_findings`
+  are implemented
+- platform admin read APIs for incidents, runs, and findings are implemented
+- `POST /api/v1/platform-admin/ops/health/detect-stuck` now submits a platform
+  ops detection flow instead of doing all detector work in the controller path
+- `POST /api/v1/platform-admin/ops/incidents/{incidentId}/diagnose` now submits
+  `PlatformOpsDiagnosisFlow` and records a deterministic redacted diagnosis
+  snapshot for the selected incident
+- the platform admin UI can trigger incident diagnosis and render the latest
+  diagnosis snapshot without exposing raw logs, secrets, tokens, or files
+
+### Ops Phase 7: Ops Diagnosis Harness
+
+- `OpsDiagnosisHarness` prompt/schema is implemented using `flower-ai-harness`
+- `PlatformOpsDiagnosisFlow` submits the child harness only after deterministic
+  diagnosis builds a redacted snapshot
+- AI findings are persisted separately from detector/system findings with
+  source `AI_HARNESS`
+- show cause hypotheses, severity, evidence, and recommended operator actions
+  in platform admin
+- keep all actions human-approved
+
+Current limitation:
+
+- the platform admin UI shows the run snapshot and findings; a richer AI
+  diagnosis panel with grouping, confidence, and suggested-action controls is
+  still a follow-up
+
+### Ops Phase 8: Platform Ops Worker Split
+
+- split to `platform-ops-worker` only when Cloud API latency, log access,
+  concurrency, or security boundaries require it
+- keep the same DB-backed run/finding/action model
+- keep `cloud-api` as the authorization and status API boundary
+
 ## Non-Goals For Early MVP
 
 - full Prometheus/Grafana before basic Admin read models
@@ -684,3 +1093,5 @@ Audit logs should be append-only and should not contain secrets.
 - direct deletion of live logs by Ops Agent
 - using raw logs as the only source of operational truth
 - bypassing Cloud API authorization from the admin frontend
+- AI directly repairing production data without platform admin approval
+- sending raw logs, secrets, signed URLs, or file contents to AI providers

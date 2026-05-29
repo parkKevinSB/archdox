@@ -3,8 +3,10 @@ package com.archdox.cloud.global.event;
 import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthProperties;
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentDeliveryProperties;
+import com.archdox.cloud.documentai.application.DocumentAiReviewProperties;
 import com.archdox.cloud.photo.application.PhotoDerivativeProperties;
 import com.archdox.cloud.photo.application.PhotoPickupProperties;
+import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
 import io.github.parkkevinsb.bloom.EventBus;
 import io.github.parkkevinsb.bloom.LocalEventBus;
 import io.github.parkkevinsb.flower.bloom.BloomEventBus;
@@ -22,7 +24,13 @@ public class ArchDoxRuntimeConfiguration {
     public static final String PHOTO_PICKUP_WORKER = "photo-pickup";
     public static final String DOCUMENT_GENERATION_WORKER = "document-generation";
     public static final String DOCUMENT_DELIVERY_WORKER = "document-delivery";
+    public static final String DOCUMENT_REVIEW_WORKER = "document-review";
+    public static final String DOCUMENT_AI_REVIEW_WORKER = "document-ai-review";
+    public static final String REPORT_PREFLIGHT_REVIEW_WORKER = "report-preflight-review";
+    public static final String REPORT_PREFLIGHT_AI_REVIEW_WORKER = "report-preflight-ai-review";
     public static final String MONITORING_WORKER = "monitoring";
+    public static final String PLATFORM_OPS_WORKER = "platform-ops";
+    public static final String PLATFORM_OPS_AI_WORKER = "platform-ops-ai";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -36,7 +44,9 @@ public class ArchDoxRuntimeConfiguration {
             PhotoPickupProperties photoPickupProperties,
             DocumentGenerationProperties documentProperties,
             DocumentDeliveryProperties documentDeliveryProperties,
-            ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties
+            DocumentAiReviewProperties documentAiReviewProperties,
+            ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties,
+            PlatformOpsDetectionProperties platformOpsDetectionProperties
     ) {
         return Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
@@ -52,8 +62,26 @@ public class ArchDoxRuntimeConfiguration {
                 .worker(Worker.builder(DOCUMENT_DELIVERY_WORKER)
                         .intervalMillis(documentDeliveryProperties.safeWorkerIntervalMs())
                         .build())
+                .worker(Worker.builder(DOCUMENT_REVIEW_WORKER)
+                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(DOCUMENT_AI_REVIEW_WORKER)
+                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(REPORT_PREFLIGHT_REVIEW_WORKER)
+                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(REPORT_PREFLIGHT_AI_REVIEW_WORKER)
+                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
+                        .build())
                 .worker(Worker.builder(MONITORING_WORKER)
                         .intervalMillis(agentConnectionHealthProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(PLATFORM_OPS_WORKER)
+                        .intervalMillis(platformOpsDetectionProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(PLATFORM_OPS_AI_WORKER)
+                        .intervalMillis(platformOpsDetectionProperties.safeWorkerIntervalMs())
                         .build())
                 .build();
     }

@@ -17,6 +17,8 @@ dist/
 *.err.log
 *.tmp
 *.pid
+**/logs/
+.local-e2e/
 
 .idea/
 .vscode/

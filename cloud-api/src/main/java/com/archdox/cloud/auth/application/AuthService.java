@@ -47,6 +47,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
+    private final LoginProtectionService loginProtectionService;
 
     public AuthService(
             UserAccountRepository userRepository,
@@ -56,7 +57,8 @@ public class AuthService {
             OfficeInvitationRepository invitationRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            JwtProperties jwtProperties
+            JwtProperties jwtProperties,
+            LoginProtectionService loginProtectionService
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -66,6 +68,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.jwtProperties = jwtProperties;
+        this.loginProtectionService = loginProtectionService;
     }
 
     @Transactional
@@ -133,12 +136,20 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthTokenResponse login(String email, String password) {
-        var user = userRepository.findByEmailIgnoreCase(normalizeEmail(email))
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
-        if (!passwordEncoder.matches(password, user.passwordHash())) {
+    public AuthTokenResponse login(String email, String password, String clientIp) {
+        var normalizedEmail = normalizeEmail(email);
+        loginProtectionService.assertLoginAllowed(normalizedEmail, clientIp);
+        var user = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElse(null);
+        if (user == null) {
+            loginProtectionService.recordFailure(normalizedEmail, clientIp, null);
             throw new UnauthorizedException("Invalid email or password");
         }
+        if (!passwordEncoder.matches(password, user.passwordHash())) {
+            loginProtectionService.recordFailure(normalizedEmail, clientIp, user.id());
+            throw new UnauthorizedException("Invalid email or password");
+        }
+        loginProtectionService.recordSuccess(normalizedEmail, clientIp, user.id());
         return issueTokens(user, OffsetDateTime.now());
     }
 

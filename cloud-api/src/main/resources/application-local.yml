@@ -3,8 +3,21 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/archdox}
     username: ${DB_USERNAME:archdox}
     password: ${DB_PASSWORD:archdox}
+  ai:
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:ollama}
 
 archdox:
+  ai-review:
+    enabled: ${DOCUMENT_AI_REVIEW_ENABLED:true}
+  ai:
+    credentials:
+      master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:local-only-archdox-ai-credential-key-change-me}
+    fake-provider:
+      enabled: ${ARCHDOX_AI_FAKE_PROVIDER_ENABLED:true}
+    dev-bootstrap:
+      enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_ENABLED:true}
+      attach-to-existing-offices: ${ARCHDOX_AI_DEV_BOOTSTRAP_ATTACH_OFFICES:true}
   storage:
     active: ${ARCHDOX_STORAGE_ACTIVE:S3_COMPATIBLE}
     local-file:
@@ -30,8 +43,9 @@ archdox:
         access-key: ${PHOTO_S3_ACCESS_KEY:${ARCHDOX_S3_ACCESS_KEY:archdox}}
         secret-key: ${PHOTO_S3_SECRET_KEY:${ARCHDOX_S3_SECRET_KEY:archdox-password}}
         path-style-access: ${PHOTO_S3_PATH_STYLE_ACCESS:true}
-  ai:
-    provider: ${ARCHDOX_AI_PROVIDER:DISABLED}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model: ${OLLAMA_MODEL:llama3.1}
+  platform-admin:
+    ops:
+      ai-diagnosis:
+        enabled: ${PLATFORM_OPS_AI_DIAGNOSIS_ENABLED:true}
+        provider-code: ${PLATFORM_OPS_AI_PROVIDER_CODE:fake-ops}
+        model: ${PLATFORM_OPS_AI_MODEL:fake-ops-model}

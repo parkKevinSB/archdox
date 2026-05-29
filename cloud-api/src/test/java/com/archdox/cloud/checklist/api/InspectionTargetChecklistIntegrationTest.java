@@ -3,6 +3,7 @@ package com.archdox.cloud.checklist.api;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -46,6 +47,7 @@ class InspectionTargetChecklistIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("archdox.ai-review.worker-interval-ms", () -> "10");
     }
 
     @Autowired
@@ -131,6 +133,7 @@ class InspectionTargetChecklistIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+        passPreflight(user, reportId);
 
         var jobResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -317,6 +320,26 @@ class InspectionTargetChecklistIntegrationTest {
                                 }
                                 """.formatted(hash, bytes.length)))
                 .andExpect(status().isOk());
+    }
+
+    private void passPreflight(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isCreated());
+        for (int i = 0; i < 80; i++) {
+            var result = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                            .header("Authorization", bearer(user.accessToken()))
+                            .header("X-Office-Id", user.officeId()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            var runs = objectMapper.readTree(result.getResponse().getContentAsString());
+            if (runs.size() > 0 && "PASSED".equals(runs.get(0).get("status").asText())) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        fail("Preflight review did not reach PASSED status");
     }
 
     private String sha256(byte[] bytes) throws Exception {

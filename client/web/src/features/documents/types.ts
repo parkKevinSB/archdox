@@ -20,6 +20,16 @@ export type DocumentArtifactType = "DOCX" | "HTML" | "PDF" | "HWP" | "HWPX";
 export type DocumentArtifactStorageKind = "API_LOCAL" | "ARCHDOX_AGENT" | "S3_COMPATIBLE";
 export type DocumentDeliveryChannel = "DOWNLOAD";
 export type DocumentDeliveryStatus = "REQUESTED" | "SENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+export type ReportPreflightReviewStatus = "REQUESTED" | "RUNNING" | "PASSED" | "NEEDS_ATTENTION" | "FAILED";
+export type ReportPreflightFindingSeverity = "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type ReportPreflightFindingResolutionStatus = "OPEN" | "RESOLVED" | "ACCEPTED";
+
+export type DocumentSignatureInput = {
+  signedByName: string;
+  signedByRole?: string | null;
+  signatureImageDataUrl: string;
+  signatureImageMimeType?: string | null;
+};
 
 export type DocumentArtifactResponse = {
   id: number;
@@ -70,3 +80,42 @@ export type DocumentDeliveryRequestResponse = {
 
 export type DocumentJobsByReport = Record<number, DocumentJobResponse[]>;
 export type DocumentDeliveriesByJob = Record<number, DocumentDeliveryRequestResponse[]>;
+
+export type ReportPreflightReviewRunResponse = {
+  id: number;
+  officeId: number;
+  reportId: number;
+  reportRevision: number;
+  status: ReportPreflightReviewStatus;
+  requestedBy?: number | null;
+  terminalReason?: string | null;
+  aiReviewPlanned: boolean;
+  harnessRunId?: string | null;
+  harnessStatus?: string | null;
+  harnessAttempt: number;
+  harnessTerminalReason?: string | null;
+  aiProviderCode?: string | null;
+  aiModelId?: string | null;
+  requestedAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+};
+
+export type ReportPreflightReviewFindingResponse = {
+  id: number;
+  source: string;
+  code: string;
+  severity: ReportPreflightFindingSeverity;
+  location?: string | null;
+  message: string;
+  evidence?: string | null;
+  attributes: Record<string, string>;
+  resolutionStatus: ReportPreflightFindingResolutionStatus;
+  resolutionNote?: string | null;
+  resolvedBy?: number | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+};
+
+export type ReportPreflightRunsByReport = Record<number, ReportPreflightReviewRunResponse[]>;
+export type ReportPreflightFindingsByRun = Record<number, ReportPreflightReviewFindingResponse[]>;

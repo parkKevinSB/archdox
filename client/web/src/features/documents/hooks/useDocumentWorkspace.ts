@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
+  createReportPreflightReviewRun,
   createDocumentDeliveryRequest,
   createDocumentJob,
   defaultDownloadFileName,
@@ -8,7 +9,10 @@ import {
   downloadDocumentUrl,
   fetchDocumentTextUrl,
   listDocumentDeliveryRequestsByJob,
-  listDocumentJobsByReport
+  listDocumentJobsByReport,
+  listReportPreflightReviewFindings,
+  listReportPreflightReviewRuns,
+  resolveReportPreflightReviewFinding
 } from "../api";
 import type {
   DocumentArtifactResponse,
@@ -17,7 +21,12 @@ import type {
   DocumentJobsByReport,
   DocumentJobResponse,
   DocumentOutputFormat,
-  InspectionReport
+  DocumentSignatureInput,
+  InspectionReport,
+  ReportPreflightFindingResolutionStatus,
+  ReportPreflightFindingsByRun,
+  ReportPreflightReviewRunResponse,
+  ReportPreflightRunsByReport
 } from "../types";
 
 type UseDocumentWorkspaceOptions = {
@@ -30,6 +39,15 @@ type UseDocumentWorkspaceOptions = {
 type CreateDocumentJobInput = {
   outputFormat?: DocumentOutputFormat;
   reportId: number;
+  signature?: DocumentSignatureInput;
+};
+
+type ResolvePreflightFindingInput = {
+  findingId: number;
+  note?: string | null;
+  reportId: number;
+  runId: number;
+  status: ReportPreflightFindingResolutionStatus;
 };
 
 export type DocumentPreviewState = {
@@ -80,10 +98,38 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     }
   });
 
+  const preflightRunsQuery = useQuery({
+    enabled: Boolean(token && officeId && documentReports.length > 0),
+    queryKey: ["report-preflight-reviews", officeId, reportIds.join(",")],
+    queryFn: async () => {
+      if (!officeId) {
+        return {};
+      }
+      const entries = await Promise.all(
+        documentReports.map(async (report) => [
+          report.id,
+          await listReportPreflightReviewRuns(token, officeId, report.id)
+        ] as const)
+      );
+      return Object.fromEntries(entries) as ReportPreflightRunsByReport;
+    },
+    refetchInterval: (query) => {
+      const runsByReport = query.state.data as ReportPreflightRunsByReport | undefined;
+      const hasActiveReview = Object.values(runsByReport ?? {}).some((runs) =>
+        runs.some((run) => isPreflightActive(run))
+      );
+      return hasActiveReview ? 3000 : false;
+    }
+  });
+
   const generatedJobs = Object.values(jobsQuery.data ?? {})
     .flat()
     .filter((job) => job.status === "GENERATED");
   const generatedJobIds = generatedJobs.map((job) => job.id);
+  const latestPreflightRuns = Object.values(preflightRunsQuery.data ?? {})
+    .map((runs) => runs[0])
+    .filter(Boolean) as ReportPreflightReviewRunResponse[];
+  const latestPreflightRunIds = latestPreflightRuns.map((run) => run.id);
 
   useEffect(() => {
     if (!jobsQuery.data || !hasReportStateDrift(documentReports, jobsQuery.data)) {
@@ -116,15 +162,68 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     }
   });
 
+  const preflightFindingsQuery = useQuery({
+    enabled: Boolean(token && officeId && latestPreflightRuns.length > 0),
+    queryKey: ["report-preflight-findings", officeId, latestPreflightRunIds.join(",")],
+    queryFn: async () => {
+      if (!officeId) {
+        return {};
+      }
+      const entries = await Promise.all(
+        latestPreflightRuns.map(async (run) => [
+          run.id,
+          await listReportPreflightReviewFindings(token, officeId, run.reportId, run.id)
+        ] as const)
+      );
+      return Object.fromEntries(entries) as ReportPreflightFindingsByRun;
+    },
+    refetchInterval: preflightRunsQuery.data && latestPreflightRuns.some(isPreflightActive) ? 3000 : false
+  });
+
   const createJobMutation = useMutation({
-    mutationFn: async ({ outputFormat = "DOCX", reportId }: CreateDocumentJobInput) => {
+    mutationFn: async ({ outputFormat = "DOCX", reportId, signature }: CreateDocumentJobInput) => {
       if (!officeId) {
         throw new Error("사무소 선택이 필요합니다.");
       }
-      return createDocumentJob(token, officeId, reportId, { outputFormat });
+      return createDocumentJob(token, officeId, reportId, { outputFormat, signature });
     },
     onSuccess: async () => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["document-jobs"] }), onRefreshWorkspace()]);
+    }
+  });
+
+  const createPreflightReviewMutation = useMutation({
+    mutationFn: async (reportId: number) => {
+      if (!officeId) {
+        throw new Error("?щТ???좏깮???꾩슂?⑸땲??");
+      }
+      return createReportPreflightReviewRun(token, officeId, reportId);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-reviews"] }),
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-findings"] }),
+        onRefreshWorkspace()
+      ]);
+    }
+  });
+
+  const resolvePreflightFindingMutation = useMutation({
+    mutationFn: async ({ findingId, note, reportId, runId, status }: ResolvePreflightFindingInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return resolveReportPreflightReviewFinding(token, officeId, reportId, runId, findingId, {
+        resolutionNote: note,
+        resolutionStatus: status
+      });
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-reviews"] }),
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-findings"] }),
+        onRefreshWorkspace()
+      ]);
     }
   });
 
@@ -218,19 +317,37 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     deliveriesByArtifact,
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
-    downloadingArtifactId: downloadPreparedMutation.variables?.artifact.id ?? null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? createJobMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
-    loading: jobsQuery.isLoading || deliveriesQuery.isLoading,
+    loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading,
     preview,
     previewArtifact: previewArtifactMutation.mutateAsync,
     previewingArtifactId: previewArtifactMutation.isPending ? previewArtifactMutation.variables?.artifact.id ?? null : null,
+    preflightFindingsByRun: preflightFindingsQuery.data ?? {},
+    preflightRunsByReport: preflightRunsQuery.data ?? {},
     refreshJobs: async () => {
-      await Promise.all([jobsQuery.refetch(), deliveriesQuery.refetch(), onRefreshWorkspace()]);
+      await Promise.all([
+        jobsQuery.refetch(),
+        deliveriesQuery.refetch(),
+        preflightRunsQuery.refetch(),
+        preflightFindingsQuery.refetch(),
+        onRefreshWorkspace()
+      ]);
     },
+    requestPreflightReview: createPreflightReviewMutation.mutateAsync,
+    resolvePreflightFinding: resolvePreflightFindingMutation.mutateAsync,
+    resolvingPreflightFindingId: resolvePreflightFindingMutation.isPending
+      ? resolvePreflightFindingMutation.variables?.findingId ?? null
+      : null,
     requestArtifactDelivery: requestDeliveryMutation.mutateAsync,
-    requestingDeliveryArtifactId: requestDeliveryMutation.variables?.artifact.id ?? null
+    reviewingReportId: createPreflightReviewMutation.isPending ? createPreflightReviewMutation.variables ?? null : null,
+    requestingDeliveryArtifactId: requestDeliveryMutation.isPending ? requestDeliveryMutation.variables?.artifact.id ?? null : null
   };
+}
+
+function isPreflightActive(run: ReportPreflightReviewRunResponse) {
+  return run.status === "REQUESTED" || run.status === "RUNNING";
 }
 
 function hasReportStateDrift(reports: InspectionReport[], jobsByReport: DocumentJobsByReport) {

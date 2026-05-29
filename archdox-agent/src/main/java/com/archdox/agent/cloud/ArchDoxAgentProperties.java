@@ -22,6 +22,7 @@ public class ArchDoxAgentProperties {
     private String deviceSecret;
     private String version = "0.0.1-dev";
     private long heartbeatIntervalMs = 30000;
+    private long reconnectIntervalMs = 5000;
     private int websocketMaxTextMessageBufferBytes = 2 * 1024 * 1024;
     private int websocketMaxBinaryMessageBufferBytes = 2 * 1024 * 1024;
     private String localStorageRoot = "build/archdox-agent-storage";
@@ -138,6 +139,14 @@ public class ArchDoxAgentProperties {
 
     public void setHeartbeatIntervalMs(long heartbeatIntervalMs) {
         this.heartbeatIntervalMs = heartbeatIntervalMs;
+    }
+
+    public long getReconnectIntervalMs() {
+        return reconnectIntervalMs;
+    }
+
+    public void setReconnectIntervalMs(long reconnectIntervalMs) {
+        this.reconnectIntervalMs = reconnectIntervalMs;
     }
 
     public int getWebsocketMaxTextMessageBufferBytes() {

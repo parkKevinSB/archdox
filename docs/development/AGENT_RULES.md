@@ -4,6 +4,19 @@ This document defines rules that AI development agents must follow when working
 on ArchDox. Keep changes conservative, tenant-safe, and consistent with the
 current architecture.
 
+## Documentation Reading Rules
+
+1. Start non-trivial tasks from `docs/README.md`.
+2. Do not load every Markdown file by default. Read `docs/CURRENT_STATE.md`,
+   this file, and only the topic-specific documents listed in `docs/README.md`.
+3. After a major phase changes actual system behavior, update the smallest
+   relevant canonical document and `docs/CURRENT_STATE.md`.
+4. Do not create a new documentation file when an existing canonical document
+   is the right home for the rule.
+5. If documentation conflicts, prefer this file first, then
+   `docs/architecture/ARCHDOX_PLATFORM_IDENTITY.md`, then topic-specific
+   architecture documents, then older phase notes or conversation history.
+
 ## Core Development Rules
 
 1. Read `AGENTS.md` before making changes.
@@ -166,22 +179,25 @@ current architecture.
 17. Report submission readiness is a Cloud API responsibility. The UI may guide
     the user, but `cloud-api` must validate required steps, checklist state, and
     working photo availability before moving a report to `READY_TO_GENERATE`.
-18. Generated document artifacts are immutable history for a specific
+18. Document generation requires a passed preflight review for the exact current
+    generation revision. A passed review for an older report revision is stale
+    and must not unblock generation after the report is edited and resubmitted.
+19. Generated document artifacts are immutable history for a specific
     `reportRevision`. Editing a submitted/generated report must reopen it as a
     new `contentRevision`; do not mutate or silently replace prior artifacts.
-19. The source of truth for document generation is the neutral document snapshot
+20. The source of truth for document generation is the neutral document snapshot
     in `document_jobs.input_snapshot_json`, not DOCX, HTML, PDF, HWP, or any
     customer-specific artifact.
-20. Add new document data to the neutral snapshot first, then expose it through
+21. Add new document data to the neutral snapshot first, then expose it through
     `templateFields`, `layoutSections`, or bounded renderer/exporter behavior.
-21. Common public-form placeholders may be supplied by
+22. Common public-form placeholders may be supplied by
     `StandardTemplateFieldResolver`, but they must remain report-domain neutral.
     Do not use it for office-specific layouts or customer-specific branches.
     Explicit template schema bindings override these standard defaults.
-22. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
+23. Output formats are artifact targets. DOCX/HTML/PDF/HWP/HWPX-specific code
     must stay inside document-engine renderers/exporters or deployment-specific
     converter adapters.
-23. Configured template revisions are content-required render inputs. If the
+24. Configured template revisions are content-required render inputs. If the
     selected revision's DOCX content is missing or unreadable, fail the document
     job clearly; do not silently generate a different fallback document.
 
@@ -280,8 +296,9 @@ current architecture.
 1. ArchDox must not be coded as AWS-only or local-server-only. Follow
    `docs/architecture/DEPLOYMENT_PORTABILITY.md`.
 2. Application/domain code must not depend directly on AWS, Tailscale, MinIO,
-   NAS paths, or OpenAI provider details. Use ports such as `StorageService`,
-   `AiTextGenerationService`, and Agent connection properties.
+   NAS paths, or OpenAI/Ollama provider details. Use ports such as
+   `StorageService`, `AiModelGateway`, Spring AI configuration, and Agent
+   connection properties.
 3. Store logical storage metadata only. Do not persist absolute local or NAS
    filesystem paths in business records.
 4. Agent WebSocket URLs must be configuration values. Do not hardcode public
@@ -362,6 +379,17 @@ current architecture.
 13. Health/stuck detection may record `operation_events`, but new always-on
     schedulers or polling loops still require explicit approval unless the user
     asks for that specific automation phase.
+14. Platform operations workflow belongs in a distinct `platformops` boundary,
+    not mixed into `platformadmin` controllers or office ops read services.
+    Platform admin owns authorization and human console access; platform ops
+    owns incident, detector, diagnosis, and approved action workflow.
+15. Ops AI Harness work must follow `docs/architecture/OPERATIONS_AND_ADMIN.md`
+    and `docs/ai-harness/HARNESS_TYPES.md`: deterministic detectors first,
+    redacted snapshots only, AI findings as suggestions, and no automatic DB or
+    repair action without platform admin approval.
+16. `flower-ai-harness` is a child execution unit for AI diagnosis. ArchDox
+    Flower flows decide when to run it, how to persist findings, and how
+    operator actions affect workflow state.
 
 ## Testing Rules
 

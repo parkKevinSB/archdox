@@ -218,6 +218,9 @@ only as transport.
 Agent connection health is controlled by Cloud API Flower orchestration.
 
 - ArchDox Agent sends lightweight `HEARTBEAT` messages over WebSocket.
+- ArchDox Agent retries the WebSocket connection when startup races Cloud API
+  readiness or a transport disconnect occurs. This is transport recovery only;
+  workflow retry/failure decisions stay in Cloud API Flower flows and DB state.
 - `AgentWebSocketHandler` only decodes transport messages and updates session
   visibility through application services.
 - `archdox_agent_sessions.last_seen_at` is the durable connection signal.

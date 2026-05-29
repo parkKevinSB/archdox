@@ -54,6 +54,7 @@ class PhotoPickupCommandExecutorTest {
                     null,
                     null,
                     null,
+                    null,
                     100L,
                     "PHOTO_PICKUP",
                     payload,
@@ -95,7 +96,7 @@ class PhotoPickupCommandExecutorTest {
 
             org.junit.jupiter.api.Assertions.assertThrows(
                     java.io.IOException.class,
-                    () -> executor.execute(new CloudInboundMessage("COMMAND", null, null, null, 100L, "PHOTO_PICKUP", payload, null)));
+                    () -> executor.execute(new CloudInboundMessage("COMMAND", null, null, null, null, 100L, "PHOTO_PICKUP", payload, null)));
             assertTrue(Files.notExists(tempDir.resolve(localRef)));
         } finally {
             server.stop(0);

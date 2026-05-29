@@ -237,6 +237,111 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void docxTemplateEngineAddsSignatureBlockFromPayload() throws Exception {
+        var template = docx("Project: ${projectName}");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-signature-1",
+                "office-1",
+                "report-signature-1",
+                new TemplateSpec("DAILY_TEMPLATE", 3, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                        "templateFields", Map.of("projectName", "Daily report"),
+                        "signature", signaturePayload()),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var docx = result.artifacts().get(0).content();
+        var documentXml = documentXml(docx);
+        var relsXml = zipEntry(docx, "word/_rels/document.xml.rels");
+        assertTrue(documentXml.contains("Kim Tester"));
+        assertTrue(documentXml.contains("archdox-signature-1.png"));
+        assertTrue(relsXml.contains("media/archdox-signature-1.png"));
+        assertNotNull(zipEntryBytes(docx, "word/media/archdox-signature-1.png"));
+    }
+
+    @Test
+    void docxTemplateEngineIncludesSignatureInHtmlPreview() throws Exception {
+        var template = docx("Project: ${projectName}");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-signature-html-1",
+                "office-1",
+                "report-signature-html-1",
+                new TemplateSpec("DAILY_TEMPLATE", 3, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                        "templateFields", Map.of("projectName", "Daily report"),
+                        "signature", signaturePayload()),
+                List.of(),
+                OutputFormat.HTML));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var html = new String(result.artifacts().get(0).content(), StandardCharsets.UTF_8);
+        assertTrue(html.contains("Kim Tester"));
+        assertTrue(html.contains("data:image/png;base64,"));
+    }
+
+    @Test
+    void docxTemplateEngineDoesNotAppendSignatureForGenericDocumentWithoutPlaceholder() throws Exception {
+        var template = docx("Project: ${projectName}");
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-signature-generic-1",
+                "office-1",
+                "report-signature-generic-1",
+                new TemplateSpec("GENERIC_TEMPLATE", 1, "templates/generic.docx", "{}", "{}"),
+                Map.of(
+                        "report", Map.of("reportType", "DEMOLITION_SAFETY_CHECKLIST"),
+                        "templateFields", Map.of("projectName", "Generic report"),
+                        "signature", signaturePayload()),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var docx = result.artifacts().get(0).content();
+        var documentXml = documentXml(docx);
+        assertTrue(!documentXml.contains("Kim Tester"));
+        assertTrue(zipEntryBytes(docx, "word/media/archdox-signature-1.png") == null);
+    }
+
+    @Test
+    void docxTemplateEngineLeavesSignaturePlaceholdersBlankWhenUnsigned() throws Exception {
+        var template = docx("""
+                Signer: ${signedByName}
+                Signature: ${signatureBlock}
+                """);
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> Optional.of(template),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-unsigned-1",
+                "office-1",
+                "report-unsigned-1",
+                new TemplateSpec("DAILY_TEMPLATE", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of("report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG")),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(!documentXml.contains("${signedByName}"));
+        assertTrue(!documentXml.contains("${signatureBlock}"));
+    }
+
+    @Test
     void docxTemplateEnginePrefersExplicitTemplateFieldAliases() throws Exception {
         var template = docx("""
                 Project name: ${projectName}
@@ -635,6 +740,17 @@ class DocumentGenerationResultTest {
             zip.finish();
             return output.toByteArray();
         }
+    }
+
+    private Map<String, Object> signaturePayload() {
+        return Map.of(
+                "signed", true,
+                "signedByName", "Kim Tester",
+                "signedByRole", "Inspector",
+                "signedAt", "2026-05-29T09:00:00+09:00",
+                "imageMimeType", "image/png",
+                "imageDataUrl", "data:image/png;base64,"
+                        + "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lz7S4QAAAABJRU5ErkJggg==");
     }
 
     private void put(ZipOutputStream zip, String name, String content) throws Exception {

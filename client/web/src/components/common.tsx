@@ -109,10 +109,10 @@ export function FullScreenCenter({ children }: { children: ReactNode }) {
 }
 
 function statusTone(status: string) {
-  if (["ACTIVE", "GENERATED", "COMPLETED", "READY_TO_GENERATE", "STEP_SAVED", "UPLOADED", "PICKED_UP", "NOT_REQUIRED"].includes(status)) {
+  if (["ACTIVE", "GENERATED", "COMPLETED", "READY_TO_GENERATE", "STEP_SAVED", "UPLOADED", "PICKED_UP", "NOT_REQUIRED", "PASSED"].includes(status)) {
     return "green";
   }
-  if (["DRAFT", "REQUESTED", "GENERATING", "GENERATION_REQUESTED", "PENDING", "PENDING_UPLOAD"].includes(status)) {
+  if (["DRAFT", "REQUESTED", "GENERATING", "GENERATION_REQUESTED", "PENDING", "PENDING_UPLOAD", "RUNNING", "STALE", "NEEDS_ATTENTION"].includes(status)) {
     return "amber";
   }
   if (["FAILED", "CANCELLED", "ARCHIVED"].includes(status)) {

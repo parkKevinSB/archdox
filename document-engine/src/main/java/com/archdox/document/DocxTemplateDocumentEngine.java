@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -170,7 +171,8 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String renderMainDocumentXml(String xml, DocxRenderContext context) throws IOException {
         var richReplaced = replaceRichSectionPlaceholders(xml, context);
-        return replacePlaceholders(richReplaced, context.bindings());
+        var signatureReplaced = applySignatureBlock(richReplaced, context);
+        return replacePlaceholders(signatureReplaced, context.bindings());
     }
 
     private String replaceRichSectionPlaceholders(String xml, DocxRenderContext context) throws IOException {
@@ -198,6 +200,163 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         return rendered;
+    }
+
+    private String applySignatureBlock(String xml, DocxRenderContext context) throws IOException {
+        var hasPlaceholder = hasSignaturePlaceholder(xml);
+        var shouldAppendDefault = shouldAppendDefaultSignatureBlock(context);
+        if (!hasSignedSignature(context)) {
+            var rendered = replaceWholeParagraphPlaceholder(xml, "${signatureBlock}", "");
+            rendered = replaceWholeParagraphPlaceholder(rendered, "${signatureImage}", "");
+            rendered = replaceWholeParagraphPlaceholder(rendered, "${writerSignature}", "");
+            rendered = replaceWholeParagraphPlaceholder(rendered, "${inspectorSignature}", "");
+            return rendered;
+        }
+        if (!hasPlaceholder && !shouldAppendDefault) {
+            return xml;
+        }
+        var signatureBlock = signatureBlockXml(context);
+        if (signatureBlock.isEmpty()) {
+            return xml;
+        }
+        var rendered = xml;
+        var before = rendered;
+        rendered = replaceWholeParagraphPlaceholder(rendered, "${signatureBlock}", signatureBlock.get());
+        rendered = replaceWholeParagraphPlaceholder(rendered, "${signatureImage}", signatureBlock.get());
+        rendered = replaceWholeParagraphPlaceholder(rendered, "${writerSignature}", signatureBlock.get());
+        rendered = replaceWholeParagraphPlaceholder(rendered, "${inspectorSignature}", signatureBlock.get());
+        if (rendered.equals(before) && shouldAppendDefault) {
+            rendered = appendBeforeBodyEnd(rendered, signatureBlock.get());
+        }
+        return rendered;
+    }
+
+    private boolean hasSignedSignature(DocxRenderContext context) {
+        return Boolean.TRUE.equals(mapValue(context.request().payload().get("signature")).get("signed"));
+    }
+
+    private boolean hasSignaturePlaceholder(String xml) {
+        return xml.contains("${signatureBlock}")
+                || xml.contains("${signatureImage}")
+                || xml.contains("${writerSignature}")
+                || xml.contains("${inspectorSignature}")
+                || paragraphsContainPlaceholder(xml, "${signatureBlock}")
+                || paragraphsContainPlaceholder(xml, "${signatureImage}")
+                || paragraphsContainPlaceholder(xml, "${writerSignature}")
+                || paragraphsContainPlaceholder(xml, "${inspectorSignature}");
+    }
+
+    private boolean shouldAppendDefaultSignatureBlock(DocxRenderContext context) {
+        var payload = context.request().payload();
+        var report = mapValue(payload.get("report"));
+        var documentType = mapValue(payload.get("documentType"));
+        return isDailySupervisionType(stringValue(report.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("code")));
+    }
+
+    private boolean isDailySupervisionType(String value) {
+        var code = normalizeCode(value);
+        return "DAILY_SUPERVISION".equals(code) || code.contains("DAILY_SUPERVISION_LOG");
+    }
+
+    private String replaceWholeParagraphPlaceholder(String xml, String placeholder, String replacementXml) {
+        if (!xml.contains(placeholder) && !paragraphsContainPlaceholder(xml, placeholder)) {
+            return xml;
+        }
+        var matcher = WORD_PARAGRAPH_PATTERN.matcher(xml);
+        var result = new StringBuffer();
+        while (matcher.find()) {
+            var paragraph = matcher.group();
+            if (paragraph.contains(placeholder) || paragraphText(paragraph).contains(placeholder)) {
+                matcher.appendReplacement(result, Matcher.quoteReplacement(replacementXml));
+            }
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private boolean paragraphsContainPlaceholder(String xml, String placeholder) {
+        var matcher = WORD_PARAGRAPH_PATTERN.matcher(xml);
+        while (matcher.find()) {
+            if (paragraphText(matcher.group()).contains(placeholder)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String appendBeforeBodyEnd(String xml, String blockXml) {
+        var sectionIndex = xml.lastIndexOf("<w:sectPr");
+        if (sectionIndex >= 0) {
+            return xml.substring(0, sectionIndex) + blockXml + xml.substring(sectionIndex);
+        }
+        var bodyEnd = xml.lastIndexOf("</w:body>");
+        if (bodyEnd >= 0) {
+            return xml.substring(0, bodyEnd) + blockXml + xml.substring(bodyEnd);
+        }
+        return xml + blockXml;
+    }
+
+    private Optional<String> signatureBlockXml(DocxRenderContext context) throws IOException {
+        var signature = mapValue(context.request().payload().get("signature"));
+        if (!Boolean.TRUE.equals(signature.get("signed"))) {
+            return Optional.empty();
+        }
+        var signedByName = stringValue(signature.get("signedByName"));
+        var signedByRole = stringValue(signature.get("signedByRole"));
+        var signedAt = stringValue(signature.get("signedAt"));
+        var paragraphs = new ArrayList<String>();
+        paragraphs.add(textParagraph("서명", true));
+        var signer = signedByName == null ? "" : signedByName;
+        if (signedByRole != null && !signedByRole.isBlank()) {
+            signer = signer.isBlank() ? signedByRole : signer + " / " + signedByRole;
+        }
+        if (!signer.isBlank()) {
+            paragraphs.add(textParagraph("서명자: " + signer));
+        }
+        signatureImageParagraph(context).ifPresentOrElse(
+                paragraphs::add,
+                () -> paragraphs.add(textParagraph("서명 이미지 없음")));
+        if (signedAt != null && !signedAt.isBlank()) {
+            paragraphs.add(textParagraph("서명일시: " + signedAt));
+        }
+        return Optional.of(String.join("", paragraphs));
+    }
+
+    private Optional<String> signatureImageParagraph(DocxRenderContext context) throws IOException {
+        var content = signatureImageContent(context.request());
+        if (content.isEmpty()) {
+            return Optional.empty();
+        }
+        var image = context.addImage("archdox-signature", content.get(), PhotoLayoutSize.THUMBNAIL);
+        return Optional.of("<w:p><w:r>" + drawingXml(image) + "</w:r></w:p>");
+    }
+
+    private Optional<ResolvedPhotoContent> signatureImageContent(DocumentGenerationRequest request) {
+        var signature = mapValue(request.payload().get("signature"));
+        var dataUrl = stringValue(signature.get("imageDataUrl"));
+        if (dataUrl == null || !dataUrl.startsWith("data:")) {
+            return Optional.empty();
+        }
+        var comma = dataUrl.indexOf(',');
+        if (comma < 0) {
+            return Optional.empty();
+        }
+        var metadata = dataUrl.substring("data:".length(), comma).toLowerCase(Locale.ROOT);
+        if (!metadata.endsWith(";base64")) {
+            return Optional.empty();
+        }
+        var mimeType = metadata.substring(0, metadata.length() - ";base64".length());
+        try {
+            var bytes = Base64.getDecoder().decode(dataUrl.substring(comma + 1));
+            if (bytes.length == 0) {
+                return Optional.empty();
+            }
+            return Optional.of(new ResolvedPhotoContent(bytes, mimeType));
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
 
     private String buildRichSectionXml(Map<String, Object> section, DocxRenderContext context) throws IOException {
@@ -925,7 +1084,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         flatten(bindings, "", request.payload());
         addTemplateFieldAliases(bindings);
         addLeafAliases(bindings);
+        addDefaultSignatureAliases(bindings);
         return bindings;
+    }
+
+    private void addDefaultSignatureAliases(Map<String, String> bindings) {
+        bindings.putIfAbsent("signedByName", "");
+        bindings.putIfAbsent("signedByRole", "");
+        bindings.putIfAbsent("signedAt", "");
+        bindings.putIfAbsent("signatureSignedByName", "");
+        bindings.putIfAbsent("signatureSignedByRole", "");
+        bindings.putIfAbsent("signatureSignedAt", "");
+        bindings.putIfAbsent("signature.signedByName", "");
+        bindings.putIfAbsent("signature.signedByRole", "");
+        bindings.putIfAbsent("signature.signedAt", "");
     }
 
     private void flatten(Map<String, String> bindings, String prefix, Object value) {
@@ -1117,13 +1289,17 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String imageExtension(ResolvedPhotoContent content, PhotoAsset photo) {
+        return imageExtension(content, photo.storageRef());
+    }
+
+    private String imageExtension(ResolvedPhotoContent content, String storageRef) {
         var mimeType = content.mimeType() == null ? "" : content.mimeType().toLowerCase(Locale.ROOT);
         return switch (mimeType) {
             case "image/png" -> "png";
             case "image/gif" -> "gif";
             case "image/webp" -> "webp";
             case "image/jpg", "image/jpeg" -> "jpeg";
-            default -> extensionFromStorageRef(photo.storageRef()).orElse("jpeg");
+            default -> extensionFromStorageRef(storageRef).orElse("jpeg");
         };
     }
 
@@ -1196,13 +1372,26 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         }
 
         private DocxImage addImage(PhotoAsset photo, ResolvedPhotoContent content, PhotoLayoutSize imageSize) {
+            return addImage("archdox-photo", photo.storageRef(), content, imageSize == null ? photo.layoutSize() : imageSize);
+        }
+
+        private DocxImage addImage(String fileNamePrefix, ResolvedPhotoContent content, PhotoLayoutSize imageSize) {
+            return addImage(fileNamePrefix, fileNamePrefix, content, imageSize);
+        }
+
+        private DocxImage addImage(
+                String fileNamePrefix,
+                String storageRef,
+                ResolvedPhotoContent content,
+                PhotoLayoutSize imageSize
+        ) {
             imageCounter++;
-            var extension = imageExtension(content, photo);
-            var fileName = "archdox-photo-" + imageCounter + "." + extension;
+            var extension = imageExtension(content, storageRef);
+            var fileName = fileNamePrefix + "-" + imageCounter + "." + extension;
             var path = "word/media/" + fileName;
             while (mediaPaths.contains(path)) {
                 imageCounter++;
-                fileName = "archdox-photo-" + imageCounter + "." + extension;
+                fileName = fileNamePrefix + "-" + imageCounter + "." + extension;
                 path = "word/media/" + fileName;
             }
             mediaPaths.add(path);
@@ -1210,7 +1399,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             relationships.add(new DocxRelationship(relationshipId, "media/" + fileName));
             contentTypeDefaults.putIfAbsent(extension, imageContentType(extension, content));
             media.add(new DocxMedia(path, content.content()));
-            var size = imageSize(imageSize == null ? photo.layoutSize() : imageSize);
+            var size = imageSize(imageSize);
             return new DocxImage(relationshipId, fileName, imageCounter, size[0], size[1]);
         }
     }

@@ -58,6 +58,7 @@ class DocumentRenderCommandExecutorTest {
                 null,
                 null,
                 null,
+                null,
                 99L,
                 "GENERATE_DOCUMENT",
                 payload,

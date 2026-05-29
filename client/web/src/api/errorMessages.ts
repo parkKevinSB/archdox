@@ -17,10 +17,19 @@ export type ApiErrorPayload = {
 type MessageResolver = string | ((error: ApiErrorPayload) => string);
 
 const codeMessagesKo: Record<string, MessageResolver> = {
+  REPORT_PREFLIGHT_REVIEW_REQUIRED: "문서 생성 전에 최신 제출본에 대한 생성 전 검토를 먼저 통과해야 합니다.",
+  REPORT_PREFLIGHT_REVIEW_STALE: (error) =>
+    `리포트가 수정되어 이전 검토 결과를 사용할 수 없습니다. 현재 제출본 v${param(error, "requiredRevision") ?? "-"} 기준으로 다시 검토해주세요.`,
   DOCUMENT_WORKER_UNAVAILABLE: (error) =>
     `요청한 문서 형식(${param(error, "outputFormat") ?? "-"})을 생성할 수 있는 ArchDox Agent 또는 Cloud 변환기가 없습니다. PDF는 LibreOffice가 설치되고 활성화된 Agent/Worker가 필요합니다.`,
   DOCUMENT_WORKER_UNSUPPORTED: (error) =>
     `선택한 실행 위치(${param(error, "workerType") ?? "-"})에서 문서 형식(${param(error, "outputFormat") ?? "-"})을 생성할 수 없습니다.`,
+  DOCUMENT_SIGNATURE_NAME_REQUIRED: "서명자 이름을 입력해주세요.",
+  DOCUMENT_SIGNATURE_IMAGE_REQUIRED: "서명 이미지를 입력해주세요.",
+  DOCUMENT_SIGNATURE_IMAGE_INVALID: "서명 이미지 형식이 올바르지 않습니다. 다시 서명해주세요.",
+  DOCUMENT_SIGNATURE_IMAGE_MIME_MISMATCH: "서명 이미지 형식이 일치하지 않습니다. 다시 서명해주세요.",
+  DOCUMENT_SIGNATURE_IMAGE_TOO_LARGE: "서명 이미지가 너무 큽니다. 다시 서명해주세요.",
+  DOCUMENT_SIGNATURE_IMAGE_UNSUPPORTED: "지원하지 않는 서명 이미지 형식입니다. PNG 또는 JPG로 다시 서명해주세요.",
   BAD_REQUEST: "요청 내용을 확인해주세요.",
   CONFLICT: "현재 상태에서는 요청을 완료할 수 없습니다.",
   FORBIDDEN: "이 작업을 수행할 권한이 없습니다. 계정 소속 또는 담당자 배정을 확인해주세요.",

@@ -3,13 +3,29 @@ plugins {
     id("io.spring.dependency-management")
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.ai:spring-ai-bom:1.1.7")
+    }
+}
+
 dependencies {
     implementation(project(":domain-shared"))
+    implementation(project(":archdox-ai-harness"))
     implementation(project(":document-engine"))
     implementation(project(":bloom-core"))
     implementation(project(":bloom-spring"))
     implementation(project(":flower-core"))
     implementation(project(":flower-bloom-adapter"))
+
+    implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-spring-boot-starter:0.1.0-SNAPSHOT") {
+        exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
+    }
+    implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-validator-jackson:0.1.0-SNAPSHOT") {
+        exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
+    }
+    implementation("org.springframework.ai:spring-ai-starter-model-openai")
+    implementation("org.springframework.ai:spring-ai-starter-model-ollama")
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

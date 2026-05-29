@@ -11,6 +11,7 @@ import {
   FileText,
   Gauge,
   HardDrive,
+  KeyRound,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -31,11 +32,15 @@ import {
   acceptOfficeInvitation,
   addOfficeMember,
   cancelOfficeInvitation,
+  createPlatformAiPricingRule,
+  createPlatformAiProvider,
   createDocumentTemplate,
   createDocumentTemplateRevision,
   createOfficeInvitation,
   deactivateOfficeMember,
+  diagnosePlatformOpsIncident,
   detectPlatformStuckHealth,
+  disablePlatformAiPricingRule,
   downloadDocumentTemplateRevisionContent,
   getAgentCommands,
   getAgentSessions,
@@ -52,11 +57,21 @@ import {
   getPhotos,
   getPlatformAdminMe,
   getPlatformAgents,
+  getPlatformAiCallLogs,
+  getPlatformAiHarnessTraces,
+  getPlatformAiPreflightFindings,
+  getPlatformAiProviders,
+  getPlatformAiPricingRules,
+  getPlatformAiUsageSummary,
   getPlatformCommands,
   getPlatformDeliveries,
   getPlatformDocumentJobs,
   getPlatformEvents,
   getPlatformOffices,
+  getPlatformOfficeAiPolicies,
+  getPlatformOpsFindings,
+  getPlatformOpsIncidents,
+  getPlatformOpsRuns,
   getPlatformPhotos,
   getPlatformSummary,
   getPlatformUsers,
@@ -64,7 +79,9 @@ import {
   login,
   me,
   publishDocumentTemplateRevision,
+  publishPlatformAiProvider,
   signup,
+  updatePlatformOfficeAiPolicy,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
   uploadDocumentTemplateRevisionContent
@@ -73,6 +90,11 @@ import type {
   Agent,
   AgentCommand,
   AgentSession,
+  AiModelCallLog,
+  AiHarnessTraceEvent,
+  AiModelPricingRule,
+  AiProviderCredential,
+  AiUsageSummary,
   ConfigDefinition,
   DocumentDelivery,
   DocumentJob,
@@ -83,6 +105,7 @@ import type {
   OfficeInvitation,
   OfficeMember,
   OfficeConfigOverride,
+  OfficeAiPolicy,
   OfficeOpsSummary,
   OperationEvent,
   PlatformAdminMe,
@@ -92,8 +115,12 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsFinding,
+  PlatformOpsIncident,
+  PlatformOpsRun,
   PlatformOpsSummary,
   PlatformPhotoOps,
+  PlatformReportPreflightFinding,
   PlatformUserOps,
   Photo,
   TemplateFieldCatalog,
@@ -110,7 +137,21 @@ type ViewKey =
   | "photos"
   | "deliveries"
   | "events"
-  | "platform";
+  | "platform-overview"
+  | "platform-incidents"
+  | "platform-resources"
+  | "platform-events"
+  | "ai-overview"
+  | "ai-providers"
+  | "ai-policies"
+  | "ai-observer";
+
+type OfficeViewKey = Extract<
+  ViewKey,
+  "dashboard" | "agents" | "commands" | "documents" | "members" | "templates" | "photos" | "deliveries" | "events"
+>;
+type PlatformViewKey = Extract<ViewKey, "platform-overview" | "platform-incidents" | "platform-resources" | "platform-events">;
+type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
 
 type AdminState = {
   accessToken: string;
@@ -139,6 +180,16 @@ type PlatformOpsData = {
   photos: PlatformPhotoOps[];
   deliveries: PlatformDeliveryOps[];
   events: OperationEvent[];
+  opsRuns: PlatformOpsRun[];
+  opsIncidents: PlatformOpsIncident[];
+  opsFindings: PlatformOpsFinding[];
+  aiProviders: AiProviderCredential[];
+  officeAiPolicies: OfficeAiPolicy[];
+  aiCallLogs: AiModelCallLog[];
+  aiHarnessTraces: AiHarnessTraceEvent[];
+  aiPreflightFindings: PlatformReportPreflightFinding[];
+  aiPricingRules: AiModelPricingRule[];
+  aiUsageSummary: AiUsageSummary | null;
 };
 
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
@@ -164,10 +215,20 @@ const emptyPlatformOpsData: PlatformOpsData = {
   documents: [],
   photos: [],
   deliveries: [],
-  events: []
+  events: [],
+  opsRuns: [],
+  opsIncidents: [],
+  opsFindings: [],
+  aiProviders: [],
+  officeAiPolicies: [],
+  aiCallLogs: [],
+  aiHarnessTraces: [],
+  aiPreflightFindings: [],
+  aiPricingRules: [],
+  aiUsageSummary: null
 };
 
-const navItems: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboard }> = [
+const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: "dashboard", label: "대시보드", icon: LayoutDashboard },
   { key: "agents", label: "에이전트", icon: Server },
   { key: "commands", label: "명령", icon: Command },
@@ -179,6 +240,35 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof LayoutDashboar
   { key: "events", label: "이벤트", icon: Activity }
 ];
 
+const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
+  { key: "platform-overview", label: "개요" },
+  { key: "platform-incidents", label: "이슈/진단" },
+  { key: "platform-resources", label: "리소스" },
+  { key: "platform-events", label: "이벤트/로그" }
+];
+
+const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
+  { key: "ai-overview", label: "개요" },
+  { key: "ai-providers", label: "Provider/요금" },
+  { key: "ai-policies", label: "사무소 정책" },
+  { key: "ai-observer", label: "관측/검토" }
+];
+
+const platformViewKeys = new Set<ViewKey>(platformNavItems.map((item) => item.key));
+const aiViewKeys = new Set<ViewKey>(aiNavItems.map((item) => item.key));
+
+function isPlatformView(view: ViewKey): view is PlatformViewKey {
+  return platformViewKeys.has(view);
+}
+
+function isAiView(view: ViewKey): view is AiViewKey {
+  return aiViewKeys.has(view);
+}
+
+function isPlatformScopedView(view: ViewKey) {
+  return isPlatformView(view) || isAiView(view);
+}
+
 const adminRoles = new Set(["OWNER", "ADMIN"]);
 const memberRoleOptions: MembershipRole[] = ["OWNER", "ADMIN", "MEMBER", "VIEWER"];
 const commandFilterOptions = ["ALL", "PENDING", "DELIVERED", "ACKED", "COMPLETED", "FAILED", "EXPIRED"];
@@ -186,11 +276,94 @@ const documentFilterOptions = ["ALL", "REQUESTED", "GENERATING", "GENERATED", "F
 const photoFilterOptions = ["ALL", "PENDING_UPLOAD", "UPLOADED"];
 const pickupFilterOptions = ["ALL", "PENDING", "PICKED_UP", "FAILED", "NOT_REQUIRED"];
 const deliveryFilterOptions = ["ALL", "REQUESTED", "SENDING", "COMPLETED", "FAILED"];
+const aiProviderTypeOptions = ["OPENAI", "OLLAMA", "GEMINI", "ANTHROPIC", "CUSTOM_HTTP"];
+const aiFindingResolutionOptions = ["ALL", "OPEN", "RESOLVED", "ACCEPTED"];
+const aiFindingSeverityOptions = ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+
+const statusLabels: Record<string, string> = {
+  ACKED: "수신 확인",
+  ACCEPTED: "수용",
+  ACTIVE: "활성",
+  ADMIN: "관리자",
+  ALL: "전체",
+  CANCELLED: "취소",
+  COMPLETED: "완료",
+  CRITICAL: "긴급",
+  DELIVERED: "전달됨",
+  DISABLED: "비활성",
+  DRAFT: "초안",
+  ERROR: "오류",
+  EXPIRED: "만료",
+  FAILED: "실패",
+  GENERATED: "생성 완료",
+  GENERATING: "생성 중",
+  SUCCEEDED: "성공",
+  HIGH: "높음",
+  INFO: "정보",
+  LEFT: "탈퇴",
+  LOW: "낮음",
+  MEDIUM: "보통",
+  MEMBER: "멤버",
+  NEEDS_ATTENTION: "확인 필요",
+  NOT_REQUIRED: "불필요",
+  OFF: "꺼짐",
+  OFFLINE: "오프라인",
+  ON: "켜짐",
+  ONLINE: "온라인",
+  OPEN: "미처리",
+  OWNER: "소유자",
+  PASSED: "통과",
+  PENDING: "대기",
+  PENDING_UPLOAD: "업로드 대기",
+  PICKED_UP: "회수 완료",
+  PUBLISHED: "게시됨",
+  REQUESTED: "요청됨",
+  RESOLVED: "해결",
+  RUNNING: "실행 중",
+  SENDING: "전송 중",
+  STEP_SAVED: "작성 중",
+  SUSPENDED: "정지",
+  UPLOADED: "업로드 완료",
+  VIEWER: "조회자",
+  WARN: "주의"
+};
+
+const codeLabels: Record<string, string> = {
+  AGENT_COMMAND: "Agent 명령",
+  AI: "AI 검토",
+  AI_REVIEW: "AI 검토",
+  API_LOCAL: "API 로컬 저장소",
+  ARCHDOX_AGENT: "ArchDox Agent",
+  CLOUD_MANAGED: "클라우드 관리형",
+  CLOUD_OFFICE: "클라우드 사무소",
+  CUSTOM_HTTP: "사용자 HTTP",
+  DAILY_SUPERVISION: "공사감리일지",
+  DETERMINISTIC: "코드 검증",
+  DEMOLITION_SAFETY_CHECKLIST: "해체공사 안전점검표",
+  DOCUMENT_GENERATION: "문서 생성 AI",
+  DOCUMENT_REVIEW: "문서 검토 AI",
+  DOCUMENT_DELIVERY_REQUEST: "문서 전달 요청",
+  DOCUMENT_JOB: "문서 생성 작업",
+  DOCUMENT_RENDER: "문서 생성",
+  DOWNLOAD: "다운로드",
+  IN_FLIGHT: "진행 중",
+  LOCAL_OFFICE: "사무소 로컬",
+  MANUAL_DIAGNOSIS: "수동 진단",
+  PERSONAL: "개인",
+  PHOTO_PICKUP: "사진 회수",
+  PLATFORM: "플랫폼",
+  PROXY_ONLY: "API 서버 경유",
+  REPORT_PREFLIGHT_REVIEW: "생성 전 검토",
+  OPS_AI_DIAGNOSIS: "운영 AI 진단",
+  TEMPLATE: "템플릿",
+  WORKFLOW: "워크플로우"
+};
 
 export default function App() {
   const [auth, setAuth] = useState<AdminState | null>(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<ViewKey>("dashboard");
+  const [expandedNavGroups, setExpandedNavGroups] = useState({ platform: true, ai: true });
   const [opsData, setOpsData] = useState<OpsData>(emptyOpsData);
   const [platformAdmin, setPlatformAdmin] = useState<PlatformAdminMe | null>(null);
   const [platformChecked, setPlatformChecked] = useState(false);
@@ -216,6 +389,20 @@ export default function App() {
     [auth]
   );
 
+  function togglePlatformGroup() {
+    setExpandedNavGroups((current) => ({ ...current, platform: !current.platform }));
+    if (!isPlatformView(activeView)) {
+      setActiveView("platform-overview");
+    }
+  }
+
+  function toggleAiGroup() {
+    setExpandedNavGroups((current) => ({ ...current, ai: !current.ai }));
+    if (!isAiView(activeView)) {
+      setActiveView("ai-overview");
+    }
+  }
+
   useEffect(() => {
     if (!auth) {
       setPlatformAdmin(null);
@@ -227,7 +414,7 @@ export default function App() {
       .then((admin) => {
         setPlatformAdmin(admin);
         if (adminOffices.length === 0) {
-          setActiveView("platform");
+          setActiveView("platform-overview");
         }
       })
       .catch(() => setPlatformAdmin(null))
@@ -268,7 +455,7 @@ export default function App() {
   }, [auth?.accessToken, selectedOfficeId]);
 
   useEffect(() => {
-    if (activeView === "platform") {
+    if (isPlatformScopedView(activeView)) {
       refreshPlatform();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,7 +493,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [summary, users, offices, agents, commands, documents, photos, deliveries, events] = await Promise.all([
+      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
         getPlatformSummary(auth.accessToken),
         getPlatformUsers(auth.accessToken, 100),
         getPlatformOffices(auth.accessToken, 100),
@@ -315,11 +502,21 @@ export default function App() {
         getPlatformDocumentJobs(auth.accessToken, 100),
         getPlatformPhotos(auth.accessToken, 100),
         getPlatformDeliveries(auth.accessToken, 100),
-        getPlatformEvents(auth.accessToken, 100)
+        getPlatformEvents(auth.accessToken, 100),
+        getPlatformOpsRuns(auth.accessToken, 50),
+        getPlatformOpsIncidents(auth.accessToken, 50),
+        getPlatformOpsFindings(auth.accessToken, 50),
+        getPlatformAiProviders(auth.accessToken),
+        getPlatformOfficeAiPolicies(auth.accessToken, 100),
+        getPlatformAiCallLogs(auth.accessToken, 100),
+        getPlatformAiHarnessTraces(auth.accessToken, 100),
+        getPlatformAiPreflightFindings(auth.accessToken, 100),
+        getPlatformAiPricingRules(auth.accessToken, 100),
+        getPlatformAiUsageSummary(auth.accessToken)
       ]);
-      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events });
+      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiPreflightFindings, aiPricingRules, aiUsageSummary });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Platform data could not be loaded.");
+      setError(err instanceof Error ? err.message : "플랫폼 데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -336,7 +533,130 @@ export default function App() {
       setLastPlatformDetection(result);
       await refreshPlatform();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Platform health detection failed.");
+      setError(err instanceof Error ? err.message : "플랫폼 상태 감지에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPlatformIncidentDiagnosis(incidentId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await diagnosePlatformOpsIncident(auth.accessToken, incidentId);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 진단 Flow를 시작하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateAiProvider(body: {
+    providerCode: string;
+    displayName: string;
+    providerType: string;
+    baseUrl?: string | null;
+    defaultModel?: string | null;
+    apiKey?: string | null;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createPlatformAiProvider(auth.accessToken, body);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 제공자를 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePublishAiProvider(providerId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await publishPlatformAiProvider(auth.accessToken, providerId);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 제공자를 게시하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateAiPricingRule(body: {
+    providerCode: string;
+    modelName: string;
+    currency: string;
+    inputTokenPricePerMillion: number;
+    outputTokenPricePerMillion: number;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createPlatformAiPricingRule(auth.accessToken, body);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 단가 규칙을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDisableAiPricingRule(pricingRuleId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await disablePlatformAiPricingRule(auth.accessToken, pricingRuleId);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 단가 규칙을 비활성화하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveOfficeAiPolicy(
+    officeId: number,
+    body: {
+      aiEnabled: boolean;
+      documentReviewAiEnabled: boolean;
+      documentGenerationAiEnabled: boolean;
+      preferredProviderCredentialId?: number | null;
+      credentialDeliveryMode: string;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
+    }
+  ) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformOfficeAiPolicy(auth.accessToken, officeId, body);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "사무소 AI 정책을 저장하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -393,7 +713,7 @@ export default function App() {
     return (
       <FullScreenCenter>
         <Loader2 className="spin" size={28} />
-        <p>Checking platform permissions.</p>
+        <p>플랫폼 권한을 확인하고 있습니다.</p>
       </FullScreenCenter>
     );
   }
@@ -419,15 +739,48 @@ export default function App() {
           <div className="brand-mark">A</div>
           <div>
             <strong>ArchDox</strong>
-            <span>Operations Console</span>
+            <span>운영 콘솔</span>
           </div>
         </div>
 
+        <label className="mobile-nav-select">
+          <span>화면</span>
+          <select
+            value={activeView}
+            onChange={(event) => setActiveView(event.target.value as ViewKey)}
+          >
+            <optgroup label="사무소 운영">
+              {navItems.map((item) => (
+                <option key={item.key} value={item.key}>
+                  {item.label}
+                </option>
+              ))}
+            </optgroup>
+            {platformAdmin ? (
+              <>
+                <optgroup label="플랫폼 관리">
+                  {platformNavItems.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="AI 운영">
+                  {aiNavItems.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </>
+            ) : null}
+          </select>
+          <ChevronDown size={15} />
+        </label>
+
         <nav className="main-nav" aria-label="운영 메뉴">
+          <span className="nav-section-label">사무소 운영</span>
           {navItems.map((item) => {
-            if (item.key === "platform" && !platformAdmin) {
-              return null;
-            }
             const Icon = item.icon;
             return (
               <button
@@ -442,14 +795,59 @@ export default function App() {
             );
           })}
           {platformAdmin ? (
-            <button
-              className={activeView === "platform" ? "nav-item active" : "nav-item"}
-              type="button"
-              onClick={() => setActiveView("platform")}
-            >
-              <ShieldCheck size={18} />
-              Platform
-            </button>
+            <>
+              <span className="nav-section-label">플랫폼 운영</span>
+              <button
+                className={isPlatformView(activeView) ? "nav-item nav-group-toggle active" : "nav-item nav-group-toggle"}
+                type="button"
+                onClick={togglePlatformGroup}
+              >
+                <span className="nav-group-main">
+                  <ShieldCheck size={18} />
+                  플랫폼 관리
+                </span>
+                <ChevronDown className={expandedNavGroups.platform ? "nav-group-chevron open" : "nav-group-chevron"} size={15} />
+              </button>
+              {expandedNavGroups.platform ? (
+                <div className="nav-submenu">
+                  {platformNavItems.map((item) => (
+                    <button
+                      className={activeView === item.key ? "nav-subitem active" : "nav-subitem"}
+                      key={item.key}
+                      onClick={() => setActiveView(item.key)}
+                      type="button"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <button
+                className={isAiView(activeView) ? "nav-item nav-group-toggle active" : "nav-item nav-group-toggle"}
+                type="button"
+                onClick={toggleAiGroup}
+              >
+                <span className="nav-group-main">
+                  <KeyRound size={18} />
+                  AI 운영
+                </span>
+                <ChevronDown className={expandedNavGroups.ai ? "nav-group-chevron open" : "nav-group-chevron"} size={15} />
+              </button>
+              {expandedNavGroups.ai ? (
+                <div className="nav-submenu">
+                  {aiNavItems.map((item) => (
+                    <button
+                      className={activeView === item.key ? "nav-subitem active" : "nav-subitem"}
+                      key={item.key}
+                      onClick={() => setActiveView(item.key)}
+                      type="button"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
           ) : null}
         </nav>
 
@@ -462,26 +860,33 @@ export default function App() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Office Ops</p>
+            <p className="eyebrow">사무소 운영</p>
             <h1>{viewTitle(activeView)}</h1>
           </div>
 
           <div className="topbar-actions">
-            <label className="office-select">
-              <span>사무소</span>
-              <select
-                value={selectedOfficeId ?? ""}
-                onChange={(event) => setSelectedOfficeId(Number(event.target.value))}
-              >
-                {adminOffices.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.displayName} · {office.role}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </label>
-            <button className="icon-button" onClick={refresh} type="button" title="새로고침" aria-label="새로고침">
+            {isPlatformScopedView(activeView) ? (
+              <div className="platform-scope-pill">
+                <ShieldCheck size={15} />
+                <span>플랫폼 전체 범위</span>
+              </div>
+            ) : (
+              <label className="office-select">
+                <span>사무소</span>
+                <select
+                  value={selectedOfficeId ?? ""}
+                  onChange={(event) => setSelectedOfficeId(Number(event.target.value))}
+                >
+                  {adminOffices.map((office) => (
+                    <option key={office.id} value={office.id}>
+                      {office.displayName} · {displayLabel(office.role)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={16} />
+              </label>
+            )}
+            <button className="icon-button" onClick={isPlatformScopedView(activeView) ? refreshPlatform : refresh} type="button" title="새로고침" aria-label="새로고침">
               {loading ? <Loader2 className="spin" size={18} /> : <RefreshCcw size={18} />}
             </button>
             <button className="icon-button" onClick={logout} type="button" title="로그아웃" aria-label="로그아웃">
@@ -490,7 +895,7 @@ export default function App() {
           </div>
         </header>
 
-        {selectedOffice ? <OfficeStrip office={selectedOffice} /> : null}
+        {selectedOffice && !isPlatformScopedView(activeView) ? <OfficeStrip office={selectedOffice} /> : null}
         {error ? <InlineAlert message={error} /> : null}
 
         <section className="content-stage">
@@ -538,14 +943,34 @@ export default function App() {
             />
           )}
           {activeView === "events" && <EventsView events={opsData.events} />}
-          {activeView === "platform" && (
+          {isPlatformView(activeView) && (
             <PlatformView
+              view={activeView}
               data={platformData}
               platformAdmin={platformAdmin}
               loading={loading}
               onRefresh={refreshPlatform}
               lastDetection={lastPlatformDetection}
               onDetectStuck={runPlatformDetection}
+              onDiagnoseIncident={runPlatformIncidentDiagnosis}
+            />
+          )}
+          {isAiView(activeView) && (
+            <AiManagementView
+              view={activeView}
+              loading={loading}
+              callLogs={platformData.aiCallLogs}
+              harnessTraces={platformData.aiHarnessTraces}
+              preflightFindings={platformData.aiPreflightFindings}
+              pricingRules={platformData.aiPricingRules}
+              providers={platformData.aiProviders}
+              policies={platformData.officeAiPolicies}
+              usageSummary={platformData.aiUsageSummary}
+              onCreatePricingRule={handleCreateAiPricingRule}
+              onDisablePricingRule={handleDisableAiPricingRule}
+              onCreateProvider={handleCreateAiProvider}
+              onPublishProvider={handlePublishAiProvider}
+              onSaveOfficePolicy={handleSaveOfficeAiPolicy}
             />
           )}
         </section>
@@ -593,7 +1018,7 @@ function LoginScreen({
         <div className="brand large">
           <div className="brand-mark">A</div>
           <div>
-            <strong>{isInvitationFlow ? "ArchDox Invitation" : "ArchDox Admin"}</strong>
+            <strong>{isInvitationFlow ? "ArchDox 초대" : "ArchDox 운영 콘솔"}</strong>
             <span>{isInvitationFlow ? "초대 수락을 위해 로그인 또는 회원가입이 필요합니다" : "문서 워크플로우 운영 콘솔"}</span>
           </div>
         </div>
@@ -696,7 +1121,7 @@ function InvitationAcceptScreen({
         <div className="brand large">
           <div className="brand-mark">A</div>
           <div>
-            <strong>ArchDox Invitation</strong>
+            <strong>ArchDox 초대</strong>
             <span>{auth.user.email}</span>
           </div>
         </div>
@@ -727,12 +1152,12 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
   return (
     <div className="view-stack">
       <div className="metric-grid">
-        <MetricCard icon={<Server size={20} />} label="Agents" value={summary?.agents.total ?? 0} detail={`${summary?.agents.byStatus.ONLINE ?? 0} online`} tone="green" />
-        <MetricCard icon={<Wifi size={20} />} label="Active sessions" value={summary?.activeAgentSessions ?? 0} detail="WebSocket" tone="blue" />
-        <MetricCard icon={<Command size={20} />} label="In-flight commands" value={summary?.inFlightAgentCommands ?? 0} detail="pending · acked" tone="amber" />
-        <MetricCard icon={<FileText size={20} />} label="Document jobs" value={summary?.documentJobs.total ?? 0} detail={`${summary?.documentJobs.byStatus.GENERATING ?? 0} generating`} tone="blue" />
-        <MetricCard icon={<Camera size={20} />} label="Photos" value={summary?.photos.total ?? 0} detail={`${summary?.photoOriginalPickups.byStatus.PENDING ?? 0} pickup pending`} tone="slate" />
-        <MetricCard icon={<AlertTriangle size={20} />} label="Attention" value={activeWarnings} detail="commands + failures" tone={activeWarnings > 0 ? "red" : "green"} />
+        <MetricCard icon={<Server size={20} />} label="에이전트" value={summary?.agents.total ?? 0} detail={`${summary?.agents.byStatus.ONLINE ?? 0} 온라인`} tone="green" />
+        <MetricCard icon={<Wifi size={20} />} label="활성 세션" value={summary?.activeAgentSessions ?? 0} detail="WebSocket 연결" tone="blue" />
+        <MetricCard icon={<Command size={20} />} label="진행 중 명령" value={summary?.inFlightAgentCommands ?? 0} detail="대기 · 수신 확인" tone="amber" />
+        <MetricCard icon={<FileText size={20} />} label="문서 작업" value={summary?.documentJobs.total ?? 0} detail={`${summary?.documentJobs.byStatus.GENERATING ?? 0} 생성 중`} tone="blue" />
+        <MetricCard icon={<Camera size={20} />} label="사진" value={summary?.photos.total ?? 0} detail={`${summary?.photoOriginalPickups.byStatus.PENDING ?? 0} 회수 대기`} tone="slate" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="확인 필요" value={activeWarnings} detail="명령 + 실패" tone={activeWarnings > 0 ? "red" : "green"} />
       </div>
 
       <div className="dashboard-grid">
@@ -749,7 +1174,7 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
         <Panel title="최근 이벤트" icon={<Activity size={18} />}>
           <EventList events={data.events.slice(0, 6)} />
         </Panel>
-      </div>
+        </div>
 
       {loading ? <p className="muted">운영 데이터를 갱신하고 있습니다.</p> : null}
     </div>
@@ -759,14 +1184,14 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
 function AgentsView({ agents, sessions }: { agents: Agent[]; sessions: AgentSession[] }) {
   return (
     <div className="view-stack">
-      <Panel title="Agent 목록" icon={<Server size={18} />} count={agents.length}>
+      <Panel title="에이전트 목록" icon={<Server size={18} />} count={agents.length}>
         <Table
-          columns={["Agent", "상태", "모드", "세션", "명령", "버전", "최근 접속"]}
-          empty="등록된 Agent가 없습니다."
+          columns={["에이전트", "상태", "모드", "세션", "명령", "버전", "최근 접속"]}
+          empty="등록된 에이전트가 없습니다."
           rows={agents.map((agent) => [
             <CellTitle key="agent" title={agent.agentCode} subtitle={`#${agent.id}`} />,
             <StatusBadge key="status" status={agent.status} />,
-            agent.deploymentMode,
+            displayLabel(agent.deploymentMode),
             `${agent.activeSessionCount}`,
             `${agent.inFlightCommandCount} 진행 · ${agent.failedCommandCount} 실패`,
             agent.version ?? "-",
@@ -776,7 +1201,7 @@ function AgentsView({ agents, sessions }: { agents: Agent[]; sessions: AgentSess
       </Panel>
       <Panel title="최근 세션" icon={<Wifi size={18} />} count={sessions.length}>
         <Table
-          columns={["Session", "Agent", "상태", "API 인스턴스", "연결", "최근 신호", "종료 사유"]}
+          columns={["세션", "에이전트", "상태", "API 인스턴스", "연결", "최근 신호", "종료 사유"]}
           empty="세션 기록이 없습니다."
           rows={sessions.map((session) => [
             <CellTitle key="session" title={`#${session.id}`} subtitle={session.websocketSessionId} />,
@@ -804,16 +1229,16 @@ function CommandsView({
 }) {
   return (
     <Panel
-      title="Agent 명령"
+      title="에이전트 명령"
       icon={<Command size={18} />}
       count={commands.length}
       action={<FilterSelect label="상태" options={commandFilterOptions} value={status} onChange={setStatus} />}
     >
       <Table
-        columns={["Command", "Agent", "상태", "시도", "생성", "ACK", "완료/실패", "오류"]}
+        columns={["명령", "에이전트", "상태", "시도", "생성", "수신", "완료/실패", "오류"]}
         empty="표시할 명령이 없습니다."
         rows={commands.map((command) => [
-          <CellTitle key="command" title={command.commandType} subtitle={`#${command.id}`} />,
+          <CellTitle key="command" title={displayLabel(command.commandType)} subtitle={`${command.commandType} / #${command.id}`} />,
           command.agentCode,
           <StatusBadge key="status" status={command.status} />,
           `${command.attemptCount}/${command.maxAttempts}`,
@@ -844,13 +1269,13 @@ function DocumentsView({
       action={<FilterSelect label="상태" options={documentFilterOptions} value={status} onChange={setStatus} />}
     >
       <Table
-        columns={["Job", "상태", "진행", "Worker", "Report", "Artifacts", "요청", "오류"]}
+        columns={["작업", "상태", "진행", "처리 주체", "리포트", "산출물", "요청", "오류"]}
         empty="표시할 문서 작업이 없습니다."
         rows={documents.map((job) => [
           <CellTitle key="job" title={`문서 작업 #${job.id}`} subtitle={job.progressStep} />,
           <StatusBadge key="status" status={job.status} />,
           <Progress key="progress" value={job.progressPercent} />,
-          job.workerType,
+          displayLabel(job.workerType),
           `#${job.reportId}`,
           job.artifacts.length === 0 ? "-" : job.artifacts.map((artifact) => artifact.fileName).join(", "),
           formatDate(job.requestedAt),
@@ -1477,7 +1902,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
 
   async function copyTemplatePlaceholder(field: TemplateFieldDefinition) {
     await navigator.clipboard.writeText(`\${${field.key}}`);
-    setNotice(`Copied \${${field.key}}`);
+      setNotice(`\${${field.key}} 플레이스홀더를 복사했습니다.`);
   }
 
   async function submitOverride(event: FormEvent) {
@@ -1629,16 +2054,16 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                     return (
                       <article className="revision-card" key={revision.id}>
                         <div className="revision-card-head">
-                          <CellTitle title={`v${revision.version}`} subtitle={`revision #${revision.id}`} />
+                          <CellTitle title={`v${revision.version}`} subtitle={`리비전 #${revision.id}`} />
                           <StatusBadge status={revision.status} />
                         </div>
                         <dl className="revision-meta">
                           <div>
-                            <dt>Storage</dt>
-                            <dd>{revision.templateStorageKind ?? "-"}</dd>
+                            <dt>저장소</dt>
+                            <dd>{displayLabel(revision.templateStorageKind)}</dd>
                           </div>
                           <div>
-                            <dt>Published</dt>
+                            <dt>게시일</dt>
                             <dd>{formatDate(revision.publishedAt)}</dd>
                           </div>
                         </dl>
@@ -1687,7 +2112,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
       </div>
 
       <Panel
-        title="Template field catalog"
+        title="템플릿 필드 카탈로그"
         icon={<Copy size={18} />}
         count={fieldCatalog?.fields.length ?? 0}
         action={<span className="panel-context">{fieldCatalog?.reportType ?? "ALL_REPORT_TYPES"}</span>}
@@ -1709,7 +2134,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
           ) : null}
 
           <div className="template-field-grid">
-            {fieldCatalog?.fields.length ? null : <EmptyState message="No template fields found." />}
+            {fieldCatalog?.fields.length ? null : <EmptyState message="등록된 템플릿 필드가 없습니다." />}
             {fieldCatalog?.fields.map((field) => (
               <article className="template-field-card" key={field.key}>
                 <div className="template-field-card-head">
@@ -1720,9 +2145,9 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                   <button
                     className="icon-button"
                     onClick={() => copyTemplatePlaceholder(field)}
-                    title="Copy placeholder"
+                    title="플레이스홀더 복사"
                     type="button"
-                    aria-label={`Copy ${field.key}`}
+                    aria-label={`${field.key} 플레이스홀더 복사`}
                   >
                     <Copy size={16} />
                   </button>
@@ -1730,15 +2155,15 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                 <p>{field.description}</p>
                 <dl>
                   <div>
-                    <dt>Category</dt>
-                    <dd>{field.category}</dd>
+                    <dt>분류</dt>
+                    <dd>{displayLabel(field.category)}</dd>
                   </div>
                   <div>
-                    <dt>Source</dt>
-                    <dd>{field.source}</dd>
+                    <dt>원천</dt>
+                    <dd>{displayLabel(field.source)}</dd>
                   </div>
                   <div>
-                    <dt>Example</dt>
+                    <dt>예시</dt>
                     <dd>{field.example}</dd>
                   </div>
                 </dl>
@@ -1794,7 +2219,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
               <StatusBadge key="status" status={override.status} />,
               override.template.code ?? "-",
               override.template.revisionId ? `#${override.template.revisionId} · v${override.template.version}` : "-",
-              override.template.source,
+              displayLabel(override.template.source),
               formatDate(override.updatedAt)
             ])}
           />
@@ -1825,12 +2250,12 @@ function PhotosView({
       action={
         <div className="filter-row">
           <FilterSelect label="업로드" options={photoFilterOptions} value={photoStatus} onChange={setPhotoStatus} />
-          <FilterSelect label="Pickup" options={pickupFilterOptions} value={pickupStatus} onChange={setPickupStatus} />
+          <FilterSelect label="원본 회수" options={pickupFilterOptions} value={pickupStatus} onChange={setPickupStatus} />
         </div>
       }
     >
       <Table
-        columns={["Photo", "상태", "Pickup", "Report", "크기", "Assets", "GPS", "생성"]}
+        columns={["사진", "상태", "원본 회수", "리포트", "크기", "파생 파일", "GPS", "생성"]}
         empty="표시할 사진이 없습니다."
         rows={photos.map((photo) => [
           <CellTitle key="photo" title={`사진 #${photo.id}`} subtitle={photo.stepCode ?? "step 없음"} />,
@@ -1838,7 +2263,7 @@ function PhotosView({
           <StatusBadge key="pickup" status={photo.originalPickupStatus} />,
           photo.reportId ? `#${photo.reportId}` : "-",
           photo.width && photo.height ? `${photo.width} x ${photo.height}` : formatBytes(photo.bytes),
-          photo.assets.map((asset) => `${asset.assetType}:${asset.status}`).join(", ") || "-",
+          photo.assets.map((asset) => `${displayLabel(asset.assetType)}:${displayLabel(asset.status)}`).join(", ") || "-",
           photo.hasGps ? "있음" : "없음",
           formatDate(photo.createdAt)
         ])}
@@ -1864,12 +2289,12 @@ function DeliveriesView({
       action={<FilterSelect label="상태" options={deliveryFilterOptions} value={status} onChange={setStatus} />}
     >
       <Table
-        columns={["Delivery", "상태", "채널", "Job", "Artifact", "Agent Command", "요청", "오류"]}
+        columns={["전달", "상태", "채널", "작업", "산출물", "Agent 명령", "요청", "오류"]}
         empty="표시할 전달 요청이 없습니다."
         rows={deliveries.map((delivery) => [
-          <CellTitle key="delivery" title={`전달 #${delivery.id}`} subtitle={delivery.preparedStorageKind ?? "not prepared"} />,
+          <CellTitle key="delivery" title={`전달 #${delivery.id}`} subtitle={delivery.preparedStorageKind ? displayLabel(delivery.preparedStorageKind) : "준비 전"} />,
           <StatusBadge key="status" status={delivery.status} />,
-          delivery.channel,
+          displayLabel(delivery.channel),
           `#${delivery.documentJobId}`,
           delivery.artifactId ? `#${delivery.artifactId}` : "-",
           delivery.agentCommandId ? `#${delivery.agentCommandId}` : "-",
@@ -1896,7 +2321,7 @@ function EventsView({ events }: { events: OperationEvent[] }) {
               </div>
               <p>{event.message}</p>
               <small>
-                {event.workflowType ?? "workflow 없음"} · {event.resourceType ?? "resource 없음"}{" "}
+                {event.workflowType ? displayLabel(event.workflowType) : "워크플로우 없음"} · {event.resourceType ? displayLabel(event.resourceType) : "리소스 없음"}{" "}
                 {event.resourceId ? `#${event.resourceId}` : ""}
               </small>
             </div>
@@ -1916,7 +2341,7 @@ function OfficeStrip({ office }: { office: Office }) {
       </div>
       <StatusBadge status={office.role} />
       <span>{office.planCode}</span>
-      <span>{office.type}</span>
+      <span>{displayLabel(office.type)}</span>
     </div>
   );
 }
@@ -1930,7 +2355,7 @@ function MetricCard({
 }: {
   icon: ReactNode;
   label: string;
-  value: number;
+  value: ReactNode;
   detail: string;
   tone: "green" | "blue" | "amber" | "red" | "slate";
 }) {
@@ -1938,7 +2363,7 @@ function MetricCard({
     <div className={`metric-card ${tone}`}>
       <div className="metric-icon">{icon}</div>
       <span>{label}</span>
-      <strong>{value.toLocaleString()}</strong>
+      <strong>{typeof value === "number" ? value.toLocaleString() : value}</strong>
       <small>{detail}</small>
     </div>
   );
@@ -2015,7 +2440,27 @@ function CellTitle({ title, subtitle }: { title: string; subtitle?: string | nul
 }
 
 function StatusBadge({ status }: { status: string }) {
-  return <span className={`status-badge ${statusTone(status)}`}>{status}</span>;
+  return (
+    <span className={`status-badge ${statusTone(status)}`} title={status}>
+      {displayLabel(status)}
+    </span>
+  );
+}
+
+function FindingResolutionBadge({ status }: { status: PlatformReportPreflightFinding["resolutionStatus"] }) {
+  if (status === "ACCEPTED") {
+    return <span className="status-badge amber" title={status}>위험 수용</span>;
+  }
+  return <StatusBadge status={status} />;
+}
+
+function ProviderModeBadge({ provider }: { provider: AiProviderCredential }) {
+  const fake = isFakeAiProvider(provider.providerCode);
+  return (
+    <span className={fake ? "provider-mode-badge fake" : "provider-mode-badge real"} title={provider.providerCode}>
+      {fake ? "개발용 Fake" : "실제 Provider"}
+    </span>
+  );
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -2058,7 +2503,7 @@ function FilterSelect({
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {displayLabel(option)}
           </option>
         ))}
       </select>
@@ -2085,14 +2530,14 @@ function StatusBars({ groups }: { groups: Array<[string, Record<string, number>]
                     className={statusTone(status)}
                     key={status}
                     style={{ width: `${Math.max(4, (count / total) * 100)}%` }}
-                    title={`${status}: ${count}`}
+                    title={`${displayLabel(status)}: ${count}`}
                   />
                 ))}
             </div>
             <div className="status-chip-row">
               {Object.entries(counts).map(([status, count]) => (
                 <span key={status}>
-                  {status} {count}
+                  {displayLabel(status)} {count}
                 </span>
               ))}
             </div>
@@ -2104,19 +2549,23 @@ function StatusBars({ groups }: { groups: Array<[string, Record<string, number>]
 }
 
 function PlatformView({
+  view,
   data,
   platformAdmin,
   loading,
   onRefresh,
   lastDetection,
-  onDetectStuck
+  onDetectStuck,
+  onDiagnoseIncident
 }: {
+  view: PlatformViewKey;
   data: PlatformOpsData;
   platformAdmin: PlatformAdminMe | null;
   loading: boolean;
   onRefresh: () => void;
   lastDetection: PlatformHealthDetection | null;
   onDetectStuck: () => void;
+  onDiagnoseIncident: (incidentId: number) => void;
 }) {
   const summary = data.summary;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
@@ -2124,120 +2573,1381 @@ function PlatformView({
   const failedPickups = summary?.photoPickups.FAILED ?? 0;
   const failedDeliveries = summary?.deliveries.FAILED ?? 0;
   const attention = failedJobs + failedCommands + failedPickups + failedDeliveries;
+  const opsRuns = data.opsRuns ?? [];
+  const opsIncidents = data.opsIncidents ?? [];
+  const opsFindings = data.opsFindings ?? [];
+  const diagnosisRuns = useMemo(
+    () => opsRuns.filter((run) => run.triggerType === "MANUAL_DIAGNOSIS"),
+    [opsRuns]
+  );
+  const selectedDiagnosisRun = diagnosisRuns[0] ?? null;
+  const selectedDiagnosisIncident = selectedDiagnosisRun?.incidentId
+    ? opsIncidents.find((incident) => incident.id === selectedDiagnosisRun.incidentId) ?? null
+    : null;
+  const showOverview = view === "platform-overview";
+  const showIncidents = view === "platform-incidents";
+  const showResources = view === "platform-resources";
+  const showEvents = view === "platform-events";
 
   return (
     <div className="view-stack platform-view">
       <div className="section-header">
         <div>
-          <p className="eyebrow">Platform Admin</p>
+          <p className="eyebrow">플랫폼 관리자</p>
           <h2>전체 서비스 운영</h2>
           <p className="muted">
-            {platformAdmin ? `${platformAdmin.email} / ${platformAdmin.role}` : "Platform permission required"}
+            {platformAdmin ? `${platformAdmin.email} / ${displayLabel(platformAdmin.role)}` : "플랫폼 권한이 필요합니다."}
           </p>
         </div>
         <div className="topbar-actions">
           <button className="button" onClick={onDetectStuck} type="button">
             <AlertTriangle size={16} />
-            Detect stuck
+            멈춤 감지
           </button>
           <button className="button" onClick={onRefresh} type="button">
             {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-            Refresh
+            새로고침
           </button>
         </div>
       </div>
       {lastDetection ? (
         <InlineNotice
-          message={`Detected ${lastDetection.total} stuck candidates at ${formatDate(lastDetection.detectedAt)}.`}
+          message={
+            lastDetection.opsRunId
+              ? `${formatDate(lastDetection.detectedAt)} 기준 운영 감지 Flow #${lastDetection.opsRunId}를 요청했습니다. 결과는 운영 이슈/진단 목록에서 갱신됩니다.`
+              : `${formatDate(lastDetection.detectedAt)} 기준 멈춤 후보 ${lastDetection.total}건을 감지했습니다.`
+          }
         />
       ) : null}
 
-      <div className="metric-grid">
-        <MetricCard icon={<Users size={20} />} label="Users" value={summary?.users ?? 0} detail="all accounts" tone="blue" />
-        <MetricCard icon={<HardDrive size={20} />} label="Offices" value={summary?.offices ?? 0} detail="all tenants" tone="slate" />
-        <MetricCard icon={<Server size={20} />} label="Agents" value={sumCounts(summary?.agents)} detail={`${summary?.agents.ONLINE ?? 0} online`} tone="green" />
-        <MetricCard icon={<Wifi size={20} />} label="Sessions" value={summary?.activeAgentSessions ?? 0} detail="active websocket" tone="blue" />
-        <MetricCard icon={<Command size={20} />} label="Commands" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="in flight" tone="amber" />
-        <MetricCard icon={<AlertTriangle size={20} />} label="Attention" value={attention} detail="failed/stuck candidates" tone={attention > 0 ? "red" : "green"} />
-      </div>
+      {showOverview ? (
+        <div className="metric-grid">
+        <MetricCard icon={<Users size={20} />} label="사용자" value={summary?.users ?? 0} detail="전체 계정" tone="blue" />
+        <MetricCard icon={<HardDrive size={20} />} label="사무소" value={summary?.offices ?? 0} detail="전체 테넌트" tone="slate" />
+        <MetricCard icon={<Server size={20} />} label="에이전트" value={sumCounts(summary?.agents)} detail={`${summary?.agents.ONLINE ?? 0} 온라인`} tone="green" />
+        <MetricCard icon={<Wifi size={20} />} label="세션" value={summary?.activeAgentSessions ?? 0} detail="활성 WebSocket" tone="blue" />
+        <MetricCard icon={<Command size={20} />} label="명령" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="진행 중" tone="amber" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="확인 필요" value={attention} detail="실패/멈춤 후보" tone={attention > 0 ? "red" : "green"} />
+        </div>
+      ) : null}
 
-      <div className="dashboard-grid">
-        <Panel title="Platform workflow status" icon={<Gauge size={18} />}>
+      {showOverview || showIncidents ? (
+        <OpsPriorityPanel
+          failedCommands={failedCommands}
+          failedDeliveries={failedDeliveries}
+          failedJobs={failedJobs}
+          failedPickups={failedPickups}
+          incidents={opsIncidents}
+        />
+      ) : null}
+
+      {showOverview || showIncidents ? (
+        <PlatformOpsDiagnosisDetailPanel
+          incident={selectedDiagnosisIncident}
+          run={selectedDiagnosisRun}
+        />
+      ) : null}
+
+      {showEvents ? (
+        <div className="dashboard-grid">
+        <Panel title="플랫폼 워크플로우 상태" icon={<Gauge size={18} />}>
           <StatusBars
             groups={[
-              ["Document jobs", summary?.documentJobs ?? {}],
-              ["Photo pickups", summary?.photoPickups ?? {}],
-              ["Deliveries", summary?.deliveries ?? {}],
-              ["Agent commands", summary?.agentCommands ?? {}]
+              ["문서 작업", summary?.documentJobs ?? {}],
+              ["사진 회수", summary?.photoPickups ?? {}],
+              ["문서 전달", summary?.deliveries ?? {}],
+              ["Agent 명령", summary?.agentCommands ?? {}]
             ]}
           />
         </Panel>
-        <Panel title="Recent platform events" icon={<Activity size={18} />}>
+        <Panel title="최근 플랫폼 이벤트" icon={<Activity size={18} />}>
           <EventList events={data.events.slice(0, 8)} />
         </Panel>
-      </div>
+        </div>
+      ) : null}
 
-      <Panel title="Offices" icon={<HardDrive size={18} />} count={data.offices.length}>
+      {showIncidents ? (
+        <Panel title="운영 이슈" icon={<AlertTriangle size={18} />} count={opsIncidents.length}>
         <Table
-          columns={["Office", "Type", "Plan", "Status"]}
-          empty="No offices."
+          columns={["이슈", "심각도", "상태", "사무소", "대상", "최근 감지"]}
+          empty="운영 이슈가 없습니다."
+          rows={opsIncidents.slice(0, 20).map((incident) => [
+            <div className="member-actions" key="incident">
+              <CellTitle title={incident.title} subtitle={`${incident.category} / #${incident.id}`} />
+              <button
+                className="button"
+                disabled={loading}
+                onClick={() => onDiagnoseIncident(incident.id)}
+                type="button"
+              >
+                진단
+              </button>
+            </div>,
+            <StatusBadge key="severity" status={incident.severity} />,
+            <StatusBadge key="status" status={incident.status} />,
+            incident.officeId ? `#${incident.officeId}` : "-",
+            incident.primaryResourceType ? `${incident.primaryResourceType} #${incident.primaryResourceId ?? "-"}` : "-",
+            formatDate(incident.lastSeenAt)
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showIncidents ? (
+        <Panel title="운영 진단 Flow" icon={<Gauge size={18} />} count={opsRuns.length}>
+        <Table
+          columns={["Flow", "상태", "트리거", "요청자", "시작", "완료"]}
+          empty="운영 진단 Flow 기록이 없습니다."
+          rows={opsRuns.slice(0, 20).map((run) => [
+            <CellTitle key="run" title={`Flow #${run.id}`} subtitle={run.incidentId ? `Incident #${run.incidentId}` : "incident 없음"} />,
+            <StatusBadge key="status" status={run.status} />,
+            displayLabel(run.triggerType),
+            run.startedByUserId ? `#${run.startedByUserId}` : "-",
+            formatDate(run.startedAt),
+            formatDate(run.completedAt)
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showIncidents ? (
+        <Panel title="운영 Finding" icon={<Activity size={18} />} count={opsFindings.length}>
+        <Table
+          columns={["Finding", "심각도", "출처", "사무소", "대상", "생성"]}
+          empty="운영 Finding이 없습니다."
+          rows={opsFindings.slice(0, 20).map((finding) => [
+            <CellTitle key="finding" title={finding.title} subtitle={`${finding.code} / run #${finding.runId}`} />,
+            <StatusBadge key="severity" status={finding.severity} />,
+            displayLabel(finding.source),
+            finding.officeId ? `#${finding.officeId}` : "-",
+            finding.resourceType ? `${finding.resourceType} #${finding.resourceId ?? "-"}` : "-",
+            formatDate(finding.createdAt)
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showResources ? (
+        <Panel title="사무소" icon={<HardDrive size={18} />} count={data.offices.length}>
+        <Table
+          columns={["사무소", "유형", "플랜", "상태"]}
+          empty="사무소가 없습니다."
           rows={data.offices.slice(0, 20).map((office) => [
             <CellTitle key="office" title={office.displayName} subtitle={`${office.officeCode} / #${office.id}`} />,
-            office.type,
+            displayLabel(office.type),
             office.planCode,
             <StatusBadge key="status" status={office.status} />
           ])}
         />
-      </Panel>
+        </Panel>
+      ) : null}
 
-      <Panel title="Agents" icon={<Server size={18} />} count={data.agents.length}>
+      {showResources ? (
+        <Panel title="에이전트" icon={<Server size={18} />} count={data.agents.length}>
         <Table
-          columns={["Agent", "Office", "Status", "Mode", "Version", "Last seen"]}
-          empty="No agents."
+          columns={["에이전트", "사무소", "상태", "모드", "버전", "최근 신호"]}
+          empty="에이전트가 없습니다."
           rows={data.agents.slice(0, 20).map((agent) => [
             <CellTitle key="agent" title={agent.agentCode} subtitle={`#${agent.id}`} />,
             `#${agent.officeId}`,
             <StatusBadge key="status" status={agent.status} />,
-            agent.deploymentMode,
+            displayLabel(agent.deploymentMode),
             agent.version ?? "-",
             formatDate(agent.lastSeenAt)
           ])}
         />
-      </Panel>
+        </Panel>
+      ) : null}
 
-      <Panel title="Failed or recent document jobs" icon={<FileText size={18} />} count={data.documents.length}>
+      {showResources ? (
+        <Panel title="실패 또는 최근 문서 작업" icon={<FileText size={18} />} count={data.documents.length}>
         <Table
-          columns={["Job", "Office", "Status", "Progress", "Worker", "Updated", "Error"]}
-          empty="No document jobs."
+          columns={["작업", "사무소", "상태", "진행", "처리 주체", "수정", "오류"]}
+          empty="문서 작업이 없습니다."
           rows={data.documents.slice(0, 20).map((job) => [
-            <CellTitle key="job" title={`Job #${job.id}`} subtitle={`report #${job.reportId} v${job.reportRevision}`} />,
+            <CellTitle key="job" title={`작업 #${job.id}`} subtitle={`리포트 #${job.reportId} v${job.reportRevision}`} />,
             `#${job.officeId}`,
             <StatusBadge key="status" status={job.status} />,
             <Progress key="progress" value={job.progressPercent} />,
-            job.workerType,
+            displayLabel(job.workerType),
             formatDate(job.updatedAt),
             job.errorMessage ?? "-"
           ])}
         />
-      </Panel>
+        </Panel>
+      ) : null}
 
-      <Panel title="Users" icon={<Users size={18} />} count={data.users.length}>
+      {showResources ? (
+        <Panel title="사용자" icon={<Users size={18} />} count={data.users.length}>
         <Table
-          columns={["User", "Status", "Created"]}
-          empty="No users."
+          columns={["사용자", "상태", "생성"]}
+          empty="사용자가 없습니다."
           rows={data.users.slice(0, 20).map((user) => [
             <CellTitle key="user" title={user.name} subtitle={`${user.email} / #${user.id}`} />,
             <StatusBadge key="status" status={user.status} />,
             formatDate(user.createdAt)
           ])}
         />
-      </Panel>
+        </Panel>
+      ) : null}
     </div>
+  );
+}
+
+function PlatformOpsDiagnosisDetailPanel({
+  run,
+  incident
+}: {
+  run: PlatformOpsRun | null;
+  incident: PlatformOpsIncident | null;
+}) {
+  if (!run) {
+    return (
+      <Panel title="운영 진단 상세" icon={<Gauge size={18} />}>
+        <EmptyState message="아직 운영 진단 Flow가 없습니다. 운영 이슈에서 진단을 실행하면 여기에 결과가 표시됩니다." />
+      </Panel>
+    );
+  }
+
+  const snapshot = asPlainObject(run.inputSnapshotJson);
+  const recentFindings = asObjectArray(snapshot.recentFindings);
+  const relatedEvents = asObjectArray(snapshot.relatedOperationEvents);
+  const redactionPolicy = asPlainObject(snapshot.redactionPolicy);
+  const nextAiHarness = asPlainObject(snapshot.nextAiHarness);
+
+  return (
+    <Panel
+      title="운영 진단 상세"
+      icon={<Gauge size={18} />}
+      action={<span className="panel-context">Flow #{run.id}</span>}
+    >
+      <div className="ops-diagnosis-detail">
+        <div className="ops-detail-grid">
+          <MetricCard icon={<Gauge size={20} />} label="상태" value={displayLabel(run.status)} detail={stringValue(snapshot.state) || "-"} tone="blue" />
+          <MetricCard icon={<AlertTriangle size={20} />} label="Incident" value={run.incidentId ? `#${run.incidentId}` : "-"} detail={incident?.title ?? "연결된 이슈 없음"} tone="amber" />
+          <MetricCard icon={<Activity size={20} />} label="Finding" value={numberValue(snapshot.recentFindingCount, recentFindings.length)} detail="진단 입력에 포함" tone="slate" />
+          <MetricCard icon={<Clock3 size={20} />} label="Event" value={numberValue(snapshot.relatedOperationEventCount, relatedEvents.length)} detail="관련 운영 이벤트" tone="green" />
+        </div>
+
+        <div className="dashboard-grid">
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>진단 입력 요약</strong>
+              <span>{stringValue(snapshot.diagnosedAt) || formatDate(run.completedAt) || "준비 중"}</span>
+            </div>
+            <dl className="ops-fact-list">
+              <div>
+                <dt>진단 방식</dt>
+                <dd>{displayLabel(stringValue(snapshot.diagnosisType) || "DETERMINISTIC_FIRST")}</dd>
+              </div>
+              <div>
+                <dt>대상</dt>
+                <dd>{incident ? `${incident.primaryResourceType ?? "RESOURCE"} #${incident.primaryResourceId ?? "-"}` : "-"}</dd>
+              </div>
+              <div>
+                <dt>AI 하네스</dt>
+                <dd>{stringValue(nextAiHarness.status) || "미연결"} / {stringValue(nextAiHarness.type) || "OpsDiagnosisHarness"}</dd>
+              </div>
+              <div>
+                <dt>실행자</dt>
+                <dd>{run.startedByUserId ? `#${run.startedByUserId}` : "-"}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>Redaction 정책</strong>
+              <span>AI/운영 분석 입력 제한</span>
+            </div>
+            <dl className="ops-fact-list">
+              <div>
+                <dt>Secrets</dt>
+                <dd>{stringValue(redactionPolicy.secrets) || "excluded"}</dd>
+              </div>
+              <div>
+                <dt>Raw files</dt>
+                <dd>{stringValue(redactionPolicy.rawFiles) || "excluded"}</dd>
+              </div>
+              <div>
+                <dt>Tokens</dt>
+                <dd>{stringValue(redactionPolicy.tokens) || "excluded"}</dd>
+              </div>
+              <div>
+                <dt>Scope</dt>
+                <dd>{stringValue(redactionPolicy.scope) || "redacted operational snapshot only"}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+        <div className="dashboard-grid">
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>최근 Finding</strong>
+              <span>{recentFindings.length}개</span>
+            </div>
+            <OpsSnapshotList
+              empty="진단 스냅샷에 포함된 finding이 없습니다."
+              items={recentFindings}
+              render={(finding) => (
+                <>
+                  <strong>{stringValue(finding.title) || stringValue(finding.code) || "Finding"}</strong>
+                  <span>{stringValue(finding.severity) || "-"} · {stringValue(finding.message) || "-"}</span>
+                </>
+              )}
+            />
+          </div>
+
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>관련 Operation Event</strong>
+              <span>{relatedEvents.length}개</span>
+            </div>
+            <OpsSnapshotList
+              empty="관련 operation event가 없습니다."
+              items={relatedEvents}
+              render={(event) => (
+                <>
+                  <strong>{stringValue(event.eventType) || "Operation Event"}</strong>
+                  <span>{stringValue(event.severity) || "-"} · {stringValue(event.message) || "-"}</span>
+                </>
+              )}
+            />
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function OpsPriorityPanel({
+  failedCommands,
+  failedDeliveries,
+  failedJobs,
+  failedPickups,
+  incidents
+}: {
+  failedCommands: number;
+  failedDeliveries: number;
+  failedJobs: number;
+  failedPickups: number;
+  incidents: PlatformOpsIncident[];
+}) {
+  const openCritical = incidents.filter((incident) =>
+    incident.status === "OPEN" && ["CRITICAL", "HIGH"].includes(incident.severity)
+  );
+  const items = [
+    {
+      label: "문서 생성 실패",
+      value: failedJobs,
+      description: "사용자 다운로드까지 직접 영향을 주는 항목입니다."
+    },
+    {
+      label: "Agent 명령 실패/만료",
+      value: failedCommands,
+      description: "Agent 연결, 라우팅, 명령 재시도 상태를 확인하세요."
+    },
+    {
+      label: "사진 회수 실패",
+      value: failedPickups,
+      description: "사무소 원본 저장/NAS 이관 흐름을 확인하세요."
+    },
+    {
+      label: "문서 전달 실패",
+      value: failedDeliveries,
+      description: "다운로드 준비 또는 Agent delivery 상태를 확인하세요."
+    }
+  ];
+
+  return (
+    <section className="ops-priority-panel">
+      <div>
+        <p className="eyebrow">운영 우선순위</p>
+        <h3>지금 먼저 볼 항목</h3>
+        <span>
+          긴급/높음 이슈 {openCritical.length}건, 실패 지표 {items.reduce((sum, item) => sum + item.value, 0)}건
+        </span>
+      </div>
+      <div className="ops-priority-list">
+        {items.map((item) => (
+          <div className={item.value > 0 ? "ops-priority-item warning" : "ops-priority-item"} key={item.label}>
+            <strong>{item.value.toLocaleString()}</strong>
+            <span>{item.label}</span>
+            <small>{item.description}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function OpsSnapshotList({
+  items,
+  empty,
+  render
+}: {
+  items: Record<string, unknown>[];
+  empty: string;
+  render: (item: Record<string, unknown>) => ReactNode;
+}) {
+  if (items.length === 0) {
+    return <EmptyState message={empty} />;
+  }
+  return (
+    <div className="ops-snapshot-list">
+      {items.slice(0, 5).map((item, index) => (
+        <div className="ops-snapshot-item" key={stringValue(item.id) || index}>
+          {render(item)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AiManagementView({
+  view,
+  loading,
+  callLogs,
+  harnessTraces,
+  preflightFindings,
+  pricingRules,
+  providers,
+  policies,
+  usageSummary,
+  onCreatePricingRule,
+  onDisablePricingRule,
+  onCreateProvider,
+  onPublishProvider,
+  onSaveOfficePolicy
+}: {
+  view: AiViewKey;
+  loading: boolean;
+  callLogs: AiModelCallLog[];
+  harnessTraces: AiHarnessTraceEvent[];
+  preflightFindings: PlatformReportPreflightFinding[];
+  pricingRules: AiModelPricingRule[];
+  providers: AiProviderCredential[];
+  policies: OfficeAiPolicy[];
+  usageSummary: AiUsageSummary | null;
+  onCreatePricingRule: (body: {
+    providerCode: string;
+    modelName: string;
+    currency: string;
+    inputTokenPricePerMillion: number;
+    outputTokenPricePerMillion: number;
+  }) => Promise<void>;
+  onDisablePricingRule: (pricingRuleId: number) => Promise<void>;
+  onCreateProvider: (body: {
+    providerCode: string;
+    displayName: string;
+    providerType: string;
+    baseUrl?: string | null;
+    defaultModel?: string | null;
+    apiKey?: string | null;
+  }) => Promise<void>;
+  onPublishProvider: (providerId: number) => Promise<void>;
+  onSaveOfficePolicy: (
+    officeId: number,
+    body: {
+      aiEnabled: boolean;
+      documentReviewAiEnabled: boolean;
+      documentGenerationAiEnabled: boolean;
+      preferredProviderCredentialId?: number | null;
+      credentialDeliveryMode: string;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
+    }
+  ) => Promise<void>;
+}) {
+  const [findingResolutionFilter, setFindingResolutionFilter] = useState("ALL");
+  const [findingSeverityFilter, setFindingSeverityFilter] = useState("ALL");
+  const openBlockingFindings = preflightFindings.filter(isOpenBlockingAiFinding).length;
+  const acceptedRiskFindings = preflightFindings.filter((finding) => finding.resolutionStatus === "ACCEPTED").length;
+  const complianceFindings = preflightFindings.filter((finding) =>
+    ["COMPLIANCE", "LEGAL_RISK"].includes(findingCategory(finding))
+  ).length;
+  const filteredPreflightFindings = preflightFindings.filter((finding) =>
+    (findingResolutionFilter === "ALL" || finding.resolutionStatus === findingResolutionFilter)
+    && (findingSeverityFilter === "ALL" || finding.severity === findingSeverityFilter)
+  );
+  const activeProviderCount = providers.filter((provider) => provider.status === "ACTIVE").length;
+  const fakeProviderCount = providers.filter((provider) => isFakeAiProvider(provider.providerCode)).length;
+  const aiEnabledOfficeCount = policies.filter((policy) => policy.effectiveAiEnabled).length;
+  const showOverview = view === "ai-overview";
+  const showProviders = view === "ai-providers";
+  const showPolicies = view === "ai-policies";
+  const showObserver = view === "ai-observer";
+
+  return (
+    <div className="view-stack platform-view">
+      <div className="section-header">
+        <div>
+          <p className="eyebrow">플랫폼 관리자</p>
+          <h2>AI 관리</h2>
+          <p className="muted">제공자 API 키는 Cloud API에만 보관하고, Agent에는 권한 정책만 내려갑니다.</p>
+        </div>
+      </div>
+
+      {showOverview ? (
+        <div className="metric-grid">
+        <MetricCard label="활성 Provider" value={activeProviderCount} detail={`Fake ${fakeProviderCount}개`} icon={<KeyRound size={18} />} tone={activeProviderCount > 0 ? "green" : "amber"} />
+        <MetricCard label="AI 사용 사무소" value={aiEnabledOfficeCount} detail="정책상 활성" icon={<ShieldCheck size={18} />} tone={aiEnabledOfficeCount > 0 ? "green" : "slate"} />
+        <MetricCard label="AI 호출" value={usageSummary?.callCount ?? 0} detail="이번 달" icon={<Activity size={18} />} tone="blue" />
+        <MetricCard label="AI 토큰" value={(usageSummary?.inputTokens ?? 0) + (usageSummary?.outputTokens ?? 0)} detail="입력 + 출력" icon={<Gauge size={18} />} tone="amber" />
+        <MetricCard label="AI 비용" value={Number(usageSummary?.estimatedTotalCost ?? 0)} detail={usageSummary?.currency ?? "혼합"} icon={<KeyRound size={18} />} tone="green" />
+        <MetricCard label="미처리 차단" value={openBlockingFindings} detail="높음 / 긴급" icon={<AlertTriangle size={18} />} tone={openBlockingFindings > 0 ? "red" : "green"} />
+        <MetricCard label="수용한 위험" value={acceptedRiskFindings} detail="사용자 확인" icon={<ShieldCheck size={18} />} tone={acceptedRiskFindings > 0 ? "amber" : "slate"} />
+        <MetricCard label="법규/준수" value={complianceFindings} detail="법률/준수 분류" icon={<FileText size={18} />} tone={complianceFindings > 0 ? "amber" : "slate"} />
+        </div>
+      ) : null}
+
+      {showOverview ? <AiProviderStatusPanel callLogs={callLogs} policies={policies} providers={providers} /> : null}
+      {showObserver ? <AiHarnessTracePanel traces={harnessTraces} /> : null}
+
+      <div className="dashboard-grid">
+        {showProviders ? (
+          <>
+        <Panel title="AI 제공자 등록" icon={<KeyRound size={18} />}>
+          <AiProviderForm busy={loading} onSubmit={onCreateProvider} />
+        </Panel>
+        <Panel title="AI 단가 규칙" icon={<Gauge size={18} />}>
+          <AiPricingRuleForm busy={loading} providers={providers} onSubmit={onCreatePricingRule} />
+        </Panel>
+          </>
+        ) : null}
+        {showPolicies ? (
+          <>
+        <Panel title="사무소 AI 권한" icon={<ShieldCheck size={18} />}>
+          <OfficeAiPolicyForm
+            busy={loading}
+            policies={policies}
+            providers={providers}
+            onSubmit={onSaveOfficePolicy}
+          />
+        </Panel>
+        <Panel title="AI 예산 제한" icon={<Gauge size={18} />}>
+          <AiBudgetPolicyForm busy={loading} policies={policies} onSubmit={onSaveOfficePolicy} />
+        </Panel>
+          </>
+        ) : null}
+      </div>
+
+      {showProviders ? (
+        <Panel title="AI 제공자" icon={<KeyRound size={18} />} count={providers.length}>
+        <Table
+          columns={["제공자", "실행 모드", "유형", "상태", "모델", "키", "버전", "작업"]}
+          empty="등록된 AI 제공자가 없습니다."
+          rows={providers.map((provider) => [
+            <CellTitle key="provider" title={provider.displayName} subtitle={`${provider.providerCode} / #${provider.id}`} />,
+            <ProviderModeBadge key="mode" provider={provider} />,
+            displayLabel(provider.providerType),
+            <StatusBadge key="status" status={provider.status} />,
+            provider.defaultModel ?? "-",
+            provider.apiKeyConfigured ? provider.apiKeyMasked ?? "설정됨" : "미설정",
+            `v${provider.credentialVersion}`,
+            <button
+              className="button"
+              disabled={loading || provider.status === "ACTIVE"}
+              key="publish"
+              onClick={() => onPublishProvider(provider.id)}
+              type="button"
+            >
+              <Send size={16} />
+              게시
+            </button>
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showProviders ? (
+        <Panel title="이번 달 AI 사용량" icon={<Activity size={18} />} count={usageSummary?.groups.length ?? 0}>
+        <Table
+          columns={["사무소", "기능", "호출", "성공 / 실패", "토큰", "예상 비용"]}
+          empty="이번 달 AI 사용 기록이 없습니다."
+          rows={(usageSummary?.groups ?? []).map((group) => [
+            group.officeId ? `#${group.officeId}` : "-",
+            displayLabel(group.feature),
+            group.callCount,
+            `${group.succeededCount} / ${group.failedCount}`,
+            `${group.inputTokens} / ${group.outputTokens}`,
+            formatMoney(group.estimatedTotalCost)
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showProviders ? (
+        <Panel title="AI 단가 규칙" icon={<Gauge size={18} />} count={pricingRules.length}>
+        <Table
+          columns={["제공자", "모델", "입력 / 100만", "출력 / 100만", "상태", "수정", "작업"]}
+          empty="AI 단가 규칙이 없습니다."
+          rows={pricingRules.map((rule) => [
+            rule.providerCode,
+            rule.modelName,
+            `${rule.currency} ${formatMoney(rule.inputTokenPricePerMillion)}`,
+            `${rule.currency} ${formatMoney(rule.outputTokenPricePerMillion)}`,
+            <StatusBadge key="status" status={rule.status} />,
+            formatDate(rule.updatedAt),
+            <button
+              className="button"
+              disabled={loading || rule.status === "DISABLED"}
+              key="disable"
+              onClick={() => onDisablePricingRule(rule.id)}
+              type="button"
+            >
+              <XCircle size={16} />
+              비활성화
+            </button>
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showPolicies ? (
+        <Panel title="사무소 AI 정책" icon={<ShieldCheck size={18} />} count={policies.length}>
+        <Table
+          columns={["사무소", "적용", "검토", "생성", "제공자", "전달", "버전", "메시지"]}
+          empty="사무소 AI 정책이 없습니다."
+          rows={policies.map((policy) => [
+            <CellTitle key="office" title={policy.officeName} subtitle={`${policy.officeCode} / #${policy.officeId}`} />,
+            <StatusBadge key="effective" status={policy.effectiveAiEnabled ? "ACTIVE" : "DISABLED"} />,
+            displayLabel(policy.documentReviewAiEnabled ? "ON" : "OFF"),
+            displayLabel(policy.documentGenerationAiEnabled ? "ON" : "OFF"),
+            policy.preferredProviderCode ?? "-",
+            displayLabel(policy.credentialDeliveryMode),
+            `v${policy.policyVersion}`,
+            policy.effectiveMessage ?? "-"
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showObserver ? (
+        <Panel
+        title="생성 전 검토 결과"
+        icon={<AlertTriangle size={18} />}
+        count={filteredPreflightFindings.length}
+        action={
+          <div className="filter-row">
+            <FilterSelect
+              label="처리 상태"
+              options={aiFindingResolutionOptions}
+              value={findingResolutionFilter}
+              onChange={setFindingResolutionFilter}
+            />
+            <FilterSelect
+              label="심각도"
+              options={aiFindingSeverityOptions}
+              value={findingSeverityFilter}
+              onChange={setFindingSeverityFilter}
+            />
+          </div>
+        }
+      >
+        <Table
+          columns={["생성", "리포트", "심각도", "처리 상태", "실행", "출처", "메시지", "처리"]}
+          empty="생성 전 검토 결과가 없습니다."
+          rows={filteredPreflightFindings.map((finding) => [
+            formatDate(finding.createdAt),
+            <CellTitle
+              key="report"
+              title={`리포트 #${finding.reportId}`}
+              subtitle={`사무소 #${finding.officeId} / 실행 #${finding.reviewRunId}`}
+            />,
+            <StatusBadge key="severity" status={finding.severity} />,
+            <FindingResolutionBadge key="resolution" status={finding.resolutionStatus} />,
+            finding.reviewRunStatus ? <StatusBadge key="run" status={finding.reviewRunStatus} /> : "-",
+            `${finding.source} / ${findingCategory(finding)}`,
+            <CellTitle key="message" title={finding.message} subtitle={finding.location ?? finding.code} />,
+            finding.resolvedAt ? `#${finding.resolvedBy ?? "-"} / ${formatDate(finding.resolvedAt)}` : "-"
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showObserver ? (
+        <Panel title="AI 호출 로그" icon={<Activity size={18} />} count={callLogs.length}>
+        <Table
+          columns={["시간", "사무소", "제공자", "모델", "기능", "상태", "토큰", "비용", "지연", "오류"]}
+          empty="AI 호출 로그가 없습니다."
+          rows={callLogs.map((log) => [
+            formatDate(log.completedAt),
+            log.officeId ? `#${log.officeId}` : "-",
+            <CellTitle key="provider" title={log.providerCode} subtitle={aiProviderModeLabel(log.providerCode)} />,
+            log.modelName,
+            displayLabel(log.feature ?? log.workflowType ?? "-"),
+            <StatusBadge key="status" status={log.status} />,
+            tokenUsageLabel(log),
+            costLabel(log),
+            log.latencyMs == null ? "-" : `${log.latencyMs}ms`,
+            log.errorMessage ? `${log.errorType ?? "ERROR"}: ${log.errorMessage}` : "-"
+          ])}
+        />
+        </Panel>
+      ) : null}
+    </div>
+  );
+}
+
+function AiHarnessTracePanel({ traces }: { traces: AiHarnessTraceEvent[] }) {
+  const failed = traces.filter((trace) => trace.eventType === "RUN_FAILED" || trace.eventType === "CALL_FAILED").length;
+  const completed = traces.filter((trace) => trace.eventType === "RUN_COMPLETED").length;
+  const latestRunId = traces[0]?.harnessRunId;
+
+  return (
+    <Panel
+      title="AI 하네스 관측"
+      icon={<Activity size={18} />}
+      count={traces.length}
+      action={
+        <div className="panel-kpis compact">
+          <span>완료 {completed}</span>
+          <span>실패 {failed}</span>
+        </div>
+      }
+    >
+      <div className="observer-summary">
+        <div>
+          <strong>{latestRunId ? "최근 실행 감지됨" : "최근 실행 없음"}</strong>
+          <span>{latestRunId ?? "하네스가 실행되면 단계별 이벤트가 여기에 표시됩니다."}</span>
+        </div>
+        <small>프롬프트 본문과 응답 원문은 저장하지 않고 운영 메타데이터만 남깁니다.</small>
+      </div>
+      <Table
+        columns={["시간", "하네스", "이벤트", "상태", "시도", "모델", "호출", "검증", "토큰", "메시지"]}
+        empty="AI 하네스 관측 이벤트가 없습니다."
+        rows={traces.map((trace) => [
+          formatDate(trace.createdAt),
+          <CellTitle key="harness" title={displayLabel(trace.harnessId)} subtitle={trace.harnessRunId} />,
+          displayLabel(trace.eventType),
+          trace.status ? <StatusBadge key="status" status={trace.status} /> : "-",
+          trace.attempt ?? "-",
+          trace.modelId ?? "-",
+          trace.callId ?? "-",
+          trace.validationValid == null
+            ? "-"
+            : trace.validationValid
+              ? "통과"
+              : `실패 ${trace.validationErrorCount ?? 0}`,
+          trace.inputTokens == null && trace.outputTokens == null ? "-" : `${trace.inputTokens ?? 0} / ${trace.outputTokens ?? 0}`,
+          trace.errorType ? `${trace.errorType}: ${trace.message ?? "-"}` : trace.message ?? "-"
+        ])}
+      />
+    </Panel>
+  );
+}
+
+function AiProviderStatusPanel({
+  providers,
+  policies,
+  callLogs
+}: {
+  providers: AiProviderCredential[];
+  policies: OfficeAiPolicy[];
+  callLogs: AiModelCallLog[];
+}) {
+  const activeProviders = providers.filter((provider) => provider.status === "ACTIVE");
+  const activeFakeProviders = activeProviders.filter((provider) => isFakeAiProvider(provider.providerCode));
+  const activeRealProviders = activeProviders.filter((provider) => !isFakeAiProvider(provider.providerCode));
+  const aiEnabledPolicies = policies.filter((policy) => policy.effectiveAiEnabled);
+  const reviewEnabledPolicies = aiEnabledPolicies.filter((policy) => policy.documentReviewAiEnabled);
+  const generationEnabledPolicies = aiEnabledPolicies.filter((policy) => policy.documentGenerationAiEnabled);
+  const recentFailures = callLogs.filter((log) => log.status === "FAILED").slice(0, 3);
+  const policyCountByProviderId = new Map<number, number>();
+  policies.forEach((policy) => {
+    if (policy.effectiveAiEnabled && policy.preferredProviderCredentialId != null) {
+      policyCountByProviderId.set(
+        policy.preferredProviderCredentialId,
+        (policyCountByProviderId.get(policy.preferredProviderCredentialId) ?? 0) + 1
+      );
+    }
+  });
+  const latestCallByProvider = new Map<string, AiModelCallLog>();
+  callLogs.forEach((log) => {
+    if (!latestCallByProvider.has(log.providerCode)) {
+      latestCallByProvider.set(log.providerCode, log);
+    }
+  });
+
+  return (
+    <Panel title="AI 연결 현황" icon={<KeyRound size={18} />} count={activeProviders.length}>
+      <div className="ai-status-summary">
+        <div>
+          <strong>{activeProviders.length}</strong>
+          <span>활성 Provider</span>
+          <small>Fake {activeFakeProviders.length}개 / 실제 {activeRealProviders.length}개</small>
+        </div>
+        <div>
+          <strong>{aiEnabledPolicies.length}</strong>
+          <span>AI 사용 사무소</span>
+          <small>검토 {reviewEnabledPolicies.length}개 / 생성 {generationEnabledPolicies.length}개</small>
+        </div>
+        <div>
+          <strong>{recentFailures.length}</strong>
+          <span>최근 실패</span>
+          <small>{callLogs.length > 0 ? "최근 호출 로그 기준" : "호출 기록 없음"}</small>
+        </div>
+      </div>
+
+      {providers.length === 0 ? (
+        <EmptyState message="등록된 AI Provider가 없습니다." />
+      ) : (
+        <div className="ai-provider-status-list">
+          {providers.map((provider) => {
+            const latestCall = latestCallByProvider.get(provider.providerCode);
+            const fake = isFakeAiProvider(provider.providerCode);
+            const keyState = fake
+              ? "키 불필요"
+              : provider.apiKeyConfigured
+                ? provider.apiKeyMasked ?? "키 설정됨"
+                : "키 없음";
+            return (
+              <div className="ai-provider-status-row" key={provider.id}>
+                <div className="ai-provider-status-main">
+                  <ProviderModeBadge provider={provider} />
+                  <div>
+                    <strong>{provider.displayName}</strong>
+                    <span>{provider.providerCode} / {displayLabel(provider.providerType)}</span>
+                  </div>
+                </div>
+                <dl>
+                  <div>
+                    <dt>상태</dt>
+                    <dd><StatusBadge status={provider.status} /></dd>
+                  </div>
+                  <div>
+                    <dt>모델</dt>
+                    <dd>{provider.defaultModel ?? "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>키</dt>
+                    <dd>{keyState}</dd>
+                  </div>
+                  <div>
+                    <dt>연결 사무소</dt>
+                    <dd>{policyCountByProviderId.get(provider.id) ?? 0}개</dd>
+                  </div>
+                  <div>
+                    <dt>최근 호출</dt>
+                    <dd>{latestCall ? `${displayLabel(latestCall.status)} · ${formatDate(latestCall.completedAt)}` : "없음"}</dd>
+                  </div>
+                </dl>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {recentFailures.length > 0 ? (
+        <div className="ai-status-failures">
+          <strong>최근 실패</strong>
+          {recentFailures.map((log) => (
+            <span key={log.id}>
+              {log.providerCode} / {log.modelName}: {log.errorMessage ?? log.errorType ?? "실패"}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
+function AiProviderForm({
+  busy,
+  onSubmit
+}: {
+  busy: boolean;
+  onSubmit: (body: {
+    providerCode: string;
+    displayName: string;
+    providerType: string;
+    baseUrl?: string | null;
+    defaultModel?: string | null;
+    apiKey?: string | null;
+  }) => Promise<void>;
+}) {
+  const [values, setValues] = useState({
+    providerCode: "openai-main",
+    displayName: "OpenAI Main",
+    providerType: "OPENAI",
+    baseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4.1-mini",
+    apiKey: ""
+  });
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit({
+      providerCode: values.providerCode,
+      displayName: values.displayName,
+      providerType: values.providerType,
+      baseUrl: normalizeFormValue(values.baseUrl),
+      defaultModel: normalizeFormValue(values.defaultModel),
+      apiKey: normalizeFormValue(values.apiKey)
+    });
+    setValues({ ...values, apiKey: "" });
+  }
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <label>
+        코드
+        <input value={values.providerCode} onChange={(event) => setValues({ ...values, providerCode: event.target.value })} required />
+      </label>
+      <label>
+        표시명
+        <input value={values.displayName} onChange={(event) => setValues({ ...values, displayName: event.target.value })} required />
+      </label>
+      <label>
+        제공자 유형
+        <select value={values.providerType} onChange={(event) => setValues({ ...values, providerType: event.target.value })}>
+          {aiProviderTypeOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        기본 URL
+        <input value={values.baseUrl} onChange={(event) => setValues({ ...values, baseUrl: event.target.value })} />
+      </label>
+      <label>
+        기본 모델
+        <input value={values.defaultModel} onChange={(event) => setValues({ ...values, defaultModel: event.target.value })} />
+      </label>
+      <label>
+        API 키
+        <input
+          autoComplete="off"
+          type="password"
+          value={values.apiKey}
+          onChange={(event) => setValues({ ...values, apiKey: event.target.value })}
+          placeholder="저장 후 원문은 다시 표시하지 않습니다"
+        />
+      </label>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+        등록
+      </button>
+    </form>
+  );
+}
+
+function AiPricingRuleForm({
+  busy,
+  providers,
+  onSubmit
+}: {
+  busy: boolean;
+  providers: AiProviderCredential[];
+  onSubmit: (body: {
+    providerCode: string;
+    modelName: string;
+    currency: string;
+    inputTokenPricePerMillion: number;
+    outputTokenPricePerMillion: number;
+  }) => Promise<void>;
+}) {
+  const defaultProvider = providers[0]?.providerCode ?? "openai-main";
+  const [values, setValues] = useState({
+    providerCode: defaultProvider,
+    modelName: providers[0]?.defaultModel ?? "gpt-4.1-mini",
+    currency: "USD",
+    inputTokenPricePerMillion: "0.15",
+    outputTokenPricePerMillion: "0.60"
+  });
+
+  useEffect(() => {
+    if (providers.length === 0 || values.providerCode) {
+      return;
+    }
+    setValues({
+      ...values,
+      providerCode: providers[0].providerCode,
+      modelName: providers[0].defaultModel ?? values.modelName
+    });
+  }, [providers.length]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit({
+      providerCode: values.providerCode,
+      modelName: values.modelName,
+      currency: values.currency,
+      inputTokenPricePerMillion: Number(values.inputTokenPricePerMillion),
+      outputTokenPricePerMillion: Number(values.outputTokenPricePerMillion)
+    });
+  }
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <label>
+        제공자
+        <select
+          value={values.providerCode}
+          onChange={(event) => {
+            const provider = providers.find((item) => item.providerCode === event.target.value);
+            setValues({
+              ...values,
+              providerCode: event.target.value,
+              modelName: provider?.defaultModel ?? values.modelName
+            });
+          }}
+        >
+          {providers.length === 0 ? <option value={values.providerCode}>{values.providerCode}</option> : null}
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.providerCode}>
+              {provider.displayName} / {provider.providerCode}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        모델
+        <input value={values.modelName} onChange={(event) => setValues({ ...values, modelName: event.target.value })} required />
+      </label>
+      <label>
+        통화
+        <input value={values.currency} onChange={(event) => setValues({ ...values, currency: event.target.value })} required />
+      </label>
+      <label>
+        입력 토큰 / 100만
+        <input
+          min="0"
+          step="0.00000001"
+          type="number"
+          value={values.inputTokenPricePerMillion}
+          onChange={(event) => setValues({ ...values, inputTokenPricePerMillion: event.target.value })}
+          required
+        />
+      </label>
+      <label>
+        출력 토큰 / 100만
+        <input
+          min="0"
+          step="0.00000001"
+          type="number"
+          value={values.outputTokenPricePerMillion}
+          onChange={(event) => setValues({ ...values, outputTokenPricePerMillion: event.target.value })}
+          required
+        />
+      </label>
+      <div className="policy-note">모델명을 "*"로 입력하면 해당 제공자의 기본 단가로 사용합니다.</div>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+        단가 저장
+      </button>
+    </form>
+  );
+}
+
+function AiBudgetPolicyForm({
+  busy,
+  policies,
+  onSubmit
+}: {
+  busy: boolean;
+  policies: OfficeAiPolicy[];
+  onSubmit: (
+    officeId: number,
+    body: {
+      aiEnabled: boolean;
+      documentReviewAiEnabled: boolean;
+      documentGenerationAiEnabled: boolean;
+      preferredProviderCredentialId?: number | null;
+      credentialDeliveryMode: string;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
+    }
+  ) => Promise<void>;
+}) {
+  const [officeId, setOfficeId] = useState<number | null>(policies[0]?.officeId ?? null);
+  const selectedPolicy = policies.find((policy) => policy.officeId === officeId) ?? policies[0] ?? null;
+  const [budgetEnabled, setBudgetEnabled] = useState(false);
+  const [monthlyBudgetAmount, setMonthlyBudgetAmount] = useState("");
+  const [budgetCurrency, setBudgetCurrency] = useState("USD");
+  const [dailyCallLimit, setDailyCallLimit] = useState("");
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState("");
+
+  useEffect(() => {
+    if (!selectedPolicy) {
+      return;
+    }
+    setOfficeId(selectedPolicy.officeId);
+    setBudgetEnabled(selectedPolicy.budgetEnforcementEnabled);
+    setMonthlyBudgetAmount(selectedPolicy.monthlyBudgetAmount == null ? "" : String(selectedPolicy.monthlyBudgetAmount));
+    setBudgetCurrency(selectedPolicy.budgetCurrency ?? "USD");
+    setDailyCallLimit(selectedPolicy.dailyCallLimit == null ? "" : String(selectedPolicy.dailyCallLimit));
+    setMonthlyTokenLimit(selectedPolicy.monthlyTokenLimit == null ? "" : String(selectedPolicy.monthlyTokenLimit));
+  }, [selectedPolicy?.officeId]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedPolicy) {
+      return;
+    }
+    await onSubmit(selectedPolicy.officeId, {
+      aiEnabled: selectedPolicy.aiEnabled,
+      documentReviewAiEnabled: selectedPolicy.documentReviewAiEnabled,
+      documentGenerationAiEnabled: selectedPolicy.documentGenerationAiEnabled,
+      preferredProviderCredentialId: selectedPolicy.preferredProviderCredentialId ?? null,
+      credentialDeliveryMode: selectedPolicy.credentialDeliveryMode,
+      budgetEnforcementEnabled: budgetEnabled,
+      monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
+      budgetCurrency: normalizeFormValue(budgetCurrency),
+      dailyCallLimit: optionalNumber(dailyCallLimit),
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit)
+    });
+  }
+
+  if (policies.length === 0) {
+    return <EmptyState message="사무소가 없습니다." />;
+  }
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <label>
+        사무소
+        <select value={officeId ?? ""} onChange={(event) => setOfficeId(Number(event.target.value))}>
+          {policies.map((policy) => (
+            <option key={policy.officeId} value={policy.officeId}>
+              {policy.officeName} / {policy.officeCode}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={budgetEnabled} onChange={(event) => setBudgetEnabled(event.target.checked)} />
+        AI 예산 제한 적용
+      </label>
+      <label>
+        월 예산
+        <input min="0" step="0.00000001" type="number" value={monthlyBudgetAmount} onChange={(event) => setMonthlyBudgetAmount(event.target.value)} />
+      </label>
+      <label>
+        통화
+        <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+      </label>
+      <label>
+        일 호출 한도
+        <input min="0" step="1" type="number" value={dailyCallLimit} onChange={(event) => setDailyCallLimit(event.target.value)} />
+      </label>
+      <label>
+        월 토큰 한도
+        <input min="0" step="1" type="number" value={monthlyTokenLimit} onChange={(event) => setMonthlyTokenLimit(event.target.value)} />
+      </label>
+      <div className="policy-note">월 예산을 적용하려면 모델별 단가나 제공자 "*" 기본 단가가 활성 상태여야 합니다.</div>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
+        예산 저장
+      </button>
+    </form>
+  );
+}
+
+function OfficeAiPolicyForm({
+  busy,
+  policies,
+  providers,
+  onSubmit
+}: {
+  busy: boolean;
+  policies: OfficeAiPolicy[];
+  providers: AiProviderCredential[];
+  onSubmit: (
+    officeId: number,
+    body: {
+      aiEnabled: boolean;
+      documentReviewAiEnabled: boolean;
+      documentGenerationAiEnabled: boolean;
+      preferredProviderCredentialId?: number | null;
+      credentialDeliveryMode: string;
+    }
+  ) => Promise<void>;
+}) {
+  const activeProviders = providers.filter((provider) => provider.status === "ACTIVE");
+  const [officeId, setOfficeId] = useState<number | null>(policies[0]?.officeId ?? null);
+  const selectedPolicy = policies.find((policy) => policy.officeId === officeId) ?? policies[0] ?? null;
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [reviewEnabled, setReviewEnabled] = useState(false);
+  const [generationEnabled, setGenerationEnabled] = useState(false);
+  const [providerId, setProviderId] = useState<number | null>(null);
+  const [budgetEnabled, setBudgetEnabled] = useState(false);
+  const [monthlyBudgetAmount, setMonthlyBudgetAmount] = useState("");
+  const [budgetCurrency, setBudgetCurrency] = useState("USD");
+  const [dailyCallLimit, setDailyCallLimit] = useState("");
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState("");
+
+  useEffect(() => {
+    if (!selectedPolicy) {
+      return;
+    }
+    setOfficeId(selectedPolicy.officeId);
+    setAiEnabled(selectedPolicy.aiEnabled);
+    setReviewEnabled(selectedPolicy.documentReviewAiEnabled);
+    setGenerationEnabled(selectedPolicy.documentGenerationAiEnabled);
+    setProviderId(selectedPolicy.preferredProviderCredentialId ?? null);
+    setBudgetEnabled(selectedPolicy.budgetEnforcementEnabled);
+    setMonthlyBudgetAmount(selectedPolicy.monthlyBudgetAmount == null ? "" : String(selectedPolicy.monthlyBudgetAmount));
+    setBudgetCurrency(selectedPolicy.budgetCurrency ?? "USD");
+    setDailyCallLimit(selectedPolicy.dailyCallLimit == null ? "" : String(selectedPolicy.dailyCallLimit));
+    setMonthlyTokenLimit(selectedPolicy.monthlyTokenLimit == null ? "" : String(selectedPolicy.monthlyTokenLimit));
+  }, [selectedPolicy?.officeId]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedPolicy) {
+      return;
+    }
+    await onSubmit(selectedPolicy.officeId, {
+      aiEnabled,
+      documentReviewAiEnabled: reviewEnabled,
+      documentGenerationAiEnabled: generationEnabled,
+      preferredProviderCredentialId: providerId,
+      credentialDeliveryMode: "PROXY_ONLY",
+      budgetEnforcementEnabled: budgetEnabled,
+      monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
+      budgetCurrency: normalizeFormValue(budgetCurrency),
+      dailyCallLimit: optionalNumber(dailyCallLimit),
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit)
+    });
+  }
+
+  if (policies.length === 0) {
+    return <EmptyState message="사무소가 없습니다." />;
+  }
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <label>
+        사무소
+        <select value={officeId ?? ""} onChange={(event) => setOfficeId(Number(event.target.value))}>
+          {policies.map((policy) => (
+            <option key={policy.officeId} value={policy.officeId}>
+              {policy.officeName} / {policy.officeCode}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        제공자
+        <select value={providerId ?? ""} onChange={(event) => setProviderId(event.target.value ? Number(event.target.value) : null)}>
+          <option value="">선택 안 함</option>
+          {activeProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.displayName} / {displayLabel(provider.providerType)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={aiEnabled} onChange={(event) => setAiEnabled(event.target.checked)} />
+        AI 사용
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={reviewEnabled} onChange={(event) => setReviewEnabled(event.target.checked)} />
+        문서 검토 AI
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={generationEnabled} onChange={(event) => setGenerationEnabled(event.target.checked)} />
+        문서 생성 AI
+      </label>
+      <div className="policy-note">전달 방식은 MVP에서 PROXY_ONLY로 고정됩니다. Agent에는 제공자 API 키를 내려보내지 않습니다.</div>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
+        정책 저장
+      </button>
+    </form>
   );
 }
 
 function sumCounts(counts?: Record<string, number>) {
   return Object.values(counts ?? {}).reduce((sum, count) => sum + count, 0);
+}
+
+function isFakeAiProvider(providerCode?: string | null) {
+  return Boolean(providerCode?.startsWith("fake-"));
+}
+
+function aiProviderModeLabel(providerCode?: string | null) {
+  if (isFakeAiProvider(providerCode)) {
+    return "개발용 Fake AI";
+  }
+  if (providerCode?.startsWith("spring-ai-")) {
+    return "Spring AI adapter";
+  }
+  return "실제 Provider";
+}
+
+function asPlainObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function asObjectArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item) => item as Record<string, unknown>);
+}
+
+function stringValue(value: unknown) {
+  if (value == null) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return "";
+}
+
+function numberValue(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function tokenUsageLabel(log: AiModelCallLog) {
+  if (log.inputTokens == null && log.outputTokens == null) {
+    return "-";
+  }
+  return `${log.inputTokens ?? 0} / ${log.outputTokens ?? 0}`;
+}
+
+function costLabel(log: AiModelCallLog) {
+  if (log.estimatedTotalCost == null || !log.costCurrency) {
+    return "-";
+  }
+  return `${log.costCurrency} ${formatMoney(log.estimatedTotalCost)}`;
+}
+
+function findingCategory(finding: PlatformReportPreflightFinding) {
+  return finding.attributes?.category ?? finding.code;
+}
+
+function isOpenBlockingAiFinding(finding: PlatformReportPreflightFinding) {
+  return finding.resolutionStatus === "OPEN" && ["HIGH", "CRITICAL"].includes(finding.severity);
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8
+  });
 }
 
 function EventList({ events }: { events: OperationEvent[] }) {
@@ -2292,20 +4002,32 @@ function FullScreenCenter({ children }: { children: ReactNode }) {
 }
 
 function viewTitle(view: ViewKey) {
-  if (view === "platform") {
-    return "Platform Ops";
+  if (isAiView(view)) {
+    const item = aiNavItems.find((candidate) => candidate.key === view);
+    return item ? `AI 운영 / ${item.label}` : "AI 운영";
+  }
+  if (isPlatformView(view)) {
+    const item = platformNavItems.find((candidate) => candidate.key === view);
+    return item ? `플랫폼 관리 / ${item.label}` : "플랫폼 관리";
   }
   return navItems.find((item) => item.key === view)?.label ?? "대시보드";
 }
 
+function displayLabel(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+  return statusLabels[value] ?? codeLabels[value] ?? value;
+}
+
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED"].includes(status)) {
     return "green";
   }
-  if (["REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT"].includes(status)) {
+  if (["REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW"].includes(status)) {
     return "amber";
   }
-  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT"].includes(status)) {
+  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL"].includes(status)) {
     return "red";
   }
   return "slate";
@@ -2351,6 +4073,11 @@ function formatBytes(value?: number | null) {
 function normalizeFormValue(value: string) {
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
+}
+
+function optionalNumber(value: string) {
+  const normalized = normalizeFormValue(value);
+  return normalized === null ? null : Number(normalized);
 }
 
 function parseJsonObject(value: string, label: string): Record<string, unknown> {

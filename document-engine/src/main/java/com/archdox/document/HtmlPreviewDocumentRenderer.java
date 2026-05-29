@@ -57,6 +57,7 @@ public class HtmlPreviewDocumentRenderer {
         body.append(layoutSections(request));
         body.append(defaultPhotoSection(request));
         body.append(defaultChecklistSection(request));
+        body.append(signatureSection(request));
         body.append(metadataSection(request));
         return """
                 <!doctype html>
@@ -195,12 +196,41 @@ public class HtmlPreviewDocumentRenderer {
                       padding: 2px 8px;
                       margin-bottom: 6px;
                     }
+                    .signature-box {
+                      display: grid;
+                      grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+                      gap: 16px;
+                      align-items: center;
+                      border: 1px solid var(--line);
+                      border-radius: 8px;
+                      padding: 14px;
+                      background: #fff;
+                    }
+                    .signature-image {
+                      display: grid;
+                      place-items: center;
+                      min-height: 112px;
+                      border: 1px dashed #c9d2dc;
+                      border-radius: 8px;
+                      background: #fbfcfd;
+                    }
+                    .signature-image img {
+                      display: block;
+                      max-width: 100%;
+                      max-height: 100px;
+                      object-fit: contain;
+                    }
+                    .signature-meta {
+                      display: grid;
+                      gap: 6px;
+                    }
                     @media (max-width: 720px) {
                       main { padding: 12px; }
                       .paper { padding: 18px; border-radius: 0; }
                       h1 { font-size: 23px; }
                       .field-grid { grid-template-columns: 1fr; }
                       .photo-grid { grid-template-columns: 1fr; }
+                      .signature-box { grid-template-columns: 1fr; }
                     }
                   </style>
                 </head>
@@ -215,6 +245,62 @@ public class HtmlPreviewDocumentRenderer {
                 """
                 .replace("__TITLE__", escapeHtml(title))
                 .replace("__BODY__", body.toString());
+    }
+
+    private String signatureSection(DocumentGenerationRequest request) {
+        var signature = mapValue(request.payload().get("signature"));
+        if (!Boolean.TRUE.equals(signature.get("signed")) || !shouldRenderDefaultSignature(request)) {
+            return "";
+        }
+        var name = valueOrBlank(signature.get("signedByName"));
+        var role = valueOrBlank(signature.get("signedByRole"));
+        var signedAt = valueOrBlank(signature.get("signedAt"));
+        var imageDataUrl = signatureImageDataUrl(signature);
+        var image = imageDataUrl.isBlank()
+                ? "<span class=\"muted\">서명 이미지 없음</span>"
+                : "<img alt=\"서명\" src=\"%s\">".formatted(escapeHtml(imageDataUrl));
+        return """
+                <section>
+                  <h2>서명</h2>
+                  <div class="signature-box">
+                    <div class="signature-image">%s</div>
+                    <div class="signature-meta">
+                      %s
+                      %s
+                      %s
+                    </div>
+                  </div>
+                </section>
+                """.formatted(
+                image,
+                tableLikeLine("서명자", name),
+                role.isBlank() ? "" : tableLikeLine("역할", role),
+                signedAt.isBlank() ? "" : tableLikeLine("서명일시", signedAt));
+    }
+
+    private String tableLikeLine(String label, String value) {
+        return "<div><strong>%s</strong>: %s</div>".formatted(escapeHtml(label), escapeHtml(value));
+    }
+
+    private String signatureImageDataUrl(Map<String, Object> signature) {
+        var dataUrl = stringValue(signature.get("imageDataUrl"));
+        if (dataUrl == null || !dataUrl.startsWith("data:image/") || !dataUrl.contains(";base64,")) {
+            return "";
+        }
+        return dataUrl;
+    }
+
+    private boolean shouldRenderDefaultSignature(DocumentGenerationRequest request) {
+        var report = mapValue(request.payload().get("report"));
+        var documentType = mapValue(request.payload().get("documentType"));
+        return isDailySupervisionType(stringValue(report.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("code")));
+    }
+
+    private boolean isDailySupervisionType(String value) {
+        var code = normalizeCode(value);
+        return "DAILY_SUPERVISION".equals(code) || code.contains("DAILY_SUPERVISION_LOG");
     }
 
     private String metadataSection(DocumentGenerationRequest request) {

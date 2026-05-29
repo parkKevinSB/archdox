@@ -4,7 +4,11 @@ import type {
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
   DocumentOutputFormat,
-  DocumentWorkerType
+  DocumentSignatureInput,
+  DocumentWorkerType,
+  ReportPreflightFindingResolutionStatus,
+  ReportPreflightReviewFindingResponse,
+  ReportPreflightReviewRunResponse
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -15,6 +19,7 @@ export function createDocumentJob(
   reportId: number,
   body: {
     outputFormat?: DocumentOutputFormat;
+    signature?: DocumentSignatureInput;
     workerType?: DocumentWorkerType;
   } = {}
 ) {
@@ -55,6 +60,58 @@ export function listDocumentDeliveryRequestsByJob(token: string, officeId: numbe
     token,
     officeId
   });
+}
+
+export function createReportPreflightReviewRun(token: string, officeId: number, reportId: number) {
+  return request<ReportPreflightReviewRunResponse>(`/api/v1/inspection-reports/${reportId}/preflight-review-runs`, {
+    token,
+    officeId,
+    method: "POST"
+  });
+}
+
+export function listReportPreflightReviewRuns(token: string, officeId: number, reportId: number) {
+  return request<ReportPreflightReviewRunResponse[]>(`/api/v1/inspection-reports/${reportId}/preflight-review-runs`, {
+    token,
+    officeId
+  });
+}
+
+export function listReportPreflightReviewFindings(
+  token: string,
+  officeId: number,
+  reportId: number,
+  runId: number
+) {
+  return request<ReportPreflightReviewFindingResponse[]>(
+    `/api/v1/inspection-reports/${reportId}/preflight-review-runs/${runId}/findings`,
+    {
+      token,
+      officeId
+    }
+  );
+}
+
+export function resolveReportPreflightReviewFinding(
+  token: string,
+  officeId: number,
+  reportId: number,
+  runId: number,
+  findingId: number,
+  body: {
+    resolutionStatus: ReportPreflightFindingResolutionStatus;
+    resolutionNote?: string | null;
+  }
+) {
+  return request<ReportPreflightReviewFindingResponse>(
+    `/api/v1/inspection-reports/${reportId}/preflight-review-runs/${runId}/findings/${findingId}/resolution`,
+    {
+      token,
+      officeId,
+      method: "PATCH",
+      body
+    }
+  );
 }
 
 export async function downloadDocumentUrl(

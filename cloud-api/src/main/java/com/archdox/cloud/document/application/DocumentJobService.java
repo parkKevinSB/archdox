@@ -42,9 +42,11 @@ import io.github.parkkevinsb.bloom.EventBus;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -52,6 +54,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class DocumentJobService {
+    private static final int MAX_SIGNATURE_DATA_URL_LENGTH = 1_000_000;
+    private static final int MAX_SIGNATURE_IMAGE_BYTES = 750_000;
+    private static final Set<String> SUPPORTED_SIGNATURE_MIME_TYPES = Set.of(
+            "image/png",
+            "image/jpeg",
+            "image/webp");
+
     private final InspectionReportService inspectionReportService;
     private final InspectionReportRepository reportRepository;
     private final PhotoRepository photoRepository;
@@ -65,6 +74,7 @@ public class DocumentJobService {
     private final DocumentTypeRegistryService documentTypeRegistryService;
     private final DocumentSnapshotBuilder snapshotBuilder;
     private final DocumentGenerationRoutingService routingService;
+    private final DocumentPreflightGateService preflightGateService;
     private final ObjectMapper objectMapper;
 
     public DocumentJobService(
@@ -81,6 +91,7 @@ public class DocumentJobService {
             DocumentTypeRegistryService documentTypeRegistryService,
             DocumentSnapshotBuilder snapshotBuilder,
             DocumentGenerationRoutingService routingService,
+            DocumentPreflightGateService preflightGateService,
             ObjectMapper objectMapper
     ) {
         this.inspectionReportService = inspectionReportService;
@@ -96,19 +107,23 @@ public class DocumentJobService {
         this.documentTypeRegistryService = documentTypeRegistryService;
         this.snapshotBuilder = snapshotBuilder;
         this.routingService = routingService;
+        this.preflightGateService = preflightGateService;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     public DocumentJobResponse create(Long reportId, CreateDocumentJobRequest request, UserPrincipal principal) {
+        var createRequest = request == null ? new CreateDocumentJobRequest(null, null, null) : request;
         var report = inspectionReportService.requireReport(reportId);
         requireCanRequestGeneration(report);
-        var outputFormat = request.normalizedOutputFormat();
+        preflightGateService.requirePassedForGeneration(report);
+        var outputFormat = createRequest.normalizedOutputFormat();
         var officeId = OfficeContext.requireCurrentOfficeId();
-        var workerType = routingService.route(officeId, outputFormat, request.workerType());
+        var workerType = routingService.route(officeId, outputFormat, createRequest.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
-        var snapshot = snapshotBuilder.build(report, configuration);
+        var snapshot = new LinkedHashMap<>(snapshotBuilder.build(report, configuration));
+        var signatureApplied = applySignature(snapshot, createRequest.signature(), principal, now);
         var reportRevision = report.generationRevision();
         var job = documentJobRepository.saveAndFlush(new DocumentJob(
                 officeId,
@@ -138,6 +153,7 @@ public class DocumentJobService {
                         "reportRevision", reportRevision,
                         "workerType", workerType.name(),
                         "outputFormat", outputFormat.name(),
+                        "signatureApplied", signatureApplied,
                         "templateRevisionId", selectedTemplateRevisionId(report, configuration) == null
                                 ? ""
                                 : selectedTemplateRevisionId(report, configuration)));
@@ -238,6 +254,117 @@ public class DocumentJobService {
                 .toList());
         payload.put("resultStorageKind", DocumentArtifactStorageKind.ARCHDOX_AGENT.name());
         return payload;
+    }
+
+    private boolean applySignature(
+            Map<String, Object> snapshot,
+            CreateDocumentJobRequest.DocumentSignatureRequest request,
+            UserPrincipal principal,
+            OffsetDateTime signedAt
+    ) {
+        if (request == null) {
+            return false;
+        }
+        var signedByName = normalizeText(request.signedByName());
+        var imageDataUrl = normalizeText(request.signatureImageDataUrl());
+        if (signedByName.isBlank()) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_NAME_REQUIRED",
+                    "errors.document.signatureNameRequired",
+                    "Document signature signer name is required.");
+        }
+        if (imageDataUrl.isBlank()) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_REQUIRED",
+                    "errors.document.signatureImageRequired",
+                    "Document signature image is required.");
+        }
+        var imageMimeType = validateSignatureImageDataUrl(imageDataUrl, request.signatureImageMimeType());
+        var signature = new LinkedHashMap<String, Object>();
+        signature.put("signed", true);
+        signature.put("signedByUserId", principal.userId());
+        signature.put("signedByName", signedByName);
+        signature.put("signedByRole", normalizeText(request.signedByRole()));
+        signature.put("signedAt", signedAt.toString());
+        signature.put("imageMimeType", imageMimeType);
+        signature.put("imageDataUrl", imageDataUrl);
+        snapshot.put("signature", signature);
+
+        var templateFields = mutableMap(snapshot.get("templateFields"));
+        templateFields.put("signedByName", signedByName);
+        templateFields.put("signedByRole", normalizeText(request.signedByRole()));
+        templateFields.put("signedAt", signedAt.toString());
+        templateFields.put("signatureSignedByName", signedByName);
+        templateFields.put("signatureSignedByRole", normalizeText(request.signedByRole()));
+        templateFields.put("signatureSignedAt", signedAt.toString());
+        snapshot.put("templateFields", templateFields);
+        return true;
+    }
+
+    private String validateSignatureImageDataUrl(String dataUrl, String requestedMimeType) {
+        if (dataUrl.length() > MAX_SIGNATURE_DATA_URL_LENGTH) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_TOO_LARGE",
+                    "errors.document.signatureImageTooLarge",
+                    "Document signature image is too large.");
+        }
+        var comma = dataUrl.indexOf(',');
+        if (!dataUrl.startsWith("data:") || comma < 0) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_INVALID",
+                    "errors.document.signatureImageInvalid",
+                    "Document signature image must be a base64 data URL.");
+        }
+        var metadata = dataUrl.substring("data:".length(), comma).toLowerCase();
+        if (!metadata.endsWith(";base64")) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_INVALID",
+                    "errors.document.signatureImageInvalid",
+                    "Document signature image must be base64 encoded.");
+        }
+        var mimeType = metadata.substring(0, metadata.length() - ";base64".length());
+        var normalizedRequestedMimeType = normalizeText(requestedMimeType).toLowerCase();
+        if (!normalizedRequestedMimeType.isBlank() && !normalizedRequestedMimeType.equals(mimeType)) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_MIME_MISMATCH",
+                    "errors.document.signatureImageMimeMismatch",
+                    "Document signature image MIME type does not match the data URL.");
+        }
+        if (!SUPPORTED_SIGNATURE_MIME_TYPES.contains(mimeType)) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_UNSUPPORTED",
+                    "errors.document.signatureImageUnsupported",
+                    "Document signature image type is not supported.");
+        }
+        var base64 = dataUrl.substring(comma + 1);
+        try {
+            var decoded = Base64.getDecoder().decode(base64);
+            if (decoded.length == 0 || decoded.length > MAX_SIGNATURE_IMAGE_BYTES) {
+                throw new BadRequestException(
+                        "DOCUMENT_SIGNATURE_IMAGE_TOO_LARGE",
+                        "errors.document.signatureImageTooLarge",
+                        "Document signature image is too large.");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(
+                    "DOCUMENT_SIGNATURE_IMAGE_INVALID",
+                    "errors.document.signatureImageInvalid",
+                    "Document signature image is not valid base64.");
+        }
+        return mimeType;
+    }
+
+    private Map<String, Object> mutableMap(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return new LinkedHashMap<>();
+        }
+        var result = new LinkedHashMap<String, Object>();
+        raw.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
+        return result;
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     @Transactional(readOnly = true)

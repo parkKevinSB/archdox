@@ -78,6 +78,7 @@ class DocumentRenderCommandExecutorPdfSmokeTest {
                 null,
                 null,
                 null,
+                null,
                 9901L,
                 "GENERATE_DOCUMENT",
                 payload,

@@ -58,6 +58,7 @@ class DocumentArtifactDeliveryCommandExecutorTest {
                     null,
                     null,
                     null,
+                    null,
                     55L,
                     "UPLOAD_DOCUMENT_ARTIFACT",
                     Map.of(

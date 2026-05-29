@@ -69,6 +69,7 @@ class DocumentJobIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("archdox.ai-review.worker-interval-ms", () -> "10");
         registry.add("archdox.documents.generation.worker-interval-ms", () -> "10");
         registry.add("archdox.documents.generation.retry-base-delay-ms", () -> "10");
         registry.add("archdox.documents.storage.local-root", () -> "build/test-document-storage");
@@ -117,6 +118,8 @@ class DocumentJobIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
 
+        passPreflight(user, reportId);
+
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
@@ -124,6 +127,108 @@ class DocumentJobIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("DOCUMENT_WORKER_UNAVAILABLE"));
+    }
+
+    @Test
+    void rejectsDocumentJobWhenLatestRevisionHasNoPassedPreflightReview() throws Exception {
+        var user = signup("document-preflight-required@example.com");
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REPORT_PREFLIGHT_REVIEW_REQUIRED"));
+    }
+
+    @Test
+    void rejectsDocumentJobWhenOnlyOlderRevisionPassedPreflightReview() throws Exception {
+        var user = signup("document-preflight-stale@example.com");
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.submittedRevision").value(1));
+        passPreflight(user, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/reopen", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contentRevision").value(2));
+        saveStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.submittedRevision").value(2));
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REPORT_PREFLIGHT_REVIEW_STALE"));
+    }
+
+    @Test
+    void cloudManagedArchDoxAgentCanBeSelectedAsDocumentWorker() throws Exception {
+        var user = signup("cloud-managed-agent-document-user@example.com");
+        var agentId = registerDocumentAgent(user.officeId(), ArchDoxAgentDeploymentMode.CLOUD_MANAGED);
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveChecklistStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+        passPreflight(user, reportId);
+
+        var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"outputFormat\":\"DOCX\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.workerType").value("ARCHDOX_AGENT"))
+                .andReturn();
+
+        var jobId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+        var command = waitForGenerateDocumentCommand(user.officeId(), jobId);
+        assertTrue(command.agent().id().equals(agentId));
+        assertTrue(command.agent().deploymentMode() == ArchDoxAgentDeploymentMode.CLOUD_MANAGED);
+        assertTrue("DOCX".equals(command.payloadJson().get("outputFormat")));
+        assertTrue(command.payloadJson().containsKey("renderPackageUrl"));
+        assertTrue(!command.payloadJson().containsKey("inputSnapshot"));
+        assertTrue(!command.payloadJson().containsKey("template"));
+        assertTrue(!command.payloadJson().containsKey("photos"));
     }
 
     @Test
@@ -143,6 +248,8 @@ class DocumentJobIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        passPreflight(user, reportId);
 
         var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -389,16 +496,21 @@ class DocumentJobIntegrationTest {
     }
 
     private long registerDocumentAgent(long officeId) {
+        return registerDocumentAgent(officeId, ArchDoxAgentDeploymentMode.LOCAL_OFFICE);
+    }
+
+    private long registerDocumentAgent(long officeId, ArchDoxAgentDeploymentMode deploymentMode) {
         var now = java.time.OffsetDateTime.now();
         var agent = agentRepository.save(new ArchDoxAgent(
                 officeId,
                 "docgen-agent-" + officeId,
-                ArchDoxAgentDeploymentMode.LOCAL_OFFICE,
+                deploymentMode,
                 "test",
                 Map.of(
                         "documentGeneration", true,
                         "outputFormats", List.of("DOCX")),
-                Map.of("artifact", Map.of("kind", "LOCAL_FS")),
+                Map.of("artifact", Map.of("kind",
+                        deploymentMode == ArchDoxAgentDeploymentMode.CLOUD_MANAGED ? "S3_COMPATIBLE" : "LOCAL_FS")),
                 now));
         agentSessionRepository.save(new ArchDoxAgentSession(
                 agent,
@@ -450,6 +562,7 @@ class DocumentJobIntegrationTest {
                 objectMapper);
         return executor.execute(new CloudInboundMessage(
                 "COMMAND",
+                null,
                 null,
                 null,
                 null,
@@ -534,6 +647,26 @@ class DocumentJobIntegrationTest {
         }
         fail("Document job did not reach GENERATED status");
         return null;
+    }
+
+    private void passPreflight(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isCreated());
+        for (int i = 0; i < 80; i++) {
+            var result = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                            .header("Authorization", bearer(user.accessToken()))
+                            .header("X-Office-Id", user.officeId()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            var runs = objectMapper.readTree(result.getResponse().getContentAsString());
+            if (runs.size() > 0 && "PASSED".equals(runs.get(0).get("status").asText())) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        fail("Preflight review did not reach PASSED status");
     }
 
     private TestUser signup(String email) throws Exception {

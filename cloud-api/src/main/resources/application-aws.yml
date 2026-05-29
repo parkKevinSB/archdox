@@ -1,4 +1,12 @@
+spring:
+  ai:
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:openai}
+
 archdox:
+  ai:
+    credentials:
+      master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:}
   storage:
     active: S3_COMPATIBLE
     s3-compatible:
@@ -13,9 +21,7 @@ archdox:
       upload-target: ${PHOTO_UPLOAD_TARGET:CLOUD_MEDIATED}
   agent:
     allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:false}
-  ai:
-    provider: ${ARCHDOX_AI_PROVIDER:OPENAI}
-    openai:
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      api-key: ${OPENAI_API_KEY}
-      model: ${OPENAI_MODEL:gpt-4.1-mini}
+  security:
+    rate-limit:
+      enabled: ${ARCHDOX_RATE_LIMIT_ENABLED:true}
+      use-forwarded-headers: ${ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS:true}

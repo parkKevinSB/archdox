@@ -1063,26 +1063,40 @@ function ReportsView({
           />
         </Panel>
         {selectedReport && officeId ? (
-          <ReportWizard
-            officeId={officeId}
-            project={selectedProject}
-            report={selectedReport}
-            site={selectedSite}
-            token={token}
-            canWriteReports={canWriteReports}
-            onReopenReport={onReopenReport}
-            onSaveStep={onSaveStep}
-            onSubmitReport={onSubmitReport}
-            renderChecklistPanel={() => (
-              <ReportChecklistPanel
+          <div className="report-detail-stack">
+            <Panel
+              title="리포트 담당자"
+              action={<span className="panel-context">{selectedReport.reportNo}</span>}
+            >
+              <ReportAssignmentPanel
+                canManage={canManageAssignments}
+                members={officeMembers}
                 officeId={officeId}
                 report={selectedReport}
-                targets={targets}
                 token={token}
-                canWriteReports={Boolean(selectedReport.writeAllowed ?? canWriteReports) && ["DRAFT", "STEP_SAVED"].includes(selectedReport.status)}
               />
-            )}
-          />
+            </Panel>
+            <ReportWizard
+              officeId={officeId}
+              project={selectedProject}
+              report={selectedReport}
+              site={selectedSite}
+              token={token}
+              canWriteReports={canWriteReports}
+              onReopenReport={onReopenReport}
+              onSaveStep={onSaveStep}
+              onSubmitReport={onSubmitReport}
+              renderChecklistPanel={() => (
+                <ReportChecklistPanel
+                  officeId={officeId}
+                  report={selectedReport}
+                  targets={targets}
+                  token={token}
+                  canWriteReports={Boolean(selectedReport.writeAllowed ?? canWriteReports) && ["DRAFT", "STEP_SAVED"].includes(selectedReport.status)}
+                />
+              )}
+            />
+          </div>
         ) : (
           <Panel title="작성 화면">
             <EmptyState title="작성할 리포트를 선택하세요" text="프로젝트 화면에서 현장별 리포트를 만든 뒤 여기서 이어서 작성합니다." />
@@ -1090,18 +1104,6 @@ function ReportsView({
         )}
       </div>
       <div className="support-grid">
-        <Panel
-          title="리포트 담당자"
-          action={<span className="panel-context">{selectedReport ? selectedReport.reportNo : "선택 필요"}</span>}
-        >
-          <ReportAssignmentPanel
-            canManage={canManageAssignments}
-            members={officeMembers}
-            officeId={officeId}
-            report={selectedReport}
-            token={token}
-          />
-        </Panel>
         <Panel title="작성 기준">
           <div className="settings-list">
             <div>

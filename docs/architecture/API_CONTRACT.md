@@ -1534,6 +1534,10 @@ If Cloud API can decide before job creation that no route can handle the
 requested format, the create API returns a structured `400` instead of creating
 a doomed job:
 
+- `REPORT_PREFLIGHT_REVIEW_REQUIRED`: the current report generation revision has
+  no passed preflight review.
+- `REPORT_PREFLIGHT_REVIEW_STALE`: only an older report revision has a passed
+  preflight review, so the latest submitted revision must be reviewed again.
 - `DOCUMENT_WORKER_UNAVAILABLE`: no Cloud exporter and no online capable
   ArchDox Agent exists for the requested output format.
 - `DOCUMENT_WORKER_UNSUPPORTED`: the request explicitly selected a worker type
@@ -1584,20 +1588,42 @@ The report must be in `READY_TO_GENERATE`, `GENERATED`, or `FAILED`.
 The job records `reportRevision` so generated artifacts can be tied to the
 exact report content revision used at generation time.
 
+Before creating a job, Cloud API verifies that the latest generation revision has
+a `PASSED` preflight review run. A passed review for an older revision is treated
+as stale and cannot be reused for document generation.
+
 Request:
 
 ```json
 {
-  "outputFormat": "DOCX"
+  "outputFormat": "DOCX",
+  "signature": {
+    "signedByName": "김감리",
+    "signedByRole": "작성자",
+    "signatureImageMimeType": "image/png",
+    "signatureImageDataUrl": "data:image/png;base64,..."
+  }
 }
 ```
 
-Both fields are optional. Defaults:
+Fields:
 
 - `outputFormat`: `DOCX`
 - `workerType`: omitted means Cloud API applies the routing policy. Explicit
   `workerType` is accepted only for tests, admin tooling, or emergency
   overrides and is validated against worker capability.
+- `signature`: optional. The user-facing UI may offer signing before document
+  generation, but the user can generate without a signature. The image must be a
+  base64 data URL using `image/png`, `image/jpeg`, or `image/webp`.
+
+When `signature` is present, Cloud API stores it in the job
+`inputSnapshotJson.signature` and also exposes common aliases under
+`inputSnapshotJson.templateFields` such as `signedByName`, `signedByRole`, and
+`signatureSignedAt`. The document type/template decides whether the signature is
+rendered. The document engine may render `${signatureBlock}`,
+`${signatureImage}`, `${writerSignature}`, or document-type default signature
+blocks such as the default daily supervision log signature area. If no signature
+is supplied, signature placeholders render as blank.
 
 Response `201`:
 
@@ -2815,25 +2841,153 @@ jobs, photo pickups, and deliveries.
 - `GET /api/v1/platform-admin/ops/photos`
 - `GET /api/v1/platform-admin/ops/deliveries`
 - `GET /api/v1/platform-admin/ops/events`
+- `GET /api/v1/platform-admin/ops/ops-runs`
+- `GET /api/v1/platform-admin/ops/incidents`
+- `GET /api/v1/platform-admin/ops/findings`
+- `POST /api/v1/platform-admin/ops/incidents/{incidentId}/diagnose`
 
 Supported filters vary by resource, but all list APIs support `limit`. Most
 workflow resources also support `officeId` and `status`.
 
 ### POST `/api/v1/platform-admin/ops/health/detect-stuck`
 
-On-demand stuck-state detector. It records `operation_events` for old in-flight
-document jobs, Agent commands, photo pickups, and document deliveries.
+Submits the on-demand stuck-state detector flow. The HTTP request returns after
+the platform ops run is created and submitted to the `platform-ops` Flower
+worker. The detector flow records `operation_events` for old in-flight document
+jobs, Agent commands, photo pickups, and document deliveries, and persists
+platform ops run/incident/finding records.
 
 ```json
 {
-  "stuckDocumentJobs": 1,
-  "stuckAgentCommands": 2,
+  "stuckDocumentJobs": 0,
+  "stuckAgentCommands": 0,
   "stuckPhotoPickups": 0,
-  "stuckDeliveries": 1,
+  "stuckDeliveries": 0,
   "detectedAt": "2026-05-25T12:30:00Z",
-  "total": 4
+  "total": 0,
+  "opsRunId": 3001,
+  "incidentCount": 0,
+  "findingCount": 0
 }
 ```
+
+The immediate response is an accepted workflow response. Read the run, incident,
+and finding APIs to see completed detector output.
+
+The detector creates platform ops workflow records:
+
+- `platform_ops_runs`: one run for this detection request
+- `platform_ops_incidents`: active incident records grouped by category and
+  resource
+- `platform_ops_findings`: detector findings linked to the run and incident
+
+This is deterministic detection only. It does not call AI.
+
+### POST `/api/v1/platform-admin/ops/incidents/{incidentId}/diagnose`
+
+Submits a platform operations diagnosis flow for one incident.
+
+It creates a `MANUAL_DIAGNOSIS` `platform_ops_runs` row, submits
+`PlatformOpsDiagnosisFlow` to the `platform-ops` Flower worker, builds a
+redacted diagnosis snapshot from the incident, recent findings, and related
+operation events, and writes an `OPS_DIAGNOSIS_SNAPSHOT_READY` finding with
+source `SYSTEM_DIAGNOSIS`.
+
+If platform ops AI diagnosis is enabled and configured, the flow submits
+`OpsDiagnosisHarness` as child work to the `platform-ops-ai` Flower worker and
+stores resulting findings with source `AI_HARNESS`. If AI diagnosis is disabled
+or not configured, the same endpoint completes as deterministic-only.
+
+Example response:
+
+```json
+{
+  "id": 3002,
+  "triggerType": "MANUAL_DIAGNOSIS",
+  "status": "RUNNING",
+  "startedByUserId": 1,
+  "incidentId": 401,
+  "inputSnapshotJson": {
+    "state": "REQUESTED",
+    "diagnosisType": "DETERMINISTIC_FIRST"
+  },
+  "aiHarnessRunId": null,
+  "startedAt": "2026-05-25T12:35:00Z",
+  "completedAt": null,
+  "failureCode": null
+}
+```
+
+Read `GET /api/v1/platform-admin/ops/ops-runs?triggerType=MANUAL_DIAGNOSIS`
+and `GET /api/v1/platform-admin/ops/findings?incidentId={incidentId}` to see
+the completed snapshot result.
+
+### GET `/api/v1/platform-admin/ops/ops-runs`
+
+Returns recent platform operations workflow runs.
+
+Query parameters:
+
+- `status`: `RUNNING`, `COMPLETED`, or `FAILED`
+- `triggerType`: `MANUAL_DETECT_STUCK`, `MANUAL_DIAGNOSIS`,
+  `DETECTOR_TRIGGERED`, or `FUTURE_MONITOR_FLOW`
+- `limit`
+
+Example response:
+
+```json
+[
+  {
+    "id": 3001,
+    "triggerType": "MANUAL_DETECT_STUCK",
+    "status": "COMPLETED",
+    "startedByUserId": 1,
+    "incidentId": 401,
+    "inputSnapshotJson": {
+      "findingCount": 4,
+      "incidentCount": 4,
+      "byCategory": {
+        "DOCUMENT_JOB_STUCK": 1,
+        "AGENT_COMMAND_STUCK": 2,
+        "DOCUMENT_DELIVERY_STUCK": 1
+      }
+    },
+    "aiHarnessRunId": null,
+    "startedAt": "2026-05-25T12:30:00Z",
+    "completedAt": "2026-05-25T12:30:01Z",
+    "failureCode": null
+  }
+]
+```
+
+### GET `/api/v1/platform-admin/ops/incidents`
+
+Returns recent operational incidents.
+
+Query parameters:
+
+- `officeId`
+- `status`: `OPEN`, `ACKNOWLEDGED`, `RESOLVED`, or `IGNORED`
+- `severity`: `INFO`, `WARN`, `ERROR`, or `CRITICAL`
+- `category`
+- `limit`
+
+### GET `/api/v1/platform-admin/ops/findings`
+
+Returns detector, system diagnosis, or future AI harness findings.
+
+Query parameters:
+
+- `officeId`
+- `runId`
+- `incidentId`
+- `severity`: `INFO`, `WARN`, `ERROR`, or `CRITICAL`
+- `source`: `DETECTOR`, `SYSTEM_DIAGNOSIS`, or `AI_HARNESS`
+- `category`
+- `limit`
+
+Findings must expose redacted evidence only. Raw logs, prompts, signed URLs,
+device secrets, API keys, and file contents must not be returned.
 
 ## Planned APIs
 

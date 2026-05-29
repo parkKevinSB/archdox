@@ -7,6 +7,7 @@ import com.archdox.cloud.agent.application.ArchDoxAgentAuthenticationService;
 import com.archdox.cloud.agent.application.ArchDoxAgentCommandService;
 import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthService;
 import com.archdox.cloud.agent.application.ArchDoxAgentSessionRegistry;
+import com.archdox.cloud.aipolicy.application.AiPolicyManagementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -22,6 +23,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     private final ArchDoxAgentCommandService commandService;
     private final ArchDoxAgentConnectionHealthService connectionHealthService;
     private final ArchDoxAgentSessionRegistry sessionRegistry;
+    private final AiPolicyManagementService aiPolicyManagementService;
 
     public AgentWebSocketHandler(
             ObjectMapper objectMapper,
@@ -29,7 +31,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             ArchDoxAgentAuthenticationService authenticationService,
             ArchDoxAgentCommandService commandService,
             ArchDoxAgentConnectionHealthService connectionHealthService,
-            ArchDoxAgentSessionRegistry sessionRegistry
+            ArchDoxAgentSessionRegistry sessionRegistry,
+            AiPolicyManagementService aiPolicyManagementService
     ) {
         this.objectMapper = objectMapper;
         this.properties = properties;
@@ -37,6 +40,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         this.commandService = commandService;
         this.connectionHealthService = connectionHealthService;
         this.sessionRegistry = sessionRegistry;
+        this.aiPolicyManagementService = aiPolicyManagementService;
     }
 
     @Override
@@ -84,7 +88,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         sessionRegistry.register(agent, session);
-        send(session, AgentOutboundMessage.welcome(agent.id(), connection.issuedDeviceSecret()));
+        send(session, AgentOutboundMessage.welcome(
+                agent.id(),
+                connection.issuedDeviceSecret(),
+                aiPolicyManagementService.effectiveAgentPolicy(agent.officeId()).toMap()));
         commandService.deliverPending(agent.id());
     }
 
