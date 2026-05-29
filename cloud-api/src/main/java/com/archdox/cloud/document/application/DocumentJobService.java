@@ -25,6 +25,7 @@ import com.archdox.cloud.inspection.application.InspectionReportService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.office.application.OfficeContext;
+import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.photo.domain.Photo;
@@ -69,6 +70,7 @@ public class DocumentJobService {
     private final DocumentJobRepository documentJobRepository;
     private final DocumentArtifactRepository documentArtifactRepository;
     private final DocumentLocalObjectStore objectStore;
+    private final OfficePermissionService permissionService;
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final ConfigurationRegistryService configurationRegistryService;
@@ -86,6 +88,7 @@ public class DocumentJobService {
             DocumentJobRepository documentJobRepository,
             DocumentArtifactRepository documentArtifactRepository,
             DocumentLocalObjectStore objectStore,
+            OfficePermissionService permissionService,
             EventBus eventBus,
             OperationEventService operationEventService,
             ConfigurationRegistryService configurationRegistryService,
@@ -102,6 +105,7 @@ public class DocumentJobService {
         this.documentJobRepository = documentJobRepository;
         this.documentArtifactRepository = documentArtifactRepository;
         this.objectStore = objectStore;
+        this.permissionService = permissionService;
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.configurationRegistryService = configurationRegistryService;
@@ -116,6 +120,7 @@ public class DocumentJobService {
     public DocumentJobResponse create(Long reportId, CreateDocumentJobRequest request, UserPrincipal principal) {
         var createRequest = request == null ? new CreateDocumentJobRequest(null, null, null) : request;
         var report = inspectionReportService.requireReport(reportId);
+        permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
         requireCanRequestGeneration(report);
         preflightGateService.requirePassedForGeneration(report);
         requirePhotoAssetsReadyForGeneration(report);
