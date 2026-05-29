@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  ApiError,
   acceptOfficeInvitation,
   addOfficeMember,
   cancelOfficeInvitation,
@@ -1006,6 +1007,10 @@ function LoginScreen({
       const user = await me(token.accessToken);
       onAuthenticated({ accessToken: token.accessToken, refreshToken: token.refreshToken, user });
     } catch (err) {
+      if (mode === "login" && err instanceof ApiError && err.status === 401) {
+        setError("이메일 또는 비밀번호를 확인해주세요.");
+        return;
+      }
       setError(err instanceof Error ? err.message : mode === "login" ? "로그인에 실패했습니다." : "회원가입에 실패했습니다.");
     } finally {
       setBusy(false);

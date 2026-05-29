@@ -1,6 +1,6 @@
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { getOfficeInvitationPreview, login, me, signup } from "../../api";
+import { ApiError, getOfficeInvitationPreview, login, me, signup } from "../../api";
 import type { AppState } from "../../appTypes";
 import { BrandLogo, InlineAlert } from "../../components/common";
 import type { OfficeInvitationPreview } from "../../types";
@@ -85,6 +85,10 @@ export function AuthScreen({ invitationToken, onAuthenticated }: AuthScreenProps
         }
       );
     } catch (err) {
+      if (mode === "login" && err instanceof ApiError && err.status === 401) {
+        setError("이메일 또는 비밀번호를 확인해주세요.");
+        return;
+      }
       setError(err instanceof Error ? err.message : "인증에 실패했습니다.");
     } finally {
       setBusy(false);
