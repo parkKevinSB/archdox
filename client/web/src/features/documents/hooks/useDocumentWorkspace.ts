@@ -232,9 +232,22 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       if (!officeId) {
         throw new Error("사무소 선택이 필요합니다.");
       }
+      if (artifact.storageKind === "API_LOCAL") {
+        await downloadDocumentUrl(token, officeId, directArtifactDownloadUrl(artifact), defaultDownloadFileName(artifact));
+        return null;
+      }
       const delivery = await createDocumentDeliveryRequest(token, officeId, job.id, artifact.id);
-      if (delivery.downloadUrl) {
-        await downloadDocumentUrl(token, officeId, delivery.downloadUrl, defaultDownloadFileName(artifact));
+      const downloadableDelivery = delivery.downloadUrl
+        ? delivery
+        : await waitForDeliveryDownloadUrl({
+            artifactId: artifact.id,
+            jobId: job.id,
+            officeId,
+            token
+          });
+      if (downloadableDelivery?.downloadUrl) {
+        await downloadDocumentUrl(token, officeId, downloadableDelivery.downloadUrl, defaultDownloadFileName(artifact));
+        return downloadableDelivery;
       }
       return delivery;
     },
@@ -348,6 +361,35 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
 
 function isPreflightActive(run: ReportPreflightReviewRunResponse) {
   return run.status === "REQUESTED" || run.status === "RUNNING";
+}
+
+async function waitForDeliveryDownloadUrl({
+  artifactId,
+  jobId,
+  officeId,
+  token
+}: {
+  artifactId: number;
+  jobId: number;
+  officeId: number;
+  token: string;
+}) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await delay(1000);
+    const deliveries = await listDocumentDeliveryRequestsByJob(token, officeId, jobId);
+    const delivery = deliveries.find((item) => item.artifactId === artifactId);
+    if (delivery?.status === "COMPLETED" && delivery.downloadUrl) {
+      return delivery;
+    }
+    if (delivery?.status === "FAILED") {
+      throw new Error(delivery.errorMessage ?? "문서 다운로드 준비에 실패했습니다.");
+    }
+  }
+  return null;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function hasReportStateDrift(reports: InspectionReport[], jobsByReport: DocumentJobsByReport) {

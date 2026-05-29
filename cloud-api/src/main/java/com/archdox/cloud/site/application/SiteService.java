@@ -10,6 +10,7 @@ import com.archdox.cloud.site.domain.Site;
 import com.archdox.cloud.site.dto.CreateSiteRequest;
 import com.archdox.cloud.site.dto.SiteResponse;
 import com.archdox.cloud.site.infra.SiteRepository;
+import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -31,15 +32,18 @@ public class SiteService {
     private final SiteRepository siteRepository;
     private final ProjectService projectService;
     private final OfficePermissionService permissionService;
+    private final WorkspaceCascadeDeletionService deletionService;
 
     public SiteService(
             SiteRepository siteRepository,
             ProjectService projectService,
-            OfficePermissionService permissionService
+            OfficePermissionService permissionService,
+            WorkspaceCascadeDeletionService deletionService
     ) {
         this.siteRepository = siteRepository;
         this.projectService = projectService;
         this.permissionService = permissionService;
+        this.deletionService = deletionService;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +86,13 @@ public class SiteService {
         permissionService.requireProjectStructureManager(principal.userId(), site.officeId(), projectId);
         site.archive(OffsetDateTime.now());
         return toResponse(site);
+    }
+
+    @Transactional
+    public void delete(Long projectId, Long siteId, UserPrincipal principal) {
+        var site = requireSiteForProject(siteId, projectId);
+        permissionService.requireProjectStructureManager(principal.userId(), site.officeId(), projectId);
+        deletionService.deleteSite(site.officeId(), projectId, site.id());
     }
 
     public Site requireSite(Long siteId) {

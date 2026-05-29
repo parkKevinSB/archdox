@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
@@ -170,9 +172,451 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String renderMainDocumentXml(String xml, DocxRenderContext context) throws IOException {
+        if (shouldRenderOfficialConstructionDailyLog(context.request())) {
+            return renderOfficialConstructionDailyLogXml(context);
+        }
         var richReplaced = replaceRichSectionPlaceholders(xml, context);
         var signatureReplaced = applySignatureBlock(richReplaced, context);
         return replacePlaceholders(signatureReplaced, context.bindings());
+    }
+
+    private boolean shouldRenderOfficialConstructionDailyLog(DocumentGenerationRequest request) {
+        var templateCode = normalizeCode(request.template().templateCode());
+        var storageRef = normalizeStorageRef(request.template().storageRef());
+        if (isBundledConstructionDailyLogStorageRef(storageRef)) {
+            return true;
+        }
+        if (storageRef.isBlank()
+                && templateCode.contains("KOREAN_CONSTRUCTION_DAILY_SUPERVISION")
+                && templateCode.contains("APPENDIX_2")) {
+            return true;
+        }
+        var report = mapValue(request.payload().get("report"));
+        var documentType = mapValue(request.payload().get("documentType"));
+        var reportType = firstNonBlank(
+                stringValue(report.get("reportType")),
+                stringValue(documentType.get("reportType")),
+                stringValue(documentType.get("code")));
+        return isConstructionDailyLogType(reportType)
+                && isBundledConstructionDailyLogStorageRef(storageRef);
+    }
+
+    private String normalizeStorageRef(String storageRef) {
+        var normalized = valueOrBlank(storageRef).trim().replace('\\', '/').toUpperCase(Locale.ROOT);
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+    private boolean isBundledConstructionDailyLogStorageRef(String storageRef) {
+        return storageRef.equals("TEMPLATES/KOREAN/KOREAN-CONSTRUCTION-DAILY-SUPERVISION-LOG-APPENDIX-2.DOCX")
+                || storageRef.endsWith("/TEMPLATES/KOREAN/KOREAN-CONSTRUCTION-DAILY-SUPERVISION-LOG-APPENDIX-2.DOCX");
+    }
+
+    private boolean isConstructionDailyLogType(String value) {
+        var code = normalizeCode(value);
+        return "DAILY_SUPERVISION".equals(code)
+                || "CONSTRUCTION_DAILY_LOG".equals(code)
+                || "CONSTRUCTION_DAILY_SUPERVISION_LOG".equals(code);
+    }
+
+    private String renderOfficialConstructionDailyLogXml(DocxRenderContext context) throws IOException {
+        var body = new StringBuilder();
+        body.append(officialDailyLogTitleXml());
+        body.append(officialDailyLogHeaderXml(context));
+        body.append(spacerParagraph(80));
+        body.append(officialDailyLogWorkTableXml(context));
+        body.append(spacerParagraph(70));
+        body.append(officialLinedSectionXml("특기사항", binding(context, "specialNotes"), 1350));
+        body.append(spacerParagraph(70));
+        body.append(officialLinedSectionXml(
+                "지적사항 및 처리결과",
+                binding(context, "issueAndAction", "correctionResults"),
+                1550));
+        body.append(officialPhotoEvidenceXml(context));
+        body.append(spacerParagraph(100));
+        body.append(officialAuthoringGuideXml());
+        return """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <w:body>
+                    %s
+                    <w:sectPr>
+                      <w:pgSz w:w="11906" w:h="16838"/>
+                      <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/>
+                    </w:sectPr>
+                  </w:body>
+                </w:document>
+                """.formatted(body);
+    }
+
+    private String officialDailyLogTitleXml() {
+        return """
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="10000" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="nil"/>
+                      <w:left w:val="nil"/>
+                      <w:bottom w:val="nil"/>
+                      <w:right w:val="nil"/>
+                      <w:insideH w:val="nil"/>
+                      <w:insideV w:val="nil"/>
+                    </w:tblBorders>
+                  </w:tblPr>
+                  <w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="4000"/><w:gridCol w:w="3000"/></w:tblGrid>
+                  %s
+                </w:tbl>
+                %s
+                """.formatted(
+                officialRow(List.of(
+                        officialCell(List.of(officialParagraph("[별지 제2호서식]", false, 24, "left")), "3000", 1),
+                        officialCell(List.of(officialParagraph("공사감리일지", true, 34, "center")), "4000", 1),
+                        officialCell(List.of(officialParagraph("", false, 20, "right")), "3000", 1)),
+                        760),
+                horizontalRuleParagraph(18));
+    }
+
+    private String officialDailyLogHeaderXml(DocxRenderContext context) throws IOException {
+        var date = inspectionDateParts(context);
+        var constructionName = binding(context, "constructionName", "constructionProjectName", "projectName");
+        var dateLine = "공사    "
+                + blankIfMissing(date.year()) + " 년    "
+                + blankIfMissing(date.month()) + " 월    "
+                + blankIfMissing(date.day()) + " 일(    "
+                + blankIfMissing(date.dayOfWeek()) + " 요일)    날씨 : "
+                + binding(context, "weather");
+        var supervisorCell = new ArrayList<String>();
+        supervisorCell.add(officialParagraph("공사감리자    " + binding(context, "chiefSupervisorName", "supervisorName", "inspectorName"), false, 22, "left"));
+        signatureImageParagraph(context).ifPresent(supervisorCell::add);
+        supervisorCell.add(officialParagraph("(서명 또는 인)", false, 18, "right"));
+        var assistantCell = List.of(
+                officialParagraph("감리원    " + binding(context, "architectAssistantName", "assistantArchitectName", "assistantSupervisorName"), false, 22, "left"),
+                officialParagraph("(서명 또는 인)", false, 18, "right"));
+        var rows = new StringBuilder();
+        rows.append(officialRow(List.of(
+                officialCell(supervisorCell, "5000", 2),
+                officialCell(assistantCell, "5000", 2)),
+                820));
+        rows.append(officialRow(List.of(
+                officialCell(List.of(officialParagraph("공사명", false, 22, "left")), "1600", 1),
+                officialCell(List.of(
+                        officialParagraph(constructionName, false, 21, "left"),
+                        officialParagraph(dateLine, false, 21, "center")), "8400", 3)),
+                900));
+        return officialTableXml(List.of("1600", "3400", "1800", "3200"), rows.toString(), 10000, 8);
+    }
+
+    private String officialDailyLogWorkTableXml(DocxRenderContext context) {
+        var rows = new StringBuilder();
+        var items = officialSupervisionRows(context);
+        var visibleRows = Math.max(4, items.size());
+        rows.append(officialRow(List.of(
+                officialCell(List.of(officialParagraph("작업사항", false, 19, "center")), "1300", 1, null, "restart", "center"),
+                officialCell(List.of(officialParagraph("공종", false, 18, "center")), "1300", 1),
+                officialCell(List.of(officialParagraph("감리착안사항", false, 18, "center")), "2300", 1),
+                officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "5100", 1)),
+                520));
+        for (int i = 0; i < visibleRows; i++) {
+            var item = i < items.size() ? items.get(i) : OfficialSupervisionRow.blank();
+            rows.append(officialRow(List.of(
+                    officialCell(List.of(officialParagraph("", false, 18, "center")), "1300", 1, null, "continue", "center"),
+                    officialCell(officialParagraphs(item.trade(), 18, "left"), "1300", 1),
+                    officialCell(officialParagraphs(item.focus(), 18, "left"), "2300", 1),
+                    officialCell(officialParagraphs(item.content(), 18, "left"), "5100", 1)),
+                    760));
+        }
+        return officialTableXml(List.of("1300", "1300", "2300", "5100"), rows.toString(), 10000, 5);
+    }
+
+    private List<OfficialSupervisionRow> officialSupervisionRows(DocxRenderContext context) {
+        var answers = listValue(context.request().payload().get("checklistAnswers"));
+        var rows = new ArrayList<OfficialSupervisionRow>();
+        var fallbackTrade = joinedNonBlank(
+                binding(context, "constructionTrade"),
+                binding(context, "detailedProcess"),
+                binding(context, "floor"));
+        for (Object answer : answers) {
+            var trade = firstNonBlank(checklistFieldValue(answer, "answer.trade"), fallbackTrade);
+            var focus = firstNonBlank(checklistFieldValue(answer, "label"), binding(context, "supervisionItem"));
+            var content = firstNonBlank(
+                    checklistFieldValue(answer, "note"),
+                    checklistFieldValue(answer, "answer.value"),
+                    binding(context, "supervisionContent"));
+            if (!trade.isBlank() || !focus.isBlank() || !content.isBlank()) {
+                rows.add(new OfficialSupervisionRow(trade, focus, content));
+            }
+        }
+        if (rows.isEmpty()) {
+            var focus = binding(context, "supervisionItem", "supervisionFocus");
+            var content = binding(context, "supervisionContent", "workDescription");
+            if (!fallbackTrade.isBlank() || !focus.isBlank() || !content.isBlank()) {
+                rows.add(new OfficialSupervisionRow(fallbackTrade, focus, content));
+            }
+        }
+        return rows;
+    }
+
+    private String officialLinedSectionXml(String title, String value, int heightTwips) {
+        var paragraphs = new ArrayList<String>();
+        paragraphs.add(officialParagraph(title, false, 18, "left"));
+        paragraphs.addAll(officialParagraphs(value, 18, "left"));
+        var row = officialRow(List.of(officialCell(paragraphs, "10000", 1)), heightTwips);
+        return officialTableXml(List.of("10000"), row, 10000, 4);
+    }
+
+    private String officialPhotoEvidenceXml(DocxRenderContext context) throws IOException {
+        var photos = context.request().photos() == null ? List.<PhotoAsset>of() : context.request().photos();
+        if (photos.isEmpty()) {
+            return "";
+        }
+        var rows = new StringBuilder();
+        rows.append(officialRow(List.of(
+                officialCell(List.of(officialParagraph("사진 및 설명", true, 19, "center")), "10000", 2)),
+                420));
+        for (int i = 0; i < photos.size(); i += 2) {
+            var left = photos.get(i);
+            var cells = new ArrayList<String>();
+            cells.add(officialPhotoCell(left, context));
+            if (i + 1 < photos.size()) {
+                cells.add(officialPhotoCell(photos.get(i + 1), context));
+            } else {
+                cells.add(officialCell(List.of(officialParagraph("", false, 18, "center")), "5000", 1));
+            }
+            rows.append(officialRow(cells, 2600));
+        }
+        return spacerParagraph(90)
+                + officialTableXml(List.of("5000", "5000"), rows.toString(), 10000, 4);
+    }
+
+    private String officialPhotoCell(PhotoAsset photo, DocxRenderContext context) throws IOException {
+        var paragraphs = new ArrayList<String>();
+        var image = resolvePhotoImage(photo, PhotoLayoutSize.MEDIUM, context);
+        if (image.isPresent()) {
+            paragraphs.add("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr><w:r>" + drawingXml(image.get()) + "</w:r></w:p>");
+        } else {
+            paragraphs.add(officialParagraph("이미지 없음", false, 18, "center"));
+        }
+        paragraphs.add(officialParagraph(officialPhotoCaption(photo), false, 18, "center"));
+        return officialCell(paragraphs, "5000", 1);
+    }
+
+    private String officialPhotoCaption(PhotoAsset photo) {
+        return firstNonBlank(photo.caption(), PhotoDisplayTexts.value(photo, "checklistItemKey"), "사진 " + valueOrBlank(photo.photoId()));
+    }
+
+    private String officialAuthoringGuideXml() {
+        var guideLines = List.of(
+                "1. 공종에는 주요공종 및 단위공종을 기재합니다.",
+                "2. 감리착안사항은 공사감리의 주안점 및 점검계획을 기재합니다.",
+                "3. 특기사항은 특별히 명기되어 있지 아니한 내용의 발생·조치사항 등을 기재합니다.",
+                "4. 지적사항 및 처리결과는 재시공 및 공사중지 등 구두 또는 서면에 의한 지시내용과 처리결과를 기재합니다.",
+                "",
+                "※ 필수확인점에 해당하는 경우에는 반드시 작성하여야 합니다.");
+        var bodyParagraphs = guideLines.stream()
+                .map(line -> officialParagraph(line, false, 16, "left"))
+                .toList();
+        var rows = officialRow(List.of(
+                officialCell(List.of(officialParagraph("작성방법", true, 17, "center")), "10000", 1, "BFBFBF", null, "center")),
+                360);
+        rows += officialRow(List.of(officialCell(bodyParagraphs, "10000", 1)), 1160);
+        return officialTableXml(List.of("10000"), rows, 10000, 5);
+    }
+
+    private String officialTableXml(List<String> columnWidths, String rows, int tableWidth, int borderSize) {
+        return """
+                <w:tbl>
+                  <w:tblPr>
+                    <w:tblW w:w="%d" w:type="dxa"/>
+                    <w:tblBorders>
+                      <w:top w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      <w:left w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      <w:bottom w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      <w:right w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      <w:insideH w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      <w:insideV w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                    </w:tblBorders>
+                  </w:tblPr>
+                  <w:tblGrid>%s</w:tblGrid>
+                  %s
+                </w:tbl>
+                """.formatted(
+                tableWidth,
+                borderSize,
+                borderSize,
+                borderSize,
+                borderSize,
+                borderSize,
+                borderSize,
+                tableGrid(columnWidths),
+                rows);
+    }
+
+    private String officialRow(List<String> cells, int heightTwips) {
+        var height = heightTwips > 0 ? "<w:trPr><w:trHeight w:val=\"" + heightTwips + "\"/></w:trPr>" : "";
+        return "<w:tr>" + height + String.join("", cells) + "</w:tr>";
+    }
+
+    private String officialCell(List<String> paragraphs, String width, int gridSpan) {
+        return officialCell(paragraphs, width, gridSpan, null, null, null);
+    }
+
+    private String officialCell(
+            List<String> paragraphs,
+            String width,
+            int gridSpan,
+            String fill,
+            String verticalMerge,
+            String verticalAlign
+    ) {
+        var gridSpanXml = gridSpan > 1 ? "<w:gridSpan w:val=\"" + gridSpan + "\"/>" : "";
+        var fillXml = fill == null || fill.isBlank() ? "" : "<w:shd w:fill=\"" + fill + "\"/>";
+        var mergeXml = switch (valueOrBlank(verticalMerge)) {
+            case "restart" -> "<w:vMerge w:val=\"restart\"/>";
+            case "continue" -> "<w:vMerge/>";
+            default -> "";
+        };
+        var alignXml = verticalAlign == null || verticalAlign.isBlank()
+                ? ""
+                : "<w:vAlign w:val=\"" + escapeXml(verticalAlign) + "\"/>";
+        return """
+                <w:tc>
+                  <w:tcPr>
+                    <w:tcW w:w="%s" w:type="dxa"/>%s%s%s%s
+                    <w:tcMar>
+                      <w:top w:w="80" w:type="dxa"/>
+                      <w:left w:w="90" w:type="dxa"/>
+                      <w:bottom w:w="80" w:type="dxa"/>
+                      <w:right w:w="90" w:type="dxa"/>
+                    </w:tcMar>
+                  </w:tcPr>
+                  %s
+                </w:tc>
+                """.formatted(width, gridSpanXml, fillXml, mergeXml, alignXml, String.join("", paragraphs));
+    }
+
+    private List<String> officialParagraphs(String text, int sizeHalfPoints, String justification) {
+        var value = valueOrBlank(text);
+        if (value.isBlank()) {
+            return List.of(officialParagraph("", false, sizeHalfPoints, justification));
+        }
+        return value.lines()
+                .map(line -> officialParagraph(line, false, sizeHalfPoints, justification))
+                .toList();
+    }
+
+    private String officialParagraph(String text, boolean bold, int sizeHalfPoints, String justification) {
+        var jc = justification == null || justification.isBlank()
+                ? ""
+                : "<w:jc w:val=\"" + escapeXml(justification) + "\"/>";
+        var boldXml = bold ? "<w:b/><w:bCs/>" : "";
+        return """
+                <w:p>
+                  <w:pPr>%s<w:spacing w:before="0" w:after="0"/></w:pPr>
+                  <w:r>
+                    <w:rPr>
+                      <w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/>
+                      %s
+                      <w:sz w:val="%d"/><w:szCs w:val="%d"/>
+                    </w:rPr>
+                    <w:t xml:space="preserve">%s</w:t>
+                  </w:r>
+                </w:p>
+                """.formatted(jc, boldXml, sizeHalfPoints, sizeHalfPoints, escapeXml(text));
+    }
+
+    private String horizontalRuleParagraph(int size) {
+        return """
+                <w:p>
+                  <w:pPr>
+                    <w:pBdr><w:bottom w:val="single" w:sz="%d" w:space="1" w:color="000000"/></w:pBdr>
+                    <w:spacing w:before="0" w:after="0"/>
+                  </w:pPr>
+                </w:p>
+                """.formatted(size);
+    }
+
+    private String spacerParagraph(int heightTwips) {
+        return """
+                <w:p>
+                  <w:pPr><w:spacing w:before="0" w:after="%d"/></w:pPr>
+                </w:p>
+                """.formatted(Math.max(0, heightTwips));
+    }
+
+    private InspectionDateParts inspectionDateParts(DocxRenderContext context) {
+        var year = binding(context, "inspectionYear");
+        var month = binding(context, "inspectionMonth");
+        var day = binding(context, "inspectionDay");
+        var dayOfWeek = binding(context, "inspectionDayOfWeek", "dayOfWeek");
+        if (!year.isBlank() || !month.isBlank() || !day.isBlank()) {
+            return new InspectionDateParts(year, month, day, stripYoil(dayOfWeek));
+        }
+        var dateText = binding(context, "inspectionDate", "safetyInspectionDate", "reportDate");
+        if (dateText.isBlank()) {
+            return new InspectionDateParts("", "", "", stripYoil(dayOfWeek));
+        }
+        try {
+            var date = LocalDate.parse(dateText.trim());
+            return new InspectionDateParts(
+                    String.valueOf(date.getYear()),
+                    String.valueOf(date.getMonthValue()),
+                    String.valueOf(date.getDayOfMonth()),
+                    koreanDayOfWeek(date));
+        } catch (DateTimeParseException ignored) {
+            return new InspectionDateParts("", "", "", stripYoil(dayOfWeek));
+        }
+    }
+
+    private String koreanDayOfWeek(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case MONDAY -> "월";
+            case TUESDAY -> "화";
+            case WEDNESDAY -> "수";
+            case THURSDAY -> "목";
+            case FRIDAY -> "금";
+            case SATURDAY -> "토";
+            case SUNDAY -> "일";
+        };
+    }
+
+    private String stripYoil(String value) {
+        var text = valueOrBlank(value).trim();
+        if (text.endsWith("요일")) {
+            return text.substring(0, text.length() - 2);
+        }
+        return text;
+    }
+
+    private String binding(DocxRenderContext context, String... keys) {
+        for (var key : keys) {
+            var value = context.bindings().get(key);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String joinedNonBlank(String... values) {
+        return String.join(" / ", List.of(values).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .toList());
+    }
+
+    private String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String blankIfMissing(String value) {
+        return value == null ? "" : value;
     }
 
     private String replaceRichSectionPlaceholders(String xml, DocxRenderContext context) throws IOException {
@@ -1401,6 +1845,15 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             media.add(new DocxMedia(path, content.content()));
             var size = imageSize(imageSize);
             return new DocxImage(relationshipId, fileName, imageCounter, size[0], size[1]);
+        }
+    }
+
+    private record InspectionDateParts(String year, String month, String day, String dayOfWeek) {
+    }
+
+    private record OfficialSupervisionRow(String trade, String focus, String content) {
+        private static OfficialSupervisionRow blank() {
+            return new OfficialSupervisionRow("", "", "");
         }
     }
 

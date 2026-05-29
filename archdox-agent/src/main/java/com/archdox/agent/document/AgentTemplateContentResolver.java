@@ -31,11 +31,15 @@ public class AgentTemplateContentResolver implements TemplateContentResolver {
 
     @Override
     public Optional<byte[]> resolve(TemplateSpec template) throws IOException {
+        var bundled = BundledDocumentTemplates.read(template.storageRef());
+        if (bundled.isPresent() && shouldPreferBundledTemplate(template.storageRef())) {
+            templateStore.write(template.storageRef(), bundled.get());
+            return bundled;
+        }
         var cached = templateStore.readIfExists(template.storageRef());
         if (cached.isPresent()) {
             return cached;
         }
-        var bundled = BundledDocumentTemplates.read(template.storageRef());
         if (bundled.isPresent()) {
             templateStore.write(template.storageRef(), bundled.get());
             return bundled;
@@ -94,5 +98,16 @@ public class AgentTemplateContentResolver implements TemplateContentResolver {
 
     private boolean requiresAgentAuth(URI uri) {
         return uri.getPath() != null && uri.getPath().startsWith("/agent/api/");
+    }
+
+    private boolean shouldPreferBundledTemplate(String storageRef) {
+        if (storageRef == null || storageRef.isBlank()) {
+            return false;
+        }
+        var normalized = storageRef.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized.startsWith("templates/korean/");
     }
 }

@@ -17,6 +17,7 @@ export type ApiErrorPayload = {
 type MessageResolver = string | ((error: ApiErrorPayload) => string);
 
 const codeMessagesKo: Record<string, MessageResolver> = {
+  PHOTO_WORKING_ASSET_NOT_READY: "사진 작업본을 아직 준비 중입니다. 잠시 후 다시 문서를 생성해주세요.",
   REPORT_PREFLIGHT_REVIEW_REQUIRED: "문서 생성 전에 최신 제출본에 대한 생성 전 검토를 먼저 통과해야 합니다.",
   REPORT_PREFLIGHT_REVIEW_STALE: (error) =>
     `리포트가 수정되어 이전 검토 결과를 사용할 수 없습니다. 현재 제출본 v${param(error, "requiredRevision") ?? "-"} 기준으로 다시 검토해주세요.`,

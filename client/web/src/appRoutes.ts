@@ -3,6 +3,7 @@ import type { ViewKey } from "./appTypes";
 export const viewPaths: Record<ViewKey, string> = {
   home: "/",
   projects: "/projects",
+  sites: "/sites",
   reports: "/reports",
   photos: "/photos",
   jobs: "/documents",
@@ -12,6 +13,9 @@ export const viewPaths: Record<ViewKey, string> = {
 export function viewFromPath(pathname: string): ViewKey {
   if (pathname.startsWith("/projects")) {
     return "projects";
+  }
+  if (pathname.startsWith("/sites")) {
+    return "sites";
   }
   if (pathname.startsWith("/reports")) {
     return "reports";
@@ -25,7 +29,7 @@ export function viewFromPath(pathname: string): ViewKey {
   if (pathname.startsWith("/more")) {
     return "more";
   }
-  return "home";
+  return "projects";
 }
 
 export function invitationTokenFromPathname(pathname: string) {

@@ -8,7 +8,10 @@ import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.domain.PhotoStorageKind;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.NoSuchFileException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -57,7 +60,7 @@ public class AgentPhotoContentController {
         if (asset.storageKind() == PhotoStorageKind.AGENT_MANAGED || asset.storageKind() == PhotoStorageKind.DELETED) {
             throw new BadRequestException("Photo asset content is not available through Cloud");
         }
-        var input = storageAdapterResolver.forStorageKind(asset.storageKind()).openContent(asset);
+        var input = openAssetContent(asset);
         var body = (StreamingResponseBody) outputStream -> {
             try (input) {
                 input.transferTo(outputStream);
@@ -71,6 +74,14 @@ public class AgentPhotoContentController {
             builder.contentLength(asset.bytes());
         }
         return builder.body(body);
+    }
+
+    private InputStream openAssetContent(com.archdox.cloud.photo.domain.PhotoAsset asset) throws IOException {
+        try {
+            return storageAdapterResolver.forStorageKind(asset.storageKind()).openContent(asset);
+        } catch (FileNotFoundException | NoSuchFileException ex) {
+            throw new NotFoundException("Photo asset content not found");
+        }
     }
 
     private Long parseOfficeId(String value) {

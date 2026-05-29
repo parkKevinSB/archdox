@@ -1,8 +1,8 @@
 package com.archdox.cloud.photo.flow;
 
 import com.archdox.cloud.photo.application.PhotoPickupService;
+import com.archdox.cloud.photo.event.PhotoDerivativesGenerated;
 import com.archdox.cloud.photo.event.PhotoPickupRequested;
-import com.archdox.cloud.photo.event.PhotoUploadConfirmed;
 import io.github.parkkevinsb.bloom.spring.Subscribe;
 import org.springframework.stereotype.Component;
 
@@ -23,15 +23,15 @@ public class PhotoPickupEventHandler {
     }
 
     @Subscribe
-    public void onPhotoUploadConfirmed(PhotoUploadConfirmed event) {
+    public void onPhotoDerivativesGenerated(PhotoDerivativesGenerated event) {
         if (!photoPickupService.requiresPickup(event.officeId(), event.photoId())) {
             return;
         }
         worker.submit(flowFactory.create(new PhotoPickupRequested(
                 event.officeId(),
                 event.photoId(),
-                event.reportId(),
-                event.projectId(),
+                null,
+                null,
                 event.occurredAt())));
     }
 }

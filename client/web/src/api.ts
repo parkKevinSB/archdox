@@ -156,6 +156,14 @@ export function createProject(
   });
 }
 
+export function deleteProject(token: string, officeId: number, projectId: number) {
+  return request<void>(`/api/v1/projects/${projectId}`, {
+    token,
+    officeId,
+    method: "DELETE"
+  });
+}
+
 export function getSites(token: string, officeId: number, projectId: number) {
   return request<Site[]>(`/api/v1/projects/${projectId}/sites`, { token, officeId });
 }
@@ -178,6 +186,14 @@ export function createSite(
     officeId,
     method: "POST",
     body
+  });
+}
+
+export function deleteSite(token: string, officeId: number, projectId: number, siteId: number) {
+  return request<void>(`/api/v1/projects/${projectId}/sites/${siteId}`, {
+    token,
+    officeId,
+    method: "DELETE"
   });
 }
 
@@ -227,6 +243,14 @@ export function createInspectionReport(
     officeId,
     method: "POST",
     body
+  });
+}
+
+export function deleteInspectionReport(token: string, officeId: number, reportId: number) {
+  return request<void>(`/api/v1/inspection-reports/${reportId}`, {
+    token,
+    officeId,
+    method: "DELETE"
   });
 }
 

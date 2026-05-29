@@ -10,6 +10,7 @@ import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
 import com.archdox.cloud.photo.domain.Photo;
+import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
@@ -260,6 +261,8 @@ public class DocumentSnapshotBuilder {
         for (Photo photo : rawPhotos) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
             var thumbnail = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.THUMBNAIL);
+            var uploadedWorking = working.filter(asset -> asset.status() == PhotoAssetStatus.UPLOADED);
+            var uploadedThumbnail = thumbnail.filter(asset -> asset.status() == PhotoAssetStatus.UPLOADED);
             var checklistItem = photo.checklistItemId() == null ? Map.<String, Object>of() : checklistItemSnapshots.getOrDefault(photo.checklistItemId(), Map.of());
             var snapshot = new LinkedHashMap<String, Object>();
             snapshot.put("photoId", photo.id());
@@ -269,9 +272,11 @@ public class DocumentSnapshotBuilder {
             snapshot.put("checklistItemLabel", stringValue(checklistItem.get("label")));
             snapshot.put("checklistLinked", photo.checklistItemId() != null);
             snapshot.put("caption", checklistPhotoCaption(photo, checklistItem));
-            snapshot.put("workingStorageRef", working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
-            snapshot.put("thumbnailStorageRef", thumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
-            snapshot.put("mimeType", working.map(com.archdox.cloud.photo.domain.PhotoAsset::mimeType).orElse(photo.mimeType()));
+            snapshot.put("workingStorageRef", uploadedWorking.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
+            snapshot.put("thumbnailStorageRef", uploadedThumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
+            snapshot.put("workingReady", uploadedWorking.isPresent());
+            snapshot.put("thumbnailReady", uploadedThumbnail.isPresent());
+            snapshot.put("mimeType", uploadedWorking.map(com.archdox.cloud.photo.domain.PhotoAsset::mimeType).orElse(photo.mimeType()));
             snapshot.put("width", photo.width() == null ? "" : photo.width());
             snapshot.put("height", photo.height() == null ? "" : photo.height());
             snapshot.put("hashSha256", photo.hashSha256());

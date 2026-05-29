@@ -231,7 +231,7 @@ class DocxTemplateSmokeTest {
                 new TemplateSpec(
                         "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
                         1,
-                        "templates/pdf-reference-construction-daily-log.docx",
+                        "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
                         "{}",
                         "{}"),
                 Map.of(
@@ -273,21 +273,29 @@ class DocxTemplateSmokeTest {
         assertEquals(GenerationStatus.COMPLETED, result.status());
         var content = result.artifacts().get(0).content();
         var documentXml = zipEntry(content, "word/document.xml");
+        assertTrue(documentXml.contains("[별지 제2호서식]"));
         assertTrue(documentXml.contains(KO_CONSTRUCTION_DAILY_LOG));
-        assertTrue(documentXml.contains("DL-2026-0524-001"));
+        assertTrue(documentXml.contains("공사감리자"));
+        assertTrue(documentXml.contains("감리원"));
+        assertTrue(documentXml.contains("공사명"));
+        assertTrue(documentXml.contains("작업사항"));
+        assertTrue(documentXml.contains("공종"));
+        assertTrue(documentXml.contains("감리착안사항"));
+        assertTrue(documentXml.contains("감리내용"));
         assertTrue(documentXml.contains("Supervisor Kim"));
         assertTrue(documentXml.contains("Reference Tower"));
-        assertTrue(documentXml.contains("2026-05-24"));
-        assertTrue(documentXml.contains(KO_TRADE_AND_PROCESS));
-        assertTrue(documentXml.contains(KO_SUPERVISION_ITEM));
+        assertTrue(documentXml.contains("2026"));
+        assertTrue(documentXml.contains("24"));
         assertTrue(documentXml.contains("Reinforced concrete / 3F"));
         assertTrue(documentXml.contains("Slab rebar placement"));
         assertTrue(documentXml.contains("Opening guardrail added"));
         assertTrue(documentXml.contains(KO_SPECIAL_NOTES));
         assertTrue(documentXml.contains(KO_ISSUE_AND_ACTION));
-        assertTrue(documentXml.contains("<w:tblStyle w:val=\"ArchDoxInspectionTable\"/>"));
+        assertTrue(documentXml.contains("작성방법"));
+        assertTrue(!documentXml.contains("<w:tblStyle w:val=\"ArchDoxInspectionTable\"/>"));
+        assertTrue(!documentXml.contains("C9A227"));
         assertTrue(!documentXml.contains("${"));
-        assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 2);
+        assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 5);
 
         writeSmokeArtifact("pdf-reference-construction-daily-supervision-log.docx", content);
     }

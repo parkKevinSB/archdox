@@ -12,6 +12,15 @@ This is the local test entrypoint before AWS deployment.
 - Client web on `http://127.0.0.1:5173`
 - Admin web on `http://127.0.0.1:5174`
 
+The default photo upload path is `CLOUD_MEDIATED`, so local testing exercises:
+
+```text
+client -> Cloud API/MinIO temporary original -> ArchDox Agent pickup
+```
+
+Derivatives are generated before Agent pickup deletes the temporary original.
+To test simpler API-local uploads, start with `-PhotoUploadTarget API_LOCAL`.
+
 Development fake AI is enabled by default:
 
 - `fake-review` for report/document review flow
@@ -26,6 +35,10 @@ using a paid AI API key.
 .\scripts\local-e2e\start-local-e2e.ps1 -AgentOfficeId 1
 ```
 
+If a port is already in use, the script stops before launching partial services.
+Run the stop script first, stop the stale process, or pass another port such as
+`-AgentPort 18081`.
+
 If the test office id is not `1`, pass the office id shown in the user/admin UI.
 The script uses local PostgreSQL on `localhost:55432` by default and creates or
 starts an `archdox-postgres-55432` container when that port is not already open.
@@ -38,7 +51,9 @@ Use `-DbPort <port>` only when intentionally pointing at another local database.
 ```
 
 The stop script leaves Docker dependencies running intentionally, so database
-state remains available for another run.
+state remains available for another run. It also clears the default local app
+ports `8080`, `18080`, `5173`, and `5174` because Gradle/npm may leave child
+listener processes behind.
 
 ## Test Accounts
 

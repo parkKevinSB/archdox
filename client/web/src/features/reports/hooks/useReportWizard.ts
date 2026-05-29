@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { getInspectionSteps, getReportWorkflowDefinition } from "../api";
 import {
@@ -48,6 +48,7 @@ export function useReportWizard({
   const [stepError, setStepError] = useState<string | null>(null);
   const [stepSaveStatus, setStepSaveStatus] = useState<StepSaveStatus>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const initializedReportIdRef = useRef<number | null>(null);
   const isDirty = form.formState.isDirty;
 
   const activeDefinition = useMemo(
@@ -83,7 +84,16 @@ export function useReportWizard({
         setWorkflowDefinition(workflow);
         setStepDefinitions(nextDefinitions);
         setSavedSteps(nextSteps);
-        setActiveStepCode(isReportStepCode(report.currentStep, nextDefinitions) ? report.currentStep : nextDefinitions[0].code);
+        const initialStepCode = isReportStepCode(report.currentStep, nextDefinitions)
+          ? report.currentStep
+          : nextDefinitions[0].code;
+        setActiveStepCode((current) => {
+          if (initializedReportIdRef.current !== report.id || !isReportStepCode(current, nextDefinitions)) {
+            return initialStepCode;
+          }
+          return current;
+        });
+        initializedReportIdRef.current = report.id;
       })
       .catch((err) => {
         if (!cancelled) {
@@ -98,7 +108,7 @@ export function useReportWizard({
     return () => {
       cancelled = true;
     };
-  }, [officeId, report.currentStep, report.id, token]);
+  }, [officeId, report.id, token]);
 
   useEffect(() => {
     const savedStep = savedSteps[activeStepCode];

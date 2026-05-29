@@ -3,8 +3,11 @@ param(
     [string]$AgentCode = "local-e2e-agent",
     [int]$ApiPort = 8080,
     [int]$DbPort = 55432,
+    [int]$AgentPort = 18080,
     [int]$ClientPort = 5173,
     [int]$AdminPort = 5174,
+    [ValidateSet("CLOUD_MEDIATED", "API_LOCAL", "S3")]
+    [string]$PhotoUploadTarget = "CLOUD_MEDIATED",
     [switch]$SkipAgent,
     [switch]$SkipWeb
 )
@@ -50,6 +53,19 @@ function Test-LocalPort {
     return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
+function Assert-LocalPortFree {
+    param(
+        [string]$Name,
+        [int]$Port
+    )
+
+    $listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if ($listeners) {
+        $owners = $listeners | Select-Object -ExpandProperty OwningProcess -Unique
+        throw "$Name port $Port is already in use by PID(s): $($owners -join ', '). Run scripts/local-e2e/stop-local-e2e.ps1 first, stop the stale process, or pass another port."
+    }
+}
+
 Write-Host "Starting Docker dependencies: postgres, mailhog, minio"
 if (-not (Test-LocalPort -Port $DbPort)) {
     $postgresName = "archdox-postgres-$DbPort"
@@ -77,6 +93,15 @@ try {
 
 $processes = @()
 
+Assert-LocalPortFree -Name "Cloud API" -Port $ApiPort
+if (-not $SkipAgent) {
+    Assert-LocalPortFree -Name "ArchDox Agent" -Port $AgentPort
+}
+if (-not $SkipWeb) {
+    Assert-LocalPortFree -Name "Client web" -Port $ClientPort
+    Assert-LocalPortFree -Name "Admin web" -Port $AdminPort
+}
+
 $env:SPRING_PROFILES_ACTIVE = "local"
 $env:SERVER_PORT = "$ApiPort"
 $env:DB_URL = "jdbc:postgresql://localhost:$DbPort/archdox"
@@ -88,9 +113,11 @@ $env:DOCUMENT_AI_REVIEW_ENABLED = "true"
 $env:PLATFORM_OPS_AI_DIAGNOSIS_ENABLED = "true"
 $env:PLATFORM_OPS_AI_PROVIDER_CODE = "fake-ops"
 $env:PLATFORM_OPS_AI_MODEL = "fake-ops-model"
+$env:AGENT_API_INSTANCE_ID = "local-e2e-api"
 $env:AGENT_ALLOW_SHARED_SECRET_AUTH = "true"
 $env:AGENT_SHARED_SECRET = "dev-agent-secret-change-me"
 $env:PLATFORM_ADMIN_BOOTSTRAP_EMAILS = "archdox-admin@test.co.kr"
+$env:PHOTO_UPLOAD_TARGET = $PhotoUploadTarget
 
 $processes += Start-ArchDoxProcess `
     -Name "cloud-api" `
@@ -100,7 +127,7 @@ $processes += Start-ArchDoxProcess `
 
 if (-not $SkipAgent) {
     $env:SPRING_PROFILES_ACTIVE = "local"
-    $env:SERVER_PORT = "18080"
+    $env:SERVER_PORT = "$AgentPort"
     $env:CLOUD_AGENT_WS_URL = "ws://localhost:$ApiPort/agent/ws"
     $env:CLOUD_API_BASE_URL = "http://localhost:$ApiPort"
     $env:AGENT_WS_ENABLED = "true"
@@ -144,5 +171,6 @@ Write-Host "Client web: http://127.0.0.1:$ClientPort"
 Write-Host "Admin web:  http://127.0.0.1:$AdminPort"
 Write-Host "MailHog:    http://localhost:8025"
 Write-Host "MinIO:      http://localhost:9001"
+Write-Host "Photo upload target: $PhotoUploadTarget"
 Write-Host "Logs:       $logDir"
 Write-Host "PID file:   $pidFile"

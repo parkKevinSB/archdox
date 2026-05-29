@@ -54,13 +54,29 @@ class CoreKoreanDocumentGenerationSmokeTest {
         var pdf = artifact(result, ArtifactType.PDF);
         var documentXml = zipEntry(docx.content(), "word/document.xml");
 
+        assertTrue(documentXml.contains("[별지 제2호서식]"));
         assertTrue(documentXml.contains("공사감리일지"));
-        assertTrue(documentXml.contains("DL-2026-0525-001"));
+        assertTrue(documentXml.contains("공사감리자"));
+        assertTrue(documentXml.contains("감리원"));
+        assertTrue(documentXml.contains("공사명"));
+        assertTrue(documentXml.contains("작업사항"));
+        assertTrue(documentXml.contains("감리착안사항"));
+        assertTrue(documentXml.contains("감리내용"));
+        assertTrue(documentXml.contains("특기사항"));
+        assertTrue(documentXml.contains("지적사항 및 처리결과"));
+        assertTrue(documentXml.contains("작성방법"));
         assertTrue(documentXml.contains("레퍼런스 타워 신축공사"));
+        assertTrue(documentXml.contains("2026"));
+        assertTrue(documentXml.contains("25"));
         assertTrue(documentXml.contains("철근콘크리트공사 / 3층"));
         assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
         assertTrue(documentXml.contains("전경 사진"));
+        assertTrue(documentXml.contains("사진 및 설명"));
+        assertTrue(!documentXml.contains("C9A227"));
+        assertTrue(!documentXml.contains("ArchDoxInspectionTable"));
         assertFalse(documentXml.contains("${"));
+        assertTrue(zipEntry(docx.content(), "word/_rels/document.xml.rels").contains("rIdArchDoxImage1"));
+        assertNotNull(zipEntryBytes(docx.content(), "word/media/archdox-photo-1.png"));
         assertTrue(pdf.fileName().endsWith(".pdf"));
         assertTrue(pdf.bytes() > 0);
     }
@@ -231,15 +247,23 @@ class CoreKoreanDocumentGenerationSmokeTest {
     }
 
     private String zipEntry(byte[] content, String path) throws IOException {
+        var bytes = zipEntryBytes(content, path);
+        if (bytes == null) {
+            throw new IOException(path + " not found in docx");
+        }
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private byte[] zipEntryBytes(byte[] content, String path) throws IOException {
         assertNotNull(content);
         try (var zip = new ZipInputStream(new ByteArrayInputStream(content), StandardCharsets.UTF_8)) {
             for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
                 if (path.equals(entry.getName())) {
-                    return new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                    return zip.readAllBytes();
                 }
             }
         }
-        throw new IOException(path + " not found in docx");
+        return null;
     }
 
     private static final class FakePdfExporter implements DocumentArtifactExporter {

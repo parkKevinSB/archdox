@@ -28,6 +28,7 @@ import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.photo.domain.Photo;
+import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
@@ -117,6 +118,7 @@ public class DocumentJobService {
         var report = inspectionReportService.requireReport(reportId);
         requireCanRequestGeneration(report);
         preflightGateService.requirePassedForGeneration(report);
+        requirePhotoAssetsReadyForGeneration(report);
         var outputFormat = createRequest.normalizedOutputFormat();
         var officeId = OfficeContext.requireCurrentOfficeId();
         var workerType = routingService.route(officeId, outputFormat, createRequest.workerType());
@@ -395,6 +397,17 @@ public class DocumentJobService {
         if (template.storageRef() == null || template.storageRef().isBlank()) {
             throw new NotFoundException("Document template content not found");
         }
+        if (shouldPreferBundledTemplate(template.storageRef())) {
+            var bundled = BundledDocumentTemplates.read(template.storageRef());
+            if (bundled.isPresent()) {
+                var content = bundled.get();
+                return new DocumentArtifactDownload(
+                        filenameFromStorageRef(template.storageRef()),
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        content.length,
+                        outputStream -> outputStream.write(content));
+            }
+        }
         if (!objectStore.exists(template.storageRef())) {
             var bundled = BundledDocumentTemplates.read(template.storageRef());
             if (bundled.isPresent()) {
@@ -567,6 +580,17 @@ public class DocumentJobService {
         return "template.docx";
     }
 
+    private boolean shouldPreferBundledTemplate(String storageRef) {
+        if (storageRef == null || storageRef.isBlank()) {
+            return false;
+        }
+        var normalized = storageRef.trim().replace('\\', '/');
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized.startsWith("templates/korean/");
+    }
+
     @SuppressWarnings("unchecked")
     private TemplateSpec templateSpec(DocumentJob job, InspectionReport report) {
         var configuration = mapValue(job.inputSnapshotJson().get("configuration"));
@@ -643,16 +667,38 @@ public class DocumentJobService {
         var photos = new ArrayList<com.archdox.document.PhotoAsset>();
         for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
+            if (working.isEmpty() || working.get().status() != PhotoAssetStatus.UPLOADED) {
+                continue;
+            }
             photos.add(new com.archdox.document.PhotoAsset(
                     String.valueOf(photo.id()),
                     photo.stepCode(),
-                    working.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(photo.storageRef()),
+                    working.get().storageRef(),
                     "",
                     PhotoLayoutSize.MEDIUM,
-                    working.map(com.archdox.cloud.photo.domain.PhotoAsset::mimeType).orElse(photo.mimeType()),
-                    working.map(asset -> "/agent/api/v1/photos/%d/assets/WORKING/content".formatted(photo.id())).orElse(null)));
+                    working.get().mimeType(),
+                    "/agent/api/v1/photos/%d/assets/WORKING/content".formatted(photo.id())));
         }
         return photos;
+    }
+
+    private void requirePhotoAssetsReadyForGeneration(InspectionReport report) {
+        var pendingPhotoIds = new ArrayList<Long>();
+        for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
+            var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
+            if (working.isEmpty() || working.get().status() != PhotoAssetStatus.UPLOADED) {
+                pendingPhotoIds.add(photo.id());
+            }
+        }
+        if (!pendingPhotoIds.isEmpty()) {
+            throw new BadRequestException(
+                    "PHOTO_WORKING_ASSET_NOT_READY",
+                    "errors.document.photoWorkingAssetNotReady",
+                    "Photo working images are still being prepared. Please try document generation again shortly.",
+                    Map.of(
+                            "reportId", report.id(),
+                            "pendingPhotoIds", pendingPhotoIds));
+        }
     }
 
     private List<?> listValue(Object value) {

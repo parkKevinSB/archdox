@@ -19,6 +19,7 @@ import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.project.application.ProjectService;
 import com.archdox.cloud.site.application.SiteService;
+import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -36,6 +37,7 @@ public class InspectionReportService {
     private final OfficePermissionService permissionService;
     private final ReportSubmitValidationService submitValidationService;
     private final DocumentTypeRegistryService documentTypeRegistryService;
+    private final WorkspaceCascadeDeletionService deletionService;
 
     public InspectionReportService(
             InspectionReportRepository reportRepository,
@@ -44,7 +46,8 @@ public class InspectionReportService {
             SiteService siteService,
             OfficePermissionService permissionService,
             ReportSubmitValidationService submitValidationService,
-            DocumentTypeRegistryService documentTypeRegistryService
+            DocumentTypeRegistryService documentTypeRegistryService,
+            WorkspaceCascadeDeletionService deletionService
     ) {
         this.reportRepository = reportRepository;
         this.stepRepository = stepRepository;
@@ -53,6 +56,7 @@ public class InspectionReportService {
         this.permissionService = permissionService;
         this.submitValidationService = submitValidationService;
         this.documentTypeRegistryService = documentTypeRegistryService;
+        this.deletionService = deletionService;
     }
 
     @Transactional(readOnly = true)
@@ -159,6 +163,13 @@ public class InspectionReportService {
         requireCanCancel(report);
         report.cancel(OffsetDateTime.now());
         return toResponse(report, principal);
+    }
+
+    @Transactional
+    public void delete(Long reportId, UserPrincipal principal) {
+        var report = requireReport(reportId);
+        permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
+        deletionService.deleteReport(report.officeId(), report.id());
     }
 
     public InspectionReport requireReport(Long reportId) {

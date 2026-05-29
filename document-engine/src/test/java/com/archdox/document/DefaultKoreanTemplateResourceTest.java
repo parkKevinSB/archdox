@@ -33,7 +33,7 @@ class DefaultKoreanTemplateResourceTest {
                             "supervisionItemsSection", "CHECKLIST_TABLE",
                             "checklistPhotoSection", "CHECKLIST_PHOTO_TABLE",
                             "photoSection", "PHOTO_TABLE"),
-                    List.of("Project Alpha", "2026-05-23", "Sample field note")),
+                    List.of("Project Alpha", "2026", "Sample field note")),
             new TemplateCase(
                     "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
                     "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
@@ -75,9 +75,21 @@ class DefaultKoreanTemplateResourceTest {
             for (String expectedValue : templateCase.expectedValues()) {
                 assertTrue(documentXml.contains(expectedValue), templateCase.code() + " missing " + expectedValue);
             }
-            assertTrue(documentXml.contains("CHK-001"), templateCase.code());
-            assertTrue(documentXml.contains("Checked item"), templateCase.code());
-            assertTrue(documentXml.contains("Meets criteria"), templateCase.code());
+            if (isConstructionDailyTemplate(templateCase)) {
+                assertTrue(documentXml.contains("[별지 제2호서식]"), templateCase.code());
+                assertTrue(documentXml.contains("공사감리일지"), templateCase.code());
+                assertTrue(documentXml.contains("공사감리자"), templateCase.code());
+                assertTrue(documentXml.contains("작업사항"), templateCase.code());
+                assertTrue(documentXml.contains("감리착안사항"), templateCase.code());
+                assertTrue(documentXml.contains("작성방법"), templateCase.code());
+                assertTrue(documentXml.contains("Checked item"), templateCase.code());
+                assertTrue(documentXml.contains("Meets criteria"), templateCase.code());
+                assertFalse(documentXml.contains("ArchDoxInspectionTable"), templateCase.code());
+            } else {
+                assertTrue(documentXml.contains("CHK-001"), templateCase.code());
+                assertTrue(documentXml.contains("Checked item"), templateCase.code());
+                assertTrue(documentXml.contains("Meets criteria"), templateCase.code());
+            }
             assertFalse(documentXml.contains("${"), templateCase.code());
 
             writeDefaultTemplateArtifact(templateCase, result.artifacts().get(0).content());
@@ -104,6 +116,10 @@ class DefaultKoreanTemplateResourceTest {
         }
 
         assertTrue(BundledDocumentTemplates.read("missing.docx").isEmpty());
+    }
+
+    private boolean isConstructionDailyTemplate(TemplateCase templateCase) {
+        return "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2".equals(templateCase.code());
     }
 
     private Map<String, Object> payload(Map<String, String> richSections) {

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, History, Loader2, PenLine, RefreshCw, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, Loader2, PenLine, RefreshCw, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
 import {
   EmptyState,
   InlineAlert,
-  MetricTile,
   Panel,
   StatusBadge,
+  statusLabel,
   ViewHeader
 } from "../../../components/common";
 import { useDocumentWorkspace } from "../hooks/useDocumentWorkspace";
@@ -44,12 +44,6 @@ export function DocumentWorkspace({
     report: InspectionReport;
   } | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
-  const readyReports = workspace.documentReports.filter((report) => report.status === "READY_TO_GENERATE");
-  const activeReports = workspace.documentReports.filter((report) =>
-    ["GENERATION_REQUESTED", "GENERATING"].includes(report.status)
-  );
-  const staleDraftReports = workspace.documentReports.filter((report) => needsSubmitBeforeGeneration(report));
-  const generatedReports = workspace.documentReports.filter((report) => report.status === "GENERATED");
   const requestSignedGeneration = (report: InspectionReport, outputFormat: DocumentOutputFormat) => {
     setSignatureError(null);
     setSignatureRequest({ outputFormat, report });
@@ -90,15 +84,8 @@ export function DocumentWorkspace({
     <div className="view-stack">
       <ViewHeader
         title="문서"
-        text="제출된 리포트의 문서를 생성하고 revision별 생성 이력과 다운로드 상태를 확인합니다."
+        text="문서별 생성 상태를 확인하고, 필요한 산출물만 생성하거나 다운로드합니다."
       />
-
-      <div className="metric-row compact">
-        <MetricTile label="생성 가능" value={readyReports.length} detail="제출 완료" />
-        <MetricTile label="재제출 필요" value={staleDraftReports.length} detail="수정본 작성 중" />
-        <MetricTile label="진행 중" value={activeReports.length} detail="생성 요청/진행" />
-        <MetricTile label="완료" value={generatedReports.length} detail="다운로드 가능" />
-      </div>
 
       {workspace.error ? (
         <InlineAlert message={workspace.error instanceof Error ? workspace.error.message : "문서 작업을 불러오지 못했습니다."} />
@@ -154,23 +141,6 @@ export function DocumentWorkspace({
               })}
             </div>
           )}
-        </Panel>
-
-        <Panel title="문서 정책">
-          <div className="settings-list">
-            <div>
-              <strong>revision 기준 생성</strong>
-              <span>문서 job은 생성 당시 report revision을 저장합니다. 수정본을 만들면 이전 문서는 이력으로 남습니다.</span>
-            </div>
-            <div>
-              <strong>수정 후 재제출</strong>
-              <span>생성 완료 리포트를 수정하면 먼저 다시 제출해야 새 revision 문서를 생성할 수 있습니다.</span>
-            </div>
-            <div>
-              <strong>다운로드 준비</strong>
-              <span>최신 생성본과 이전 생성본을 구분해서 보여주고, 필요한 산출물만 다운로드 준비합니다.</span>
-            </div>
-          </div>
         </Panel>
       </div>
       {workspace.preview ? (
@@ -264,6 +234,9 @@ function DocumentReportCard({
   const creatingDocx = creating && (creatingOutputFormat === null || creatingOutputFormat === "DOCX");
   const creatingHtml = creating && creatingOutputFormat === "HTML";
   const creatingPdf = creating && creatingOutputFormat === "PDF";
+  const preflightStatus = preflightStatusLabel(preflightRun, Boolean(preflightRun && !preflightCurrent));
+  const detailOpen = !preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status);
+  const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
     <article className="document-card">
@@ -273,44 +246,84 @@ function DocumentReportCard({
         </div>
         <div>
           <strong>{report.title || report.reportNo}</strong>
-          <span>{projectName ?? `project #${report.projectId}`} / {report.reportType}</span>
+          <span>{projectName ?? `project #${report.projectId}`} / {reportTypeLabel(report.reportType)}</span>
         </div>
         <StatusBadge status={latestJob?.status ?? report.status} />
       </div>
 
-      <RevisionStrip report={report} latestJob={latestJob} latestGeneratedJob={latestGeneratedJob} />
+      {latestJob ? <JobProgress job={latestJob} /> : null}
 
-      {activeJob || latestJob ? (
-        <JobProgress job={activeJob ?? latestJob!} />
-      ) : (
-        <p className="document-muted">아직 문서 생성 요청이 없습니다.</p>
-      )}
+      <div className="document-card-summary">
+        <div className="document-summary-item">
+          <span>문서 상태</span>
+          <strong>{documentStatusSummary(latestJob, report)}</strong>
+        </div>
+        <div className="document-summary-item">
+          <span>검토 상태</span>
+          <strong>{preflightStatus}</strong>
+        </div>
+        <div className="document-summary-item">
+          <span>완료 파일</span>
+          <strong>{generatedArtifactCount > 0 ? `${generatedArtifactCount}개` : "-"}</strong>
+        </div>
+      </div>
 
       <InlineDocumentGuide report={report} latestGeneratedJob={latestGeneratedJob} />
 
-      <PreflightReviewPanel
-        findings={preflightFindings}
-        currentRevision={generationRevision(report)}
-        report={report}
-        reviewing={reviewing || preflightActive}
-        resolvingFindingId={resolvingPreflightFindingId}
-        run={preflightRun}
-        onRequestReview={onRequestPreflightReview}
-        onResolveFinding={onResolvePreflightFinding}
-      />
+      <details className="document-detail-section" open={detailOpen}>
+        <summary>
+          <span>
+            <strong>생성 전 검토</strong>
+            <small>{preflightGateHint(preflightRun, report)}</small>
+          </span>
+          <em>{preflightStatus}</em>
+        </summary>
+        <PreflightReviewPanel
+          findings={preflightFindings}
+          currentRevision={generationRevision(report)}
+          report={report}
+          reviewing={reviewing || preflightActive}
+          resolvingFindingId={resolvingPreflightFindingId}
+          run={preflightRun}
+          onRequestReview={onRequestPreflightReview}
+          onResolveFinding={onResolvePreflightFinding}
+        />
+      </details>
 
-      {generatedJobs.length > 0 ? (
-        <div className="document-history">
-          <div className="document-history-title">
-            <History size={15} />
-            <strong>생성 이력</strong>
-            <span>{generatedJobs.length}개 revision/job</span>
-          </div>
-          {generatedJobs.map((job, index) => (
+      {latestGeneratedJob ? (
+        <GeneratedJobArtifacts
+          deliveriesByArtifact={deliveriesByArtifact}
+          downloadingArtifactId={downloadingArtifactId}
+          isLatest
+          job={latestGeneratedJob}
+          previewingArtifactId={previewingArtifactId}
+          requestingDeliveryArtifactId={requestingDeliveryArtifactId}
+          onDownloadPrepared={onDownloadPrepared}
+          onPreviewArtifact={onPreviewArtifact}
+          onRequestDelivery={onRequestDelivery}
+        />
+      ) : null}
+
+      {latestGeneratedJob && generatedJobs.length === 1 ? (
+        <p className="document-muted">
+          아직 이전 생성본은 없습니다. 수정 후 다시 생성하면 기존 완료 문서는 이전본으로 남습니다.
+        </p>
+      ) : null}
+
+      {generatedJobs.length > 1 ? (
+        <details className="document-detail-section document-history" open={false}>
+          <summary>
+            <span>
+              <strong>이전 생성본</strong>
+              <small>{generatedJobs.length - 1}개 revision/job</small>
+            </span>
+            <em>펼쳐보기</em>
+          </summary>
+          {generatedJobs.slice(1).map((job) => (
             <GeneratedJobArtifacts
               deliveriesByArtifact={deliveriesByArtifact}
               downloadingArtifactId={downloadingArtifactId}
-              isLatest={index === 0}
+              isLatest={false}
               job={job}
               key={job.id}
               previewingArtifactId={previewingArtifactId}
@@ -320,28 +333,37 @@ function DocumentReportCard({
               onRequestDelivery={onRequestDelivery}
             />
           ))}
-          {generatedJobs.length === 1 ? (
-            <p className="document-muted">
-              아직 이전 생성본은 없습니다. 수정 후 다시 생성하면 기존 완료 문서는 이전본으로 남습니다.
-            </p>
-          ) : null}
-        </div>
+        </details>
       ) : null}
+
+      <details className="document-detail-section">
+        <summary>
+          <span>
+            <strong>상세 정보</strong>
+            <small>revision과 최근 job 상태를 확인합니다.</small>
+          </span>
+          <em>v{report.contentRevision}</em>
+        </summary>
+        <RevisionStrip report={report} latestJob={latestJob} latestGeneratedJob={latestGeneratedJob} />
+        {!latestJob ? <p className="document-muted">아직 문서 생성 요청이 없습니다.</p> : null}
+      </details>
 
       <div className="document-actions">
         <span className="document-action-hint">{actionHint}</span>
-        <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
-          {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-          HTML 미리보기
-        </button>
-        <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
-          {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
-          PDF 생성
-        </button>
-        <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
-          {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
-          {action.label}
-        </button>
+        <div className="document-action-buttons">
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
+            {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+            HTML 미리보기
+          </button>
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
+            {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+            PDF 생성
+          </button>
+          <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
+            {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+            {action.label}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -720,7 +742,7 @@ function JobProgress({ job }: { job: DocumentJobResponse }) {
   return (
     <div className="document-progress">
       <div>
-        <span>{job.progressStep} / v{job.reportRevision}</span>
+        <span>{statusLabel(job.progressStep)} / v{job.reportRevision}</span>
         <strong>{job.progressPercent}%</strong>
       </div>
       <div className="progress-track" aria-hidden="true">
@@ -1044,6 +1066,88 @@ function findingResolutionLabel(finding: ReportPreflightReviewFindingResponse) {
     return finding.resolvedAt ? `리스크 수용 / ${new Date(finding.resolvedAt).toLocaleString()}` : "리스크 수용";
   }
   return "미처리";
+}
+
+function documentStatusSummary(latestJob: DocumentJobResponse | null, report: InspectionReport) {
+  if (!latestJob) {
+    return reportStatusLabel(report.status);
+  }
+  if (latestJob.status === "GENERATED") {
+    return `완료 v${latestJob.reportRevision}`;
+  }
+  if (latestJob.status === "FAILED") {
+    return `실패 v${latestJob.reportRevision}`;
+  }
+  if (latestJob.status === "REQUESTED" || latestJob.status === "GENERATING") {
+    return `진행 중 ${latestJob.progressPercent}%`;
+  }
+  return jobStatusLabel(latestJob.status);
+}
+
+function jobStatusLabel(status: string) {
+  if (status === "REQUESTED") {
+    return "요청됨";
+  }
+  if (status === "GENERATING") {
+    return "생성 중";
+  }
+  if (status === "GENERATED") {
+    return "생성 완료";
+  }
+  if (status === "FAILED") {
+    return "생성 실패";
+  }
+  if (status === "CANCELLED") {
+    return "취소됨";
+  }
+  return status;
+}
+
+function reportStatusLabel(status: string) {
+  if (status === "DRAFT") {
+    return "초안";
+  }
+  if (status === "STEP_SAVED") {
+    return "작성 중";
+  }
+  if (status === "READY_TO_GENERATE") {
+    return "생성 대기";
+  }
+  if (status === "GENERATION_REQUESTED") {
+    return "생성 요청";
+  }
+  if (status === "GENERATING") {
+    return "생성 중";
+  }
+  if (status === "GENERATED") {
+    return "생성 완료";
+  }
+  if (status === "FAILED") {
+    return "생성 실패";
+  }
+  if (status === "DELIVERED") {
+    return "전달 완료";
+  }
+  return status;
+}
+
+function reportTypeLabel(reportType: string) {
+  if (reportType === "CONSTRUCTION_DAILY_SUPERVISION_LOG" || reportType === "DAILY_SUPERVISION") {
+    return "공사감리일지";
+  }
+  if (reportType === "CONSTRUCTION_SUPERVISION_DAILY_LOG") {
+    return "공사감리일지";
+  }
+  if (reportType === "CONSTRUCTION_SUPERVISION_REPORT") {
+    return "감리보고서";
+  }
+  if (reportType === "DEMOLITION_SAFETY_CHECKLIST") {
+    return "해체공사 안전점검표";
+  }
+  if (reportType === "SAFETY_INSPECTION_REPORT") {
+    return "안전점검 보고서";
+  }
+  return reportType;
 }
 
 function documentAction(report: InspectionReport, latestJob: DocumentJobResponse | null, active: boolean) {

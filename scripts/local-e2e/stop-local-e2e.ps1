@@ -1,3 +1,7 @@
+param(
+    [int[]]$Ports = @(8080, 18080, 5173, 5174)
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -16,6 +20,18 @@ if (Test-Path $pidFile) {
         }
     }
     Remove-Item -LiteralPath $pidFile -Force
+}
+
+$listeners = Get-NetTCPConnection -LocalPort $Ports -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+foreach ($ownerPid in @($listeners)) {
+    try {
+        $process = Get-Process -Id $ownerPid -ErrorAction Stop
+        Write-Host "Stopping stale local E2E listener pid=$ownerPid ($($process.ProcessName))"
+        Stop-Process -Id $ownerPid -Force
+    } catch {
+        Write-Host "Already stopped stale listener pid=$ownerPid"
+    }
 }
 
 Write-Host "Local E2E app processes stopped. Docker dependencies are left running intentionally."

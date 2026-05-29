@@ -62,7 +62,7 @@ export function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`status-badge ${statusTone(status)}`}>{status}</span>;
+  return <span className={`status-badge ${statusTone(status)}`}>{statusLabel(status)}</span>;
 }
 
 export function InlineAlert({ message }: { message: string }) {
@@ -119,4 +119,47 @@ function statusTone(status: string) {
     return "red";
   }
   return "slate";
+}
+
+export function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ACCEPTED: "위험 수용",
+    ACTIVE: "활성",
+    ARCHIVED: "보관됨",
+    CANCELLED: "취소됨",
+    COMPLETED: "완료",
+    CRITICAL: "긴급",
+    DELIVERED: "전달 완료",
+    DISPATCHING: "Agent 전송 중",
+    DRAFT: "작성 전",
+    FAILED: "실패",
+    GENERATED: "생성 완료",
+    GENERATING: "생성 중",
+    GENERATION_REQUESTED: "생성 요청됨",
+    HIGH: "높음",
+    INFO: "정보",
+    LOW: "낮음",
+    MEDIUM: "보통",
+    NEEDS_ATTENTION: "확인 필요",
+    NOT_REQUIRED: "불필요",
+    OPEN: "미처리",
+    PASSED: "통과",
+    PENDING: "대기 중",
+    PENDING_UPLOAD: "업로드 대기",
+    PICKED_UP: "수거 완료",
+    QUEUED: "대기 중",
+    READY_TO_GENERATE: "문서 생성 가능",
+    RENDERING: "문서 렌더링 중",
+    REQUESTED: "요청됨",
+    RESOLVED: "해결됨",
+    RUNNING: "진행 중",
+    SENDING: "전송 중",
+    STALE: "갱신 필요",
+    STEP_SAVED: "작성 중",
+    STORING_ARTIFACTS: "파일 저장 중",
+    UPLOADED: "업로드 완료",
+    VALIDATING: "검증 중",
+    WAITING_FOR_AGENT: "Agent 응답 대기"
+  };
+  return labels[status] ?? status;
 }

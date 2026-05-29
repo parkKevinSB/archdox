@@ -2,8 +2,10 @@ package com.archdox.agent.document;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.archdox.agent.cloud.ArchDoxAgentProperties;
+import com.archdox.document.BundledDocumentTemplates;
 import com.archdox.document.TemplateSpec;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
@@ -14,6 +16,30 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AgentTemplateContentResolverTest {
+    @Test
+    void bundledKoreanDefaultsOverrideStaleCachedTemplate(@TempDir Path tempDir) throws Exception {
+        var storageRef = "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx";
+        var properties = new ArchDoxAgentProperties();
+        properties.setLocalStorageRoot(tempDir.toString());
+        var store = new AgentTemplateStore(properties);
+        store.write(storageRef, "stale-cached-template".getBytes());
+        var resolver = new AgentTemplateContentResolver(properties, store);
+
+        var resolved = resolver.resolve(new TemplateSpec(
+                "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+                1,
+                storageRef,
+                "{}",
+                "{}",
+                null,
+                true));
+
+        var bundled = BundledDocumentTemplates.read(storageRef).orElseThrow();
+        assertArrayEquals(bundled, resolved.orElseThrow());
+        assertArrayEquals(bundled, Files.readAllBytes(tempDir.resolve(storageRef)));
+        assertFalse(new String(Files.readAllBytes(tempDir.resolve(storageRef))).contains("stale-cached-template"));
+    }
+
     @Test
     void downloadsTemplateWithAgentCredentialsAndCachesByStorageRef(@TempDir Path tempDir) throws Exception {
         var content = "template-content".getBytes();

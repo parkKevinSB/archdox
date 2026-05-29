@@ -9,6 +9,7 @@ import com.archdox.cloud.project.domain.Project;
 import com.archdox.cloud.project.dto.CreateProjectRequest;
 import com.archdox.cloud.project.dto.ProjectResponse;
 import com.archdox.cloud.project.infra.ProjectRepository;
+import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -28,10 +29,16 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final OfficePermissionService permissionService;
+    private final WorkspaceCascadeDeletionService deletionService;
 
-    public ProjectService(ProjectRepository projectRepository, OfficePermissionService permissionService) {
+    public ProjectService(
+            ProjectRepository projectRepository,
+            OfficePermissionService permissionService,
+            WorkspaceCascadeDeletionService deletionService
+    ) {
         this.projectRepository = projectRepository;
         this.permissionService = permissionService;
+        this.deletionService = deletionService;
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +77,13 @@ public class ProjectService {
         permissionService.requireProjectManager(principal.userId(), project.officeId());
         project.archive(OffsetDateTime.now());
         return toResponse(project);
+    }
+
+    @Transactional
+    public void delete(Long projectId, UserPrincipal principal) {
+        var project = requireProject(projectId);
+        permissionService.requireProjectManager(principal.userId(), project.officeId());
+        deletionService.deleteProject(project.officeId(), project.id());
     }
 
     public Project requireProject(Long projectId) {

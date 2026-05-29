@@ -6,6 +6,7 @@ import com.archdox.cloud.project.dto.CreateProjectRequest;
 import com.archdox.cloud.project.dto.ProjectResponse;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,5 +45,11 @@ public class ProjectController {
     @PostMapping("/{projectId}/archive")
     public ProjectResponse archive(@PathVariable Long projectId, Authentication authentication) {
         return projectService.archive(projectId, (UserPrincipal) authentication.getPrincipal());
+    }
+
+    @DeleteMapping("/{projectId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long projectId, Authentication authentication) {
+        projectService.delete(projectId, (UserPrincipal) authentication.getPrincipal());
     }
 }

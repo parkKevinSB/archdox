@@ -8,6 +8,7 @@ import com.archdox.cloud.photo.domain.PhotoStorageKind;
 import com.archdox.cloud.photo.domain.PhotoUploadKind;
 import com.archdox.cloud.photo.domain.PhotoUploadTarget;
 import com.archdox.cloud.photo.dto.PhotoUploadInstructionResponse;
+import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +27,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -104,14 +106,20 @@ public class S3CompatiblePhotoStorageAdapter implements PhotoStorageAdapter {
     }
 
     @Override
-    public InputStream openContent(PhotoAsset asset) {
+    public InputStream openContent(PhotoAsset asset) throws IOException {
         validateConfigured();
         var s3 = s3Client();
         var getRequest = GetObjectRequest.builder()
                 .bucket(properties.getS3().getBucket())
                 .key(asset.storageRef())
                 .build();
-        var input = s3.getObject(getRequest);
+        InputStream input;
+        try {
+            input = s3.getObject(getRequest);
+        } catch (NoSuchKeyException ex) {
+            s3.close();
+            throw new FileNotFoundException("S3 photo asset not found: " + asset.storageRef());
+        }
         return new FilterInputStream(input) {
             @Override
             public void close() throws IOException {

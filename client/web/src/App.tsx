@@ -3,24 +3,26 @@ import {
   Camera,
   ClipboardList,
   FileText,
-  Home,
   Loader2,
   LogOut,
   MapPin,
-  MoreHorizontal,
   Plus,
   Search,
   Settings,
   Sparkles,
+  Trash2,
   UploadCloud
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   createInspectionReport,
   createInspectionTarget,
   createProject,
   createSite,
+  deleteInspectionReport,
+  deleteProject,
+  deleteSite,
   getInspectionReports,
   getInspectionTargets,
   getOfficeMembers,
@@ -46,7 +48,7 @@ import {
   ViewHeader
 } from "./components/common";
 import { canManageProjects, canWriteReports } from "./domain/permissions";
-import { ProjectAssignmentPanel, ReportAssignmentPanel } from "./features/assignments/AssignmentPanels";
+import { ReportAssignmentPanel } from "./features/assignments/AssignmentPanels";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ReportChecklistPanel } from "./features/checklists/components/ReportChecklistPanel";
 import { DocumentWorkspace } from "./features/documents/components/DocumentWorkspace";
@@ -116,14 +118,17 @@ const emptyWorkspace: WorkspaceData = {
   targets: []
 };
 
-const navItems: Array<{ key: ViewKey; label: string; icon: typeof Home }> = [
-  { key: "home", label: "홈", icon: Home },
+const navItems: Array<{ key: ViewKey; label: string; icon: typeof ClipboardList }> = [
   { key: "projects", label: "프로젝트", icon: ClipboardList },
+  { key: "sites", label: "현장", icon: MapPin },
   { key: "reports", label: "리포트", icon: FileText },
-  { key: "photos", label: "사진", icon: Camera },
   { key: "jobs", label: "문서", icon: UploadCloud },
-  { key: "more", label: "더보기", icon: MoreHorizontal }
+  { key: "photos", label: "사진", icon: Camera }
 ];
+
+const bottomNavItems = navItems.filter((item) =>
+  ["projects", "sites", "reports", "jobs", "photos"].includes(item.key)
+);
 
 const projectBusinessTypeOptions: CodeOption[] = [
   { value: "CONSTRUCTION_SUPERVISION", label: "건축 감리" },
@@ -195,16 +200,43 @@ export default function App() {
     () => workspace.projects.find((project) => project.id === selectedProjectId) ?? null,
     [workspace.projects, selectedProjectId]
   );
+  const selectedSite = useMemo(
+    () =>
+      selectedSiteId
+        ? workspace.sites.find(
+            (site) => site.id === selectedSiteId && (!selectedProjectId || site.projectId === selectedProjectId)
+          ) ?? null
+        : null,
+    [workspace.sites, selectedProjectId, selectedSiteId]
+  );
   const selectedReport = useMemo(
-    () => workspace.reports.find((report) => report.id === selectedReportId) ?? workspace.reports[0] ?? null,
+    () => (selectedReportId ? workspace.reports.find((report) => report.id === selectedReportId) ?? null : null),
     [workspace.reports, selectedReportId]
   );
   const activeView = viewFromPath(location.pathname);
-  const activeNavItem = navItems.find((item) => item.key === activeView) ?? navItems[0];
+  const activeNavItem = activeView === "more"
+    ? { label: "프로필" }
+    : navItems.find((item) => item.key === activeView) ?? navItems[0];
 
   function navigateToView(view: ViewKey) {
     navigate(viewPaths[view]);
   }
+
+  function handlePrimaryNavigation(view: ViewKey) {
+    if (view === "reports") {
+      setSelectedReportId(null);
+    } else if (view === "projects" || view === "sites") {
+      setSelectedReportId(null);
+    }
+    navigateToView(view);
+  }
+
+  useEffect(() => {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0 });
+      document.querySelector(".client-main")?.scrollTo({ top: 0, left: 0 });
+    });
+  }, [activeView]);
 
   useEffect(() => {
     if (pendingInvitationToken) {
@@ -279,8 +311,11 @@ export default function App() {
       setWorkspace((current) => ({ ...current, sites: [] }));
       return;
     }
-    if (!selectedProjectId || !workspace.projects.some((project) => project.id === selectedProjectId)) {
-      setSelectedProjectId(workspace.projects[0].id);
+    if (selectedProjectId && !workspace.projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(null);
+      setSelectedSiteId(null);
+      setSelectedTargetId(null);
+      setWorkspace((current) => ({ ...current, sites: [], targets: [] }));
     }
   }, [workspace.projects, selectedProjectId]);
 
@@ -305,8 +340,8 @@ export default function App() {
       setSelectedReportId(null);
       return;
     }
-    if (!selectedReportId || !workspace.reports.some((report) => report.id === selectedReportId)) {
-      setSelectedReportId(workspace.reports[0].id);
+    if (selectedReportId && !workspace.reports.some((report) => report.id === selectedReportId)) {
+      setSelectedReportId(null);
     }
   }, [workspace.reports, selectedReportId]);
 
@@ -343,7 +378,7 @@ export default function App() {
         if (current && sites.some((site) => site.id === current)) {
           return current;
         }
-        return sites[0]?.id ?? null;
+        return null;
       });
     } catch (err) {
       setWorkspace((current) => ({ ...current, sites: [] }));
@@ -373,7 +408,7 @@ export default function App() {
         if (current && targets.some((target) => target.id === current)) {
           return current;
         }
-        return targets[0]?.id ?? null;
+        return null;
       });
     } catch (err) {
       setWorkspace((current) => ({ ...current, targets: [] }));
@@ -424,7 +459,9 @@ export default function App() {
       });
       await loadWorkspace(auth.accessToken, selectedOfficeId);
       setSelectedProjectId(project.id);
-      navigateToView("projects");
+      setSelectedSiteId(null);
+      setSelectedReportId(null);
+      navigateToView("sites");
     } catch (err) {
       setError(err instanceof Error ? err.message : "프로젝트를 만들지 못했습니다.");
     } finally {
@@ -433,14 +470,30 @@ export default function App() {
   }
 
   function handleSelectProject(projectId: number) {
+    const isSameProject = selectedProjectId === projectId;
     setSelectedProjectId(projectId);
     setSelectedSiteId(null);
     setSelectedTargetId(null);
+    setSelectedReportId(null);
+    if (isSameProject) {
+      if (auth && selectedOfficeId) {
+        void loadProjectSites(projectId, auth.accessToken, selectedOfficeId);
+      }
+    } else {
+      setWorkspace((current) => ({ ...current, sites: [], targets: [] }));
+    }
+    navigateToView("sites");
   }
 
   function handleSelectSite(siteId: number) {
+    const site = workspace.sites.find((item) => item.id === siteId);
+    if (site) {
+      setSelectedProjectId(site.projectId);
+    }
     setSelectedSiteId(siteId);
     setSelectedTargetId(null);
+    setSelectedReportId(null);
+    navigateToView("reports");
   }
 
   function handleOpenReport(reportId: number) {
@@ -451,6 +504,10 @@ export default function App() {
       setSelectedSiteId(report.siteId ?? null);
     }
     navigateToView("reports");
+  }
+
+  function handleCloseReport() {
+    setSelectedReportId(null);
   }
 
   function handleSelectReportContext(reportId: number) {
@@ -479,6 +536,7 @@ export default function App() {
       });
       await loadProjectSites(selectedProjectId, auth.accessToken, selectedOfficeId);
       setSelectedSiteId(site.id);
+      setSelectedReportId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "현장을 만들지 못했습니다.");
     } finally {
@@ -525,7 +583,7 @@ export default function App() {
         templateId: null
       });
       await loadWorkspace(auth.accessToken, selectedOfficeId);
-      setSelectedReportId(report.id);
+      setSelectedReportId(null);
       navigateToView("reports");
     } catch (err) {
       setError(err instanceof Error ? err.message : "리포트를 시작하지 못했습니다.");
@@ -559,11 +617,85 @@ export default function App() {
     try {
       await submitInspectionReport(auth.accessToken, selectedOfficeId, reportId);
       await loadWorkspace(auth.accessToken, selectedOfficeId);
-      setSelectedReportId(reportId);
+      setSelectedReportId(null);
+      navigateToView("jobs");
     } catch (err) {
       const message = err instanceof Error ? err.message : "리포트를 제출하지 못했습니다.";
       setError(message);
       throw err;
+    }
+  }
+
+  async function handleDeleteProject(projectId: number) {
+    if (!auth || !selectedOfficeId) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteProject(auth.accessToken, selectedOfficeId, projectId);
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null);
+        setSelectedSiteId(null);
+        setSelectedTargetId(null);
+        setSelectedReportId(null);
+        setWorkspace((current) => ({ ...current, sites: [], targets: [] }));
+      }
+      await loadWorkspace(auth.accessToken, selectedOfficeId);
+      navigateToView("projects");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트를 삭제하지 못했습니다.");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteSite(siteId: number) {
+    if (!auth || !selectedOfficeId || !selectedProjectId) {
+      return;
+    }
+    setLoadingSites(true);
+    setError(null);
+    try {
+      await deleteSite(auth.accessToken, selectedOfficeId, selectedProjectId, siteId);
+      if (selectedSiteId === siteId) {
+        setSelectedSiteId(null);
+        setSelectedTargetId(null);
+        setSelectedReportId(null);
+        setWorkspace((current) => ({ ...current, targets: [] }));
+      }
+      await Promise.all([
+        loadWorkspace(auth.accessToken, selectedOfficeId),
+        loadProjectSites(selectedProjectId, auth.accessToken, selectedOfficeId)
+      ]);
+      navigateToView("sites");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "현장을 삭제하지 못했습니다.");
+      throw err;
+    } finally {
+      setLoadingSites(false);
+    }
+  }
+
+  async function handleDeleteReport(reportId: number) {
+    if (!auth || !selectedOfficeId) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteInspectionReport(auth.accessToken, selectedOfficeId, reportId);
+      if (selectedReportId === reportId) {
+        setSelectedReportId(null);
+      }
+      await loadWorkspace(auth.accessToken, selectedOfficeId);
+      navigateToView("reports");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "리포트를 삭제하지 못했습니다.");
+      throw err;
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -600,7 +732,7 @@ export default function App() {
           handleAuthenticated(nextAuth);
           if (options?.invitationAccepted) {
             setPendingInvitationToken(null);
-            navigate(viewPaths.home, { replace: true });
+            navigate(viewPaths.projects, { replace: true });
           }
         }}
       />
@@ -608,7 +740,14 @@ export default function App() {
   }
 
   if (!auth) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+    return (
+      <AuthScreen
+        onAuthenticated={(nextAuth) => {
+          handleAuthenticated(nextAuth);
+          navigate(viewPaths.projects, { replace: true });
+        }}
+      />
+    );
   }
 
   return (
@@ -622,7 +761,7 @@ export default function App() {
               <button
                 className={activeView === item.key ? "nav-link active" : "nav-link"}
                 key={item.key}
-                onClick={() => navigateToView(item.key)}
+                onClick={() => handlePrimaryNavigation(item.key)}
                 type="button"
               >
                 <Icon size={18} />
@@ -656,7 +795,13 @@ export default function App() {
             <button className="icon-button" type="button" aria-label="알림" title="알림">
               <Bell size={18} />
             </button>
-            <button className="avatar-button" type="button" title={auth.user.email}>
+            <button
+              className="avatar-button"
+              onClick={() => navigateToView("more")}
+              type="button"
+              title={`${auth.user.email} 프로필`}
+              aria-label="프로필 열기"
+            >
               {initial(auth.user.name)}
             </button>
           </div>
@@ -671,50 +816,55 @@ export default function App() {
               projects={workspace.projects}
               reports={workspace.reports}
               onStartReport={() => navigateToView("projects")}
+              onSelectProject={handleSelectProject}
               onRefresh={() => loadWorkspace()}
             />
           )}
           {activeView === "projects" && (
             <ProjectsView
-              documentTypes={workspace.documentTypes}
               loading={loading}
-              loadingSites={loadingSites}
-              loadingTargets={loadingTargets}
               projects={workspace.projects}
-              reports={workspace.reports}
-              selectedProject={selectedProject}
               selectedProjectId={selectedProjectId}
-              selectedSiteId={selectedSiteId}
-              selectedTargetId={selectedTargetId}
-              sites={workspace.sites}
-              targets={workspace.targets}
               canManageProjects={canManageSelectedOffice}
-              canWriteReports={canWriteSelectedOfficeReports}
-              officeId={selectedOfficeId}
-              officeMembers={officeMembers}
-              token={auth.accessToken}
               onCreateProject={handleCreateProject}
-              onCreateReport={handleCreateReport}
-              onCreateSite={handleCreateSite}
-              onCreateTarget={handleCreateTarget}
-              onOpenReport={handleOpenReport}
+              onDeleteProject={handleDeleteProject}
               onSelectProject={handleSelectProject}
+            />
+          )}
+          {activeView === "sites" && (
+            <SitesView
+              loadingSites={loadingSites}
+              selectedProject={selectedProject}
+              selectedSiteId={selectedSiteId}
+              sites={workspace.sites}
+              canManageSites={canManageSelectedOffice}
+              onCreateSite={handleCreateSite}
+              onDeleteSite={handleDeleteSite}
+              onBackToProjects={() => navigateToView("projects")}
               onSelectSite={handleSelectSite}
-              onSelectTarget={setSelectedTargetId}
             />
           )}
           {activeView === "reports" && (
             <ReportsView
+              documentTypes={workspace.documentTypes}
+              loading={loading}
               officeId={selectedOfficeId}
               projects={workspace.projects}
               reports={workspace.reports}
+              selectedProject={selectedProject}
               selectedReport={selectedReport}
+              selectedSite={selectedSite}
+              selectedSiteId={selectedSiteId}
               sites={workspace.sites}
               targets={workspace.targets}
               token={auth.accessToken}
               canManageAssignments={canManageSelectedOffice}
               canWriteReports={canWriteSelectedOfficeReports}
               officeMembers={officeMembers}
+              onCreateReport={handleCreateReport}
+              onDeleteReport={handleDeleteReport}
+              onBackToSites={() => navigateToView("sites")}
+              onCloseReport={handleCloseReport}
               onReopenReport={handleReopenReport}
               onSaveStep={handleSaveReportStep}
               onSelectReport={handleOpenReport}
@@ -745,13 +895,13 @@ export default function App() {
       </section>
 
       <nav className="bottom-nav" aria-label="모바일 메뉴">
-        {navItems.slice(0, 5).map((item) => {
+        {bottomNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
               className={activeView === item.key ? "bottom-link active" : "bottom-link"}
               key={item.key}
-              onClick={() => navigateToView(item.key)}
+              onClick={() => handlePrimaryNavigation(item.key)}
               type="button"
             >
               <Icon size={18} />
@@ -770,6 +920,7 @@ function HomeView({
   projects,
   reports,
   onStartReport,
+  onSelectProject,
   onRefresh
 }: {
   loading: boolean;
@@ -777,6 +928,7 @@ function HomeView({
   projects: Project[];
   reports: InspectionReport[];
   onStartReport: () => void;
+  onSelectProject: (projectId: number) => void;
   onRefresh: () => void;
 }) {
   const activeReports = reports.filter((report) => !["GENERATED", "CANCELLED"].includes(report.status));
@@ -810,7 +962,7 @@ function HomeView({
 
       <div className="split-grid">
         <Panel title="최근 프로젝트" action={<button className="text-button" type="button">전체 보기</button>}>
-          <ProjectList projects={projects.slice(0, 5)} />
+          <ProjectList projects={projects.slice(0, 5)} onSelectProject={onSelectProject} />
         </Panel>
         <Panel title="최근 리포트" action={<button className="text-button" type="button">전체 보기</button>}>
           <ReportList reports={reports.slice(0, 6)} projects={projects} />
@@ -821,302 +973,364 @@ function HomeView({
 }
 
 function ProjectsView({
-  documentTypes,
   loading,
-  loadingSites,
-  loadingTargets,
   projects,
-  reports,
-  selectedProject,
   selectedProjectId,
-  selectedSiteId,
-  selectedTargetId,
-  sites,
-  targets,
   canManageProjects,
-  canWriteReports,
-  officeId,
-  officeMembers,
-  token,
   onCreateProject,
-  onCreateReport,
-  onCreateSite,
-  onCreateTarget,
-  onOpenReport,
-  onSelectProject,
-  onSelectSite,
-  onSelectTarget
+  onDeleteProject,
+  onSelectProject
 }: {
-  documentTypes: DocumentTypeDefinition[];
   loading: boolean;
-  loadingSites: boolean;
-  loadingTargets: boolean;
   projects: Project[];
-  reports: InspectionReport[];
-  selectedProject: Project | null;
   selectedProjectId: number | null;
-  selectedSiteId: number | null;
-  selectedTargetId: number | null;
-  sites: Site[];
-  targets: InspectionTarget[];
   canManageProjects: boolean;
-  canWriteReports: boolean;
-  officeId: number | null;
-  officeMembers: OfficeMember[];
-  token: string;
   onCreateProject: (values: ProjectFormValues) => Promise<void>;
-  onCreateReport: (values: ReportFormValues) => Promise<void>;
-  onCreateSite: (values: SiteFormValues) => Promise<void>;
-  onCreateTarget: (values: TargetFormValues) => Promise<void>;
-  onOpenReport: (reportId: number) => void;
+  onDeleteProject: (projectId: number) => Promise<void>;
   onSelectProject: (projectId: number) => void;
-  onSelectSite: (siteId: number) => void;
-  onSelectTarget: (targetId: number) => void;
 }) {
-  const projectReports = selectedProjectId
-    ? reports.filter((report) => report.projectId === selectedProjectId)
-    : [];
-  const selectedSite = selectedSiteId ? sites.find((site) => site.id === selectedSiteId) ?? null : null;
-  const siteReports = selectedSiteId
-    ? projectReports.filter((report) => report.siteId === selectedSiteId)
-    : projectReports;
+  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+
+  async function create(values: ProjectFormValues) {
+    await onCreateProject(values);
+    setCreating(false);
+  }
 
   return (
     <div className="view-stack">
       <ViewHeader
-        title="프로젝트 / 현장"
-        text="프로젝트를 고르고, 현장을 선택한 뒤, 해당 현장의 리포트를 만들거나 이어서 작성합니다."
+        title="프로젝트"
+        text="프로젝트를 선택하면 해당 프로젝트의 현장 목록으로 이동합니다."
       />
-      <WorkflowPath
-        steps={[
-          { label: "프로젝트", active: true, complete: Boolean(selectedProject) },
-          { label: "현장", active: Boolean(selectedProject), complete: Boolean(selectedSite) },
-          { label: "리포트", active: Boolean(selectedSite), complete: siteReports.length > 0 },
-          { label: "작성", active: false, complete: false }
-        ]}
+      <Panel
+        title="프로젝트 목록"
+        action={canManageProjects ? (
+          <button className="primary-button" disabled={loading} onClick={() => setCreating(true)} type="button">
+            <Plus size={17} />
+            프로젝트 생성
+          </button>
+        ) : <span className="panel-context">생성 권한 없음</span>}
+      >
+        <ProjectList
+          canDelete={canManageProjects}
+          deleting={loading}
+          projects={projects}
+          selectedProjectId={selectedProjectId}
+          onDeleteProject={(project) => setDeleteTarget(project)}
+          onSelectProject={onSelectProject}
+        />
+      </Panel>
+
+      {creating ? (
+        <ModalShell title="프로젝트 생성" onClose={() => setCreating(false)}>
+          <ProjectForm busy={loading} onSubmit={create} />
+        </ModalShell>
+      ) : null}
+      {deleteTarget ? (
+        <ConfirmDeleteDialog
+          busy={loading}
+          title="프로젝트 삭제"
+          targetName={deleteTarget.name}
+          warning="프로젝트에 연결된 현장, 리포트, 사진, 문서 생성 이력이 모두 삭제됩니다."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            await onDeleteProject(deleteTarget.id);
+            setDeleteTarget(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SitesView({
+  loadingSites,
+  selectedProject,
+  selectedSiteId,
+  sites,
+  canManageSites,
+  onCreateSite,
+  onDeleteSite,
+  onBackToProjects,
+  onSelectSite
+}: {
+  loadingSites: boolean;
+  selectedProject: Project | null;
+  selectedSiteId: number | null;
+  sites: Site[];
+  canManageSites: boolean;
+  onCreateSite: (values: SiteFormValues) => Promise<void>;
+  onDeleteSite: (siteId: number) => Promise<void>;
+  onBackToProjects: () => void;
+  onSelectSite: (siteId: number) => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Site | null>(null);
+  const projectSites = selectedProject ? sites.filter((site) => site.projectId === selectedProject.id) : [];
+
+  async function create(values: SiteFormValues) {
+    await onCreateSite(values);
+    setCreating(false);
+  }
+
+  return (
+    <div className="view-stack">
+      <ViewHeader
+        title="현장"
+        text="프로젝트 안의 현장을 선택하면 해당 현장의 리포트 목록으로 이동합니다."
       />
-
-      <div className="workflow-board">
-        <Panel title="1. 프로젝트" action={<span className="panel-context">{projects.length}개</span>}>
-          <div className="panel-body">
-            {canManageProjects ? (
-              <ProjectForm busy={loading} onSubmit={onCreateProject} />
-            ) : (
-              <InlineNotice message="프로젝트 생성은 사무소 OWNER 또는 ADMIN 권한이 필요합니다." />
-            )}
-          </div>
-          <ProjectList projects={projects} selectedProjectId={selectedProjectId} onSelectProject={onSelectProject} />
-        </Panel>
-
-        <Panel
-          title="2. 현장"
-          action={loadingSites ? <Loader2 className="spin" size={17} /> : <span className="panel-context">{sites.length}개</span>}
-        >
-          {selectedProject ? (
-            <>
-              <div className="panel-body">
-                <div className="flow-context">
-                  <strong>{selectedProject.name}</strong>
-                  <span>{selectedProject.address || optionLabel(projectBusinessTypeOptions, selectedProject.buildingType) || "프로젝트 정보 없음"}</span>
-                </div>
-                {canManageProjects ? (
-                  <SiteForm busy={loadingSites} onSubmit={onCreateSite} />
-                ) : (
-                  <InlineNotice message="현장 생성은 사무소 OWNER 또는 ADMIN 권한이 필요합니다." />
-                )}
+      <Panel
+        title="현장 목록"
+        action={selectedProject && canManageSites ? (
+          <button className="primary-button" disabled={loadingSites} onClick={() => setCreating(true)} type="button">
+            <Plus size={17} />
+            현장 생성
+          </button>
+        ) : <span className="panel-context">{selectedProject ? "생성 권한 없음" : "프로젝트 선택 필요"}</span>}
+      >
+        {selectedProject ? (
+          <>
+            <div className="panel-body compact-context-row">
+              <div className="flow-context">
+                <strong>{selectedProject.name}</strong>
+                <span>{selectedProject.address || optionLabel(projectBusinessTypeOptions, selectedProject.buildingType) || "프로젝트 정보 없음"}</span>
               </div>
-              <SiteList sites={sites} selectedSiteId={selectedSiteId} onSelectSite={onSelectSite} />
-            </>
-          ) : (
-            <EmptyState title="프로젝트를 먼저 선택하세요" text="프로젝트 안에 현장을 만들고 리포트를 시작합니다." />
-          )}
-        </Panel>
+              <button className="secondary-button compact-button" onClick={onBackToProjects} type="button">
+                프로젝트 다시 선택
+              </button>
+            </div>
+            <SiteList
+              canDelete={canManageSites}
+              deleting={loadingSites}
+              sites={projectSites}
+              selectedSiteId={selectedSiteId}
+              onDeleteSite={(site) => setDeleteTarget(site)}
+              onSelectSite={onSelectSite}
+            />
+          </>
+        ) : (
+          <EmptyState title="프로젝트를 먼저 선택하세요" text="프로젝트 탭에서 프로젝트를 선택하면 현장 목록이 열립니다." />
+        )}
+      </Panel>
 
-        <Panel title="3. 리포트" action={<span className="panel-context">{siteReports.length}개</span>}>
-          {selectedSite ? (
-            <>
-              <div className="panel-body">
-                <div className="flow-context">
-                  <strong>{selectedSite.name}</strong>
-                  <span>{selectedSite.address || optionLabel(siteTypeOptions, selectedSite.siteType) || "현장 정보 없음"}</span>
-                </div>
-                {canWriteReports ? (
-                  <ReportStartForm
-                    busy={loading}
-                    documentTypes={documentTypes}
-                    projects={projects}
-                    selectedProjectId={selectedProjectId}
-                    selectedSiteId={selectedSiteId}
-                    sites={sites}
-                    onSubmit={onCreateReport}
-                  />
-                ) : (
-                  <InlineNotice message="리포트 작성은 OWNER, ADMIN, MEMBER 권한이 필요합니다." />
-                )}
-              </div>
-              <ReportList
-                projects={projects}
-                reports={siteReports}
-                onSelectReport={onOpenReport}
-              />
-            </>
-          ) : (
-            <EmptyState title="현장을 먼저 선택하세요" text="현장을 선택하면 리포트를 만들거나 이어서 작성할 수 있습니다." />
-          )}
-        </Panel>
-      </div>
-
-      <div className="support-grid">
-        <Panel
-          title="점검 대상"
-          action={loadingTargets ? <Loader2 className="spin" size={17} /> : <span className="panel-context">{targets.length}개</span>}
-        >
-          {selectedSiteId ? (
-            <>
-              <div className="panel-body">
-                {canManageProjects ? (
-                  <TargetForm busy={loadingTargets} targets={targets} onSubmit={onCreateTarget} />
-                ) : (
-                  <InlineNotice message="평가 대상 생성은 사무소 OWNER 또는 ADMIN 권한이 필요합니다." />
-                )}
-              </div>
-              <InspectionTargetList selectedTargetId={selectedTargetId} targets={targets} onSelectTarget={onSelectTarget} />
-            </>
-          ) : (
-            <EmptyState title="현장을 먼저 선택하세요" text="현장 아래에 건축물, 층, 실, 장비 같은 점검 대상을 만듭니다." />
-          )}
-        </Panel>
-
-        <Panel
-          title="프로젝트 담당자"
-          action={<span className="panel-context">{selectedProject ? selectedProject.name : "선택 필요"}</span>}
-        >
-          <ProjectAssignmentPanel
-            canManage={canManageProjects}
-            members={officeMembers}
-            officeId={officeId}
-            project={selectedProject}
-            token={token}
-          />
-        </Panel>
-      </div>
+      {creating && selectedProject ? (
+        <ModalShell title="현장 생성" onClose={() => setCreating(false)}>
+          <SiteForm busy={loadingSites} onSubmit={create} />
+        </ModalShell>
+      ) : null}
+      {deleteTarget ? (
+        <ConfirmDeleteDialog
+          busy={loadingSites}
+          title="현장 삭제"
+          targetName={deleteTarget.name}
+          warning="현장에 연결된 리포트, 점검 대상, 사진, 문서 생성 이력이 모두 삭제됩니다."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            await onDeleteSite(deleteTarget.id);
+            setDeleteTarget(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
 function ReportsView({
+  documentTypes,
+  loading,
   officeId,
   projects,
   reports,
+  selectedProject,
   selectedReport,
+  selectedSite,
+  selectedSiteId,
   sites,
   targets,
   token,
   canManageAssignments,
   canWriteReports,
   officeMembers,
+  onCreateReport,
+  onDeleteReport,
+  onBackToSites,
+  onCloseReport,
   onReopenReport,
   onSaveStep,
   onSelectReport,
   onSubmitReport
 }: {
+  documentTypes: DocumentTypeDefinition[];
+  loading: boolean;
   officeId: number | null;
   projects: Project[];
   reports: InspectionReport[];
+  selectedProject: Project | null;
   selectedReport: InspectionReport | null;
+  selectedSite: Site | null;
+  selectedSiteId: number | null;
   sites: Site[];
   targets: InspectionTarget[];
   token: string;
   canManageAssignments: boolean;
   canWriteReports: boolean;
   officeMembers: OfficeMember[];
+  onCreateReport: (values: ReportFormValues) => Promise<void>;
+  onDeleteReport: (reportId: number) => Promise<void>;
+  onBackToSites: () => void;
+  onCloseReport: () => void;
   onReopenReport: (reportId: number) => Promise<void>;
   onSaveStep: (reportId: number, stepCode: string, payload: Record<string, unknown>) => Promise<InspectionStep>;
   onSelectReport: (reportId: number) => void;
   onSubmitReport: (reportId: number) => Promise<void>;
 }) {
-  const selectedProject = selectedReport
+  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<InspectionReport | null>(null);
+  const reportProject = selectedReport
     ? projects.find((project) => project.id === selectedReport.projectId) ?? null
     : null;
-  const selectedSite = selectedReport?.siteId
+  const reportSite = selectedReport?.siteId
     ? sites.find((site) => site.id === selectedReport.siteId) ?? null
     : null;
-  const draftReports = reports.filter((report) => ["DRAFT", "STEP_SAVED"].includes(report.status));
-  const readyReports = reports.filter((report) => report.status === "READY_TO_GENERATE");
-  const generatedReports = reports.filter((report) => report.status === "GENERATED");
+  const activeProject = selectedReport ? reportProject : selectedProject;
+  const activeSite = selectedReport ? reportSite : selectedSite;
+  const scopedReports = selectedProject
+    ? reports.filter((report) => report.projectId === selectedProject.id && (!selectedSiteId || report.siteId === selectedSiteId))
+    : selectedSiteId
+      ? reports.filter((report) => report.siteId === selectedSiteId)
+      : reports;
+
+  async function create(values: ReportFormValues) {
+    await onCreateReport(values);
+    setCreating(false);
+  }
 
   return (
     <div className="view-stack">
-      <ViewHeader title="리포트 작성" text="작성할 리포트를 선택하고, 필요한 항목을 단계별로 저장하며 완료합니다." />
-      <div className="metric-row compact">
-        <MetricTile label="작성 중" value={draftReports.length} detail="단계 저장/초안" />
-        <MetricTile label="문서 생성 가능" value={readyReports.length} detail="제출 완료" />
-        <MetricTile label="문서 완료" value={generatedReports.length} detail="생성 완료" />
-      </div>
-      <div className="report-workbench">
-        <Panel title="리포트 목록" action={<span className="panel-context">{reports.length}개</span>}>
-          <ReportList
-            projects={projects}
-            reports={reports}
-            selectedReportId={selectedReport?.id ?? null}
-            onSelectReport={onSelectReport}
-          />
-        </Panel>
-        {selectedReport && officeId ? (
-          <div className="report-detail-stack">
-            <Panel
-              title="리포트 담당자"
-              action={<span className="panel-context">{selectedReport.reportNo}</span>}
-            >
-              <ReportAssignmentPanel
-                canManage={canManageAssignments}
-                members={officeMembers}
+      <ViewHeader title={selectedReport ? "리포트 작성" : "리포트"} text={selectedReport ? "선택한 리포트를 단계별로 작성하고 제출합니다." : "리포트를 선택하면 작성 화면으로 이동합니다."} />
+      {selectedReport && officeId ? (
+        <div className="report-detail-stack">
+          <Panel
+            title="리포트 담당자"
+            action={
+              <div className="panel-action-group">
+                <button className="secondary-button compact-button" onClick={onCloseReport} type="button">
+                  이전 목록으로
+                </button>
+              </div>
+            }
+          >
+            <ReportAssignmentPanel
+              canManage={canManageAssignments}
+              members={officeMembers}
+              officeId={officeId}
+              report={selectedReport}
+              token={token}
+            />
+          </Panel>
+          <ReportWizard
+            officeId={officeId}
+            project={reportProject}
+            report={selectedReport}
+            site={reportSite}
+            token={token}
+            canWriteReports={canWriteReports}
+            onReopenReport={onReopenReport}
+            onSaveStep={onSaveStep}
+            onSubmitReport={onSubmitReport}
+            renderChecklistPanel={() => (
+              <ReportChecklistPanel
                 officeId={officeId}
                 report={selectedReport}
+                targets={targets}
                 token={token}
+                canWriteReports={Boolean(selectedReport.writeAllowed ?? canWriteReports) && ["DRAFT", "STEP_SAVED"].includes(selectedReport.status)}
               />
-            </Panel>
-            <ReportWizard
-              officeId={officeId}
-              project={selectedProject}
-              report={selectedReport}
-              site={selectedSite}
-              token={token}
-              canWriteReports={canWriteReports}
-              onReopenReport={onReopenReport}
-              onSaveStep={onSaveStep}
-              onSubmitReport={onSubmitReport}
-              renderChecklistPanel={() => (
-                <ReportChecklistPanel
-                  officeId={officeId}
-                  report={selectedReport}
-                  targets={targets}
-                  token={token}
-                  canWriteReports={Boolean(selectedReport.writeAllowed ?? canWriteReports) && ["DRAFT", "STEP_SAVED"].includes(selectedReport.status)}
-                />
-              )}
+            )}
+          />
+        </div>
+      ) : (
+        <Panel
+          title="리포트 목록"
+          action={!selectedProject ? (
+            <span className="panel-context">프로젝트 선택 필요</span>
+          ) : !selectedSite ? (
+            <button className="secondary-button compact-button" onClick={onBackToSites} type="button">
+              현장 선택
+            </button>
+          ) : canWriteReports ? (
+            <button className="primary-button" disabled={loading} onClick={() => setCreating(true)} type="button">
+              <Plus size={17} />
+              리포트 생성
+            </button>
+          ) : (
+            <span className="panel-context">생성 권한 없음</span>
+          )}
+        >
+          {!selectedProject ? (
+            <EmptyState
+              title="프로젝트를 먼저 선택하세요"
+              text="프로젝트 탭에서 프로젝트를 선택하면 현장 목록이 열립니다."
             />
-          </div>
-        ) : (
-          <Panel title="작성 화면">
-            <EmptyState title="작성할 리포트를 선택하세요" text="프로젝트 화면에서 현장별 리포트를 만든 뒤 여기서 이어서 작성합니다." />
-          </Panel>
-        )}
-      </div>
-      <div className="support-grid">
-        <Panel title="작성 기준">
-          <div className="settings-list">
-            <div>
-              <strong>자동 저장</strong>
-              <span>이전/다음 이동 시 현재 단계가 저장됩니다.</span>
-            </div>
-            <div>
-              <strong>문서 생성</strong>
-              <span>제출 후 문서 탭에서 생성 요청과 진행 상태를 확인합니다.</span>
-            </div>
-          </div>
+          ) : !selectedSite ? (
+            <EmptyState
+              title="현장을 먼저 선택하세요"
+              text="현장 탭에서 현장을 선택하면 해당 현장의 리포트 목록이 열립니다."
+            />
+          ) : (
+            <>
+              <div className="panel-body compact-context-row">
+                <div className="flow-context">
+                  <strong>{selectedSite.name}</strong>
+                  <span>{selectedProject.name}</span>
+                </div>
+                <button className="secondary-button compact-button" onClick={onBackToSites} type="button">
+                  현장 다시 선택
+                </button>
+              </div>
+              <ReportList
+                canDelete={canWriteReports}
+                canDeleteReport={(report) => Boolean(report.writeAllowed ?? canWriteReports)}
+                deleting={loading}
+                projects={projects}
+                reports={scopedReports}
+                selectedReportId={null}
+                sites={sites}
+                onDeleteReport={(report) => setDeleteTarget(report)}
+                onSelectReport={onSelectReport}
+              />
+            </>
+          )}
         </Panel>
-      </div>
+      )}
+
+      {creating && activeProject && activeSite ? (
+        <ModalShell title="리포트 생성" onClose={() => setCreating(false)}>
+          <ReportStartForm
+            busy={loading}
+            documentTypes={documentTypes}
+            projects={projects}
+            selectedProjectId={activeProject.id}
+            selectedSiteId={activeSite.id}
+            sites={sites}
+            onSubmit={create}
+          />
+        </ModalShell>
+      ) : null}
+      {deleteTarget ? (
+        <ConfirmDeleteDialog
+          busy={loading}
+          title="리포트 삭제"
+          targetName={deleteTarget.title || deleteTarget.reportNo}
+          warning="리포트에 연결된 작성 단계, 체크리스트, 사진, 문서 생성 이력이 모두 삭제됩니다."
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            await onDeleteReport(deleteTarget.id);
+            setDeleteTarget(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1152,7 +1366,7 @@ function WorkflowPath({
 function MoreView({ user, onLogout }: { user: MeResponse; onLogout: () => void }) {
   return (
     <div className="view-stack">
-      <ViewHeader title="더보기" text="계정, 알림, 오프라인 동기화 설정이 들어갈 자리입니다." />
+      <ViewHeader title="프로필" text="계정 정보와 기본 설정을 확인합니다." />
       <Panel title="계정">
         <div className="settings-list">
           <div>
@@ -1178,13 +1392,83 @@ function MoreView({ user, onLogout }: { user: MeResponse; onLogout: () => void }
   );
 }
 
+function ModalShell({
+  children,
+  onClose,
+  title
+}: {
+  children: ReactNode;
+  onClose: () => void;
+  title: string;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="modal-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <header className="modal-header">
+          <strong>{title}</strong>
+          <button className="icon-button" onClick={onClose} type="button" aria-label="닫기">
+            ×
+          </button>
+        </header>
+        <div className="modal-body">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+function ConfirmDeleteDialog({
+  busy,
+  onCancel,
+  onConfirm,
+  targetName,
+  title,
+  warning
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+  targetName: string;
+  title: string;
+  warning: string;
+}) {
+  return (
+    <ModalShell title={title} onClose={busy ? () => undefined : onCancel}>
+      <div className="delete-confirm">
+        <div className="row-icon danger">
+          <Trash2 size={18} />
+        </div>
+        <div>
+          <strong>{targetName}</strong>
+          <p>{warning}</p>
+          <span>이 작업은 되돌릴 수 없습니다.</span>
+        </div>
+      </div>
+      <footer className="modal-actions">
+        <button className="secondary-button" disabled={busy} onClick={onCancel} type="button">
+          취소
+        </button>
+        <button className="danger-button" disabled={busy} onClick={onConfirm} type="button">
+          {busy ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+          삭제
+        </button>
+      </footer>
+    </ModalShell>
+  );
+}
+
 function ProjectList({
+  canDelete = false,
+  deleting = false,
   projects,
   selectedProjectId,
+  onDeleteProject,
   onSelectProject
 }: {
+  canDelete?: boolean;
+  deleting?: boolean;
   projects: Project[];
   selectedProjectId?: number | null;
+  onDeleteProject?: (project: Project) => void;
   onSelectProject?: (projectId: number) => void;
 }) {
   if (projects.length === 0) {
@@ -1193,33 +1477,51 @@ function ProjectList({
   return (
     <div className="item-list">
       {projects.map((project) => (
-        <button
-          className={selectedProjectId === project.id ? "list-row selectable active" : "list-row selectable"}
+        <article
+          className={selectedProjectId === project.id ? "list-row list-row-shell selectable active" : "list-row list-row-shell selectable"}
           key={project.id}
-          onClick={() => onSelectProject?.(project.id)}
-          type="button"
         >
-          <div className="row-icon">
-            <ClipboardList size={18} />
-          </div>
-          <div>
-            <strong>{project.name}</strong>
-            <span>{project.address || optionLabel(projectBusinessTypeOptions, project.buildingType) || "프로젝트 정보 없음"}</span>
-          </div>
-          <StatusBadge status={project.status} />
-        </button>
+          <button className="list-row-main" onClick={() => onSelectProject?.(project.id)} type="button">
+            <div className="row-icon">
+              <ClipboardList size={18} />
+            </div>
+            <div>
+              <strong>{project.name}</strong>
+              <span>{project.address || optionLabel(projectBusinessTypeOptions, project.buildingType) || "프로젝트 정보 없음"}</span>
+            </div>
+            <StatusBadge status={project.status} />
+          </button>
+          {canDelete ? (
+            <button
+              className="icon-button danger"
+              disabled={deleting}
+              onClick={() => onDeleteProject?.(project)}
+              title="프로젝트 삭제"
+              type="button"
+              aria-label={`${project.name} 프로젝트 삭제`}
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : null}
+        </article>
       ))}
     </div>
   );
 }
 
 function SiteList({
+  canDelete = false,
+  deleting = false,
   sites,
   selectedSiteId,
+  onDeleteSite,
   onSelectSite
 }: {
+  canDelete?: boolean;
+  deleting?: boolean;
   sites: Site[];
   selectedSiteId?: number | null;
+  onDeleteSite?: (site: Site) => void;
   onSelectSite: (siteId: number) => void;
 }) {
   if (sites.length === 0) {
@@ -1228,21 +1530,33 @@ function SiteList({
   return (
     <div className="item-list">
       {sites.map((site) => (
-        <button
-          className={selectedSiteId === site.id ? "list-row selectable active" : "list-row selectable"}
+        <article
+          className={selectedSiteId === site.id ? "list-row list-row-shell selectable active" : "list-row list-row-shell selectable"}
           key={site.id}
-          onClick={() => onSelectSite(site.id)}
-          type="button"
         >
-          <div className="row-icon">
-            <MapPin size={18} />
-          </div>
-          <div>
-            <strong>{site.name}</strong>
-            <span>{site.address || optionLabel(siteTypeOptions, site.siteType) || site.siteCode || "현장 정보 없음"}</span>
-          </div>
-          <StatusBadge status={site.status} />
-        </button>
+          <button className="list-row-main" onClick={() => onSelectSite(site.id)} type="button">
+            <div className="row-icon">
+              <MapPin size={18} />
+            </div>
+            <div>
+              <strong>{site.name}</strong>
+              <span>{site.address || optionLabel(siteTypeOptions, site.siteType) || site.siteCode || "현장 정보 없음"}</span>
+            </div>
+            <StatusBadge status={site.status} />
+          </button>
+          {canDelete ? (
+            <button
+              className="icon-button danger"
+              disabled={deleting}
+              onClick={() => onDeleteSite?.(site)}
+              title="현장 삭제"
+              type="button"
+              aria-label={`${site.name} 현장 삭제`}
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : null}
+        </article>
       ))}
     </div>
   );
