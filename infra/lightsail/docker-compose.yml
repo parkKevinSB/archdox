@@ -107,6 +107,9 @@ services:
       - archdox-agent-personal-data:/var/lib/archdox-agent
 
   archdox-agent-inwoo:
+    build:
+      context: ../..
+      dockerfile: infra/docker/archdox-agent/Dockerfile
     image: archdox/archdox-agent:lightsail
     container_name: archdox-agent-inwoo
     restart: unless-stopped
