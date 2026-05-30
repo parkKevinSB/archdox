@@ -2,8 +2,12 @@
     auto_https disable_redirects
 }
 
-http:// {
+http://archdox.co.kr, http://www.archdox.co.kr {
     redir https://archdox.co.kr{uri} 308
+}
+
+http:// {
+    respond "Not Found" 404
 }
 
 archdox.co.kr {
