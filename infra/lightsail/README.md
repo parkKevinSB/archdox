@@ -4,6 +4,7 @@ This folder contains the first lightweight single-host deployment.
 
 Runtime topology:
 
+- `caddy`: public HTTPS entrypoint, certificate automation, domain redirects, and direct-IP blocking.
 - `web`: Nginx serving the user web app at `/`, admin app at `/admin/`, and proxying API/WebSocket traffic.
 - `api-server`: Cloud API.
 - `postgres`: Cloud API database.
@@ -18,3 +19,11 @@ The test seed currently assumes:
 - office `3`: personal platform-admin workspace for `vvzerg@test.co.kr`
 
 Do not commit real `.env` files or seeded passwords.
+
+For domain deployment, set:
+
+- `ARCHDOX_CORS_ALLOWED_ORIGINS=https://archdox.co.kr,https://www.archdox.co.kr`
+- `ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS=true`
+
+`ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS` is safe here because the API is only
+reachable through the bundled Caddy/Nginx reverse proxy path.
