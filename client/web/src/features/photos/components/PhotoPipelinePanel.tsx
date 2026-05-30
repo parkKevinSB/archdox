@@ -62,7 +62,13 @@ export function PhotoPipelinePanel({
       ) : (
         <div className="photo-grid">
           {workspace.photos.map((photo) => (
-            <PhotoCard key={photo.id} officeId={officeId} photo={photo} token={token} />
+            <PhotoCard
+              key={photo.id}
+              officeId={officeId}
+              onCancelPendingUpload={workspace.cancelPendingPhotoUpload}
+              photo={photo}
+              token={token}
+            />
           ))}
         </div>
       )}
@@ -110,12 +116,24 @@ export function PhotoUploadTaskStrip({
   );
 }
 
-function PhotoCard({ officeId, photo, token }: { officeId: number | null; photo: PhotoResponse; token: string }) {
+function PhotoCard({
+  officeId,
+  onCancelPendingUpload,
+  photo,
+  token
+}: {
+  officeId: number | null;
+  onCancelPendingUpload: (photoId: number) => Promise<void>;
+  photo: PhotoResponse;
+  token: string;
+}) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const original = photo.assets.find((asset) => asset.assetType === "ORIGINAL");
   const working = photo.assets.find((asset) => asset.assetType === "WORKING");
   const thumbnail = photo.assets.find((asset) => asset.assetType === "THUMBNAIL");
   const previewAssetType = selectPreviewAssetType(thumbnail, working);
+  const pendingUpload = photo.status === "PENDING_UPLOAD";
   const preview = usePhotoAssetPreview({
     assetType: previewAssetType,
     officeId,
@@ -168,6 +186,28 @@ function PhotoCard({ officeId, photo, token }: { officeId: number | null; photo:
           <AssetChip label="작업본" asset={working} />
           <AssetChip label="썸네일" asset={thumbnail} />
         </div>
+
+        {pendingUpload ? (
+          <div className="photo-pending-alert">
+            <span>업로드가 완료되지 않은 사진입니다. 문서에는 포함되지 않습니다.</span>
+            <button
+              className="text-button danger"
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await onCancelPendingUpload(photo.id);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              type="button"
+            >
+              {deleting ? <Loader2 className="spin" size={15} /> : <X size={15} />}
+              삭제
+            </button>
+          </div>
+        ) : null}
 
         <div className="photo-card-foot">
           <span>{preview.loading ? "미리보기 로딩 중" : preview.error ? "미리보기 준비 전" : `storage: ${photo.storageKind}`}</span>

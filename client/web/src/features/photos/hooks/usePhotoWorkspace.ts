@@ -247,7 +247,6 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
           if (task.cancelled || isAbortError(error)) {
             await finishCancelledTask(task);
           } else {
-            await cancelPendingServerUpload(task);
             const message = error instanceof Error ? error.message : "사진 업로드에 실패했습니다.";
             const uploadError = new Error(message);
             setUploadError(uploadError);
@@ -333,6 +332,14 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
     });
   }, [finishCancelledTask, officeId, queryClient, reportId]);
 
+  const cancelPendingPhotoUpload = useCallback(async (photoId: number) => {
+    if (!officeId) {
+      return;
+    }
+    await cancelPhotoUpload(token, officeId, photoId);
+    await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+  }, [officeId, queryClient, reportId, token]);
+
   useEffect(() => {
     return () => {
       for (const task of tasksRef.current) {
@@ -350,6 +357,7 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
   return {
     error: photosQuery.error ?? uploadError,
     allPhotos: photosQuery.data ?? [],
+    cancelPendingPhotoUpload,
     cancelUploadTask,
     loading: photosQuery.isLoading,
     photos: photosQuery.data ?? [],
@@ -390,8 +398,10 @@ function selectUploadInstruction(uploads: PhotoUploadInstructionResponse[]) {
 }
 
 function isPhotoPipelineActive(photo: PhotoResponse) {
+  if (photo.status === "PENDING_UPLOAD") {
+    return false;
+  }
   return (
-    photo.status === "PENDING_UPLOAD" ||
     photo.originalPickupStatus === "PENDING" ||
     photo.assets.some((asset) => asset.status === "PENDING_UPLOAD")
   );

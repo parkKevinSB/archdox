@@ -10,7 +10,7 @@ public class PhotoStorageProperties {
     private PhotoUploadTarget uploadTarget = PhotoUploadTarget.API_LOCAL;
     private String localRoot = "build/photo-storage";
     private int uploadTtlMinutes = 10;
-    private int pendingUploadCleanupGraceMinutes = 60;
+    private int pendingUploadCleanupGraceMinutes = -1;
     private final S3 s3 = new S3();
 
     public PhotoUploadTarget getUploadTarget() {

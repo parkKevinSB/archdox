@@ -278,6 +278,10 @@ button {
   background: transparent;
 }
 
+.text-button.danger {
+  color: #b33630;
+}
+
 .primary-button:disabled,
 .primary-button.disabled,
 .secondary-button:disabled,
@@ -1718,6 +1722,28 @@ button {
   opacity: 0.78;
 }
 
+.photo-pending-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #ead8b7;
+  border-radius: 8px;
+  color: #73571c;
+  background: #fff8ea;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.photo-pending-alert span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .photo-card-foot {
   justify-content: space-between;
 }
@@ -2451,11 +2477,36 @@ button {
   object-fit: cover;
 }
 
+.checklist-photo-thumb.pending-upload {
+  border-color: #ead8b7;
+  background: #fff8ea;
+}
+
+.checklist-photo-thumb.pending-upload img,
+.checklist-photo-thumb.pending-upload > span {
+  opacity: 0.56;
+}
+
 .checklist-photo-thumb > span {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
+}
+
+.checklist-photo-cancel {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: inline-grid;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(115 87 28 / 0.22);
+  border-radius: 999px;
+  color: #73571c;
+  background: rgb(255 255 255 / 0.9);
 }
 
 .checklist-photo-thumb small {

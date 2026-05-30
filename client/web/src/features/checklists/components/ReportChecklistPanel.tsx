@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, FileImage, ImagePlus, Link2, Loader2, Save } from "lucide-react";
+import { Camera, CheckCircle2, FileImage, ImagePlus, Link2, Loader2, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { InlineAlert, InlineNotice } from "../../../components/common";
@@ -297,6 +297,7 @@ export function ReportChecklistPanel({
             item={item}
             key={item.id}
             linkedPhotos={photosByChecklistItem.get(item.id) ?? []}
+            onCancelPendingPhotoUpload={photoWorkspace.cancelPendingPhotoUpload}
             onCancelPhotoUpload={photoWorkspace.cancelUploadTask}
             onSave={saveItem}
             onUploadPhotos={uploadChecklistPhotos}
@@ -337,6 +338,7 @@ function ChecklistItemRow({
   form,
   item,
   linkedPhotos,
+  onCancelPendingPhotoUpload,
   onCancelPhotoUpload,
   onSave,
   onUploadPhotos,
@@ -353,6 +355,7 @@ function ChecklistItemRow({
   form: UseFormReturn<ChecklistFormValues>;
   item: ChecklistItem;
   linkedPhotos: PhotoResponse[];
+  onCancelPendingPhotoUpload: (photoId: number) => Promise<void>;
   onCancelPhotoUpload: (taskId: string) => void;
   onSave: (item: ChecklistItem, options?: SaveOptions) => Promise<boolean>;
   onUploadPhotos: (item: ChecklistItem, files: File[]) => Promise<void>;
@@ -431,7 +434,13 @@ function ChecklistItemRow({
         {visiblePhotos.length > 0 ? (
           <div className="checklist-photo-strip">
             {visiblePhotos.map((photo) => (
-              <ChecklistPhotoThumb key={photo.id} officeId={officeId} photo={photo} token={token} />
+              <ChecklistPhotoThumb
+                key={photo.id}
+                officeId={officeId}
+                onCancelPendingPhotoUpload={onCancelPendingPhotoUpload}
+                photo={photo}
+                token={token}
+              />
             ))}
             {linkedPhotos.length > visiblePhotos.length ? (
               <span className="checklist-photo-more">+{linkedPhotos.length - visiblePhotos.length}</span>
@@ -447,13 +456,17 @@ function ChecklistItemRow({
 
 function ChecklistPhotoThumb({
   officeId,
+  onCancelPendingPhotoUpload,
   photo,
   token
 }: {
   officeId: number;
+  onCancelPendingPhotoUpload: (photoId: number) => Promise<void>;
   photo: PhotoResponse;
   token: string;
 }) {
+  const [deleting, setDeleting] = useState(false);
+  const pendingUpload = photo.status === "PENDING_UPLOAD";
   const previewAssetType = selectChecklistPreviewAssetType(photo);
   const preview = usePhotoAssetPreview({
     assetType: previewAssetType,
@@ -463,7 +476,7 @@ function ChecklistPhotoThumb({
   });
 
   return (
-    <span className="checklist-photo-thumb">
+    <span className={`checklist-photo-thumb ${pendingUpload ? "pending-upload" : ""}`}>
       {preview.url ? (
         <img alt={`Photo ${photo.id}`} src={preview.url} />
       ) : (
@@ -471,7 +484,25 @@ function ChecklistPhotoThumb({
           <FileImage size={15} />
         </span>
       )}
-      <small>#{photo.id}</small>
+      <small>{pendingUpload ? "미완료" : `#${photo.id}`}</small>
+      {pendingUpload ? (
+        <button
+          aria-label={`Photo ${photo.id} 업로드 미완료 삭제`}
+          className="checklist-photo-cancel"
+          disabled={deleting}
+          onClick={async () => {
+            setDeleting(true);
+            try {
+              await onCancelPendingPhotoUpload(photo.id);
+            } finally {
+              setDeleting(false);
+            }
+          }}
+          type="button"
+        >
+          {deleting ? <Loader2 className="spin" size={12} /> : <X size={12} />}
+        </button>
+      ) : null}
     </span>
   );
 }
