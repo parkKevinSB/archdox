@@ -1,4 +1,16 @@
-archdox.co.kr, www.archdox.co.kr {
+{
+    auto_https disable_redirects
+}
+
+http:// {
+    redir https://archdox.co.kr{uri} 308
+}
+
+archdox.co.kr {
     encode zstd gzip
     reverse_proxy web:80
+}
+
+www.archdox.co.kr {
+    redir https://archdox.co.kr{uri} 308
 }
