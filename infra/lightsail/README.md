@@ -24,6 +24,11 @@ For domain deployment, set:
 
 - `ARCHDOX_CORS_ALLOWED_ORIGINS=https://archdox.co.kr,https://www.archdox.co.kr`
 - `ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS=true`
+- `ARCHDOX_MULTIPART_MAX_FILE_SIZE=100MB`
+- `ARCHDOX_MULTIPART_MAX_REQUEST_SIZE=120MB`
 
 `ARCHDOX_RATE_LIMIT_USE_FORWARDED_HEADERS` is safe here because the API is only
 reachable through the bundled Caddy/Nginx reverse proxy path.
+
+The multipart limits must be high enough for Agent document delivery uploads
+because generated DOCX/PDF files can include multiple working images.
