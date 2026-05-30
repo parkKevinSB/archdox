@@ -43,8 +43,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class PhotoService {
-    private static final int UPLOAD_TTL_MINUTES = 10;
-
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
     private final ProjectService projectService;
@@ -52,6 +50,7 @@ public class PhotoService {
     private final ChecklistService checklistService;
     private final PhotoStorageRefFactory storageRefFactory;
     private final PhotoStorageAdapterResolver storageAdapterResolver;
+    private final PhotoStorageProperties storageProperties;
     private final EventBus eventBus;
 
     public PhotoService(
@@ -62,6 +61,7 @@ public class PhotoService {
             ChecklistService checklistService,
             PhotoStorageRefFactory storageRefFactory,
             PhotoStorageAdapterResolver storageAdapterResolver,
+            PhotoStorageProperties storageProperties,
             EventBus eventBus
     ) {
         this.photoRepository = photoRepository;
@@ -71,6 +71,7 @@ public class PhotoService {
         this.checklistService = checklistService;
         this.storageRefFactory = storageRefFactory;
         this.storageAdapterResolver = storageAdapterResolver;
+        this.storageProperties = storageProperties;
         this.eventBus = eventBus;
     }
 
@@ -127,7 +128,7 @@ public class PhotoService {
         }
         var assets = createAssets(saved, refs, mimeType, request.bytes(), hash, includeOriginal, uploadTarget, adapter, now);
         photoAssetRepository.saveAll(assets);
-        var expiresAt = now.plusMinutes(UPLOAD_TTL_MINUTES);
+        var expiresAt = now.plusMinutes(Math.max(1, storageProperties.getUploadTtlMinutes()));
         return new PhotoUploadIntentResponse(
                 saved.id(),
                 saved.uploadTarget(),
@@ -138,11 +139,12 @@ public class PhotoService {
                 toResponse(saved));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<PhotoResponse> listByReport(Long reportId) {
         var report = inspectionReportService.requireReport(reportId);
         var officeId = OfficeContext.requireCurrentOfficeId();
-        return photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(officeId, report.id()).stream()
+        expireStalePendingUploads(officeId, report.id(), OffsetDateTime.now());
+        return photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(officeId, report.id(), PhotoStatus.DELETED).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -216,6 +218,15 @@ public class PhotoService {
     }
 
     @Transactional
+    public void cancelPendingUpload(Long photoId) {
+        var photo = requirePhoto(photoId);
+        if (photo.status() != PhotoStatus.PENDING_UPLOAD) {
+            throw new BadRequestException("Only pending photo uploads can be cancelled");
+        }
+        markUploadAbandoned(photo, OffsetDateTime.now());
+    }
+
+    @Transactional
     public void storeContent(Long photoId, PhotoUploadKind kind, Long contentLength, InputStream input) throws IOException {
         var photo = requirePhoto(photoId);
         if (photo.status() != PhotoStatus.PENDING_UPLOAD) {
@@ -286,6 +297,33 @@ public class PhotoService {
         var officeId = OfficeContext.requireCurrentOfficeId();
         return photoRepository.findByIdAndOfficeId(photoId, officeId)
                 .orElseThrow(() -> new NotFoundException("Photo not found"));
+    }
+
+    private void expireStalePendingUploads(Long officeId, Long reportId, OffsetDateTime now) {
+        var graceMinutes = storageProperties.getPendingUploadCleanupGraceMinutes();
+        if (graceMinutes < 0) {
+            return;
+        }
+        var cutoff = now.minusMinutes(graceMinutes);
+        photoRepository.findByOfficeIdAndReportIdAndStatusAndCreatedAtBefore(
+                        officeId,
+                        reportId,
+                        PhotoStatus.PENDING_UPLOAD,
+                        cutoff)
+                .forEach(photo -> markUploadAbandoned(photo, now));
+    }
+
+    private void markUploadAbandoned(Photo photo, OffsetDateTime now) {
+        var assets = photoAssetRepository.findByPhotoIdOrderById(photo.id());
+        for (var asset : assets) {
+            try {
+                storageAdapterResolver.forStorageKind(asset.storageKind()).deleteIfExists(asset.storageRef());
+            } catch (IOException | RuntimeException ignored) {
+                // Stale upload cleanup should not block the report screen.
+            }
+            asset.markDeleted(now);
+        }
+        photo.markDeleted(now);
     }
 
     private List<PhotoAsset> createAssets(

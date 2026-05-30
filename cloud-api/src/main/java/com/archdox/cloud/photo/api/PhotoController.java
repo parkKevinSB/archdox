@@ -95,6 +95,12 @@ public class PhotoController {
         return photoService.confirm(photoId, request, (UserPrincipal) authentication.getPrincipal());
     }
 
+    @PostMapping("/{photoId}/cancel-upload")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelUpload(@PathVariable Long photoId) {
+        photoService.cancelPendingUpload(photoId);
+    }
+
     @PostMapping("/{photoId}/agent-pickup-complete")
     public PhotoResponse completeAgentPickup(
             @PathVariable Long photoId,

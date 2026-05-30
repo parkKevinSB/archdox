@@ -121,6 +121,67 @@ class PhotoContentDeliveryIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void pendingUploadCanBeCancelledAndHiddenFromPhotoList() throws Exception {
+        var user = signup("photo-cancel@example.com");
+        var projectId = createProject(user);
+        var reportId = createReport(user, projectId);
+        var bytes = "interrupted-image-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var hash = sha256(bytes);
+
+        var intentResult = mockMvc.perform(post("/api/v1/photos/intent")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "reportId": %d,
+                                  "stepCode": "PHOTOS",
+                                  "captureKind": "UPLOAD",
+                                  "mime": "image/png",
+                                  "bytes": %d,
+                                  "hash": "%s",
+                                  "width": 640,
+                                  "height": 480,
+                                  "wantsOriginal": true
+                                }
+                                """.formatted(projectId, reportId, bytes.length, hash)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var photoId = objectMapper.readTree(intentResult.getResponse().getContentAsString())
+                .get("photoId")
+                .asLong();
+
+        mockMvc.perform(post("/api/v1/photos/{photoId}/cancel-upload", photoId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isNoContent());
+
+        var listResult = mockMvc.perform(get("/api/v1/photos")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .param("reportId", String.valueOf(reportId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        var photos = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals(0, photos.size());
+
+        mockMvc.perform(post("/api/v1/photos/{photoId}/confirm", photoId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "hash": "%s",
+                                  "bytes": %d,
+                                  "width": 640,
+                                  "height": 480
+                                }
+                                """.formatted(hash, bytes.length)))
+                .andExpect(status().isBadRequest());
+    }
+
     private void uploadAsset(TestUser user, long photoId, String assetType, byte[] content, MediaType mediaType) throws Exception {
         mockMvc.perform(put("/api/v1/photos/{photoId}/content/{kind}", photoId, assetType)
                         .header("Authorization", bearer(user.accessToken()))
@@ -131,15 +192,19 @@ class PhotoContentDeliveryIntegrationTest {
     }
 
     private TestUser signup() throws Exception {
+        return signup("photo-preview@example.com");
+    }
+
+    private TestUser signup(String email) throws Exception {
         var signupResult = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "email": "photo-preview@example.com",
+                                  "email": "%s",
                                   "password": "password-1234",
                                   "name": "Photo Preview User"
                                 }
-                                """))
+                                """.formatted(email)))
                 .andExpect(status().isCreated())
                 .andReturn();
         var accessToken = objectMapper.readTree(signupResult.getResponse().getContentAsString())

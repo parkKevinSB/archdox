@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  cancelPhotoUpload,
   confirmPhotoUpload,
   createPhotoUploadIntent,
   listPhotosByReport,
@@ -69,35 +70,46 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
           checklistItemId: context?.checklistItemId ?? uploadContext?.checklistItemId ?? null,
           stepCode: context?.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
         };
-        const intent = await createPhotoUploadIntent(token, officeId, {
-          projectId: report.projectId,
-          reportId: report.id,
-          stepCode: resolvedContext.stepCode,
-          checklistItemId: resolvedContext.checklistItemId,
-          captureKind: "UPLOAD",
-          mime: prepared.mime,
-          bytes: prepared.bytes,
-          hash: prepared.hash,
-          width: prepared.width,
-          height: prepared.height,
-          wantsOriginal: true
-        });
-        if (!intent.uploadRequired) {
-          results.push({ fileName: file.name, photo: intent.photo });
-          continue;
+        let pendingPhotoId: number | null = null;
+        try {
+          const intent = await createPhotoUploadIntent(token, officeId, {
+            projectId: report.projectId,
+            reportId: report.id,
+            stepCode: resolvedContext.stepCode,
+            checklistItemId: resolvedContext.checklistItemId,
+            captureKind: "UPLOAD",
+            mime: prepared.mime,
+            bytes: prepared.bytes,
+            hash: prepared.hash,
+            width: prepared.width,
+            height: prepared.height,
+            wantsOriginal: true
+          });
+          pendingPhotoId = intent.uploadRequired ? intent.photoId : null;
+          if (!intent.uploadRequired) {
+            results.push({ fileName: file.name, photo: intent.photo });
+            continue;
+          }
+          const upload = selectUploadInstruction(intent.uploads);
+          if (!upload) {
+            throw new Error("사용 가능한 사진 업로드 경로가 없습니다.");
+          }
+          await uploadPhotoContent(token, officeId, upload, file);
+          const confirmed = await confirmPhotoUpload(token, officeId, intent.photoId, {
+            hash: prepared.hash,
+            bytes: prepared.bytes,
+            width: prepared.width,
+            height: prepared.height
+          });
+          pendingPhotoId = null;
+          results.push({ fileName: file.name, photo: confirmed });
+        } catch (error) {
+          if (pendingPhotoId != null) {
+            await cancelPhotoUpload(token, officeId, pendingPhotoId).catch(() => undefined);
+            await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+          }
+          throw error;
         }
-        const upload = selectUploadInstruction(intent.uploads);
-        if (!upload) {
-          throw new Error("사용 가능한 사진 업로드 경로가 없습니다.");
-        }
-        await uploadPhotoContent(token, officeId, upload, file);
-        const confirmed = await confirmPhotoUpload(token, officeId, intent.photoId, {
-          hash: prepared.hash,
-          bytes: prepared.bytes,
-          width: prepared.width,
-          height: prepared.height
-        });
-        results.push({ fileName: file.name, photo: confirmed });
       }
       return results;
     },

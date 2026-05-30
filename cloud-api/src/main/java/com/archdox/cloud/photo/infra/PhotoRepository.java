@@ -14,6 +14,14 @@ import org.springframework.data.jpa.repository.Query;
 public interface PhotoRepository extends JpaRepository<Photo, Long> {
     List<Photo> findByOfficeIdAndReportIdOrderByIdDesc(Long officeId, Long reportId);
 
+    List<Photo> findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(Long officeId, Long reportId, PhotoStatus status);
+
+    List<Photo> findByOfficeIdAndReportIdAndStatusAndCreatedAtBefore(
+            Long officeId,
+            Long reportId,
+            PhotoStatus status,
+            OffsetDateTime createdBefore);
+
     List<Photo> findByStatusAndOriginalPickupStatusAndUploadTargetOrderByConfirmedAtAsc(
             PhotoStatus status,
             PhotoPickupStatus originalPickupStatus,

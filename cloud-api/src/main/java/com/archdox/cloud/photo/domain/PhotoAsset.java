@@ -115,6 +115,11 @@ public class PhotoAsset {
         this.pickedUpAt = now;
     }
 
+    public void markDeleted(OffsetDateTime now) {
+        this.status = PhotoAssetStatus.DELETED;
+        this.deletedAt = now;
+    }
+
     public Long id() {
         return id;
     }

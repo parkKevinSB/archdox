@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 public class PhotoStorageProperties {
     private PhotoUploadTarget uploadTarget = PhotoUploadTarget.API_LOCAL;
     private String localRoot = "build/photo-storage";
+    private int uploadTtlMinutes = 10;
+    private int pendingUploadCleanupGraceMinutes = 60;
     private final S3 s3 = new S3();
 
     public PhotoUploadTarget getUploadTarget() {
@@ -25,6 +27,22 @@ public class PhotoStorageProperties {
 
     public void setLocalRoot(String localRoot) {
         this.localRoot = localRoot;
+    }
+
+    public int getUploadTtlMinutes() {
+        return uploadTtlMinutes;
+    }
+
+    public void setUploadTtlMinutes(int uploadTtlMinutes) {
+        this.uploadTtlMinutes = uploadTtlMinutes;
+    }
+
+    public int getPendingUploadCleanupGraceMinutes() {
+        return pendingUploadCleanupGraceMinutes;
+    }
+
+    public void setPendingUploadCleanupGraceMinutes(int pendingUploadCleanupGraceMinutes) {
+        this.pendingUploadCleanupGraceMinutes = pendingUploadCleanupGraceMinutes;
     }
 
     public S3 getS3() {

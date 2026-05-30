@@ -22,7 +22,7 @@ export function createPhotoUploadIntent(
   token: string,
   officeId: number,
   body: CreatePhotoUploadIntentRequest
-){
+) {
   return request<PhotoUploadIntentResponse>("/api/v1/photos/intent", {
     token,
     officeId,
@@ -42,6 +42,14 @@ export function confirmPhotoUpload(
     officeId,
     method: "POST",
     body
+  });
+}
+
+export function cancelPhotoUpload(token: string, officeId: number, photoId: number) {
+  return request<void>(`/api/v1/photos/${photoId}/cancel-upload`, {
+    token,
+    officeId,
+    method: "POST"
   });
 }
 

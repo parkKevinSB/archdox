@@ -183,6 +183,11 @@ public class Photo {
         this.updatedAt = now;
     }
 
+    public void markDeleted(OffsetDateTime now) {
+        this.status = PhotoStatus.DELETED;
+        this.updatedAt = now;
+    }
+
     public Long id() {
         return id;
     }
