@@ -71,6 +71,7 @@ services:
       ARCHDOX_S3_PATH_STYLE_ACCESS: "true"
       PHOTO_UPLOAD_TARGET: API_LOCAL
       PHOTO_LOCAL_ROOT: /var/lib/archdox/photos
+      DOCUMENT_LOCAL_ROOT: ${DOCUMENT_LOCAL_ROOT:-/var/lib/archdox/documents}
       PHOTO_S3_ENDPOINT: http://minio:9000
       PHOTO_S3_REGION: ap-northeast-2
       PHOTO_S3_BUCKET: ${ARCHDOX_S3_BUCKET}
