@@ -66,7 +66,8 @@ services:
       ARCHDOX_S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       ARCHDOX_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       ARCHDOX_S3_PATH_STYLE_ACCESS: "true"
-      PHOTO_UPLOAD_TARGET: CLOUD_MEDIATED
+      PHOTO_UPLOAD_TARGET: API_LOCAL
+      PHOTO_LOCAL_ROOT: /var/lib/archdox/photos
       PHOTO_S3_ENDPOINT: http://minio:9000
       PHOTO_S3_REGION: ap-northeast-2
       PHOTO_S3_BUCKET: ${ARCHDOX_S3_BUCKET}
@@ -81,6 +82,7 @@ services:
       PLATFORM_OPS_AI_MODEL: fake-ops-model
       PLATFORM_ADMIN_BOOTSTRAP_EMAILS: vvzerg@test.co.kr
     volumes:
+      - archdox-api-data:/var/lib/archdox
       - archdox-api-logs:/var/log/archdox
 
   archdox-agent-personal:
@@ -151,6 +153,7 @@ services:
 volumes:
   archdox-postgres-data:
   archdox-minio-data:
+  archdox-api-data:
   archdox-api-logs:
   archdox-agent-personal-data:
   archdox-agent-personal-logs:
