@@ -1,0 +1,4 @@
+archdox.co.kr, www.archdox.co.kr {
+    encode zstd gzip
+    reverse_proxy web:80
+}

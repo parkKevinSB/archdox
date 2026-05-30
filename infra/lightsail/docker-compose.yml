@@ -147,14 +147,30 @@ services:
     restart: unless-stopped
     depends_on:
       - api-server
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: archdox-caddy
+    restart: unless-stopped
+    depends_on:
+      - web
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - archdox-caddy-data:/data
+      - archdox-caddy-config:/config
 
 volumes:
   archdox-postgres-data:
   archdox-minio-data:
   archdox-api-data:
   archdox-api-logs:
+  archdox-caddy-data:
+  archdox-caddy-config:
   archdox-agent-personal-data:
   archdox-agent-personal-logs:
   archdox-agent-inwoo-data:
