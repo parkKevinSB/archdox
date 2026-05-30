@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { InlineAlert, InlineNotice } from "../../../components/common";
 import { usePhotoAssetPreview } from "../../photos/hooks/usePhotoAssetPreview";
-import { usePhotoWorkspace } from "../../photos/hooks/usePhotoWorkspace";
+import { usePhotoWorkspace, type PhotoUploadTask } from "../../photos/hooks/usePhotoWorkspace";
+import { PhotoUploadTaskStrip } from "../../photos/components/PhotoPipelinePanel";
 import type { PhotoAssetType, PhotoResponse } from "../../photos/types";
 import { useReportChecklist } from "../hooks/useReportChecklist";
 import type {
@@ -37,7 +38,6 @@ export function ReportChecklistPanel({
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(targets[0]?.id ?? null);
   const [busyItemCode, setBusyItemCode] = useState<string | null>(null);
   const [bulkSaving, setBulkSaving] = useState(false);
-  const [uploadingPhotoItemId, setUploadingPhotoItemId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const values = form.watch();
@@ -69,6 +69,10 @@ export function ReportChecklistPanel({
   const photosByChecklistItem = useMemo(
     () => groupPhotosByChecklistItem(photoWorkspace.allPhotos),
     [photoWorkspace.allPhotos]
+  );
+  const uploadTasksByChecklistItem = useMemo(
+    () => groupUploadTasksByChecklistItem(photoWorkspace.uploadTasks),
+    [photoWorkspace.uploadTasks]
   );
   const checklistPhotoCount = useMemo(
     () => photoWorkspace.allPhotos.filter((photo) => photo.checklistItemId !== null && photo.checklistItemId !== undefined).length,
@@ -200,19 +204,21 @@ export function ReportChecklistPanel({
     if (files.length === 0) {
       return;
     }
-    setUploadingPhotoItemId(item.id);
     setNotice(null);
     setLocalError(null);
     try {
-      await photoWorkspace.uploadFiles(files, {
+      const uploaded = await photoWorkspace.uploadFiles(files, {
         checklistItemId: item.id,
         stepCode: "CHECKLIST"
       });
-      setNotice(`${item.label} 항목에 사진 ${files.length}장을 연결했습니다.`);
+      setNotice(
+        uploaded.length > 0
+          ? `${item.label} 항목에 사진 ${uploaded.length}장을 연결했습니다.`
+          : `${item.label} 항목의 사진 업로드를 취소했습니다.`
+      );
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "체크리스트 항목 사진을 업로드하지 못했습니다.");
     } finally {
-      setUploadingPhotoItemId(null);
     }
   }
 
@@ -291,10 +297,12 @@ export function ReportChecklistPanel({
             item={item}
             key={item.id}
             linkedPhotos={photosByChecklistItem.get(item.id) ?? []}
+            onCancelPhotoUpload={photoWorkspace.cancelUploadTask}
             onSave={saveItem}
             onUploadPhotos={uploadChecklistPhotos}
             officeId={officeId}
-            photoUploading={uploadingPhotoItemId === item.id && photoWorkspace.uploading}
+            photoUploading={(uploadTasksByChecklistItem.get(item.id) ?? []).some(isPhotoUploadTaskLive)}
+            photoUploadTasks={uploadTasksByChecklistItem.get(item.id) ?? []}
             savedAnswer={answersByCode.get(item.itemCode)}
             token={token}
             value={values[answerKey(item.itemCode)] ?? ""}
@@ -329,10 +337,12 @@ function ChecklistItemRow({
   form,
   item,
   linkedPhotos,
+  onCancelPhotoUpload,
   onSave,
   onUploadPhotos,
   officeId,
   photoUploading,
+  photoUploadTasks,
   savedAnswer,
   token,
   value
@@ -343,10 +353,12 @@ function ChecklistItemRow({
   form: UseFormReturn<ChecklistFormValues>;
   item: ChecklistItem;
   linkedPhotos: PhotoResponse[];
+  onCancelPhotoUpload: (taskId: string) => void;
   onSave: (item: ChecklistItem, options?: SaveOptions) => Promise<boolean>;
   onUploadPhotos: (item: ChecklistItem, files: File[]) => Promise<void>;
   officeId: number;
   photoUploading: boolean;
+  photoUploadTasks: PhotoUploadTask[];
   savedAnswer?: ChecklistAnswer;
   token: string;
   value: string;
@@ -401,18 +413,21 @@ function ChecklistItemRow({
             <Camera size={15} />
             연결 사진 {linkedPhotos.length}장
           </span>
-          <label className={photoUploading || !canWriteReports ? "secondary-button disabled" : "secondary-button"}>
+          <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
             {photoUploading ? <Loader2 className="spin" size={16} /> : <ImagePlus size={16} />}
             사진 추가
             <input
               accept="image/*"
-              disabled={photoUploading || !canWriteReports}
+              disabled={!canWriteReports}
               multiple
               onChange={handlePhotoSelection}
               type="file"
             />
           </label>
         </div>
+        {photoUploadTasks.length > 0 ? (
+          <PhotoUploadTaskStrip onCancel={onCancelPhotoUpload} tasks={photoUploadTasks} />
+        ) : null}
         {visiblePhotos.length > 0 ? (
           <div className="checklist-photo-strip">
             {visiblePhotos.map((photo) => (
@@ -636,6 +651,22 @@ function groupPhotosByChecklistItem(photos: PhotoResponse[]) {
     groups.set(photo.checklistItemId, photosForItem);
     return groups;
   }, new Map());
+}
+
+function groupUploadTasksByChecklistItem(tasks: PhotoUploadTask[]) {
+  return tasks.reduce<Map<number, PhotoUploadTask[]>>((groups, task) => {
+    if (task.checklistItemId === null || task.checklistItemId === undefined) {
+      return groups;
+    }
+    const tasksForItem = groups.get(task.checklistItemId) ?? [];
+    tasksForItem.push(task);
+    groups.set(task.checklistItemId, tasksForItem);
+    return groups;
+  }, new Map());
+}
+
+function isPhotoUploadTaskLive(task: PhotoUploadTask) {
+  return ["QUEUED", "PREPARING", "UPLOADING", "CONFIRMING"].includes(task.status);
 }
 
 function selectChecklistPreviewAssetType(photo: PhotoResponse): Exclude<PhotoAssetType, "ORIGINAL"> | null {

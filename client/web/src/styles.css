@@ -1402,6 +1402,131 @@ button {
   white-space: nowrap;
 }
 
+.photo-upload-task-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.photo-upload-task {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: min(240px, 100%);
+  min-height: 58px;
+  padding: 6px 8px 6px 6px;
+  border: 1px solid #dce7e4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.photo-upload-task.failed {
+  border-color: #efc9c4;
+  background: #fff8f7;
+}
+
+.photo-upload-task.cancelled {
+  opacity: 0.72;
+}
+
+.photo-upload-task.completed {
+  border-color: #c9ded7;
+  background: #f4fbf8;
+}
+
+.photo-upload-task-thumb {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 46px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #d8e1df;
+  border-radius: 7px;
+  color: #60746f;
+  background: #f7fbfa;
+}
+
+.photo-upload-task-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-upload-task-cancel {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(20 32 31 / 0.18);
+  border-radius: 999px;
+  color: #1f2f2c;
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 2px 8px rgb(20 32 31 / 0.12);
+}
+
+.photo-upload-task-cancel:hover {
+  border-color: #b9c7c4;
+  background: #ffffff;
+}
+
+.photo-upload-task-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgb(20 32 31 / 0.14);
+}
+
+.photo-upload-task-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  background: #c49a36;
+  transition: width 180ms ease;
+}
+
+.photo-upload-task.completed .photo-upload-task-progress span {
+  background: #2a7f70;
+}
+
+.photo-upload-task.failed .photo-upload-task-progress span {
+  background: #c85d4f;
+}
+
+.photo-upload-task-info {
+  min-width: 0;
+}
+
+.photo-upload-task-info strong,
+.photo-upload-task-info span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-upload-task-info strong {
+  color: #1d2b29;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.photo-upload-task-info span {
+  margin-top: 3px;
+  color: #60746f;
+  font-size: 11px;
+  font-weight: 750;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

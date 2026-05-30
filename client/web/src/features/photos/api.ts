@@ -10,6 +10,11 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+type UploadPhotoContentOptions = {
+  onProgress?: (progress: number) => void;
+  signal?: AbortSignal;
+};
+
 export function listPhotosByReport(token: string, officeId: number, reportId: number) {
   return request<PhotoResponse[]>("/api/v1/photos", {
     token,
@@ -57,7 +62,8 @@ export async function uploadPhotoContent(
   token: string,
   officeId: number,
   instruction: PhotoUploadInstructionResponse,
-  file: File
+  file: File,
+  options: UploadPhotoContentOptions = {}
 ) {
   const uploadUrl = resolveUploadUrl(instruction.url);
   const headers = new Headers(instruction.headers ?? {});
@@ -69,14 +75,44 @@ export async function uploadPhotoContent(
     headers.set("X-Office-Id", String(officeId));
   }
 
-  const response = await fetch(uploadUrl, {
-    method: instruction.method || "PUT",
-    headers,
-    body: file
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const abort = () => xhr.abort();
+
+    xhr.open(instruction.method || "PUT", uploadUrl, true);
+    headers.forEach((value, key) => xhr.setRequestHeader(key, value));
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || event.total <= 0) {
+        options.onProgress?.(50);
+        return;
+      }
+      options.onProgress?.(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      options.signal?.removeEventListener("abort", abort);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        options.onProgress?.(100);
+        resolve();
+        return;
+      }
+      reject(new Error(`사진 업로드에 실패했습니다. (${xhr.status})`));
+    };
+    xhr.onerror = () => {
+      options.signal?.removeEventListener("abort", abort);
+      reject(new Error("사진 업로드 중 네트워크 연결이 끊겼습니다."));
+    };
+    xhr.onabort = () => {
+      options.signal?.removeEventListener("abort", abort);
+      reject(new DOMException("사진 업로드를 취소했습니다.", "AbortError"));
+    };
+
+    if (options.signal?.aborted) {
+      abort();
+      return;
+    }
+    options.signal?.addEventListener("abort", abort, { once: true });
+    xhr.send(file);
   });
-  if (!response.ok) {
-    throw new Error(`사진 업로드에 실패했습니다. (${response.status})`);
-  }
 }
 
 export async function fetchPhotoAssetBlob(

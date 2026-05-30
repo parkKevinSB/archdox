@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelPhotoUpload,
   confirmPhotoUpload,
@@ -34,14 +35,45 @@ type PreparedPhotoFile = {
   width?: number | null;
 };
 
+export type PhotoUploadTaskStatus = "QUEUED" | "PREPARING" | "UPLOADING" | "CONFIRMING" | "COMPLETED" | "FAILED" | "CANCELLED";
+
+export type PhotoUploadTask = {
+  checklistItemId?: number | null;
+  error?: string | null;
+  fileName: string;
+  id: string;
+  photoId?: number | null;
+  previewUrl?: string | null;
+  progress: number;
+  status: PhotoUploadTaskStatus;
+  stepCode?: string | null;
+};
+
 type PhotoUploadInput = {
   context?: PhotoUploadContext;
   files: File[];
 };
 
+type InternalPhotoUploadTask = PhotoUploadTask & {
+  abortController?: AbortController;
+  cancelled: boolean;
+  file: File;
+  reject: (reason: unknown) => void;
+  resolve: (result: PhotoUploadFileResult | null) => void;
+  settled: boolean;
+};
+
+const LIVE_UPLOAD_STATUSES: PhotoUploadTaskStatus[] = ["QUEUED", "PREPARING", "UPLOADING", "CONFIRMING"];
+
 export function usePhotoWorkspace({ officeId, report, token, uploadContext }: UsePhotoWorkspaceOptions) {
   const queryClient = useQueryClient();
   const reportId = report?.id ?? null;
+  const [uploadTasks, setUploadTasks] = useState<PhotoUploadTask[]>([]);
+  const [uploadError, setUploadError] = useState<Error | null>(null);
+  const tasksRef = useRef<InternalPhotoUploadTask[]>([]);
+  const processingRef = useRef(false);
+  const sequenceRef = useRef(0);
+
   const photosQuery = useQuery({
     enabled: Boolean(token && officeId && reportId),
     queryKey: ["photos", officeId, reportId],
@@ -58,20 +90,93 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
     }
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async ({ context, files }: PhotoUploadInput) => {
-      if (!officeId || !report) {
-        throw new Error("사진을 연결할 리포트를 먼저 선택해야 합니다.");
+  const syncUploadTasks = useCallback(() => {
+    setUploadTasks(tasksRef.current.map(toPublicTask));
+  }, []);
+
+  const updateUploadTask = useCallback((taskId: string, patch: Partial<PhotoUploadTask>) => {
+    const task = tasksRef.current.find((current) => current.id === taskId);
+    if (!task) {
+      return;
+    }
+    Object.assign(task, patch);
+    syncUploadTasks();
+  }, [syncUploadTasks]);
+
+  const removeUploadTaskLater = useCallback((taskId: string, delayMs: number) => {
+    window.setTimeout(() => {
+      const task = tasksRef.current.find((current) => current.id === taskId);
+      if (task?.previewUrl) {
+        URL.revokeObjectURL(task.previewUrl);
       }
-      const results: PhotoUploadFileResult[] = [];
-      for (const file of files) {
-        const prepared = await preparePhotoFile(file);
-        const resolvedContext = {
-          checklistItemId: context?.checklistItemId ?? uploadContext?.checklistItemId ?? null,
-          stepCode: context?.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
-        };
-        let pendingPhotoId: number | null = null;
+      tasksRef.current = tasksRef.current.filter((current) => current.id !== taskId);
+      syncUploadTasks();
+    }, delayMs);
+  }, [syncUploadTasks]);
+
+  const settleUploadTask = useCallback((
+    task: InternalPhotoUploadTask,
+    result: PhotoUploadFileResult | null,
+    reason?: unknown
+  ) => {
+    if (task.settled) {
+      return;
+    }
+    task.settled = true;
+    if (reason) {
+      task.reject(reason);
+      return;
+    }
+    task.resolve(result);
+  }, []);
+
+  const cancelPendingServerUpload = useCallback(async (task: InternalPhotoUploadTask) => {
+    if (!officeId || !task.photoId) {
+      return;
+    }
+    await cancelPhotoUpload(token, officeId, task.photoId).catch(() => undefined);
+  }, [officeId, token]);
+
+  const finishCancelledTask = useCallback(async (task: InternalPhotoUploadTask) => {
+    task.cancelled = true;
+    await cancelPendingServerUpload(task);
+    updateUploadTask(task.id, {
+      error: null,
+      progress: 0,
+      status: "CANCELLED"
+    });
+    settleUploadTask(task, null);
+    removeUploadTaskLater(task.id, 1400);
+  }, [cancelPendingServerUpload, removeUploadTaskLater, settleUploadTask, updateUploadTask]);
+
+  const processUploadQueue = useCallback(async () => {
+    if (processingRef.current || !officeId || !report) {
+      return;
+    }
+    processingRef.current = true;
+    try {
+      let task = nextQueuedTask(tasksRef.current);
+      while (task) {
+        if (task.cancelled) {
+          await finishCancelledTask(task);
+          task = nextQueuedTask(tasksRef.current);
+          continue;
+        }
+
         try {
+          setUploadError(null);
+          updateUploadTask(task.id, { progress: 3, status: "PREPARING" });
+          const prepared = await preparePhotoFile(task.file);
+          if (task.cancelled) {
+            await finishCancelledTask(task);
+            task = nextQueuedTask(tasksRef.current);
+            continue;
+          }
+
+          const resolvedContext = {
+            checklistItemId: task.checklistItemId ?? uploadContext?.checklistItemId ?? null,
+            stepCode: task.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
+          };
           const intent = await createPhotoUploadIntent(token, officeId, {
             projectId: report.projectId,
             reportId: report.id,
@@ -85,51 +190,195 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
             height: prepared.height,
             wantsOriginal: true
           });
-          pendingPhotoId = intent.uploadRequired ? intent.photoId : null;
+          updateUploadTask(task.id, { photoId: intent.photoId, progress: 12 });
+
           if (!intent.uploadRequired) {
-            results.push({ fileName: file.name, photo: intent.photo });
+            updateUploadTask(task.id, { progress: 100, status: "COMPLETED" });
+            settleUploadTask(task, { fileName: task.fileName, photo: intent.photo });
+            removeUploadTaskLater(task.id, 1200);
+            await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+            task = nextQueuedTask(tasksRef.current);
             continue;
           }
+
+          task.photoId = intent.photoId;
+          if (task.cancelled) {
+            await finishCancelledTask(task);
+            task = nextQueuedTask(tasksRef.current);
+            continue;
+          }
+
           const upload = selectUploadInstruction(intent.uploads);
           if (!upload) {
             throw new Error("사용 가능한 사진 업로드 경로가 없습니다.");
           }
-          await uploadPhotoContent(token, officeId, upload, file);
+
+          const abortController = new AbortController();
+          task.abortController = abortController;
+          updateUploadTask(task.id, { progress: 16, status: "UPLOADING" });
+          await uploadPhotoContent(token, officeId, upload, task.file, {
+            signal: abortController.signal,
+            onProgress: (progress) => {
+              updateUploadTask(task.id, {
+                progress: Math.min(90, 16 + Math.round(progress * 0.72))
+              });
+            }
+          });
+          task.abortController = undefined;
+
+          if (task.cancelled) {
+            await finishCancelledTask(task);
+            task = nextQueuedTask(tasksRef.current);
+            continue;
+          }
+
+          updateUploadTask(task.id, { progress: 94, status: "CONFIRMING" });
           const confirmed = await confirmPhotoUpload(token, officeId, intent.photoId, {
             hash: prepared.hash,
             bytes: prepared.bytes,
             width: prepared.width,
             height: prepared.height
           });
-          pendingPhotoId = null;
-          results.push({ fileName: file.name, photo: confirmed });
+          updateUploadTask(task.id, { progress: 100, status: "COMPLETED" });
+          settleUploadTask(task, { fileName: task.fileName, photo: confirmed });
+          removeUploadTaskLater(task.id, 1200);
+          await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
         } catch (error) {
-          if (pendingPhotoId != null) {
-            await cancelPhotoUpload(token, officeId, pendingPhotoId).catch(() => undefined);
-            await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+          if (task.cancelled || isAbortError(error)) {
+            await finishCancelledTask(task);
+          } else {
+            await cancelPendingServerUpload(task);
+            const message = error instanceof Error ? error.message : "사진 업로드에 실패했습니다.";
+            const uploadError = new Error(message);
+            setUploadError(uploadError);
+            updateUploadTask(task.id, {
+              error: message,
+              progress: 0,
+              status: "FAILED"
+            });
+            settleUploadTask(task, null, uploadError);
+            removeUploadTaskLater(task.id, 6500);
           }
-          throw error;
+          await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+        }
+        task = nextQueuedTask(tasksRef.current);
+      }
+    } finally {
+      processingRef.current = false;
+    }
+  }, [
+    cancelPendingServerUpload,
+    finishCancelledTask,
+    officeId,
+    queryClient,
+    removeUploadTaskLater,
+    report,
+    reportId,
+    settleUploadTask,
+    token,
+    updateUploadTask,
+    uploadContext?.checklistItemId,
+    uploadContext?.stepCode
+  ]);
+
+  const uploadFiles = useCallback(async (files: File[], context?: PhotoUploadContext) => {
+    if (!officeId || !report) {
+      throw new Error("사진을 연결할 리포트를 먼저 선택해야 합니다.");
+    }
+    const tasks = files.map((file) => {
+      let resolveTask: (result: PhotoUploadFileResult | null) => void = () => undefined;
+      let rejectTask: (reason: unknown) => void = () => undefined;
+      const promise = new Promise<PhotoUploadFileResult | null>((resolve, reject) => {
+        resolveTask = resolve;
+        rejectTask = reject;
+      });
+      const task: InternalPhotoUploadTask & { promise: Promise<PhotoUploadFileResult | null> } = {
+        cancelled: false,
+        checklistItemId: context?.checklistItemId ?? null,
+        error: null,
+        file,
+        fileName: file.name,
+        id: `photo-upload-${Date.now()}-${sequenceRef.current++}`,
+        photoId: null,
+        previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+        progress: 0,
+        reject: rejectTask,
+        resolve: resolveTask,
+        settled: false,
+        status: "QUEUED",
+        stepCode: context?.stepCode ?? null,
+        promise
+      };
+      return task;
+    });
+    tasksRef.current.push(...tasks);
+    syncUploadTasks();
+    void processUploadQueue();
+    const results = await Promise.all(tasks.map((task) => task.promise));
+    return results.filter((result): result is PhotoUploadFileResult => result !== null);
+  }, [officeId, processUploadQueue, report, syncUploadTasks]);
+
+  const cancelUploadTask = useCallback((taskId: string) => {
+    const task = tasksRef.current.find((current) => current.id === taskId);
+    if (!task || !LIVE_UPLOAD_STATUSES.includes(task.status)) {
+      return;
+    }
+    task.cancelled = true;
+    if (task.abortController) {
+      task.abortController.abort();
+      return;
+    }
+    void finishCancelledTask(task).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+    });
+  }, [finishCancelledTask, officeId, queryClient, reportId]);
+
+  useEffect(() => {
+    return () => {
+      for (const task of tasksRef.current) {
+        task.abortController?.abort();
+        if (task.previewUrl) {
+          URL.revokeObjectURL(task.previewUrl);
         }
       }
-      return results;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
-    }
-  });
+      tasksRef.current = [];
+    };
+  }, []);
+
+  const uploading = uploadTasks.some((task) => LIVE_UPLOAD_STATUSES.includes(task.status));
 
   return {
-    error: photosQuery.error ?? uploadMutation.error,
+    error: photosQuery.error ?? uploadError,
     allPhotos: photosQuery.data ?? [],
+    cancelUploadTask,
     loading: photosQuery.isLoading,
     photos: photosQuery.data ?? [],
     refreshPhotos: photosQuery.refetch,
-    uploadFiles: (files: File[], context?: PhotoUploadContext) => uploadMutation.mutateAsync({ files, context }),
-    uploading: uploadMutation.isPending
+    uploadFiles,
+    uploading,
+    uploadTasks
   };
 }
 
 export type PhotoWorkspaceState = ReturnType<typeof usePhotoWorkspace>;
+
+function nextQueuedTask(tasks: InternalPhotoUploadTask[]) {
+  return tasks.find((task) => task.status === "QUEUED");
+}
+
+function toPublicTask(task: InternalPhotoUploadTask): PhotoUploadTask {
+  return {
+    checklistItemId: task.checklistItemId,
+    error: task.error,
+    fileName: task.fileName,
+    id: task.id,
+    photoId: task.photoId,
+    previewUrl: task.previewUrl,
+    progress: task.progress,
+    status: task.status,
+    stepCode: task.stepCode
+  };
+}
 
 function selectUploadInstruction(uploads: PhotoUploadInstructionResponse[]) {
   return (
@@ -146,6 +395,10 @@ function isPhotoPipelineActive(photo: PhotoResponse) {
     photo.originalPickupStatus === "PENDING" ||
     photo.assets.some((asset) => asset.status === "PENDING_UPLOAD")
   );
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 async function preparePhotoFile(file: File): Promise<PreparedPhotoFile> {

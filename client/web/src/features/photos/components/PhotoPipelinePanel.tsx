@@ -4,7 +4,7 @@ import { EmptyState, StatusBadge } from "../../../components/common";
 import type { InspectionReport } from "../../../types";
 import type { PhotoAssetResponse, PhotoAssetType, PhotoResponse } from "../types";
 import { usePhotoAssetPreview } from "../hooks/usePhotoAssetPreview";
-import type { PhotoWorkspaceState } from "../hooks/usePhotoWorkspace";
+import type { PhotoUploadTask, PhotoWorkspaceState } from "../hooks/usePhotoWorkspace";
 
 type PhotoPipelinePanelProps = {
   canUpload?: boolean;
@@ -18,7 +18,7 @@ type PhotoPipelinePanelProps = {
 
 export function PhotoPipelinePanel({
   canUpload = true,
-  emptyText = "현장 사진을 올리면 원본/작업본/썸네일 상태가 여기에서 추적됩니다.",
+  emptyText = "현장 사진을 올리면 원본/작업본/썸네일 처리 상태를 여기에서 확인합니다.",
   emptyTitle = "아직 업로드된 사진이 없습니다",
   officeId,
   report,
@@ -42,18 +42,19 @@ export function PhotoPipelinePanel({
             <strong>{report.title || report.reportNo}</strong>
             <span>현재 단계: {report.currentStep ?? "FIELD_PHOTOS"}</span>
           </div>
-          <label className={workspace.uploading || !canUpload ? "primary-button disabled" : "primary-button"}>
+          <label className={!canUpload ? "primary-button disabled" : "primary-button"}>
             {workspace.uploading ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
-            사진 업로드
+            {workspace.uploading ? "대기열에 추가" : "사진 업로드"}
             <input
               accept="image/*"
-              disabled={workspace.uploading || !canUpload}
+              disabled={!canUpload}
               multiple
               onChange={handleFilesSelected}
               type="file"
             />
           </label>
         </div>
+        <PhotoUploadTaskStrip onCancel={workspace.cancelUploadTask} tasks={workspace.uploadTasks} />
       </div>
 
       {workspace.photos.length === 0 ? (
@@ -66,6 +67,46 @@ export function PhotoPipelinePanel({
         </div>
       )}
     </>
+  );
+}
+
+export function PhotoUploadTaskStrip({
+  onCancel,
+  tasks
+}: {
+  onCancel: (taskId: string) => void;
+  tasks: PhotoUploadTask[];
+}) {
+  if (tasks.length === 0) {
+    return null;
+  }
+  return (
+    <div className="photo-upload-task-strip">
+      {tasks.map((task) => (
+        <div className={`photo-upload-task ${task.status.toLowerCase()}`} key={task.id}>
+          <div className="photo-upload-task-thumb">
+            {task.previewUrl ? <img alt={task.fileName} src={task.previewUrl} /> : <FileImage size={16} />}
+            {isUploadTaskLive(task) ? (
+              <button
+                aria-label={`${task.fileName} 업로드 취소`}
+                className="photo-upload-task-cancel"
+                onClick={() => onCancel(task.id)}
+                type="button"
+              >
+                <X size={13} />
+              </button>
+            ) : null}
+            <span className="photo-upload-task-progress" aria-hidden="true">
+              <span style={{ width: `${Math.max(0, Math.min(100, task.progress))}%` }} />
+            </span>
+          </div>
+          <div className="photo-upload-task-info">
+            <strong>{task.fileName}</strong>
+            <span>{task.error ?? uploadTaskLabel(task)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -129,7 +170,7 @@ function PhotoCard({ officeId, photo, token }: { officeId: number | null; photo:
         </div>
 
         <div className="photo-card-foot">
-          <span>{preview.loading ? "미리보기 로딩 중" : preview.error ? "미리보기 준비 안 됨" : `storage: ${photo.storageKind}`}</span>
+          <span>{preview.loading ? "미리보기 로딩 중" : preview.error ? "미리보기 준비 전" : `storage: ${photo.storageKind}`}</span>
           {photo.originalTemporaryDeletedAt ? <strong>임시 원본 삭제 완료</strong> : null}
         </div>
       </article>
@@ -185,12 +226,38 @@ function selectPreviewAssetType(
   return null;
 }
 
+function isUploadTaskLive(task: PhotoUploadTask) {
+  return ["QUEUED", "PREPARING", "UPLOADING", "CONFIRMING"].includes(task.status);
+}
+
+function uploadTaskLabel(task: PhotoUploadTask) {
+  if (task.status === "QUEUED") {
+    return "대기 중";
+  }
+  if (task.status === "PREPARING") {
+    return "준비 중";
+  }
+  if (task.status === "UPLOADING") {
+    return `업로드 중 ${task.progress}%`;
+  }
+  if (task.status === "CONFIRMING") {
+    return "저장 확인 중";
+  }
+  if (task.status === "COMPLETED") {
+    return "완료";
+  }
+  if (task.status === "CANCELLED") {
+    return "취소됨";
+  }
+  return "실패";
+}
+
 function pickupLabel(status: string) {
   if (status === "PICKED_UP") {
-    return "이관 완료";
+    return "가져감 완료";
   }
   if (status === "PENDING") {
-    return "이관 대기";
+    return "가져가기 대기";
   }
   if (status === "NOT_REQUIRED") {
     return "불필요";
