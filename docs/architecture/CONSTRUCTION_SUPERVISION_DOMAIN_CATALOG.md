@@ -26,7 +26,7 @@ checklists share the same vocabulary:
 - floor or work area
 - trade
 - detailed process
-- supervision/check item
+- inspection item (`검사항목`)
 - narrative supervision content
 - linked photos
 - issue/action result
@@ -77,7 +77,7 @@ The catalog is intentionally hierarchical:
 Catalog
 -> Trade
    -> ProcessGroup
-      -> Item
+      -> InspectionItem
 ```
 
 Example:
@@ -135,6 +135,8 @@ The daily supervision step stores neutral structured data:
       "floor": "기초층",
       "items": [
         {
+          "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+          "inspectionItemName": "철근 개수·지름·피치",
           "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
           "item": "철근 개수·지름·피치",
           "content": "현장 작성자가 확인한 감리내용",
@@ -148,6 +150,11 @@ The daily supervision step stores neutral structured data:
 
 Codes are for stable traceability. Korean names are stored with the snapshot so
 old reports remain readable even if catalog wording later changes.
+
+`inspectionItemCode` and `inspectionItemName` are the preferred field names for
+new payloads. `itemCode` and `item` remain as aliases for compatibility. The
+catalog item is the official `검사항목`; the user's `content` is the
+field-authored `감리내용` attached to that inspection item.
 
 ## Layout Versioning
 

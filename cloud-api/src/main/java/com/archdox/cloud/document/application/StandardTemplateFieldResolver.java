@@ -105,9 +105,16 @@ public class StandardTemplateFieldResolver {
                 "steps.DAILY_LOG.payload.workDescription",
                 "steps.DEMOLITION_DAILY_LOG.payload.workDescription",
                 "steps.WORK_STATUS.payload.workDescription"));
+        put(fields, "inspectionItem", readFirst(
+                snapshot,
+                "steps.DAILY_LOG.payload.inspectionItemName",
+                "steps.DAILY_LOG.payload.inspectionItem",
+                "steps.DAILY_LOG.payload.supervisionItem",
+                "steps.CHECKLIST.payload.inspectionItemName"));
         put(fields, "supervisionItem", readFirst(
                 snapshot,
                 "steps.DAILY_LOG.payload.supervisionItem",
+                "steps.DAILY_LOG.payload.inspectionItemName",
                 "steps.CHECKLIST.payload.supervisionItem"));
         put(fields, "supervisionFocus", readFirst(
                 snapshot,

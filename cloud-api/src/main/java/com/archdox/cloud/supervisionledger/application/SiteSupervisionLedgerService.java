@@ -112,7 +112,13 @@ public class SiteSupervisionLedgerService {
             }
             for (int itemIndex = 0; itemIndex < items.size(); itemIndex++) {
                 var item = items.get(itemIndex);
-                if (isBlank(text(group, "trade")) && isBlank(text(item, "item"))
+                var inspectionItemCode = firstNonBlank(
+                        text(item, "inspectionItemCode"),
+                        text(item, "itemCode"));
+                var inspectionItemName = firstNonBlank(
+                        text(item, "inspectionItemName"),
+                        text(item, "item"));
+                if (isBlank(text(group, "trade")) && isBlank(inspectionItemName)
                         && isBlank(text(item, "content")) && photoIds(item).isEmpty()) {
                     continue;
                 }
@@ -130,6 +136,8 @@ public class SiteSupervisionLedgerService {
                         trimToNull(text(group, "process")),
                         trimToNull(text(item, "itemCode")),
                         trimToNull(text(item, "item")),
+                        trimToNull(inspectionItemCode),
+                        trimToNull(inspectionItemName),
                         trimToNull(text(item, "content")),
                         trimToNull(text(item, "resultStatus")),
                         trimToNull(text(item, "issueText")),
@@ -251,6 +259,8 @@ public class SiteSupervisionLedgerService {
                 entry.processName(),
                 entry.itemCode(),
                 entry.itemName(),
+                entry.inspectionItemCode(),
+                entry.inspectionItemName(),
                 entry.supervisionContent(),
                 entry.resultStatus(),
                 entry.issueText(),

@@ -95,6 +95,7 @@ public class StandardTemplateFieldCatalog {
             field("floor", "Floor", "daily-content", "steps.DAILY_LOG.payload.floor", "3F", "Floor or zone for the work item.", DAILY_REPORT_TYPES),
             field("dailyItems", "Daily supervision item groups", "daily-content", "steps.DAILY_LOG.payload.dailyItems", "Trade groups with supervision items", "Structured construction daily log rows grouped by trade, process/floor, supervision item, content, and photo ids.", DAILY_REPORT_TYPES),
             field("workDescription", "Work description", "daily-content", "steps.*.payload.workDescription", "Rebar placement", "Work summary for daily logs.", ALL_DAILY_LOG_REPORT_TYPES),
+            field("inspectionItem", "Inspection item", "daily-content", "steps.DAILY_LOG.payload.inspectionItemName", "Rebar count and pitch", "Catalog-managed inspection item from the construction supervision checklist.", DAILY_REPORT_TYPES),
             field("supervisionItem", "Supervision item", "daily-content", "steps.DAILY_LOG.payload.supervisionItem", "Rebar spacing", "Supervision item or checklist item.", DAILY_REPORT_TYPES),
             field("supervisionFocus", "Supervision focus", "daily-content", "steps.*.payload.supervisionFocus", "Temporary support", "Focus point for demolition daily supervision.", DEMOLITION_DAILY_REPORT_TYPES),
             field("supervisionContent", "Supervision content", "daily-content", "steps.*.payload.supervisionContent", "Checked rebar", "Main supervision content.", ALL_DAILY_LOG_REPORT_TYPES),

@@ -1,5 +1,6 @@
 package com.archdox.cloud.site.api;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -151,13 +152,15 @@ class SiteIntegrationTest {
                                           "processCode": "REBAR_ASSEMBLY",
                                           "process": "Rebar assembly",
                                           "items": [
-                                            {
-                                              "id": "item-1",
-                                              "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                              "item": "Rebar count and pitch",
-                                              "content": "Checked rebar spacing and count.",
-                                              "photoIds": [10, 11]
-                                            },
+                                              {
+                                                "id": "item-1",
+                                                "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                "item": "Rebar count and pitch",
+                                                "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                "inspectionItemName": "Rebar count and pitch",
+                                                "content": "Checked rebar spacing and count.",
+                                                "photoIds": [10, 11]
+                                              },
                                             {
                                               "id": "item-2",
                                               "itemCode": "RC_REBAR_ANCHORAGE",
@@ -182,10 +185,12 @@ class SiteIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].entryDate").value("2026-06-02"))
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
-                .andExpect(jsonPath("$[0].tradeCode").value("REINFORCED_CONCRETE"))
-                .andExpect(jsonPath("$[0].processCode").value("REBAR_ASSEMBLY"))
-                .andExpect(jsonPath("$[0].sourceReportId").value(reportId))
-                .andExpect(jsonPath("$[0].sourceReportRevision").value(1));
+                  .andExpect(jsonPath("$[0].tradeCode").value("REINFORCED_CONCRETE"))
+                  .andExpect(jsonPath("$[0].processCode").value("REBAR_ASSEMBLY"))
+                  .andExpect(jsonPath("$[*].inspectionItemCode", hasItem("RC_REBAR_COUNT_DIAMETER_PITCH")))
+                  .andExpect(jsonPath("$[*].inspectionItemName", hasItem("Rebar count and pitch")))
+                  .andExpect(jsonPath("$[0].sourceReportId").value(reportId))
+                  .andExpect(jsonPath("$[0].sourceReportRevision").value(1));
 
         saveBasicInfo(user, reportId, "2026-06-03");
 

@@ -10,6 +10,8 @@ import type { ReportStepComponentProps } from "./ReportFormStep";
 type DailySupervisionItem = {
   content: string;
   id: string;
+  inspectionItemCode?: string;
+  inspectionItemName: string;
   item: string;
   itemCode?: string;
   photoIds: number[];
@@ -118,6 +120,8 @@ export function DailySupervisionItemsStep({
           {
             content: "",
             id: newId("item"),
+            inspectionItemCode: catalogItem?.code,
+            inspectionItemName: catalogItem?.name ?? "",
             item: catalogItem?.name ?? "",
             itemCode: catalogItem?.code,
             photoIds: []
@@ -188,7 +192,7 @@ export function DailySupervisionItemsStep({
 
       <div className="daily-supervision-summary">
         <span>공종 그룹 {groups.length}개</span>
-        <span>감리 항목 {totalItems}개</span>
+        <span>검사항목 {totalItems}개</span>
         <span>연결 사진 {totalPhotos}장</span>
         {catalog ? <span>카탈로그 v{catalog.version}</span> : null}
       </div>
@@ -207,8 +211,8 @@ export function DailySupervisionItemsStep({
 
       {groups.length === 0 ? (
         <div className="daily-supervision-empty">
-          <strong>아직 입력한 감리 항목이 없습니다.</strong>
-          <span>공종을 추가한 뒤 감리항목을 선택하고 감리내용과 사진을 연결하세요.</span>
+          <strong>아직 입력한 검사항목이 없습니다.</strong>
+          <span>공종을 추가한 뒤 검사항목을 선택하고 감리내용과 사진을 연결하세요.</span>
           <button className="primary-button" disabled={!canWriteReports} onClick={addGroup} type="button">
             <Plus size={17} />
             공종 추가
@@ -294,13 +298,13 @@ export function DailySupervisionItemsStep({
 
               <div className="daily-supervision-items">
                 {group.items.length === 0 ? (
-                  <p className="daily-supervision-muted">감리 항목을 추가하세요.</p>
+                  <p className="daily-supervision-muted">검사항목을 추가하세요.</p>
                 ) : group.items.map((item, itemIndex) => (
                   <div className="daily-supervision-item" key={item.id}>
                     <div className="daily-supervision-item-head">
                       <span>항목 {itemIndex + 1}</span>
                       <button
-                        aria-label="감리 항목 삭제"
+                        aria-label="검사항목 삭제"
                         className="icon-button"
                         disabled={!canWriteReports}
                         onClick={() => removeItem(group.id, item.id)}
@@ -310,27 +314,32 @@ export function DailySupervisionItemsStep({
                       </button>
                     </div>
                     <label>
-                      감리 항목
+                      검사항목
                       <input
                         disabled={!canWriteReports}
                         list={`daily-item-options-${group.id}`}
                         onChange={(event) => {
                           const catalogItem = itemByName(group, trades, event.target.value);
                           updateItem(group.id, item.id, {
+                            inspectionItemCode: catalogItem?.code,
+                            inspectionItemName: event.target.value,
                             item: event.target.value,
                             itemCode: catalogItem?.code
                           });
                         }}
-                        placeholder="예: 철근 조립, 배근"
-                        value={item.item}
+                        placeholder="예: 철근 개수·지름·피치"
+                        value={item.inspectionItemName || item.item}
                       />
                     </label>
+                    {item.inspectionItemCode ? (
+                      <span className="daily-supervision-muted">검사항목 코드: {item.inspectionItemCode}</span>
+                    ) : null}
                     <label>
                       감리내용
                       <textarea
                         disabled={!canWriteReports}
                         onChange={(event) => updateItem(group.id, item.id, { content: event.target.value })}
-                        placeholder="확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
+                        placeholder="검사항목에 대해 확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
                         value={item.content}
                       />
                     </label>
@@ -422,7 +431,7 @@ function DailyItemPicker({
   return (
     <div className="daily-supervision-item-picker">
       <select disabled={!canWriteReports} onChange={(event) => setSelected(event.target.value)} value={selected}>
-        <option value="">감리 항목 선택</option>
+        <option value="">검사항목 선택</option>
         {items.map((item) => (
           <option key={item.code} value={item.code}>{item.name}</option>
         ))}
@@ -434,7 +443,7 @@ function DailyItemPicker({
         type="button"
       >
         <Plus size={16} />
-        감리 항목 추가
+        검사항목 추가
       </button>
       <button className="secondary-button" disabled={!canWriteReports} onClick={() => onAdd(undefined)} type="button">
         직접 입력
@@ -487,6 +496,7 @@ function emptyItem(): DailySupervisionItem {
   return {
     content: "",
     id: newId("item"),
+    inspectionItemName: "",
     item: "",
     photoIds: []
   };
@@ -534,11 +544,15 @@ function normalizeItem(value: unknown, index: number): DailySupervisionItem | nu
     return null;
   }
   const raw = value as Partial<DailySupervisionItem>;
+  const inspectionItemName = text(raw.inspectionItemName) || text(raw.item);
+  const inspectionItemCode = optionalText(raw.inspectionItemCode) ?? optionalText(raw.itemCode);
   return {
     content: text(raw.content),
     id: text(raw.id) || newId(`item-${index}`),
-    item: text(raw.item),
-    itemCode: optionalText(raw.itemCode),
+    inspectionItemCode,
+    inspectionItemName,
+    item: text(raw.item) || inspectionItemName,
+    itemCode: optionalText(raw.itemCode) ?? inspectionItemCode,
     photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : [])
   };
 }

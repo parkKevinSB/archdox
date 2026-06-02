@@ -74,11 +74,11 @@ These are development-only credentials.
   project/site/report/checklist/photo/finding/document/operation data should be
   treated as future office memory, not just temporary document-generation input.
 - Site supervision ledger foundation exists: construction daily log `DAILY_LOG`
-  saves now synchronize structured trade/process/item/photo observations into
-  `site_supervision_entries`, and report submission promotes the matching
-  report revision entries from `DRAFT` to `CONFIRMED`. Future trade-specific
-  checklist and supervision-report screens should reuse this ledger rather than
-  scraping another document's step payload.
+  saves now synchronize structured trade/process/inspection-item/photo
+  observations into `site_supervision_entries`, and report submission promotes
+  the matching report revision entries from `DRAFT` to `CONFIRMED`. Future
+  trade-specific checklist and supervision-report screens should reuse this
+  ledger rather than scraping another document's step payload.
 - Preflight document review gate tied to report revision state.
 - AI harness foundation for document review assistance, with code validation
   expected before AI validation.

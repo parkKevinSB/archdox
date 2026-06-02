@@ -18,6 +18,8 @@ public record SiteSupervisionEntryResponse(
         String processName,
         String itemCode,
         String itemName,
+        String inspectionItemCode,
+        String inspectionItemName,
         String supervisionContent,
         String resultStatus,
         String issueText,

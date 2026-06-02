@@ -426,7 +426,9 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             var firstRowInGroup = true;
             for (Object itemValue : items) {
                 var item = mapValue(itemValue);
-                var focus = valueOrBlank(item.get("item")).trim();
+                var focus = firstNonBlank(
+                        valueOrBlank(item.get("inspectionItemName")).trim(),
+                        valueOrBlank(item.get("item")).trim());
                 var content = valueOrBlank(item.get("content")).trim();
                 if (groupLabel.isBlank() && focus.isBlank() && content.isBlank()) {
                     continue;

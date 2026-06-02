@@ -76,6 +76,7 @@ Important columns:
 - `trade_code`, `trade_name`
 - `process_code`, `process_name`
 - `item_code`, `item_name`
+- `inspection_item_code`, `inspection_item_name`
 - `supervision_content`
 - `result_status`
 - `issue_text`
@@ -137,12 +138,31 @@ groups[]
 -> tradeCode / trade
 -> processCode / process
 -> items[]
+   -> inspectionItemCode / inspectionItemName
    -> itemCode / item
    -> content
    -> photoIds
 ```
 
 This maps directly to ledger entries.
+
+`inspectionItemCode` and `inspectionItemName` are the domain-facing names.
+They represent the official checklist's `검사항목`. `itemCode` and `item` are
+kept as compatibility aliases because earlier payloads and renderers already use
+them. New UI and APIs should prefer `inspectionItem*`.
+
+The distinction is important:
+
+```text
+공종 / 세부공정
+-> 검사항목
+   -> 감리내용
+      -> 작성자가 현장에서 확인한 세부 내용, 조치, 근거, 사진
+```
+
+The inspection item comes from the code-managed construction supervision
+catalog. The supervision content is the user's authored field note for that
+inspection item.
 
 The daily log document renderer may still read report snapshot fields directly
 for now. Longer term, document snapshots should include selected ledger entries
@@ -158,7 +178,7 @@ The next natural upgrades are:
    - by status
    - by source report
 2. Add checklist answer linkage:
-   - checklist item code
+   - inspection/checklist item code
    - answer/result
    - evidence policy
 3. Add issue/action domain promotion:
