@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.prompt.PromptBuilder;
 import io.github.parkkevinsb.flower.ai.harness.prompt.RenderedPrompt;
 import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunContext;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +46,10 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 Focus on semantic problems that deterministic code checks cannot fully decide:
                 inconsistent dates, contradictory answers, vague safety remarks, missing context,
                 suspiciously empty narrative fields, and checklist answers that need evidence.
+                Use the top-level photos array as the source of truth for uploaded photo evidence.
+                The PHOTOS step payload may be empty even when photos were uploaded through the photo API.
+                If originalPickupStatus is NOT_REQUIRED, originalUploaded=false is normal ArchDox storage policy.
+                Do not flag missing original photos when workingUploaded=true unless the report type explicitly requires originals.
                 Also perform a lightweight legal/compliance risk review for the report type.
                 This is not legal advice and must not invent laws, article numbers, or facts.
                 Use category COMPLIANCE for missing compliance-critical inputs.
@@ -70,20 +75,26 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
 
                 Input JSON:
                 %s
-                """.formatted(toJson(Map.of(
-                "officeId", input.officeId(),
-                "reportId", input.reportId(),
-                "reportType", input.reportType(),
-                "title", input.title(),
-                "status", input.status(),
-                "contentRevision", input.contentRevision(),
-                "reportSnapshot", input.reportSnapshot(),
-                "steps", input.steps(),
-                "deterministicFindings", input.deterministicFindings(),
-                "complianceReviewGuide", ReportComplianceReviewGuide.forReportType(input.reportType()))));
+                """.formatted(toJson(inputPayload(input)));
         return new RenderedPrompt(List.of(
                 new RenderedPrompt.Message(RenderedPrompt.Role.SYSTEM, system),
                 new RenderedPrompt.Message(RenderedPrompt.Role.USER, user)), ctx.promptVersion());
+    }
+
+    private Map<String, Object> inputPayload(ReportPreflightInput input) {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("officeId", input.officeId());
+        payload.put("reportId", input.reportId());
+        payload.put("reportType", input.reportType());
+        payload.put("title", input.title());
+        payload.put("status", input.status());
+        payload.put("contentRevision", input.contentRevision());
+        payload.put("reportSnapshot", input.reportSnapshot());
+        payload.put("steps", input.steps());
+        payload.put("photos", input.photos());
+        payload.put("deterministicFindings", input.deterministicFindings());
+        payload.put("complianceReviewGuide", ReportComplianceReviewGuide.forReportType(input.reportType()));
+        return payload;
     }
 
     private String toJson(Object value) {

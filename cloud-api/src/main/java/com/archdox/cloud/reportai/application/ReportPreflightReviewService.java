@@ -14,6 +14,13 @@ import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
+import com.archdox.cloud.photo.domain.Photo;
+import com.archdox.cloud.photo.domain.PhotoAsset;
+import com.archdox.cloud.photo.domain.PhotoAssetStatus;
+import com.archdox.cloud.photo.domain.PhotoAssetType;
+import com.archdox.cloud.photo.domain.PhotoStatus;
+import com.archdox.cloud.photo.infra.PhotoAssetRepository;
+import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewFinding;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewRun;
 import com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus;
@@ -40,6 +47,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +57,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportPreflightReviewService {
     private final InspectionReportRepository reportRepository;
     private final InspectionReportStepRepository stepRepository;
+    private final PhotoRepository photoRepository;
+    private final PhotoAssetRepository photoAssetRepository;
     private final OfficePermissionService permissionService;
     private final ReportPreflightReviewRunRepository runRepository;
     private final ReportPreflightReviewFindingRepository findingRepository;
@@ -64,6 +75,8 @@ public class ReportPreflightReviewService {
     public ReportPreflightReviewService(
             InspectionReportRepository reportRepository,
             InspectionReportStepRepository stepRepository,
+            PhotoRepository photoRepository,
+            PhotoAssetRepository photoAssetRepository,
             OfficePermissionService permissionService,
             ReportPreflightReviewRunRepository runRepository,
             ReportPreflightReviewFindingRepository findingRepository,
@@ -79,6 +92,8 @@ public class ReportPreflightReviewService {
     ) {
         this.reportRepository = reportRepository;
         this.stepRepository = stepRepository;
+        this.photoRepository = photoRepository;
+        this.photoAssetRepository = photoAssetRepository;
         this.permissionService = permissionService;
         this.runRepository = runRepository;
         this.findingRepository = findingRepository;
@@ -312,6 +327,7 @@ public class ReportPreflightReviewService {
                 report.contentRevision(),
                 reportSnapshot(report),
                 stepSnapshot(report),
+                photoSnapshot(report),
                 List.of());
     }
 
@@ -343,6 +359,46 @@ public class ReportPreflightReviewService {
             snapshot.put(step.stepCode(), stepValue);
         }
         return snapshot;
+    }
+
+    private List<Map<String, Object>> photoSnapshot(InspectionReport report) {
+        var photos = photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(
+                report.officeId(),
+                report.id(),
+                PhotoStatus.DELETED);
+        if (photos.isEmpty()) {
+            return List.of();
+        }
+        var assetsByPhotoId = photoAssetRepository.findByPhotoIdInOrderByPhotoIdAscIdAsc(
+                        photos.stream().map(Photo::id).toList()).stream()
+                .collect(Collectors.groupingBy(asset -> asset.photo().id()));
+        return photos.stream()
+                .map(photo -> photoSnapshot(photo, assetsByPhotoId.getOrDefault(photo.id(), List.of())))
+                .toList();
+    }
+
+    private Map<String, Object> photoSnapshot(Photo photo, List<PhotoAsset> assets) {
+        var assetsByType = assets.stream()
+                .collect(Collectors.toMap(PhotoAsset::assetType, Function.identity(), (left, right) -> left));
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("photoId", photo.id());
+        snapshot.put("stepCode", photo.stepCode() == null ? "" : photo.stepCode());
+        snapshot.put("checklistItemId", photo.checklistItemId() == null ? "" : photo.checklistItemId());
+        snapshot.put("captureKind", photo.captureKind().name());
+        snapshot.put("status", photo.status().name());
+        snapshot.put("mime", photo.mimeType());
+        snapshot.put("bytes", photo.bytes());
+        snapshot.put("width", photo.width() == null ? "" : photo.width());
+        snapshot.put("height", photo.height() == null ? "" : photo.height());
+        snapshot.put("workingUploaded", uploaded(assetsByType.get(PhotoAssetType.WORKING)));
+        snapshot.put("thumbnailUploaded", uploaded(assetsByType.get(PhotoAssetType.THUMBNAIL)));
+        snapshot.put("originalUploaded", uploaded(assetsByType.get(PhotoAssetType.ORIGINAL)));
+        snapshot.put("originalPickupStatus", photo.originalPickupStatus().name());
+        return snapshot;
+    }
+
+    private boolean uploaded(PhotoAsset asset) {
+        return asset != null && asset.status() == PhotoAssetStatus.UPLOADED;
     }
 
     private Map<String, Object> requestPayload(

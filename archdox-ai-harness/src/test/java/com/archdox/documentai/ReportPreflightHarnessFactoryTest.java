@@ -91,12 +91,17 @@ class ReportPreflightHarnessFactoryTest {
         var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.0.1");
+        assertThat(prompt.version().version()).isEqualTo("1.0.2");
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
+                .contains("top-level photos array as the source of truth")
+                .contains("originalPickupStatus is NOT_REQUIRED")
                 .contains("savedAt is the data-entry/save timestamp")
                 .contains("normally use LOW or MEDIUM")
                 .contains("Do not translate stable code/category/severity enum values");
+        assertThat(prompt.messages().get(1).content())
+                .contains("\"photos\"")
+                .contains("\"workingUploaded\" : true");
     }
 
     private static ReportPreflightInput input() {
@@ -109,6 +114,11 @@ class ReportPreflightHarnessFactoryTest {
                 3,
                 Map.of("reportNo", "R-001"),
                 Map.of("CHECKLIST", Map.of("payload", Map.of("safetyRemark", "good"))),
+                List.of(Map.of(
+                        "photoId", 10,
+                        "stepCode", "PHOTOS",
+                        "status", "UPLOADED",
+                        "workingUploaded", true)),
                 List.of());
     }
 

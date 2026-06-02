@@ -13,6 +13,7 @@ public record ReportPreflightInput(
         int contentRevision,
         Map<String, Object> reportSnapshot,
         Map<String, Object> steps,
+        List<Map<String, Object>> photos,
         List<ReportPreflightFindingSummary> deterministicFindings
 ) {
     public ReportPreflightInput {
@@ -23,6 +24,9 @@ public record ReportPreflightInput(
         status = requireText(status, "status");
         reportSnapshot = reportSnapshot == null ? Map.of() : Map.copyOf(reportSnapshot);
         steps = steps == null ? Map.of() : Map.copyOf(steps);
+        photos = photos == null ? List.of() : photos.stream()
+                .map(photo -> photo == null ? Map.<String, Object>of() : Map.copyOf(photo))
+                .toList();
         deterministicFindings = deterministicFindings == null ? List.of() : List.copyOf(deterministicFindings);
     }
 

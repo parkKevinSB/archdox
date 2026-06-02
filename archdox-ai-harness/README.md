@@ -33,6 +33,29 @@ Current responsibilities:
 - ArchDox-specific prompt/schema/finding contracts
 - Testable fake-provider harness behavior without external API keys
 
+## Report Preflight Context Rules
+
+Report preflight review must evaluate a structured ArchDox snapshot, not the
+final rendered document and not raw database rows. `cloud-api` prepares the
+snapshot, and this module turns it into a model prompt.
+
+The preflight input includes:
+
+- report metadata and revision state
+- saved step payloads
+- deterministic validation findings
+- uploaded photo evidence summary
+- report-type compliance review guide
+
+Photo evidence is represented by metadata such as `photoId`, `stepCode`,
+`status`, uploaded asset flags, dimensions, and original pickup policy. Raw
+image bytes and long-term original files are not sent to the model by default.
+The top-level `photos` array is the source of truth for uploaded photo
+evidence; `PHOTOS` step payload may be empty even when photos were uploaded
+through the photo API. `originalPickupStatus=NOT_REQUIRED` is normal ArchDox
+storage policy and must not be treated as missing evidence when a working image
+is uploaded.
+
 Not responsibilities:
 
 - Generic AI provider abstraction
