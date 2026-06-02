@@ -111,10 +111,18 @@ class DocumentTypeRegistryIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.catalogCode").value("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24"))
+                .andExpect(jsonPath("$.version").value(2))
                 .andExpect(jsonPath("$.source.revisionLabel").value("개정 2020. 12. 24."))
+                .andExpect(jsonPath("$.coverage.tradeCount").value(46))
+                .andExpect(jsonPath("$.coverage.detailGroupCount").value(49))
                 .andExpect(jsonPath("$.documentLayoutPolicy.defaultOfficialLayout.layoutVersion").value(1))
                 .andExpect(jsonPath("$.trades[0].code").value("TEMPORARY_WORKS"))
-                .andExpect(jsonPath("$.trades[4].code").value("REINFORCED_CONCRETE"));
+                .andExpect(jsonPath("$.trades.length()").value(46))
+                .andExpect(jsonPath("$.trades[4].code").value("REINFORCED_CONCRETE"))
+                .andExpect(jsonPath("$.trades[4].processGroups[0].code").value("REBAR_ASSEMBLY"))
+                .andExpect(jsonPath("$.trades[4].processGroups[0].items[0].code")
+                        .value("RC_REBAR_COUNT_DIAMETER_PITCH"))
+                .andExpect(jsonPath("$.trades[45].code").value("ELECTRICAL_FIRE_FIGHTING"));
 
         var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");
         assertTrue(hasSection(constructionReportLayout, "reportOpinionSection", "CHECKLIST_TABLE"));

@@ -1,13 +1,20 @@
 {
   "catalogCode": "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24",
   "catalogName": "건축공사 감리세부기준 단계별/공종별 감리 체크리스트",
-  "version": 1,
+  "version": 2,
   "status": "ACTIVE",
   "source": {
     "documentTitle": "[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준)",
     "revisionLabel": "개정 2020. 12. 24.",
     "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
     "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data."
+  },
+  "coverage": {
+    "referencePages": "22-73",
+    "tradeCount": 46,
+    "detailGroupCount": 49,
+    "level": "TRADE_AND_DETAIL_PROCESS_WITH_CORE_ITEMS",
+    "note": "All trade/detail-process headers from the reference checklist pages are represented. Item lists are core structured seeds and should be expanded as the PDF extraction is reviewed item by item."
   },
   "documentLayoutPolicy": {
     "canonicalData": "report snapshot + workflow revision + domain catalog version + template/layout revision",
@@ -26,7 +33,10 @@
     "1층",
     "2층",
     "3층",
-    "옥상"
+    "옥상",
+    "외부",
+    "기계실",
+    "전기실"
   ],
   "processOptions": [
     "기초",
@@ -36,126 +46,1344 @@
     "슬라브",
     "벽체",
     "마감",
-    "옥상"
+    "옥상",
+    "외부",
+    "설비",
+    "전기",
+    "소방"
   ],
   "trades": [
     {
       "code": "TEMPORARY_WORKS",
       "name": "가설공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [22],
       "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [22],
+          "items": [
+            {"code": "TEMP_SITE_CONDITION", "name": "부지 상황 확인", "basis": "대지의 고저차, 설계도서, 현장 여건 확인"},
+            {"code": "TEMP_SETTING_OUT", "name": "줄쳐보기", "basis": "대지경계 및 기준선 확인"},
+            {"code": "TEMP_BENCHMARK", "name": "벤치마크(BM)", "basis": "기준점 위치와 변동 여부 확인"},
+            {"code": "TEMP_BATTER_BOARD", "name": "규준틀", "basis": "먹매김과 기준 위치 확인"},
+            {"code": "TEMP_BEARING_CAPACITY", "name": "지내력", "basis": "설계 지내력 적합 여부 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "SITE_CONDITION", "name": "부지 상황 확인", "basis": "대지의 고저차 및 설계도서 확인"},
-        {"code": "SETTING_OUT", "name": "줄쳐보기", "basis": "대지경계 확인"},
-        {"code": "BENCHMARK", "name": "벤치마크(BM)", "basis": "기준점 및 위치 변화 확인"},
-        {"code": "BATTER_BOARD", "name": "규준틀", "basis": "먹매김 확인"},
-        {"code": "BEARING_CAPACITY", "name": "지내력", "basis": "설계 지내력의 육안 또는 서류 확인"}
+        {"code": "TEMP_SITE_CONDITION", "name": "부지 상황 확인", "basis": "대지의 고저차, 설계도서, 현장 여건 확인"},
+        {"code": "TEMP_SETTING_OUT", "name": "줄쳐보기", "basis": "대지경계 및 기준선 확인"},
+        {"code": "TEMP_BENCHMARK", "name": "벤치마크(BM)", "basis": "기준점 위치와 변동 여부 확인"},
+        {"code": "TEMP_BATTER_BOARD", "name": "규준틀", "basis": "먹매김과 기준 위치 확인"},
+        {"code": "TEMP_BEARING_CAPACITY", "name": "지내력", "basis": "설계 지내력 적합 여부 확인"}
       ]
     },
     {
       "code": "EARTH_WORKS",
       "name": "토공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [23],
       "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [23],
+          "items": [
+            {"code": "EARTH_EXCAVATION_DEPTH", "name": "터파기 깊이", "basis": "기초깊이, 동결선 이하 여부, 터파기 깊이 확인"},
+            {"code": "EARTH_SOIL_CONDITION", "name": "바닥면 토질상태", "basis": "기초 바닥면의 토질상태 확인"},
+            {"code": "EARTH_EXCAVATION_PLAN", "name": "터파기 계획", "basis": "터파기 관련 도서 및 시공계획 확인"},
+            {"code": "EARTH_SHORING", "name": "흙막이", "basis": "흙막이 공법, 구조계산서, 설계도서 확인"},
+            {"code": "EARTH_DRAINAGE", "name": "배수상태", "basis": "현장 배수와 안전상태 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "EXCAVATION", "name": "터파기", "basis": "터파기 깊이와 바닥면 상태 확인"},
-        {"code": "SHORING", "name": "흙막이", "basis": "흙막이 설치 및 안전상태 확인"},
-        {"code": "DRAINAGE", "name": "배수상태", "basis": "공사용 배수 및 현장 배수상태 확인"},
-        {"code": "FOUNDATION_SOIL", "name": "바닥면 토질상태", "basis": "바닥면 토질 및 지지층 확인"}
+        {"code": "EARTH_EXCAVATION_DEPTH", "name": "터파기 깊이", "basis": "기초깊이, 동결선 이하 여부, 터파기 깊이 확인"},
+        {"code": "EARTH_SOIL_CONDITION", "name": "바닥면 토질상태", "basis": "기초 바닥면의 토질상태 확인"},
+        {"code": "EARTH_EXCAVATION_PLAN", "name": "터파기 계획", "basis": "터파기 관련 도서 및 시공계획 확인"},
+        {"code": "EARTH_SHORING", "name": "흙막이", "basis": "흙막이 공법, 구조계산서, 설계도서 확인"},
+        {"code": "EARTH_DRAINAGE", "name": "배수상태", "basis": "현장 배수와 안전상태 확인"}
       ]
     },
     {
       "code": "PILE_AND_FOUNDATION",
       "name": "지정 및 기초공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [24, 25],
       "processes": ["말뚝공사", "지정공사"],
+      "processGroups": [
+        {
+          "code": "PILE_WORKS",
+          "name": "말뚝공사",
+          "sourcePages": [24],
+          "items": [
+            {"code": "PILE_DOCUMENTS", "name": "말뚝박기 관련 도서", "basis": "말뚝박기 계획 및 관련 도서 확인"},
+            {"code": "PILE_COMPLETION", "name": "말뚝 시공완료상태", "basis": "말뚝 시공완료 상태 육안 확인"},
+            {"code": "PILE_POSITION", "name": "말뚝 위치", "basis": "설계 위치와 시공 위치 일치 확인"},
+            {"code": "PILE_RECORD", "name": "말뚝 시공기록", "basis": "시공기록 및 시험자료 확인"}
+          ]
+        },
+        {
+          "code": "FOUNDATION_BED_WORKS",
+          "name": "지정공사",
+          "sourcePages": [25],
+          "items": [
+            {"code": "FOUNDATION_LEVEL", "name": "바닥면 레벨", "basis": "지정공사 바닥면 레벨 확인"},
+            {"code": "FOUNDATION_GRAVEL", "name": "자갈·쇄석 지정", "basis": "지정공사의 시공 상태 확인"},
+            {"code": "FOUNDATION_LEAN_CONCRETE", "name": "밑창콘크리트", "basis": "밑창콘크리트 배합과 두께 확인"},
+            {"code": "FOUNDATION_BOTTOM", "name": "기초 저면 확인", "basis": "기초 저면 상태와 두께 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "PILE_POSITION", "name": "말뚝 위치", "basis": "말뚝 위치 및 시공상태 확인"},
-        {"code": "PILE_RECORD", "name": "말뚝 시공기록", "basis": "시공기록 및 시험자료 확인"},
-        {"code": "GRAVEL_FOUNDATION", "name": "자갈 쇄석 지정", "basis": "바닥면 레벨 및 지정공사 확인"},
-        {"code": "LEAN_CONCRETE", "name": "밑창콘크리트", "basis": "배합, 두께, 레벨 확인"},
-        {"code": "FOUNDATION_BOTTOM", "name": "기초저면 확인", "basis": "기초저면 상태 및 레벨 확인"}
+        {"code": "PILE_DOCUMENTS", "name": "말뚝박기 관련 도서", "basis": "말뚝박기 계획 및 관련 도서 확인"},
+        {"code": "PILE_COMPLETION", "name": "말뚝 시공완료상태", "basis": "말뚝 시공완료 상태 육안 확인"},
+        {"code": "FOUNDATION_LEVEL", "name": "바닥면 레벨", "basis": "지정공사 바닥면 레벨 확인"},
+        {"code": "FOUNDATION_GRAVEL", "name": "자갈·쇄석 지정", "basis": "지정공사의 시공 상태 확인"},
+        {"code": "FOUNDATION_LEAN_CONCRETE", "name": "밑창콘크리트", "basis": "밑창콘크리트 배합과 두께 확인"}
       ]
     },
     {
       "code": "FORMWORK",
       "name": "거푸집 공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [26],
       "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [26],
+          "items": [
+            {"code": "FORM_MARKING", "name": "먹매김", "basis": "각층 바닥 먹매김과 기준 먹매김 확인"},
+            {"code": "FORM_COLUMN_MARKING", "name": "기둥 먹매김", "basis": "철근기둥 네 모서리의 평면 먹매김 확인"},
+            {"code": "FORM_VERTICAL_TRANSFER", "name": "내림추 확인", "basis": "아래층에서부터 올라가는 먹매김 확인"},
+            {"code": "FORM_TOLERANCE", "name": "허용오차", "basis": "각 부재 위치의 허용오차 확인"},
+            {"code": "FORM_INSTALLATION", "name": "거푸집 설치상태", "basis": "거푸집 위치, 고정, 치수 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "MARKING", "name": "먹매김", "basis": "각층 바닥 먹매김 확인"},
-        {"code": "LEVEL", "name": "레벨", "basis": "기준 레벨 확인"},
-        {"code": "FORM_INSTALLATION", "name": "거푸집 설치상태", "basis": "거푸집 위치, 고정, 치수 확인"},
-        {"code": "FORM_RELEASE_AGENT", "name": "박리제 도포상태", "basis": "박리제 도포 및 오염 여부 확인"}
+        {"code": "FORM_MARKING", "name": "먹매김", "basis": "각층 바닥 먹매김과 기준 먹매김 확인"},
+        {"code": "FORM_COLUMN_MARKING", "name": "기둥 먹매김", "basis": "철근기둥 네 모서리의 평면 먹매김 확인"},
+        {"code": "FORM_VERTICAL_TRANSFER", "name": "내림추 확인", "basis": "아래층에서부터 올라가는 먹매김 확인"},
+        {"code": "FORM_TOLERANCE", "name": "허용오차", "basis": "각 부재 위치의 허용오차 확인"},
+        {"code": "FORM_INSTALLATION", "name": "거푸집 설치상태", "basis": "거푸집 위치, 고정, 치수 확인"}
       ]
     },
     {
       "code": "REINFORCED_CONCRETE",
       "name": "철근 콘크리트 공사",
-      "sourcePages": [27, 81],
-      "processes": ["기초, 지하층 바닥", "전층", "슬라브", "벽체", "기둥", "보", "콘크리트 타설", "콘크리트 양생"],
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [27, 28, 29],
+      "processes": ["철근 조립·배근", "압접", "콘크리트 타설", "콘크리트 양생", "콘크리트 상태 확인"],
+      "processGroups": [
+        {
+          "code": "REBAR_ASSEMBLY",
+          "name": "철근 조립·배근",
+          "sourcePages": [27],
+          "items": [
+            {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "name": "철근 개수·지름·피치", "basis": "철근 개수, 지름, 피치 확인"},
+            {"code": "RC_REBAR_ANCHORAGE", "name": "정착길이", "basis": "정착길이와 굽힘정착 깊이 확인"},
+            {"code": "RC_REBAR_SPLICE", "name": "이음위치와 이음길이", "basis": "이음 위치, 이음 길이, 결속 상태 확인"},
+            {"code": "RC_REBAR_SPACING", "name": "철근 상호간격", "basis": "철근 상호 간격 및 간격 유지 확인"},
+            {"code": "RC_STIRRUP", "name": "띠철근·스터럽", "basis": "띠철근과 스터럽의 위치, 간격, 결속상태 확인"}
+          ]
+        },
+        {
+          "code": "PRESSURE_WELDING",
+          "name": "압접",
+          "sourcePages": [28],
+          "items": [
+            {"code": "RC_WELDING_TEST_DATA", "name": "압접 시험자료", "basis": "작업 시작 전 시험자료와 절단부분 확인"},
+            {"code": "RC_WELDING_ALIGNMENT", "name": "편심량", "basis": "편심량에 따른 절단·재압접 필요 여부 확인"},
+            {"code": "RC_WELDING_DEFECT", "name": "압접부 결함", "basis": "부풀음, 줄흠, 갈라짐 등 결함 확인"},
+            {"code": "RC_TENSILE_TEST", "name": "인장시험", "basis": "인장시험 결과와 강도 확인"}
+          ]
+        },
+        {
+          "code": "CONCRETE_PLACEMENT",
+          "name": "콘크리트 타설",
+          "sourcePages": [28, 29],
+          "items": [
+            {"code": "RC_PRE_PLACEMENT_CLEANING", "name": "타설 전 청소상태", "basis": "타설 전 거푸집 내부 청소상태 확인"},
+            {"code": "RC_PLACEMENT_WORKERS", "name": "타설 작업원", "basis": "콘크리트 타설 작업원 인원 확인"},
+            {"code": "RC_STOP_JOINT", "name": "타설중지·줄눈", "basis": "타설중지, 마감, 줄눈막대 등 확인"},
+            {"code": "RC_EQUIPMENT_PREPARATION", "name": "타설 장비 준비", "basis": "수송관 받침대, 작업통로, 보양재 준비 확인"}
+          ]
+        },
+        {
+          "code": "CONCRETE_CURING",
+          "name": "콘크리트 양생",
+          "sourcePages": [29],
+          "items": [
+            {"code": "RC_CURING_SHEET", "name": "보양시트 준비", "basis": "강우, 저온, 일사량에 대응한 보양 준비 확인"},
+            {"code": "RC_CURING_TEMPERATURE", "name": "양생 온도", "basis": "적정 양생 온도와 보온 조치 확인"},
+            {"code": "RC_LOAD_RESTRICTION", "name": "양생 중 적재금지", "basis": "양생 중 적재와 충격 방지 확인"}
+          ]
+        },
+        {
+          "code": "CONCRETE_CONDITION",
+          "name": "콘크리트 상태 확인",
+          "sourcePages": [29],
+          "items": [
+            {"code": "RC_SURFACE_DEFECT", "name": "표면 결함", "basis": "공동, 재료분리, 균열 등 표면상태 확인"},
+            {"code": "RC_STRENGTH_TEST", "name": "압축강도 시험", "basis": "공시체 채취 및 압축강도 시험 기록 확인"},
+            {"code": "RC_REBAR_EXPOSURE", "name": "철근 노출부", "basis": "철근 노출 여부와 보수 필요성 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "REBAR_ASSEMBLY", "name": "철근 조립, 배근", "basis": "개수, 철근지름, 피치, 정착길이, 이음위치 확인"},
-        {"code": "REBAR_CERTIFICATE", "name": "철근 규격 증명서", "basis": "KS마크 또는 시험성적증명서 확인"},
-        {"code": "CONCRETE_PLACEMENT", "name": "콘크리트 타설", "basis": "작업원 인원, 타설중지, 슬럼프와 공기량 확인"},
-        {"code": "CONCRETE_CURING", "name": "콘크리트 양생", "basis": "타설 후 보양, 적정 온도, 적재금지 확인"},
-        {"code": "COMPRESSIVE_STRENGTH", "name": "콘크리트 압축강도 시험", "basis": "공시체 채취요령, 압축강도 시험기록 확인"},
-        {"code": "CONCRETE_SURFACE", "name": "콘크리트 상태 확인", "basis": "공동, 자갈노출, 균열, 철근 노출부 확인"}
+        {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "name": "철근 개수·지름·피치", "basis": "철근 개수, 지름, 피치 확인"},
+        {"code": "RC_REBAR_ANCHORAGE", "name": "정착길이", "basis": "정착길이와 굽힘정착 깊이 확인"},
+        {"code": "RC_REBAR_SPLICE", "name": "이음위치와 이음길이", "basis": "이음 위치, 이음 길이, 결속 상태 확인"},
+        {"code": "RC_PRE_PLACEMENT_CLEANING", "name": "타설 전 청소상태", "basis": "타설 전 거푸집 내부 청소상태 확인"},
+        {"code": "RC_PLACEMENT_WORKERS", "name": "타설 작업원", "basis": "콘크리트 타설 작업원 인원 확인"},
+        {"code": "RC_SURFACE_DEFECT", "name": "표면 결함", "basis": "공동, 재료분리, 균열 등 표면상태 확인"}
       ]
     },
     {
       "code": "STEEL_FRAME",
       "name": "철골 공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [30, 31],
-      "processes": ["제작요령서", "공장가공", "제품 공장 검사", "용접공사"],
+      "processes": ["시공", "제작요령서", "공장가공", "제품 공장검사", "용접공사"],
+      "processGroups": [
+        {
+          "code": "STEEL_CONSTRUCTION_REVIEW",
+          "name": "시공",
+          "sourcePages": [30],
+          "items": [
+            {"code": "STEEL_DIMENSION_REVIEW", "name": "강재 규격·치수", "basis": "강재 규격과 치수 확인"},
+            {"code": "STEEL_DRAWING_COMPARE", "name": "설계도서 대조", "basis": "설계도서와 치수선 대조 검토"},
+            {"code": "STEEL_MEMBER_SYMBOL", "name": "기둥·보 부호", "basis": "기둥, 보 부호와 부재단면 확인"},
+            {"code": "STEEL_ANCHOR_BOLT", "name": "앵커볼트", "basis": "앵커볼트 배치와 베이스플레이트 확인"}
+          ]
+        },
+        {
+          "code": "STEEL_FABRICATION",
+          "name": "제작요령서·공장가공",
+          "sourcePages": [31],
+          "items": [
+            {"code": "STEEL_CUTTING_METHOD", "name": "강재 가공방법", "basis": "절단 시 강재 가공방법 확인"},
+            {"code": "STEEL_MATERIAL_GRADE", "name": "강재 재질", "basis": "강재 재질 확인"},
+            {"code": "STEEL_WELDING_ROD", "name": "용접봉", "basis": "용접봉 규격과 적합성 확인"},
+            {"code": "STEEL_SHOP_PAINT", "name": "공장 방청도장", "basis": "도장 종류와 도장 회수 확인"}
+          ]
+        },
+        {
+          "code": "STEEL_SHOP_INSPECTION",
+          "name": "제품 공장검사",
+          "sourcePages": [31],
+          "items": [
+            {"code": "STEEL_PRODUCT_INSPECTION", "name": "공장가공 제품 확인", "basis": "공장가공 제품의 검사 확인"},
+            {"code": "STEEL_TRIAL_ASSEMBLY", "name": "제품 가조립", "basis": "제품 가조립 상태 확인"},
+            {"code": "STEEL_INSPECTION_REPORT", "name": "공장검사 보고서", "basis": "공장검사 보고서 수리 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "STEEL_PROCESSING", "name": "강재 가공방법 확인", "basis": "절단 및 가공방법 확인"},
-        {"code": "STEEL_MATERIAL", "name": "강재의 재질 확인", "basis": "강재 재질 및 증빙 확인"},
-        {"code": "WELDING_ROD", "name": "용접봉 확인", "basis": "용접봉 규격과 사용 적합성 확인"},
-        {"code": "SHOP_INSPECTION", "name": "공장 검사보고서", "basis": "사내 검사보고서 수리 확인"},
-        {"code": "TRIAL_ASSEMBLY", "name": "제품가조립 상태", "basis": "제품가조립 및 표시 상태 확인"},
-        {"code": "WELDING_SEQUENCE", "name": "용접순서 및 절차", "basis": "용접순서, 용접절차, 시방서 확인"}
+        {"code": "STEEL_DIMENSION_REVIEW", "name": "강재 규격·치수", "basis": "강재 규격과 치수 확인"},
+        {"code": "STEEL_DRAWING_COMPARE", "name": "설계도서 대조", "basis": "설계도서와 치수선 대조 검토"},
+        {"code": "STEEL_MEMBER_SYMBOL", "name": "기둥·보 부호", "basis": "기둥, 보 부호와 부재단면 확인"},
+        {"code": "STEEL_CUTTING_METHOD", "name": "강재 가공방법", "basis": "절단 시 강재 가공방법 확인"},
+        {"code": "STEEL_WELDING_ROD", "name": "용접봉", "basis": "용접봉 규격과 적합성 확인"},
+        {"code": "STEEL_PRODUCT_INSPECTION", "name": "공장가공 제품 확인", "basis": "공장가공 제품의 검사 확인"}
       ]
     },
     {
       "code": "MASONRY_ALC_PANEL",
       "name": "벽돌·블록·ALC 패널 공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [32, 33, 34],
-      "processes": ["벽돌공사", "블록공사", "ALC공사"],
+      "processes": ["벽돌공사", "블록공사", "ALC 공사"],
+      "processGroups": [
+        {
+          "code": "BRICK_WORKS",
+          "name": "벽돌공사",
+          "sourcePages": [32],
+          "items": [
+            {"code": "MASONRY_BRICK_MATERIAL", "name": "벽돌 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "MASONRY_BRICK_LAYOUT", "name": "벽돌 나누기", "basis": "벽돌 나누기 확인"},
+            {"code": "MASONRY_BRICK_REINFORCEMENT", "name": "보강철물", "basis": "보강철물 위치, 크기, 간격 확인"},
+            {"code": "MASONRY_BRICK_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        },
+        {
+          "code": "BLOCK_WORKS",
+          "name": "블록공사",
+          "sourcePages": [33],
+          "items": [
+            {"code": "MASONRY_BLOCK_MATERIAL", "name": "블록 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "MASONRY_BLOCK_GRADE", "name": "블록 규격품", "basis": "현장 반입 블록의 규격품 여부 확인"},
+            {"code": "MASONRY_BLOCK_LAYOUT", "name": "배치도·단수", "basis": "배치도와 블록단수 처리 확인"},
+            {"code": "MASONRY_BLOCK_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        },
+        {
+          "code": "ALC_WORKS",
+          "name": "ALC 공사",
+          "sourcePages": [34],
+          "items": [
+            {"code": "MASONRY_ALC_MATERIAL", "name": "ALC 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "MASONRY_ALC_SCOPE", "name": "ALC 공사범위", "basis": "패널받이, 개구부 보강, 설비용 구멍 등 공사범위 확인"},
+            {"code": "MASONRY_ALC_DIMENSION", "name": "배치치수", "basis": "ALC 패널 배치치수 확인"},
+            {"code": "MASONRY_ALC_OPENING", "name": "구멍뚫기·개구부", "basis": "따내기, 구멍뚫기, 개구부 처리 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "MATERIAL_DELIVERY", "name": "자재 반입", "basis": "반입 자재 규격 및 품질 확인"},
-        {"code": "LAYING_STATUS", "name": "쌓기 상태", "basis": "쌓기 방법, 줄눈, 수직·수평 상태 확인"},
-        {"code": "OPENING_REINFORCEMENT", "name": "개구부 보강", "basis": "개구부 주변 보강상태 확인"}
+        {"code": "MASONRY_BRICK_MATERIAL", "name": "벽돌 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "MASONRY_BRICK_LAYOUT", "name": "벽돌 나누기", "basis": "벽돌 나누기 확인"},
+        {"code": "MASONRY_BLOCK_GRADE", "name": "블록 규격품", "basis": "현장 반입 블록의 규격품 여부 확인"},
+        {"code": "MASONRY_ALC_SCOPE", "name": "ALC 공사범위", "basis": "패널받이, 개구부 보강, 설비용 구멍 등 공사범위 확인"},
+        {"code": "MASONRY_ALC_OPENING", "name": "구멍뚫기·개구부", "basis": "따내기, 구멍뚫기, 개구부 처리 확인"}
+      ]
+    },
+    {
+      "code": "STONE_WORKS",
+      "name": "석공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [35],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [35],
+          "items": [
+            {"code": "STONE_MATERIAL", "name": "석재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "STONE_TYPE_LOCATION", "name": "재료 종류와 사용부위", "basis": "재료의 종류와 사용할 곳 확인"},
+            {"code": "STONE_FIXING_METHOD", "name": "긴결방법", "basis": "부착철물, 고정용 철물, 꽂임촉 확인"},
+            {"code": "STONE_JOINT_WITH_OTHER_FINISH", "name": "타 마감재 접합", "basis": "접합, 겹침, 벌어짐, 근입 확인"},
+            {"code": "STONE_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "STONE_MATERIAL", "name": "석재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "STONE_TYPE_LOCATION", "name": "재료 종류와 사용부위", "basis": "재료의 종류와 사용할 곳 확인"},
+        {"code": "STONE_FIXING_METHOD", "name": "긴결방법", "basis": "부착철물, 고정용 철물, 꽂임촉 확인"},
+        {"code": "STONE_JOINT_WITH_OTHER_FINISH", "name": "타 마감재 접합", "basis": "접합, 겹침, 벌어짐, 근입 확인"}
+      ]
+    },
+    {
+      "code": "TILE_TERRACOTTA",
+      "name": "타일 및 테라코타 공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [36],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [36],
+          "items": [
+            {"code": "TILE_SAMPLE", "name": "타일 견본", "basis": "외장, 내장, 바닥타일 견본품 형상·치수·색조 확인"},
+            {"code": "TILE_MOSAIC_SAMPLE", "name": "모자이크 타일 견본", "basis": "모자이크 타일 견본 확인"},
+            {"code": "TILE_TERRACOTTA_SAMPLE", "name": "테라코타 견본", "basis": "품명, 형상, 치수, 표면상태, 유약 색깔 확인"},
+            {"code": "TILE_MATERIAL_CERT", "name": "자재성능 서류", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "TILE_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "TILE_SAMPLE", "name": "타일 견본", "basis": "외장, 내장, 바닥타일 견본품 형상·치수·색조 확인"},
+        {"code": "TILE_MOSAIC_SAMPLE", "name": "모자이크 타일 견본", "basis": "모자이크 타일 견본 확인"},
+        {"code": "TILE_TERRACOTTA_SAMPLE", "name": "테라코타 견본", "basis": "품명, 형상, 치수, 표면상태, 유약 색깔 확인"},
+        {"code": "TILE_MATERIAL_CERT", "name": "자재성능 서류", "basis": "KS 등 자재성능 관련 서류 확인"}
+      ]
+    },
+    {
+      "code": "CARPENTRY",
+      "name": "목공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [37],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [37],
+          "items": [
+            {"code": "CARPENTRY_MATERIAL", "name": "목재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "CARPENTRY_SHAPE_BY_DRAWING", "name": "가공도 형상", "basis": "부위별 가공도에 의한 형상 확인"},
+            {"code": "CARPENTRY_NONCOMBUSTIBLE", "name": "불연재 사용", "basis": "불연재 사용 여부 확인"},
+            {"code": "CARPENTRY_WOOD_QUALITY", "name": "목재 품질·치수", "basis": "바탕재, 구조재, 수종, 무늬목의 품질과 치수 확인"},
+            {"code": "CARPENTRY_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "CARPENTRY_MATERIAL", "name": "목재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "CARPENTRY_SHAPE_BY_DRAWING", "name": "가공도 형상", "basis": "부위별 가공도에 의한 형상 확인"},
+        {"code": "CARPENTRY_NONCOMBUSTIBLE", "name": "불연재 사용", "basis": "불연재 사용 여부 확인"},
+        {"code": "CARPENTRY_WOOD_QUALITY", "name": "목재 품질·치수", "basis": "바탕재, 구조재, 수종, 무늬목의 품질과 치수 확인"}
+      ]
+    },
+    {
+      "code": "INSULATION",
+      "name": "단열공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [38],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [38],
+          "items": [
+            {"code": "INSULATION_MATERIAL", "name": "단열재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "INSULATION_METHOD", "name": "부위별 공법", "basis": "단열재 부위별 공법 및 시공방법 확인"},
+            {"code": "INSULATION_DELIVERY_AMOUNT", "name": "반입 및 사용량", "basis": "단열재 반입 및 적정 사용량 확인"},
+            {"code": "INSULATION_LOCATION", "name": "단열 부위", "basis": "부위별 자재 규격, 설치, 단열 개소 확인"},
+            {"code": "INSULATION_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "INSULATION_MATERIAL", "name": "단열재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "INSULATION_METHOD", "name": "부위별 공법", "basis": "단열재 부위별 공법 및 시공방법 확인"},
+        {"code": "INSULATION_DELIVERY_AMOUNT", "name": "반입 및 사용량", "basis": "단열재 반입 및 적정 사용량 확인"},
+        {"code": "INSULATION_LOCATION", "name": "단열 부위", "basis": "부위별 자재 규격, 설치, 단열 개소 확인"}
       ]
     },
     {
       "code": "WATERPROOFING",
       "name": "방수공사",
+      "discipline": "ARCHITECTURE",
       "sourcePages": [39],
-      "processes": ["바탕정리", "방수층 시공", "배수구 주변 처리"],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [39],
+          "items": [
+            {"code": "WATERPROOF_MATERIAL", "name": "방수재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "WATERPROOF_METHOD", "name": "부위별 공법", "basis": "방수재 부위별 공법 및 시공방법 확인"},
+            {"code": "WATERPROOF_AMOUNT", "name": "반입 및 사용량", "basis": "방수재 반입 및 적정 사용량 확인"},
+            {"code": "WATERPROOF_PREPARATION", "name": "시공 준비", "basis": "시공 준비와 공사 범위 확인"},
+            {"code": "WATERPROOF_LEAK_TEST", "name": "누수 확인", "basis": "담수 또는 누수 확인 결과"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "BASE_PREPARATION", "name": "바탕면 정리", "basis": "바탕면 청소, 건조, 균열 처리 확인"},
-        {"code": "WATERPROOF_LAYER", "name": "방수층 시공", "basis": "방수층 두께, 겹침, 들뜸 여부 확인"},
-        {"code": "DRAIN_DETAIL", "name": "배수구 주변 처리", "basis": "드레인 주변 방수 보강 확인"},
-        {"code": "LEAK_TEST", "name": "누수 여부 확인", "basis": "담수 또는 누수 확인 결과"}
+        {"code": "WATERPROOF_MATERIAL", "name": "방수재 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "WATERPROOF_METHOD", "name": "부위별 공법", "basis": "방수재 부위별 공법 및 시공방법 확인"},
+        {"code": "WATERPROOF_AMOUNT", "name": "반입 및 사용량", "basis": "방수재 반입 및 적정 사용량 확인"},
+        {"code": "WATERPROOF_PREPARATION", "name": "시공 준비", "basis": "시공 준비와 공사 범위 확인"},
+        {"code": "WATERPROOF_LEAK_TEST", "name": "누수 확인", "basis": "담수 또는 누수 확인 결과"}
       ]
     },
     {
-      "code": "FINISHING",
-      "name": "마감공사",
-      "sourcePages": [42, 46, 47],
-      "processes": ["미장", "도장", "수장", "타일"],
+      "code": "ROOF_GUTTER",
+      "name": "지붕 및 홈통공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [40],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [40],
+          "items": [
+            {"code": "ROOF_MATERIAL_CERT", "name": "지붕 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "ROOF_PANEL_SYSTEM", "name": "금속패널 시스템", "basis": "복합자재 시험성적서와 구조적 안전성 관련 서류 확인"},
+            {"code": "ROOF_DELIVERY", "name": "자재 반입상태", "basis": "지붕 및 홈통 자재의 반입상태 확인"},
+            {"code": "ROOF_DRAINAGE", "name": "배수·홈통", "basis": "지붕 배수, 홈통 설치와 구배 확인"},
+            {"code": "ROOF_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
       "items": [
-        {"code": "FINISH_MATERIAL", "name": "자재 반입", "basis": "마감 자재 규격 및 견본품 일치 여부 확인"},
-        {"code": "BASE_CONDITION", "name": "시공면 상태", "basis": "바탕면 평활도, 건조상태, 오염 여부 확인"},
-        {"code": "FINISH_LEVEL", "name": "마감 레벨", "basis": "마감 레벨 및 줄눈 상태 확인"},
-        {"code": "CURING_PROTECTION", "name": "보양 상태", "basis": "마감 후 보양 및 손상 방지 상태 확인"}
+        {"code": "ROOF_MATERIAL_CERT", "name": "지붕 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "ROOF_PANEL_SYSTEM", "name": "금속패널 시스템", "basis": "복합자재 시험성적서와 구조적 안전성 관련 서류 확인"},
+        {"code": "ROOF_DRAINAGE", "name": "배수·홈통", "basis": "지붕 배수, 홈통 설치와 구배 확인"},
+        {"code": "ROOF_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "METAL_WORKS",
+      "name": "금속공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [41],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [41],
+          "items": [
+            {"code": "METAL_MATERIAL", "name": "금속 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "METAL_RAIL_HEIGHT", "name": "난간 높이", "basis": "난간 등의 높이 확인"},
+            {"code": "METAL_SHOP_DRAWING", "name": "시공도·공작도", "basis": "기성품 이외의 시공도, 공작도, 설치도 확인"},
+            {"code": "METAL_RAIL_LOCATION_LENGTH", "name": "난간 위치·길이", "basis": "난간 설치장소와 길이 확인"},
+            {"code": "METAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "METAL_MATERIAL", "name": "금속 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "METAL_RAIL_HEIGHT", "name": "난간 높이", "basis": "난간 등의 높이 확인"},
+        {"code": "METAL_SHOP_DRAWING", "name": "시공도·공작도", "basis": "기성품 이외의 시공도, 공작도, 설치도 확인"},
+        {"code": "METAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "PLASTERING",
+      "name": "미장공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [42],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [42],
+          "items": [
+            {"code": "PLASTER_MATERIAL", "name": "미장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "PLASTER_MIX_PLAN", "name": "배합계획", "basis": "미장 배합계획 확인"},
+            {"code": "PLASTER_TROWEL_THICKNESS", "name": "흙손누름·바름두께", "basis": "흙손누름, 바르기 두께 확인"},
+            {"code": "PLASTER_WEATHER_PRECAUTION", "name": "혹한기·혹서기 유의사항", "basis": "기후 조건별 시공 유의사항 확인"},
+            {"code": "PLASTER_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "PLASTER_MATERIAL", "name": "미장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "PLASTER_MIX_PLAN", "name": "배합계획", "basis": "미장 배합계획 확인"},
+        {"code": "PLASTER_TROWEL_THICKNESS", "name": "흙손누름·바름두께", "basis": "흙손누름, 바르기 두께 확인"},
+        {"code": "PLASTER_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "WINDOWS_DOORS",
+      "name": "창호공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [43],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [43],
+          "items": [
+            {"code": "WINDOW_MATERIAL", "name": "창호 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "WINDOW_FIRE_SHUTTER", "name": "방화셔터", "basis": "방화셔터 도서와 설치상태 확인"},
+            {"code": "WINDOW_FIRE_DOOR", "name": "방화문", "basis": "방화문 도서와 설치상태 확인"},
+            {"code": "WINDOW_OPERATION", "name": "개폐상태", "basis": "창호와 방화문 개폐장치 작동 확인"},
+            {"code": "WINDOW_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "WINDOW_MATERIAL", "name": "창호 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "WINDOW_FIRE_SHUTTER", "name": "방화셔터", "basis": "방화셔터 도서와 설치상태 확인"},
+        {"code": "WINDOW_FIRE_DOOR", "name": "방화문", "basis": "방화문 도서와 설치상태 확인"},
+        {"code": "WINDOW_OPERATION", "name": "개폐상태", "basis": "창호와 방화문 개폐장치 작동 확인"}
+      ]
+    },
+    {
+      "code": "GLASS_WORKS",
+      "name": "유리공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [44],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [44],
+          "items": [
+            {"code": "GLASS_MATERIAL", "name": "유리 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "GLASS_WIND_PRESSURE", "name": "설계풍압", "basis": "설계풍압과 설치 형태 조건 확인"},
+            {"code": "GLASS_LABEL", "name": "제조사 라벨", "basis": "유리제조회사 상호와 라벨 확인"},
+            {"code": "GLASS_BITE_DEPTH", "name": "유리 물림 깊이", "basis": "복층 유리의 최소 물림 깊이 확인"},
+            {"code": "GLASS_SEALANT", "name": "실링재", "basis": "실링재, 스페이서, 유리 두께 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "GLASS_MATERIAL", "name": "유리 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "GLASS_WIND_PRESSURE", "name": "설계풍압", "basis": "설계풍압과 설치 형태 조건 확인"},
+        {"code": "GLASS_LABEL", "name": "제조사 라벨", "basis": "유리제조회사 상호와 라벨 확인"},
+        {"code": "GLASS_BITE_DEPTH", "name": "유리 물림 깊이", "basis": "복층 유리의 최소 물림 깊이 확인"}
+      ]
+    },
+    {
+      "code": "CURTAIN_WALL",
+      "name": "커튼월공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [45],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [45],
+          "items": [
+            {"code": "CURTAINWALL_MATERIAL", "name": "커튼월 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "CURTAINWALL_SMOKE_WINDOW", "name": "배연창·피난창", "basis": "위치, 크기, 개폐방법 확인"},
+            {"code": "CURTAINWALL_INSTALL_SEQUENCE", "name": "설치 순서·방법", "basis": "부재 설치 순서와 방법 확인"},
+            {"code": "CURTAINWALL_ANCHOR_BRACKET", "name": "앵커·브래킷", "basis": "앵커 및 브래킷류 재질 확인"},
+            {"code": "CURTAINWALL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "CURTAINWALL_MATERIAL", "name": "커튼월 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "CURTAINWALL_SMOKE_WINDOW", "name": "배연창·피난창", "basis": "위치, 크기, 개폐방법 확인"},
+        {"code": "CURTAINWALL_INSTALL_SEQUENCE", "name": "설치 순서·방법", "basis": "부재 설치 순서와 방법 확인"},
+        {"code": "CURTAINWALL_ANCHOR_BRACKET", "name": "앵커·브래킷", "basis": "앵커 및 브래킷류 재질 확인"}
+      ]
+    },
+    {
+      "code": "PAINTING",
+      "name": "도장공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [46],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [46],
+          "items": [
+            {"code": "PAINT_MATERIAL", "name": "도장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "PAINT_SAMPLE", "name": "재료견본", "basis": "제조업체 지정 및 재료견본 확인"},
+            {"code": "PAINT_MORTAR_BASE", "name": "모르타르 바탕면", "basis": "모르타르 바탕면 만들기 여부 확인"},
+            {"code": "PAINT_STEEL_WOOD_BASE", "name": "철부·목조 바탕면", "basis": "철부 및 목조 바탕면 상태 확인"},
+            {"code": "PAINT_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "PAINT_MATERIAL", "name": "도장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "PAINT_SAMPLE", "name": "재료견본", "basis": "제조업체 지정 및 재료견본 확인"},
+        {"code": "PAINT_MORTAR_BASE", "name": "모르타르 바탕면", "basis": "모르타르 바탕면 만들기 여부 확인"},
+        {"code": "PAINT_STEEL_WOOD_BASE", "name": "철부·목조 바탕면", "basis": "철부 및 목조 바탕면 상태 확인"}
+      ]
+    },
+    {
+      "code": "INTERIOR_FINISH",
+      "name": "수장공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [47],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [47],
+          "items": [
+            {"code": "INTERIOR_MATERIAL", "name": "수장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "INTERIOR_SOUND_FIRE", "name": "차음·내화 성능", "basis": "차음 및 내화 성능 확인 서류"},
+            {"code": "INTERIOR_PRODUCT_INFO", "name": "규격·제조업체·상품명", "basis": "규격, 제조업체, 상품명 확인"},
+            {"code": "INTERIOR_PRODUCT_INSPECTION", "name": "제품검사", "basis": "제품검사 결과 확인"},
+            {"code": "INTERIOR_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "INTERIOR_MATERIAL", "name": "수장 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "INTERIOR_SOUND_FIRE", "name": "차음·내화 성능", "basis": "차음 및 내화 성능 확인 서류"},
+        {"code": "INTERIOR_PRODUCT_INFO", "name": "규격·제조업체·상품명", "basis": "규격, 제조업체, 상품명 확인"},
+        {"code": "INTERIOR_PRODUCT_INSPECTION", "name": "제품검사", "basis": "제품검사 결과 확인"}
+      ]
+    },
+    {
+      "code": "LANDSCAPE",
+      "name": "조경공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [48],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [48],
+          "items": [
+            {"code": "LANDSCAPE_DELIVERY", "name": "조경수·시설물 납품확인", "basis": "조경수 및 시설물 납품확인서 확인"},
+            {"code": "LANDSCAPE_INSTALLATION", "name": "식재·시설물 설치", "basis": "식재 및 조경시설물 설치 확인"},
+            {"code": "LANDSCAPE_DRAWING_COMPARE", "name": "설계도서 대조", "basis": "설계도서와의 대조 확인"},
+            {"code": "LANDSCAPE_EXISTING_TREE", "name": "기존식목", "basis": "기존식목 확인"},
+            {"code": "LANDSCAPE_PLANT_LAYOUT", "name": "나무심기 배치", "basis": "나무심기의 배치 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "LANDSCAPE_DELIVERY", "name": "조경수·시설물 납품확인", "basis": "조경수 및 시설물 납품확인서 확인"},
+        {"code": "LANDSCAPE_INSTALLATION", "name": "식재·시설물 설치", "basis": "식재 및 조경시설물 설치 확인"},
+        {"code": "LANDSCAPE_DRAWING_COMPARE", "name": "설계도서 대조", "basis": "설계도서와의 대조 확인"},
+        {"code": "LANDSCAPE_PLANT_LAYOUT", "name": "나무심기 배치", "basis": "나무심기의 배치 확인"}
+      ]
+    },
+    {
+      "code": "MISC_WORKS",
+      "name": "잡공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [49],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [49],
+          "items": [
+            {"code": "MISC_MATERIAL", "name": "잡공사 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+            {"code": "MISC_INTERIOR_FIRE_RATING", "name": "실내건축 재료 등급", "basis": "불연·준불연·난연재료 확인"},
+            {"code": "MISC_CURTAIN_BOX", "name": "커튼박스", "basis": "커튼박스 유무와 종류 확인"},
+            {"code": "MISC_HOOD_INSTALLATION", "name": "배기·환기후드", "basis": "설치장소, 크기, 내외 마감재질 확인"},
+            {"code": "MISC_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "MISC_MATERIAL", "name": "잡공사 자재성능", "basis": "KS 등 자재성능 관련 서류 확인"},
+        {"code": "MISC_INTERIOR_FIRE_RATING", "name": "실내건축 재료 등급", "basis": "불연·준불연·난연재료 확인"},
+        {"code": "MISC_CURTAIN_BOX", "name": "커튼박스", "basis": "커튼박스 유무와 종류 확인"},
+        {"code": "MISC_HOOD_INSTALLATION", "name": "배기·환기후드", "basis": "설치장소, 크기, 내외 마감재질 확인"}
+      ]
+    },
+    {
+      "code": "BUILDING_SURROUNDINGS",
+      "name": "건물주위 공사",
+      "discipline": "ARCHITECTURE",
+      "sourcePages": [50],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [50],
+          "items": [
+            {"code": "SURROUNDING_PAVING_MATERIAL", "name": "바닥포장 자재성능", "basis": "KS 등 포장 자재성능 서류 확인"},
+            {"code": "SURROUNDING_PAVING_BOUNDARY", "name": "포장 경계위치", "basis": "줄쳐보기에 의한 포장 경계위치 확인"},
+            {"code": "SURROUNDING_ASPHALT", "name": "아스팔트 포장", "basis": "아스팔트 포장 상태 확인"},
+            {"code": "SURROUNDING_PARKING", "name": "주차장", "basis": "주차장 위치와 주차대수 확인"},
+            {"code": "SURROUNDING_DRAINAGE", "name": "배수구·집수구", "basis": "구배와 배수면 높이 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "SURROUNDING_PAVING_MATERIAL", "name": "바닥포장 자재성능", "basis": "KS 등 포장 자재성능 서류 확인"},
+        {"code": "SURROUNDING_PAVING_BOUNDARY", "name": "포장 경계위치", "basis": "줄쳐보기에 의한 포장 경계위치 확인"},
+        {"code": "SURROUNDING_ASPHALT", "name": "아스팔트 포장", "basis": "아스팔트 포장 상태 확인"},
+        {"code": "SURROUNDING_PARKING", "name": "주차장", "basis": "주차장 위치와 주차대수 확인"},
+        {"code": "SURROUNDING_DRAINAGE", "name": "배수구·집수구", "basis": "구배와 배수면 높이 확인"}
+      ]
+    },
+    {
+      "code": "ELEVATOR_MECHANICAL_PARKING",
+      "name": "승강설비 및 기계식주차 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [51],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [51],
+          "items": [
+            {"code": "ELEVATOR_EQUIPMENT_CERT", "name": "기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "ELEVATOR_WARRANTY", "name": "제작사 성능보증서", "basis": "성능보증서 및 검사필증 확인"},
+            {"code": "ELEVATOR_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 설치계획 및 시공도 확인"},
+            {"code": "ELEVATOR_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "ELEVATOR_EQUIPMENT_CERT", "name": "기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "ELEVATOR_WARRANTY", "name": "제작사 성능보증서", "basis": "성능보증서 및 검사필증 확인"},
+        {"code": "ELEVATOR_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 설치계획 및 시공도 확인"},
+        {"code": "ELEVATOR_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "PLUMBING_SANITARY",
+      "name": "급배수위생 설비 공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [52],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [52],
+          "items": [
+            {"code": "PLUMBING_EQUIPMENT_CERT", "name": "기기·자재성능", "basis": "보일러, 펌프, 배관, 물탱크, 위생기구, 정화조 등 성능서류 확인"},
+            {"code": "PLUMBING_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "PLUMBING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+            {"code": "PLUMBING_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "PLUMBING_EQUIPMENT_CERT", "name": "기기·자재성능", "basis": "보일러, 펌프, 배관, 물탱크, 위생기구, 정화조 등 성능서류 확인"},
+        {"code": "PLUMBING_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "PLUMBING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+        {"code": "PLUMBING_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "HVAC",
+      "name": "공기 조화설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [53],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [53],
+          "items": [
+            {"code": "HVAC_EQUIPMENT_CERT", "name": "공조 기기·자재성능", "basis": "냉동기, 오일탱크, 연도, 송풍기, 공조기 등 성능서류 확인"},
+            {"code": "HVAC_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "HVAC_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+            {"code": "HVAC_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "HVAC_EQUIPMENT_CERT", "name": "공조 기기·자재성능", "basis": "냉동기, 오일탱크, 연도, 송풍기, 공조기 등 성능서류 확인"},
+        {"code": "HVAC_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "HVAC_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+        {"code": "HVAC_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "PIPING",
+      "name": "배관설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [54],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [54],
+          "items": [
+            {"code": "PIPING_MATERIAL_CERT", "name": "배관 자재성능", "basis": "냉온수, 냉각수, 냉매, 증기, 기타 배관 및 보온재 성능서류 확인"},
+            {"code": "PIPING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "배관 설치계획 및 시공도 확인"},
+            {"code": "PIPING_INSULATION", "name": "보온재·발열선", "basis": "보온재와 발열선 적용 확인"},
+            {"code": "PIPING_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "PIPING_MATERIAL_CERT", "name": "배관 자재성능", "basis": "냉온수, 냉각수, 냉매, 증기, 기타 배관 및 보온재 성능서류 확인"},
+        {"code": "PIPING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "배관 설치계획 및 시공도 확인"},
+        {"code": "PIPING_INSULATION", "name": "보온재·발열선", "basis": "보온재와 발열선 적용 확인"},
+        {"code": "PIPING_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "DUCT",
+      "name": "덕트설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [55],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [55],
+          "items": [
+            {"code": "DUCT_MATERIAL_CERT", "name": "덕트 기기·자재성능", "basis": "흡입구, 배출구, 루버, 그릴, 방화댐퍼, 보온재 성능서류 확인"},
+            {"code": "DUCT_SMOKE_CONTROL", "name": "배연 조작표시", "basis": "방재센터 배연 관련 조작표시 확인"},
+            {"code": "DUCT_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+            {"code": "DUCT_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "DUCT_MATERIAL_CERT", "name": "덕트 기기·자재성능", "basis": "흡입구, 배출구, 루버, 그릴, 방화댐퍼, 보온재 성능서류 확인"},
+        {"code": "DUCT_SMOKE_CONTROL", "name": "배연 조작표시", "basis": "방재센터 배연 관련 조작표시 확인"},
+        {"code": "DUCT_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+        {"code": "DUCT_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "MECHANICAL_AUTOMATION",
+      "name": "자동제어 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [56],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [56],
+          "items": [
+            {"code": "AUTO_CONTROL_CERT", "name": "자동제어 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "AUTO_CONTROL_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "AUTO_CONTROL_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+            {"code": "AUTO_CONTROL_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "AUTO_CONTROL_CERT", "name": "자동제어 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "AUTO_CONTROL_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "AUTO_CONTROL_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+        {"code": "AUTO_CONTROL_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "RENEWABLE_ENERGY",
+      "name": "신재생에너지 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [57],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [57],
+          "items": [
+            {"code": "RENEWABLE_CERT", "name": "신재생 기기·자재성능", "basis": "태양열 집열판, 열펌프 등 성능서류 확인"},
+            {"code": "RENEWABLE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "RENEWABLE_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+            {"code": "RENEWABLE_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "RENEWABLE_CERT", "name": "신재생 기기·자재성능", "basis": "태양열 집열판, 열펌프 등 성능서류 확인"},
+        {"code": "RENEWABLE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "RENEWABLE_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+        {"code": "RENEWABLE_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "REFRIGERATION",
+      "name": "냉동냉장 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [58],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [58],
+          "items": [
+            {"code": "REFRIGERATION_CERT", "name": "냉동냉장 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "REFRIGERATION_LOCK_IN_PREVENTION", "name": "실내 감금방지 회로", "basis": "실내 감금방지 회로 작동 여부 확인"},
+            {"code": "REFRIGERATION_REFRIGERANT", "name": "냉매 충전", "basis": "냉매 충전 여부 확인"},
+            {"code": "REFRIGERATION_PERFORMANCE_REPORT", "name": "성능시험보고서", "basis": "성능시험보고서 확인"},
+            {"code": "REFRIGERATION_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "REFRIGERATION_CERT", "name": "냉동냉장 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "REFRIGERATION_LOCK_IN_PREVENTION", "name": "실내 감금방지 회로", "basis": "실내 감금방지 회로 작동 여부 확인"},
+        {"code": "REFRIGERATION_REFRIGERANT", "name": "냉매 충전", "basis": "냉매 충전 여부 확인"},
+        {"code": "REFRIGERATION_PERFORMANCE_REPORT", "name": "성능시험보고서", "basis": "성능시험보고서 확인"}
+      ]
+    },
+    {
+      "code": "CLEAN_ROOM",
+      "name": "클린룸 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [59],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [59],
+          "items": [
+            {"code": "CLEANROOM_CERT", "name": "클린룸 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "CLEANROOM_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "CLEANROOM_DOOR_LOCK", "name": "출입문 잠김·자동개폐", "basis": "외부 출입문의 잠김기능 및 자동개폐장치 설치 여부 확인"},
+            {"code": "CLEANROOM_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "CLEANROOM_CERT", "name": "클린룸 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "CLEANROOM_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "CLEANROOM_DOOR_LOCK", "name": "출입문 잠김·자동개폐", "basis": "외부 출입문의 잠김기능 및 자동개폐장치 설치 여부 확인"},
+        {"code": "CLEANROOM_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "GAS_FACILITY",
+      "name": "가스설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [60],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [60],
+          "items": [
+            {"code": "GAS_CERT", "name": "가스 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "GAS_INSPECTION_CERT", "name": "검사필증", "basis": "검사필증 확인"},
+            {"code": "GAS_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+            {"code": "GAS_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "GAS_CERT", "name": "가스 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "GAS_INSPECTION_CERT", "name": "검사필증", "basis": "검사필증 확인"},
+        {"code": "GAS_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+        {"code": "GAS_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "SOUND_VIBRATION_SEISMIC",
+      "name": "방음방진 및 내진 설비공사",
+      "discipline": "MECHANICAL",
+      "sourcePages": [61],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [61],
+          "items": [
+            {"code": "SVS_CERT", "name": "방음방진 기기·자재성능", "basis": "덕트소음기 효율계산서, 방진제품 시험성적서 등 확인"},
+            {"code": "SVS_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+            {"code": "SVS_SEISMIC_DETAIL", "name": "내진 상세", "basis": "내진 관련 설치 상세와 고정상태 확인"},
+            {"code": "SVS_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "SVS_CERT", "name": "방음방진 기기·자재성능", "basis": "덕트소음기 효율계산서, 방진제품 시험성적서 등 확인"},
+        {"code": "SVS_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+        {"code": "SVS_SEISMIC_DETAIL", "name": "내진 상세", "basis": "내진 관련 설치 상세와 고정상태 확인"},
+        {"code": "SVS_FINAL_FINISH", "name": "최종 마감상태", "basis": "최종 마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "OUTDOOR_WORKS",
+      "name": "옥외공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [62],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [62],
+          "items": [
+            {"code": "OUTDOOR_ELECTRICAL_CERT", "name": "옥외 전기 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "OUTDOOR_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "OUTDOOR_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+            {"code": "OUTDOOR_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "OUTDOOR_ELECTRICAL_CERT", "name": "옥외 전기 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "OUTDOOR_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "OUTDOOR_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "설치계획 및 시공도 확인"},
+        {"code": "OUTDOOR_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "POWER_RECEIVING_LEAD_IN",
+      "name": "수변전·인입공사 설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [63],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [63],
+          "items": [
+            {"code": "POWER_RECEIVING_CERT", "name": "수변전 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "POWER_RECEIVING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "POWER_RECEIVING_CLEARANCE", "name": "이격거리·접지", "basis": "법적 규정의 이격거리와 각 기구의 접지 확인"},
+            {"code": "POWER_RECEIVING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "POWER_RECEIVING_CERT", "name": "수변전 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "POWER_RECEIVING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "POWER_RECEIVING_CLEARANCE", "name": "이격거리·접지", "basis": "법적 규정의 이격거리와 각 기구의 접지 확인"},
+        {"code": "POWER_RECEIVING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "EMERGENCY_POWER",
+      "name": "예비전원 설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [64],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [64],
+          "items": [
+            {"code": "EMERGENCY_POWER_CERT", "name": "예비전원 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "EMERGENCY_POWER_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "EMERGENCY_POWER_CLEARANCE", "name": "이격거리·접지", "basis": "법적 규정의 이격거리와 각 기구의 접지 확인"},
+            {"code": "EMERGENCY_POWER_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "EMERGENCY_POWER_CERT", "name": "예비전원 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "EMERGENCY_POWER_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "EMERGENCY_POWER_CLEARANCE", "name": "이격거리·접지", "basis": "법적 규정의 이격거리와 각 기구의 접지 확인"},
+        {"code": "EMERGENCY_POWER_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "INDOOR_WIRING",
+      "name": "옥내배선공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [65],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [65],
+          "items": [
+            {"code": "INDOOR_WIRING_CERT", "name": "옥내배선 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "INDOOR_WIRING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "INDOOR_WIRING_SAFETY_CERT", "name": "전기안전검사필증", "basis": "전기안전검사필증 확인"},
+            {"code": "INDOOR_WIRING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "INDOOR_WIRING_CERT", "name": "옥내배선 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "INDOOR_WIRING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "INDOOR_WIRING_SAFETY_CERT", "name": "전기안전검사필증", "basis": "전기안전검사필증 확인"},
+        {"code": "INDOOR_WIRING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "LIGHTING",
+      "name": "조명설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [66],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [66],
+          "items": [
+            {"code": "LIGHTING_CERT", "name": "조명 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "LIGHTING_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "LIGHTING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "LIGHTING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "LIGHTING_CERT", "name": "조명 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "LIGHTING_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "LIGHTING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "LIGHTING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "POWER_FACILITY",
+      "name": "동력설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [67],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [67],
+          "items": [
+            {"code": "POWER_FACILITY_CERT", "name": "동력 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "POWER_FACILITY_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "POWER_FACILITY_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "POWER_FACILITY_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "POWER_FACILITY_CERT", "name": "동력 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "POWER_FACILITY_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "POWER_FACILITY_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "POWER_FACILITY_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "MONITORING_CONTROL",
+      "name": "감시제어설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [68],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [68],
+          "items": [
+            {"code": "MONITORING_CONTROL_CERT", "name": "감시제어 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "MONITORING_CONTROL_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "MONITORING_CONTROL_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "MONITORING_CONTROL_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "MONITORING_CONTROL_CERT", "name": "감시제어 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "MONITORING_CONTROL_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "MONITORING_CONTROL_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "MONITORING_CONTROL_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "LIGHTNING_GROUNDING",
+      "name": "피뢰 및 접지 설비공사",
+      "discipline": "ELECTRICAL",
+      "sourcePages": [69],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [69],
+          "items": [
+            {"code": "GROUNDING_CERT", "name": "피뢰·접지 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "GROUNDING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+            {"code": "GROUNDING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+            {"code": "GROUNDING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "GROUNDING_CERT", "name": "피뢰·접지 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "GROUNDING_LOCATION", "name": "기기 설치 위치", "basis": "기기의 설치 위치 확인"},
+        {"code": "GROUNDING_SHOP_DRAWING", "name": "설치계획·시공도", "basis": "선정 기자재 관련 설치계획 및 시공도 확인"},
+        {"code": "GROUNDING_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "COMMUNICATION",
+      "name": "통신설비공사",
+      "discipline": "COMMUNICATION",
+      "sourcePages": [70],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [70],
+          "items": [
+            {"code": "COMM_CERT", "name": "통신 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "COMM_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "COMM_INSPECTION_CERT", "name": "통신 관련 검사필증", "basis": "통신 관련 검사필증 확인"},
+            {"code": "COMM_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+            {"code": "COMM_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "COMM_CERT", "name": "통신 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "COMM_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "COMM_INSPECTION_CERT", "name": "통신 관련 검사필증", "basis": "통신 관련 검사필증 확인"},
+        {"code": "COMM_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"}
+      ]
+    },
+    {
+      "code": "LOW_VOLTAGE_SYSTEM",
+      "name": "약전설비공사",
+      "discipline": "COMMUNICATION",
+      "sourcePages": [71],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [71],
+          "items": [
+            {"code": "LOW_VOLTAGE_CERT", "name": "약전 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "LOW_VOLTAGE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "LOW_VOLTAGE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+            {"code": "LOW_VOLTAGE_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "LOW_VOLTAGE_CERT", "name": "약전 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "LOW_VOLTAGE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "LOW_VOLTAGE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+        {"code": "LOW_VOLTAGE_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+      ]
+    },
+    {
+      "code": "MECHANICAL_FIRE_FIGHTING",
+      "name": "기계소방설비공사",
+      "discipline": "FIRE_FIGHTING",
+      "sourcePages": [72],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [72],
+          "items": [
+            {"code": "M_FIRE_CERT", "name": "기계소방 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "M_FIRE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "M_FIRE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+            {"code": "M_FIRE_INSPECTION_CERT", "name": "소방 관련 검사필증", "basis": "소방 관련 검사필증 확인"},
+            {"code": "M_FIRE_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "M_FIRE_CERT", "name": "기계소방 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "M_FIRE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "M_FIRE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+        {"code": "M_FIRE_INSPECTION_CERT", "name": "소방 관련 검사필증", "basis": "소방 관련 검사필증 확인"}
+      ]
+    },
+    {
+      "code": "ELECTRICAL_FIRE_FIGHTING",
+      "name": "전기소방설비공사",
+      "discipline": "FIRE_FIGHTING",
+      "sourcePages": [73],
+      "processes": ["-"],
+      "processGroups": [
+        {
+          "code": "GENERAL",
+          "name": "-",
+          "sourcePages": [73],
+          "items": [
+            {"code": "E_FIRE_CERT", "name": "전기소방 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+            {"code": "E_FIRE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+            {"code": "E_FIRE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+            {"code": "E_FIRE_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
+          ]
+        }
+      ],
+      "items": [
+        {"code": "E_FIRE_CERT", "name": "전기소방 기기·자재성능", "basis": "KS 등 기기 및 자재성능 관련 서류 확인"},
+        {"code": "E_FIRE_HIGH_EFFICIENCY", "name": "고효율 기자재", "basis": "고효율 에너지 기자재 적용 여부 확인"},
+        {"code": "E_FIRE_EQUIPMENT_INSTALL", "name": "기기·기구 설치", "basis": "기기 및 기구 설치 확인"},
+        {"code": "E_FIRE_FINAL_FINISH", "name": "최종 설치마감상태", "basis": "최종 설치마감상태 육안 확인"}
       ]
     }
   ],
   "futureWork": [
-    "Extract all 49 unique trade/detail groups from the reference PDF into this catalog.",
+    "Expand processGroups.items from core seeded items to the full row-level checklist extracted from the reference PDF.",
     "Add office-level catalog overrides after the system catalog stabilizes.",
-    "Connect checklist answer schemas to catalog item codes so daily logs and checklist documents share the same domain vocabulary."
+    "Connect checklist answer schemas to catalog item codes so daily logs and checklist documents share the same domain vocabulary.",
+    "Version future legal or office layout changes independently from this domain catalog."
   ]
 }

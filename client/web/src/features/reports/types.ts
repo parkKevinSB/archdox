@@ -74,10 +74,19 @@ export type SupervisionCatalogItem = {
   name: string;
 };
 
-export type SupervisionCatalogTrade = {
+export type SupervisionCatalogProcessGroup = {
   code: string;
   items: SupervisionCatalogItem[];
   name: string;
+  sourcePages?: number[];
+};
+
+export type SupervisionCatalogTrade = {
+  code: string;
+  discipline?: string;
+  items: SupervisionCatalogItem[];
+  name: string;
+  processGroups?: SupervisionCatalogProcessGroup[];
   processes?: string[];
   sourcePages?: number[];
 };

@@ -2,11 +2,11 @@
 
 ## Decision
 
-ArchDox must not treat construction supervision forms as a few UI dropdowns.
-The supervision vocabulary is domain knowledge and must be versioned as
-ArchDox-owned catalog data.
+ArchDox must not treat construction supervision forms as a few React dropdowns.
+The supervision vocabulary is business domain knowledge and must be versioned
+as ArchDox-owned catalog data.
 
-The source of truth for a report is:
+The source of truth for a generated document is:
 
 ```text
 report snapshot
@@ -15,7 +15,8 @@ report snapshot
 + template/layout revision
 ```
 
-Generated DOCX/PDF/HTML/HWP artifacts are outputs, not business data.
+Generated DOCX/PDF/HTML/HWP artifacts are outputs. They are not the business
+source of truth.
 
 ## Why This Matters
 
@@ -41,7 +42,7 @@ dangerous:
 
 ## Current Catalog
 
-The first code-managed catalog is:
+The first code-managed system catalog is:
 
 ```text
 CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24
@@ -65,12 +66,63 @@ API:
 GET /api/v1/supervision-domain-catalogs/{catalogCode}
 ```
 
-The React daily supervision step reads this catalog from Cloud API. It should
-not own the trade/check item list.
+The React daily supervision step reads this catalog from Cloud API. It must not
+own the trade/check item list.
 
-## Data Shape
+## Catalog Shape
 
-Daily supervision step payload stores structured neutral data:
+The catalog is intentionally hierarchical:
+
+```text
+Catalog
+-> Trade
+   -> ProcessGroup
+      -> Item
+```
+
+Example:
+
+```json
+{
+  "code": "REINFORCED_CONCRETE",
+  "name": "철근 콘크리트 공사",
+  "discipline": "ARCHITECTURE",
+  "processGroups": [
+    {
+      "code": "REBAR_ASSEMBLY",
+      "name": "철근 조립·배근",
+      "items": [
+        {
+          "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+          "name": "철근 개수·지름·피치",
+          "basis": "철근 개수, 지름, 피치 확인"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The top-level `trades[].items` remains as a compatibility summary. The richer
+structure is `trades[].processGroups[].items`.
+
+## Current Coverage
+
+Catalog version 2 covers the reference PDF pages 22-73 at this level:
+
+- 46 trade records
+- all 49 trade/detail-process headers from the reference pages
+- 55 internal process groups, including practical subdivisions for reinforced
+  concrete and steel-frame work
+- 240 seeded supervision/check items
+
+This is not yet the final row-by-row extraction of every checklist line. It is
+the first production-shaped domain catalog: broad enough for real UI authoring,
+stable enough for report snapshots, and structured enough for future AI review.
+
+## Daily Log Payload
+
+The daily supervision step stores neutral structured data:
 
 ```json
 {
@@ -78,13 +130,13 @@ Daily supervision step payload stores structured neutral data:
     {
       "tradeCode": "REINFORCED_CONCRETE",
       "trade": "철근 콘크리트 공사",
-      "processCode": null,
-      "process": "기초, 지하층 바닥",
+      "processCode": "REBAR_ASSEMBLY",
+      "process": "철근 조립·배근",
       "floor": "기초층",
       "items": [
         {
-          "itemCode": "REBAR_ASSEMBLY",
-          "item": "철근 조립, 배근",
+          "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+          "item": "철근 개수·지름·피치",
           "content": "현장 작성자가 확인한 감리내용",
           "photoIds": [10, 11]
         }
@@ -118,10 +170,31 @@ layout because the stored report data is neutral.
 Additions should happen in this order:
 
 1. Extend the code-managed system catalog from the reference PDF.
-2. Add tests that verify the catalog returns stable codes.
+2. Add tests that verify the catalog returns stable codes and expected coverage.
 3. Let UI consume the catalog through API.
 4. Add office-level catalog overrides only after the base catalog is stable.
 5. Connect checklist answers and daily log entries to the same item codes.
+6. Extract the remaining reference PDF rows into process-group item records
+   after the current structure stabilizes.
 
 Do not add new construction supervision trade/check lists directly inside React
 components.
+
+## Future Upgrade
+
+When the full row-level extraction is needed, do not replace this model. Expand
+it:
+
+```text
+Trade
+-> ProcessGroup
+   -> ChecklistSection
+      -> Item
+         -> requirement/basis
+         -> evidence policy
+         -> default answer schema
+```
+
+This keeps the current daily log UI useful while preserving a path toward full
+construction supervision checklist authoring, AI review, statistics, and
+office-specific policy overrides.

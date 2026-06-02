@@ -272,7 +272,13 @@ export function DailySupervisionItemsStep({
                   <input
                     disabled={!canWriteReports}
                     list={`daily-process-options-${group.id}`}
-                    onChange={(event) => updateGroup(group.id, { process: event.target.value, processCode: undefined })}
+                    onChange={(event) => {
+                      const selectedProcess = processGroupByName(group, trades, event.target.value);
+                      updateGroup(group.id, {
+                        process: event.target.value,
+                        processCode: selectedProcess?.code
+                      });
+                    }}
                     placeholder="예: 기초, 지하층 바닥"
                     value={group.process}
                   />
@@ -438,7 +444,9 @@ function DailyItemPicker({
 }
 
 function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
-  return selectedTrade(group, trades)?.items ?? [];
+  const trade = selectedTrade(group, trades);
+  const processGroup = selectedProcessGroup(group, trade);
+  return processGroup?.items?.length ? processGroup.items : trade?.items ?? [];
 }
 
 function itemByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
@@ -450,13 +458,28 @@ function suggestedProcesses(
   trades: SupervisionCatalogTrade[],
   catalogProcessOptions: string[]
 ) {
-  return uniqueStrings([...(selectedTrade(group, trades)?.processes ?? []), ...catalogProcessOptions])
+  const trade = selectedTrade(group, trades);
+  const processGroupNames = trade?.processGroups?.map((processGroup) => processGroup.name) ?? [];
+  return uniqueStrings([...processGroupNames, ...(trade?.processes ?? []), ...catalogProcessOptions])
     .filter((option) => option && option !== "-");
 }
 
 function selectedTrade(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
   return trades.find((trade) => trade.code === group.tradeCode)
     ?? trades.find((trade) => trade.name === group.trade)
+    ?? null;
+}
+
+function processGroupByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
+  return selectedProcessGroup({ ...group, process: name }, selectedTrade(group, trades));
+}
+
+function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null) {
+  if (!trade?.processGroups?.length) {
+    return null;
+  }
+  return trade.processGroups.find((processGroup) => processGroup.code === group.processCode)
+    ?? trade.processGroups.find((processGroup) => processGroup.name === group.process)
     ?? null;
 }
 
