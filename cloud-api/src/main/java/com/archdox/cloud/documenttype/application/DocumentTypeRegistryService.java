@@ -145,7 +145,9 @@ public class DocumentTypeRegistryService {
 
     private String sanitizeStepType(Object value) {
         var normalized = normalizeCode(value);
-        if ("CHECKLIST".equals(normalized) || "PHOTO".equals(normalized)) {
+        if ("CHECKLIST".equals(normalized)
+                || "PHOTO".equals(normalized)
+                || "DAILY_SUPERVISION_ITEMS".equals(normalized)) {
             return normalized;
         }
         return "FORM";

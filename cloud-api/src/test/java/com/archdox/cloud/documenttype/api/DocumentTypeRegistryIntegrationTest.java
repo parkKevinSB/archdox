@@ -101,8 +101,9 @@ class DocumentTypeRegistryIntegrationTest {
         assertTrue(hasSection(demolitionSafetyLayout, "photoSection", "PHOTO_TABLE"));
 
         var constructionDailyWorkflow = documentTypeJson("CONSTRUCTION_DAILY_SUPERVISION_LOG", "workflow_json");
-        assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "constructionTrade"));
-        assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "issueAndAction"));
+        assertTrue(hasStepType(constructionDailyWorkflow, "DAILY_LOG", "DAILY_SUPERVISION_ITEMS"));
+        assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "dailyItems"));
+        assertTrue(hasStepField(constructionDailyWorkflow, "REMARKS", "issueAndAction"));
 
         var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");
         assertTrue(hasSection(constructionReportLayout, "reportOpinionSection", "CHECKLIST_TABLE"));
@@ -127,6 +128,12 @@ class DocumentTypeRegistryIntegrationTest {
                 .filter(step -> stepCode.equals(step.path("code").asText()))
                 .flatMap(step -> StreamSupport.stream(step.path("fields").spliterator(), false))
                 .anyMatch(field -> fieldKey.equals(field.path("key").asText()));
+    }
+
+    private boolean hasStepType(JsonNode workflow, String stepCode, String stepType) {
+        return StreamSupport.stream(workflow.path("steps").spliterator(), false)
+                .anyMatch(step -> stepCode.equals(step.path("code").asText())
+                        && stepType.equals(step.path("stepType").asText()));
     }
 
     private boolean hasSection(JsonNode outputLayout, String key, String type) {

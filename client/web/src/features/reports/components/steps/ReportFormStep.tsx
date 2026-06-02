@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import type { UseFormRegister } from "react-hook-form";
+import type { UseFormRegister, UseFormReturn } from "react-hook-form";
 import type { InspectionReport, ReportStepDefinition, ReportWizardFormValues } from "../../types";
 
 export type ReportStepComponentProps = {
   canWriteReports: boolean;
   definition: ReportStepDefinition;
   officeId: number;
+  form: UseFormReturn<ReportWizardFormValues>;
   register: UseFormRegister<ReportWizardFormValues>;
   report: InspectionReport;
   renderChecklistPanel?: () => ReactNode;
@@ -26,6 +27,9 @@ export function ReportFormStep({ canWriteReports, definition, register, revision
 
       <div className="wizard-fields">
         {definition.fields.map((field) => (
+          field.type === "hidden" || field.type === "json" ? (
+            <input key={field.key} type="hidden" {...register(field.key)} />
+          ) : (
           <label className={field.type === "textarea" ? "wide" : undefined} key={field.key}>
             {field.label}
             {field.type === "textarea" ? (
@@ -45,6 +49,7 @@ export function ReportFormStep({ canWriteReports, definition, register, revision
               />
             )}
           </label>
+          )
         ))}
       </div>
     </>

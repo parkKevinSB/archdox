@@ -11,7 +11,7 @@ export type ReportFormValues = {
 
 export type ReportStepCode = string;
 
-export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO" | (string & {});
+export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO" | "DAILY_SUPERVISION_ITEMS" | (string & {});
 
 export type ReportStepSavePolicy = "ON_NAVIGATE";
 
@@ -20,7 +20,7 @@ export type ReportStepField = {
   label: string;
   placeholder?: string;
   required?: boolean;
-  type?: "text" | "date" | "number" | "textarea";
+  type?: "text" | "date" | "number" | "textarea" | "json" | "hidden";
 };
 
 export type ReportStepDefinition = {

@@ -91,6 +91,7 @@ export function ReportStepRunner({
         <StepComponent
           canWriteReports={canWriteReports && canEdit}
           definition={activeDefinition}
+          form={form}
           officeId={officeId}
           register={form.register}
           report={report}

@@ -2124,6 +2124,206 @@ button {
   box-shadow: 0 0 0 3px #d9eee9;
 }
 
+.daily-supervision-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.daily-supervision-summary span {
+  min-height: 30px;
+  padding: 7px 10px;
+  border: 1px solid #eadfbd;
+  border-radius: 999px;
+  color: #6b5522;
+  background: #fbf6e6;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.daily-supervision-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 18px;
+  border: 1px dashed #d6c89e;
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.daily-supervision-empty strong {
+  color: #162321;
+}
+
+.daily-supervision-empty span,
+.daily-supervision-muted {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.daily-supervision-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.daily-supervision-group {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(20 32 31 / 0.05);
+}
+
+.daily-supervision-group-head,
+.daily-supervision-item-head,
+.daily-supervision-photo-row,
+.daily-supervision-add-row,
+.daily-supervision-item-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.daily-supervision-group-head div {
+  min-width: 0;
+}
+
+.daily-supervision-group-head span,
+.daily-supervision-item-head span {
+  display: block;
+  color: #8a6b20;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.daily-supervision-group-head strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #162321;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-supervision-group-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.daily-supervision-group-fields label,
+.daily-supervision-item label {
+  display: grid;
+  gap: 7px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.daily-supervision-group-fields input,
+.daily-supervision-group-fields select,
+.daily-supervision-item input,
+.daily-supervision-item textarea,
+.daily-supervision-item-picker select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  outline: 0;
+  color: #1f2c2b;
+  background: #ffffff;
+  font: inherit;
+}
+
+.daily-supervision-group-fields input:focus,
+.daily-supervision-group-fields select:focus,
+.daily-supervision-item input:focus,
+.daily-supervision-item textarea:focus,
+.daily-supervision-item-picker select:focus {
+  border-color: #2a7f70;
+  box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.daily-supervision-item-picker {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  padding: 10px;
+  border: 1px solid #edf0ef;
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.daily-supervision-item-picker select {
+  max-width: 280px;
+}
+
+.daily-supervision-items {
+  display: grid;
+  gap: 10px;
+}
+
+.daily-supervision-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e1e8e6;
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.daily-supervision-item textarea {
+  min-height: 118px;
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+.daily-supervision-photo-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.daily-supervision-photo-row input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.daily-supervision-photo-chips {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 36px;
+  align-items: center;
+}
+
+.daily-photo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #d8cfb1;
+  border-radius: 999px;
+  color: #5f4c20;
+  background: #fbf5df;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.daily-photo-chip:hover {
+  border-color: #c9b065;
+  background: #f7ecd0;
+}
+
 .wizard-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3710,6 +3910,7 @@ button.list-row {
   .photo-grid,
   .wizard-grid,
   .wizard-fields,
+  .daily-supervision-group-fields,
   .checklist-summary-bar,
   .stage-context-grid,
   .document-action-buttons,
@@ -3809,12 +4010,29 @@ button.list-row {
   .wizard-title-row,
   .wizard-form-head,
   .checklist-head,
-  .photo-upload-zone {
+  .photo-upload-zone,
+  .daily-supervision-group-head,
+  .daily-supervision-item-head,
+  .daily-supervision-photo-row,
+  .daily-supervision-add-row,
+  .daily-supervision-item-picker {
     flex-direction: column;
   }
 
-  .photo-upload-zone {
+  .photo-upload-zone,
+  .daily-supervision-group-head,
+  .daily-supervision-item-head,
+  .daily-supervision-photo-row,
+  .daily-supervision-add-row,
+  .daily-supervision-item-picker {
     align-items: stretch;
+  }
+
+  .daily-supervision-item-picker select,
+  .daily-supervision-item-picker .secondary-button,
+  .daily-supervision-photo-row .secondary-button {
+    width: 100%;
+    max-width: none;
   }
 
   .wizard-actions {

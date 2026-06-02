@@ -334,11 +334,21 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 officialCell(List.of(officialParagraph("감리 항목", false, 18, "center")), "2800", 1),
                 officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "4560", 1)),
                 520));
-        rows.append(officialRow(List.of(
-                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::trade), 18, "left"), "3100", 1),
-                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::focus), 18, "left"), "2800", 1),
-                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::content), 18, "left"), "4560", 1)),
-                4820));
+        if (items.isEmpty()) {
+            rows.append(officialRow(List.of(
+                    officialCell(officialParagraphs("", 18, "center"), "3100", 1),
+                    officialCell(officialParagraphs("", 18, "center"), "2800", 1),
+                    officialCell(officialParagraphs("", 18, "left"), "4560", 1)),
+                    4820));
+        } else {
+            for (var item : items) {
+                rows.append(officialRow(List.of(
+                        officialCell(officialParagraphs(item.trade(), 18, "center"), "3100", 1),
+                        officialCell(officialParagraphs(item.focus(), 18, "center"), "2800", 1),
+                        officialCell(officialParagraphs(item.content(), 18, "left"), "4560", 1)),
+                        officialSupervisionRowHeight(item)));
+            }
+        }
         return officialTableXml(
                 List.of("3100", "2800", "4560"),
                 rows.toString(),
@@ -351,19 +361,27 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 4);
     }
 
-    private String officialJoinedColumn(List<OfficialSupervisionRow> items, java.util.function.Function<OfficialSupervisionRow, String> mapper) {
-        if (items.isEmpty()) {
-            return "";
+    private int officialSupervisionRowHeight(OfficialSupervisionRow row) {
+        var lineCount = Math.max(
+                Math.max(lineCount(row.trade()), lineCount(row.focus())),
+                lineCount(row.content()));
+        return Math.max(420, 320 + (lineCount * 220));
+    }
+
+    private int lineCount(String value) {
+        if (value == null || value.isBlank()) {
+            return 1;
         }
-        return String.join("\n\n", items.stream()
-                .map(mapper)
-                .filter(value -> value != null && !value.isBlank())
-                .toList());
+        return value.split("\\R", -1).length;
     }
 
     private List<OfficialSupervisionRow> officialSupervisionRows(DocxRenderContext context) {
-        var answers = listValue(context.request().payload().get("checklistAnswers"));
         var rows = new ArrayList<OfficialSupervisionRow>();
+        rows.addAll(officialDailyItemsRows(context));
+        if (!rows.isEmpty()) {
+            return rows;
+        }
+        var answers = listValue(context.request().payload().get("checklistAnswers"));
         var fallbackTrade = joinedNonBlank(
                 binding(context, "constructionTrade"),
                 binding(context, "detailedProcess"),
@@ -387,6 +405,48 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         return rows;
+    }
+
+    private List<OfficialSupervisionRow> officialDailyItemsRows(DocxRenderContext context) {
+        var payload = context.request().payload();
+        var steps = mapValue(payload.get("steps"));
+        var dailyLog = mapValue(steps.get("DAILY_LOG"));
+        var dailyLogPayload = mapValue(dailyLog.get("payload"));
+        var dailyItems = mapValue(dailyLogPayload.get("dailyItems"));
+        var groups = listValue(dailyItems.get("groups"));
+        var rows = new ArrayList<OfficialSupervisionRow>();
+        for (Object groupValue : groups) {
+            var group = mapValue(groupValue);
+            var groupLabel = officialGroupLabel(group);
+            var items = listValue(group.get("items"));
+            if (items.isEmpty() && !groupLabel.isBlank()) {
+                rows.add(new OfficialSupervisionRow(groupLabel, "", ""));
+                continue;
+            }
+            var firstRowInGroup = true;
+            for (Object itemValue : items) {
+                var item = mapValue(itemValue);
+                var focus = valueOrBlank(item.get("item")).trim();
+                var content = valueOrBlank(item.get("content")).trim();
+                if (groupLabel.isBlank() && focus.isBlank() && content.isBlank()) {
+                    continue;
+                }
+                rows.add(new OfficialSupervisionRow(firstRowInGroup ? groupLabel : "", focus, content));
+                firstRowInGroup = false;
+            }
+        }
+        return rows;
+    }
+
+    private String officialGroupLabel(Map<String, Object> group) {
+        var trade = valueOrBlank(group.get("trade")).trim();
+        var process = joinedNonBlank(
+                valueOrBlank(group.get("process")).trim(),
+                valueOrBlank(group.get("floor")).trim());
+        if (trade.isBlank()) {
+            return process.isBlank() ? "" : "(" + process + ")";
+        }
+        return process.isBlank() ? trade : trade + "\n(" + process + ")";
     }
 
     private String officialLinedSectionXml(String title, String value, int heightTwips) {

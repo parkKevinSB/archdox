@@ -75,7 +75,9 @@ class CoreKoreanDocumentGenerationSmokeTest {
         assertTrue(documentXml.contains("레퍼런스 타워 신축공사"));
         assertTrue(documentXml.contains("2026"));
         assertTrue(documentXml.contains("25"));
-        assertTrue(documentXml.contains("철근콘크리트공사 / 3층"));
+        assertTrue(documentXml.contains("철근 콘크리트 공사"));
+        assertTrue(documentXml.contains("기초, 지하층 바닥"));
+        assertTrue(documentXml.contains("철근 조립, 배근"));
         assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
         assertTrue(documentXml.contains("전경 사진"));
         assertTrue(documentXml.contains("사진 및 설명"));
@@ -146,6 +148,33 @@ class CoreKoreanDocumentGenerationSmokeTest {
                                 Map.of("label", "감리 내용", "source", "note", "width", 3500))),
                         "checklistPhotoSection", checklistPhotoTable(),
                         "photoSection", photoTable()),
+                "steps", Map.of(
+                        "DAILY_LOG", Map.of(
+                                "payload", Map.of(
+                                        "dailyItems", Map.of(
+                                                "groups", List.of(
+                                                        Map.of(
+                                                                "trade", "철근 콘크리트 공사",
+                                                                "process", "기초, 지하층 바닥",
+                                                                "floor", "",
+                                                                "items", List.of(
+                                                                        Map.of(
+                                                                                "item", "철근 조립, 배근",
+                                                                                "content", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                "photoIds", List.of(1, 2)),
+                                                                        Map.of(
+                                                                                "item", "철근 규격 증명서",
+                                                                                "content", "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
+                                                                                "photoIds", List.of()))),
+                                                        Map.of(
+                                                                "trade", "가설공사",
+                                                                "process", "3층",
+                                                                "floor", "",
+                                                                "items", List.of(
+                                                                        Map.of(
+                                                                                "item", "안전난간 설치 상태",
+                                                                                "content", "개구부 주변 안전난간 보강 완료",
+                                                                                "photoIds", List.of(3))))))))),
                 "checklistAnswers", List.of(
                         Map.of(
                                 "itemCode", "LOG-001",
