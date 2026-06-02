@@ -78,9 +78,11 @@ class DefaultKoreanTemplateResourceTest {
             if (isConstructionDailyTemplate(templateCase)) {
                 assertTrue(documentXml.contains("[별지 제2호서식]"), templateCase.code());
                 assertTrue(documentXml.contains("공사감리일지"), templateCase.code());
-                assertTrue(documentXml.contains("공사감리자"), templateCase.code());
-                assertTrue(documentXml.contains("작업사항"), templateCase.code());
-                assertTrue(documentXml.contains("감리착안사항"), templateCase.code());
+                assertTrue(documentXml.contains("일련번호"), templateCase.code());
+                assertTrue(documentXml.contains("총괄감리책임자"), templateCase.code());
+                assertTrue(documentXml.contains("건축사보"), templateCase.code());
+                assertTrue(documentXml.contains("공종 및 세부공정"), templateCase.code());
+                assertTrue(documentXml.contains("감리 항목"), templateCase.code());
                 assertTrue(documentXml.contains("작성방법"), templateCase.code());
                 assertTrue(documentXml.contains("Checked item"), templateCase.code());
                 assertTrue(documentXml.contains("Meets criteria"), templateCase.code());

@@ -17,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -63,11 +62,12 @@ class CoreKoreanDocumentGenerationSmokeTest {
 
         assertTrue(documentXml.contains("[별지 제2호서식]"));
         assertTrue(documentXml.contains("공사감리일지"));
-        assertTrue(documentXml.contains("공사감리자"));
-        assertTrue(documentXml.contains("감리원"));
+        assertTrue(documentXml.contains("일련번호"));
+        assertTrue(documentXml.contains("총괄감리책임자"));
+        assertTrue(documentXml.contains("건축사보"));
         assertTrue(documentXml.contains("공사명"));
-        assertTrue(documentXml.contains("작업사항"));
-        assertTrue(documentXml.contains("감리착안사항"));
+        assertTrue(documentXml.contains("공종 및 세부공정"));
+        assertTrue(documentXml.contains("감리 항목"));
         assertTrue(documentXml.contains("감리내용"));
         assertTrue(documentXml.contains("특기사항"));
         assertTrue(documentXml.contains("지적사항 및 처리결과"));

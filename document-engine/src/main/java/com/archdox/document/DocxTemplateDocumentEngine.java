@@ -255,6 +255,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String officialDailyLogTitleXml() {
         return """
+                %s
                 <w:tbl>
                   <w:tblPr>
                     <w:tblW w:w="%d" w:type="dxa"/>
@@ -272,17 +273,19 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 </w:tbl>
                 %s
                 """.formatted(
+                officialParagraph("■ 건축공사 감리세부기준 [별지 제2호서식]  <개정 2017. 2. 4.>", false, 15, "left", "0000FF"),
                 OFFICIAL_PAGE_WIDTH,
                 officialRow(List.of(
-                        officialCell(List.of(officialParagraph("[별지 제2호서식]", false, 26, "left")), "3138", 1),
+                        officialCell(List.of(officialParagraph("", false, 20, "left")), "3138", 1),
                         officialCell(List.of(officialParagraph("공사감리일지", true, 44, "center")), "4184", 1),
                         officialCell(List.of(officialParagraph("", false, 20, "right")), "3138", 1)),
-                        900),
-                horizontalRuleParagraph(22));
+                        780),
+                horizontalRuleParagraph(14));
     }
 
     private String officialDailyLogHeaderXml(DocxRenderContext context) throws IOException {
         var date = inspectionDateParts(context);
+        var serialNo = binding(context, "serialNo", "reportNo");
         var constructionName = binding(context, "constructionName", "constructionProjectName", "projectName");
         var dateLine = "공사    "
                 + blankIfMissing(date.year()) + " 년    "
@@ -291,17 +294,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 + blankIfMissing(date.dayOfWeek()) + " 요일)    날씨 : "
                 + binding(context, "weather");
         var supervisorCell = new ArrayList<String>();
-        supervisorCell.add(officialParagraph("공사감리자    " + binding(context, "chiefSupervisorName", "supervisorName", "inspectorName"), false, 22, "left"));
+        supervisorCell.add(officialParagraph("총괄감리책임자    " + binding(context, "chiefSupervisorName", "supervisorName", "inspectorName"), false, 20, "left"));
         signatureImageParagraph(context).ifPresent(supervisorCell::add);
         supervisorCell.add(officialParagraph("(서명 또는 인)", false, 18, "right"));
         var assistantCell = List.of(
-                officialParagraph("감리원    " + binding(context, "architectAssistantName", "assistantArchitectName", "assistantSupervisorName"), false, 22, "left"),
+                officialParagraph("건축사보    " + binding(context, "architectAssistantName", "assistantArchitectName", "assistantSupervisorName"), false, 20, "left"),
                 officialParagraph("(서명 또는 인)", false, 18, "right"));
         var rows = new StringBuilder();
         rows.append(officialRow(List.of(
+                officialCell(List.of(officialParagraph("일련번호    " + serialNo, false, 18, "left")), String.valueOf(OFFICIAL_PAGE_WIDTH), 4)),
+                500));
+        rows.append(officialRow(List.of(
                 officialCell(supervisorCell, "5230", 2),
                 officialCell(assistantCell, "5230", 2)),
-                820));
+                650));
         rows.append(officialRow(List.of(
                 officialCell(List.of(officialParagraph("공사명", false, 22, "left")), "1700", 1),
                 officialCell(List.of(
@@ -323,24 +329,18 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     private String officialDailyLogWorkTableXml(DocxRenderContext context) {
         var rows = new StringBuilder();
         var items = officialSupervisionRows(context);
-        var visibleRows = Math.max(4, items.size());
         rows.append(officialRow(List.of(
-                officialCell(List.of(officialParagraph("작업사항", false, 19, "center")), "1450", 1, null, "restart", "center"),
-                officialCell(List.of(officialParagraph("공종", false, 18, "center")), "1400", 1),
-                officialCell(List.of(officialParagraph("감리착안사항", false, 18, "center")), "2450", 1),
-                officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "6160", 1)),
+                officialCell(officialParagraphs("공종 및 세부공정\n(     층)", 18, "center"), "3100", 1),
+                officialCell(List.of(officialParagraph("감리 항목", false, 18, "center")), "2800", 1),
+                officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "4560", 1)),
                 520));
-        for (int i = 0; i < visibleRows; i++) {
-            var item = i < items.size() ? items.get(i) : OfficialSupervisionRow.blank();
-            rows.append(officialRow(List.of(
-                    officialCell(List.of(officialParagraph("", false, 18, "center")), "1450", 1, null, "continue", "center"),
-                    officialCell(officialParagraphs(item.trade(), 18, "left"), "1400", 1),
-                    officialCell(officialParagraphs(item.focus(), 18, "left"), "2450", 1),
-                    officialCell(officialParagraphs(item.content(), 18, "left"), "6160", 1)),
-                    820));
-        }
+        rows.append(officialRow(List.of(
+                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::trade), 18, "left"), "3100", 1),
+                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::focus), 18, "left"), "2800", 1),
+                officialCell(officialParagraphs(officialJoinedColumn(items, OfficialSupervisionRow::content), 18, "left"), "4560", 1)),
+                4820));
         return officialTableXml(
-                List.of("1450", "1400", "2450", "6160"),
+                List.of("3100", "2800", "4560"),
                 rows.toString(),
                 OFFICIAL_PAGE_WIDTH,
                 8,
@@ -349,6 +349,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 0,
                 4,
                 4);
+    }
+
+    private String officialJoinedColumn(List<OfficialSupervisionRow> items, java.util.function.Function<OfficialSupervisionRow, String> mapper) {
+        if (items.isEmpty()) {
+            return "";
+        }
+        return String.join("\n\n", items.stream()
+                .map(mapper)
+                .filter(value -> value != null && !value.isBlank())
+                .toList());
     }
 
     private List<OfficialSupervisionRow> officialSupervisionRows(DocxRenderContext context) {
@@ -567,10 +577,15 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String officialParagraph(String text, boolean bold, int sizeHalfPoints, String justification) {
+        return officialParagraph(text, bold, sizeHalfPoints, justification, "000000");
+    }
+
+    private String officialParagraph(String text, boolean bold, int sizeHalfPoints, String justification, String color) {
         var jc = justification == null || justification.isBlank()
                 ? ""
                 : "<w:jc w:val=\"" + escapeXml(justification) + "\"/>";
         var boldXml = bold ? "<w:b/><w:bCs/>" : "";
+        var colorXml = color == null || color.isBlank() ? "" : "<w:color w:val=\"" + escapeXml(color) + "\"/>";
         return """
                 <w:p>
                   <w:pPr>%s<w:spacing w:before="0" w:after="0"/></w:pPr>
@@ -578,12 +593,13 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                     <w:rPr>
                       <w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/>
                       %s
+                      %s
                       <w:sz w:val="%d"/><w:szCs w:val="%d"/>
                     </w:rPr>
                     <w:t xml:space="preserve">%s</w:t>
                   </w:r>
                 </w:p>
-                """.formatted(jc, boldXml, sizeHalfPoints, sizeHalfPoints, escapeXml(text));
+                """.formatted(jc, boldXml, colorXml, sizeHalfPoints, sizeHalfPoints, escapeXml(text));
     }
 
     private String horizontalRuleParagraph(int size) {

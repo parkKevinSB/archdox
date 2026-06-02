@@ -275,12 +275,12 @@ class DocxTemplateSmokeTest {
         var documentXml = zipEntry(content, "word/document.xml");
         assertTrue(documentXml.contains("[별지 제2호서식]"));
         assertTrue(documentXml.contains(KO_CONSTRUCTION_DAILY_LOG));
-        assertTrue(documentXml.contains("공사감리자"));
-        assertTrue(documentXml.contains("감리원"));
+        assertTrue(documentXml.contains("일련번호"));
+        assertTrue(documentXml.contains("총괄감리책임자"));
+        assertTrue(documentXml.contains("건축사보"));
         assertTrue(documentXml.contains("공사명"));
-        assertTrue(documentXml.contains("작업사항"));
-        assertTrue(documentXml.contains("공종"));
-        assertTrue(documentXml.contains("감리착안사항"));
+        assertTrue(documentXml.contains("공종 및 세부공정"));
+        assertTrue(documentXml.contains("감리 항목"));
         assertTrue(documentXml.contains("감리내용"));
         assertTrue(documentXml.contains("Supervisor Kim"));
         assertTrue(documentXml.contains("Reference Tower"));
