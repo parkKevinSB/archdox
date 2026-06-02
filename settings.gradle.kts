@@ -16,6 +16,7 @@ dependencyResolutionManagement {
 rootProject.name = "archdox"
 
 include("cloud-api")
+include("archdox-worker")
 include("archdox-ai-harness")
 include("document-engine")
 include("domain-shared")

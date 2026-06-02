@@ -13,6 +13,9 @@ domain name. Locality is a deployment property, not the server's identity.
 ## Core Concept
 
 `ArchDox Agent` is the execution runtime for document/photo/artifact work.
+It is not an AI agent, chat agent, or autonomous LLM worker. The name means a
+registered runtime process that executes Cloud API commands for document
+rendering, photo pickup, artifact delivery, and configured storage.
 
 It can run in more than one deployment mode:
 
@@ -213,6 +216,10 @@ instance. Command truth stays in `archdox_agent_commands`, connection visibility
 stays in `archdox_agent_sessions`, and the instance with the live WebSocket acts
 only as transport.
 
+Current production/MVP operation is single active Cloud API instance. Multi-API
+active operation must not be enabled until command wakeup/routing and durable
+Flower recovery are implemented and verified.
+
 ## Connection Health Monitoring
 
 Agent connection health is controlled by Cloud API Flower orchestration.
@@ -255,6 +262,21 @@ same agentId HELLO
 Do not let a new process silently take over a healthy Agent identity. If a real
 second runtime is needed, register a separate `agentCode`, for example
 `office-backup-1` or `cloud-managed-2`.
+
+## WebSocket Send Safety
+
+Spring `WebSocketSession.sendMessage()` must not be called concurrently for the
+same session. All ArchDox Agent outbound messages must go through
+`ArchDoxAgentSessionRegistry`, which stores a
+`ConcurrentWebSocketSessionDecorator` per physical WebSocket session.
+
+This applies to both:
+
+- handler replies such as `WELCOME` and `ERROR`
+- command dispatch from service or Flower worker threads
+
+Do not add direct `session.sendMessage(...)` calls in handler, service, or flow
+code.
 
 ## WebSocket Command Payload Policy
 

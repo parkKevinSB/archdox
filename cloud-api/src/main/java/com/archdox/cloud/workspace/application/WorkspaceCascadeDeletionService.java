@@ -58,6 +58,11 @@ public class WorkspaceCascadeDeletionService {
                     where office_id = :officeId and project_id = :projectId
                   )
                 """, params);
+        deleteWorkerChatChildren("""
+                select id
+                from archdox_worker_chat_sessions
+                where office_id = :officeId and project_id = :projectId
+                """, params);
         update("delete from inspection_targets where office_id = :officeId and project_id = :projectId", params);
         update("delete from project_assignments where office_id = :officeId and project_id = :projectId", params);
         update("delete from sites where office_id = :officeId and project_id = :projectId", params);
@@ -89,6 +94,17 @@ public class WorkspaceCascadeDeletionService {
                   )
                 """, params);
         update("""
+                delete from archdox_worker_chat_messages
+                where session_id in (
+                    select id from archdox_worker_chat_sessions
+                    where office_id = :officeId and project_id = :projectId and site_id = :siteId
+                )
+                """, params);
+        update("""
+                delete from archdox_worker_chat_sessions
+                where office_id = :officeId and project_id = :projectId and site_id = :siteId
+                """, params);
+        update("""
                 delete from inspection_targets
                 where office_id = :officeId and project_id = :projectId and site_id = :siteId
                 """, params);
@@ -110,6 +126,19 @@ public class WorkspaceCascadeDeletionService {
 
     private void deleteReportChildren(String reportIdQuery, Map<String, ?> params) {
         deleteDocumentObjects(reportIdQuery, params);
+        update("""
+                delete from archdox_worker_chat_messages
+                where session_id in (
+                    select id from archdox_worker_chat_sessions where report_id in (
+                """ + reportIdQuery + """
+                    )
+                )
+                """, params);
+        update("""
+                delete from archdox_worker_chat_sessions where report_id in (
+                """ + reportIdQuery + """
+                )
+                """, params);
         update("update inspection_reports set last_document_job_id = null where id in (" + reportIdQuery + ")", params);
         update("""
                 delete from document_delivery_requests
@@ -198,6 +227,21 @@ public class WorkspaceCascadeDeletionService {
         update("""
                 delete from photos where id in (
                 """ + photoIdQuery + """
+                )
+                """, params);
+    }
+
+    private void deleteWorkerChatChildren(String sessionIdQuery, Map<String, ?> params) {
+        update("""
+                delete from archdox_worker_chat_messages
+                where session_id in (
+                """ + sessionIdQuery + """
+                )
+                """, params);
+        update("""
+                delete from archdox_worker_chat_sessions
+                where id in (
+                """ + sessionIdQuery + """
                 )
                 """, params);
     }

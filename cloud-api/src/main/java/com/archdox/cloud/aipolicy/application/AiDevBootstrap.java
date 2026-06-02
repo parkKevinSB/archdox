@@ -90,9 +90,14 @@ public class AiDevBootstrap implements ApplicationRunner {
     private void attachReviewProviderToOffices(AiProviderCredential provider, OffsetDateTime now) {
         var offices = officeRepository.findAll();
         var changedOfficeIds = new LinkedHashSet<Long>();
+        var skippedOfficeIds = new LinkedHashSet<Long>();
         for (var office : offices) {
             var policy = officePolicyRepository.findByOfficeId(office.id())
                     .orElseGet(() -> officePolicyRepository.save(new OfficeAiPolicy(office.id(), null, now)));
+            if (policy.preferredProviderCredentialId() != null) {
+                skippedOfficeIds.add(office.id());
+                continue;
+            }
             policy.update(
                     true,
                     properties.isDocumentReviewAiEnabled(),
@@ -110,6 +115,9 @@ public class AiDevBootstrap implements ApplicationRunner {
         }
         if (!changedOfficeIds.isEmpty()) {
             log.info("Bootstrapped development AI policy for offices={}", changedOfficeIds);
+        }
+        if (!skippedOfficeIds.isEmpty()) {
+            log.info("Skipped development AI policy bootstrap for already configured offices={}", skippedOfficeIds);
         }
     }
 }

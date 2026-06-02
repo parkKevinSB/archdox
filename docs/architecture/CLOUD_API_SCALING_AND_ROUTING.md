@@ -3,6 +3,25 @@
 This document defines how ArchDox behaves when multiple Cloud API instances run
 behind a load balancer.
 
+## Current Operating Mode
+
+The current production/MVP operating mode is:
+
+```text
+single active Cloud API instance
+```
+
+Normal REST APIs are written to be stateless where practical, but Agent
+WebSocket command delivery and Flower runtime state still depend on the local
+process that owns the in-memory WebSocket session and the in-memory Flower
+worker. Until DB/Redis-backed command wakeup and durable Flower recovery are
+implemented and tested, production must not run multiple active Cloud API
+instances behind a load balancer for the same environment.
+
+Additional instances may be prepared as cold standby or used in isolated test
+environments, but only one active instance should own Agent WebSocket traffic
+and background orchestration.
+
 ## Front Door
 
 Production should have a front door in front of API instances.
@@ -120,6 +139,11 @@ User/API command request
 
 In-memory session registry is only a fast transport cache. The command record is
 the durable truth.
+
+Current code serializes outbound writes to each Agent WebSocket through Spring's
+`ConcurrentWebSocketSessionDecorator`. Do not bypass the session registry for
+Agent outbound messages; direct `WebSocketSession.sendMessage()` calls can race
+with handler replies or Flower worker command dispatch.
 
 ## Agent Sessions
 

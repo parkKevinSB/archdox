@@ -515,6 +515,20 @@ export type AiProviderCredential = {
   publishedAt?: string | null;
 };
 
+export type AiProviderConnectionTestResult = {
+  providerId: number;
+  providerCode: string;
+  providerType: string;
+  modelName: string;
+  success: boolean;
+  status: "SUCCEEDED" | "FAILED" | string;
+  message: string;
+  latencyMs?: number | null;
+  finishReason?: string | null;
+  responsePreview?: string | null;
+  testedAt: string;
+};
+
 export type OfficeAiPolicy = {
   officeId: number;
   officeCode: string;
@@ -583,6 +597,49 @@ export type AiHarnessTraceEvent = {
   message?: string | null;
   attributes: Record<string, unknown>;
   createdAt: string;
+};
+
+export type AiObservationMode = {
+  enabled: boolean;
+  maxEntries: number;
+  ttlMinutes: number;
+  maxPromptChars: number;
+  maxResponseChars: number;
+  currentEntryCount: number;
+  updatedAt: string;
+};
+
+export type AiObservationMessage = {
+  role: string;
+  content: string;
+};
+
+export type AiObservation = {
+  callId: string;
+  status: string;
+  providerCode: string;
+  modelId: string;
+  modelName: string;
+  officeId?: number | null;
+  feature?: string | null;
+  workflowType?: string | null;
+  workflowKey?: string | null;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  requestOptions: Record<string, unknown>;
+  promptMessages: AiObservationMessage[];
+  promptTruncated: boolean;
+  responseText?: string | null;
+  responseTruncated: boolean;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  latencyMs?: number | null;
+  finishReason?: string | null;
+  providerTrace: Record<string, string>;
+  errorType?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PlatformReportPreflightFinding = {

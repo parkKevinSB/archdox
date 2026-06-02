@@ -6,6 +6,7 @@ import {
   Loader2,
   LogOut,
   MapPin,
+  MessageSquare,
   Plus,
   Search,
   Settings,
@@ -13,7 +14,7 @@ import {
   Trash2,
   UploadCloud
 } from "lucide-react";
-import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   createInspectionReport,
@@ -58,6 +59,8 @@ import { ReportList } from "./features/reports/components/ReportList";
 import { ReportStartForm } from "./features/reports/components/ReportStartForm";
 import { ReportWizard } from "./features/reports/components/ReportWizard";
 import type { DocumentTypeDefinition, ReportFormValues } from "./features/reports/types";
+import { ProjectWorkerChat } from "./features/workerchat/components/ProjectWorkerChat";
+import type { WorkerChatSession } from "./features/workerchat/types";
 import type {
   InspectionReport,
   InspectionStep,
@@ -123,11 +126,12 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof ClipboardList 
   { key: "sites", label: "현장", icon: MapPin },
   { key: "reports", label: "리포트", icon: FileText },
   { key: "jobs", label: "문서", icon: UploadCloud },
-  { key: "photos", label: "사진", icon: Camera }
+  { key: "photos", label: "사진", icon: Camera },
+  { key: "chat", label: "채팅", icon: MessageSquare }
 ];
 
 const bottomNavItems = navItems.filter((item) =>
-  ["projects", "sites", "reports", "jobs", "photos"].includes(item.key)
+  ["projects", "sites", "reports", "jobs", "photos", "chat"].includes(item.key)
 );
 
 const projectBusinessTypeOptions: CodeOption[] = [
@@ -184,6 +188,7 @@ export default function App() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastWorkerChatSyncKeyRef = useRef("");
 
   const selectedOffice = useMemo(
     () => {
@@ -516,6 +521,60 @@ export default function App() {
     if (report) {
       setSelectedProjectId(report.projectId);
       setSelectedSiteId(report.siteId ?? null);
+    }
+  }
+
+  function handleWorkerChatSessionSync(session: WorkerChatSession) {
+    if (!auth || !selectedOfficeId) {
+      return;
+    }
+    const latestAssistant = [...session.messages]
+      .reverse()
+      .find((message) => message.role === "ASSISTANT");
+    const syncKey = [
+      session.id,
+      session.projectId,
+      session.siteId ?? "",
+      session.reportId ?? "",
+      latestAssistant?.id ?? "",
+      latestAssistant?.status ?? "",
+      latestAssistant?.workerActionType ?? "",
+      latestAssistant?.updatedAt ?? ""
+    ].join(":");
+    if (lastWorkerChatSyncKeyRef.current === syncKey) {
+      return;
+    }
+    lastWorkerChatSyncKeyRef.current = syncKey;
+
+    setSelectedProjectId(session.projectId);
+    if (session.siteId) {
+      setSelectedSiteId(session.siteId);
+    } else if (session.stage === "AWAITING_SITE") {
+      setSelectedSiteId(null);
+      setSelectedReportId(null);
+    }
+    if (session.reportId) {
+      setSelectedReportId(session.reportId);
+    } else if (session.stage === "AWAITING_SITE" || session.stage === "AWAITING_REPORT") {
+      setSelectedReportId(null);
+    }
+
+    const actionType = latestAssistant?.workerActionType ?? latestAssistant?.metadata?.actionType;
+    const shouldRefreshWorkspace =
+      latestAssistant?.status === "COMPLETED"
+      && [
+        "CREATE_SITE",
+        "CREATE_REPORT",
+        "UPDATE_REPORT_STEP",
+        "SUBMIT_REPORT",
+        "RUN_PREFLIGHT_REVIEW",
+        "REQUEST_DOCUMENT_GENERATION"
+      ].includes(String(actionType));
+    if (shouldRefreshWorkspace) {
+      void loadWorkspace(auth.accessToken, selectedOfficeId);
+      if (session.projectId) {
+        void loadProjectSites(session.projectId, auth.accessToken, selectedOfficeId);
+      }
     }
   }
 
@@ -888,6 +947,16 @@ export default function App() {
               reports={workspace.reports}
               token={auth.accessToken}
               onRefreshWorkspace={() => loadWorkspace()}
+            />
+          )}
+          {activeView === "chat" && (
+            <ProjectWorkerChat
+              officeId={selectedOfficeId}
+              project={selectedProject}
+              token={auth.accessToken}
+              onOpenDocuments={() => navigateToView("jobs")}
+              onSelectProject={() => navigateToView("projects")}
+              onSessionSync={handleWorkerChatSessionSync}
             />
           )}
           {activeView === "more" && <MoreView user={auth.user} onLogout={logout} />}

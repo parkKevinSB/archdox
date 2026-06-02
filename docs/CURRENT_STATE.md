@@ -1,6 +1,6 @@
 # ArchDox Current State
 
-Last updated: 2026-05-29
+Last updated: 2026-06-01
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
@@ -70,6 +70,9 @@ These are development-only credentials.
 - Agent-based document rendering with HTML, DOCX, and PDF export direction.
 - Template/configuration registry foundations, template upload/storage, output
   layout, and neutral document data model direction.
+- Office knowledge platform direction is documented: accumulated structured
+  project/site/report/checklist/photo/finding/document/operation data should be
+  treated as future office memory, not just temporary document-generation input.
 - Preflight document review gate tied to report revision state.
 - AI harness foundation for document review assistance, with code validation
   expected before AI validation.
@@ -95,8 +98,59 @@ These are development-only credentials.
 - The platform admin UI can trigger incident diagnosis and show the latest
   diagnosis snapshot as operational summary, redaction policy, recent findings,
   and related operation events.
+- `archdox-worker` module foundation exists for ArchDox Worker Service:
+  `ArchDoxWorkerRequest`, `ArchDoxWorkerAction`, action registry, policy gate, trace events,
+  and a Flower-backed `ArchDoxWorkerExecutionFlow`. `cloud-api` wires the module with a safe
+  deny-by-default policy and a Flower worker slot named `archdox-worker`.
+- Report-task ArchDox Worker chat now exists as the first user-facing worker slice:
+  `cloud-api` persists one active worker chat session per user/project, stores messages on the
+  server, submits `WORKER_CHAT_ADVANCE` through the ArchDox Worker Flower flow, and records
+  worker traces through operation events. The client web app adds a `채팅` menu that requires
+  a selected project and keeps the existing document/report UI as the source of truth.
+  Update: this slice now uses report-task worker chat sessions rather than project-long
+  chat threads. Each session stores `siteId`/`reportId` and advances deterministically
+  through `AWAITING_SITE -> AWAITING_REPORT -> REPORT_WORKING` with
+  `WORKER_CHAT_ADVANCE`.
+  The first domain-mutating worker actions are now connected: `CREATE_SITE`,
+  `CREATE_REPORT`, and `UPDATE_REPORT_STEP`. They run through the ArchDox Worker
+  Flower flow, then call the existing `SiteService` and `InspectionReportService`
+  paths so normal permissions and domain validation still apply. `UPDATE_REPORT_STEP`
+  is now schema-aware: it resolves the selected report's workflow definition,
+  exposes workflow steps to the chat UI, validates requested step codes, and
+  falls back to the next unsaved workflow step when the client does not provide
+  one. `SUBMIT_REPORT` is now connected as the next narrow worker action: it
+  calls the existing `InspectionReportService.submit` path, runs deterministic
+  submit validation, moves the report to `READY_TO_GENERATE`, advances the chat
+  session to `REVIEWING`, and lets the UI guide the user to the document tab.
+  Worker Chat can now continue the document path with `RUN_PREFLIGHT_REVIEW`
+  and `REQUEST_DOCUMENT_GENERATION`. These actions do not create a parallel
+  document process; they call the same `ReportPreflightReviewService` and
+  `DocumentJobService` paths used by the document tab, then submit the existing
+  Flower flows. The document tab remains the durable progress/history/download
+  view even when the worker starts the work from chat. Worker Chat session
+  responses now include a `workflowState` snapshot with the selected report,
+  latest preflight run, latest document job, active flags, and generation
+  eligibility. The web chat UI keeps polling while review or generation is
+  active, and document generation controls are enabled only after a current
+  revision preflight pass.
+  `ConversationPlannerHarness` now exists in `archdox-ai-harness`; the
+  worker chat `WORKER_CHAT_ADVANCE` path can call it after REST has returned,
+  attach a typed `plannerProposal` to the assistant reply, and keep actual
+  mutation behind explicit ArchDox Worker actions. The web chat UI now renders
+  the latest planner proposal as a confirmation card and executes it only when
+  the user clicks the normal confirmed action path.
+  Current Worker execution is a single-action Flower envelope, not Bloom event
+  orchestration. If Worker work grows into long-running multi-step business
+  tasks, introduce an explicit `WorkerTaskOrchestrationFlow` that coordinates
+  actions, deterministic validation, AI harness calls, approvals, retries, and
+  recovery while keeping existing domain services as the mutation path.
+  Worker Chat UI now synchronizes chat session `siteId`/`reportId` back into the
+  standard selected project/site/report context, refreshes workspace lists after
+  domain-mutating worker actions, and shows a lightweight processing status bar
+  while pending assistant work is in progress.
 - Security baseline including login protection, rate limiting, security
-  response conventions, and deployment edge policy direction.
+  response conventions, generic unexpected-error fallback, and deployment edge
+  policy direction.
 - Optional document signature input before generation. Signatures are
   revision-specific job input, not user profile data, and templates decide
   whether to render or ignore them.
@@ -120,9 +174,15 @@ payloads.
 
 Only registered agents may connect. One logical `agent_id` may have one active
 WebSocket session. Additional physical workers need separate agent registrations.
+Outbound Agent WebSocket writes are serialized through the session registry and
+must not bypass it with direct `sendMessage()` calls.
 
 The durable source of truth is the database. Flower runtime state is recoverable
 from durable job/session/command records until full Flower persistence is added.
+
+Current production/MVP operation is a single active Cloud API instance. Multi
+active API operation requires command wakeup/routing and durable Flower recovery
+work before it is allowed for one environment.
 
 The document source of truth is:
 

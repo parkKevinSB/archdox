@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,6 +86,35 @@ class ArchDoxProviderAiModelGatewayTest {
         assertThat(capturedRequestBody.get()).contains("\"model\":\"gpt-test\"");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"system\"");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"user\"");
+    }
+
+    @Test
+    void connectionTestCanCallDraftProviderWithoutPublishingIt() throws Exception {
+        startServer("/chat/completions", """
+                {
+                  "id": "chatcmpl-test",
+                  "choices": [
+                    {"message": {"content": "{\\"status\\":\\"ok\\"}"}, "finish_reason": "stop"}
+                  ],
+                  "usage": {"prompt_tokens": 4, "completion_tokens": 3}
+                }
+                """, new AtomicReference<>());
+        var provider = new AiProviderCredential(
+                "draft-openai",
+                "Draft OpenAI",
+                AiProviderType.CUSTOM_HTTP,
+                "http://localhost:" + server.getAddress().getPort(),
+                "gpt-test",
+                null,
+                null,
+                1L,
+                OffsetDateTime.now());
+        var gateway = gateway(provider, "draft-openai");
+
+        var response = await(gateway.submit(connectionTestRequest("draft-openai", "gpt-test")));
+
+        assertThat(response.rawText()).isEqualTo("{\"status\":\"ok\"}");
+        assertThat(response.modelId().asString()).isEqualTo("draft-openai:gpt-test");
     }
 
     @Test
@@ -247,6 +277,18 @@ class ArchDoxProviderAiModelGatewayTest {
                                 new RenderedPrompt.Message(RenderedPrompt.Role.USER, "Review this document.")),
                         new PromptVersion(promptId, "v1")),
                 ProviderOptions.empty(),
+                Duration.ofSeconds(5));
+    }
+
+    private AiModelRequest connectionTestRequest(String providerCode, String model) {
+        return new AiModelRequest(
+                new ModelId(providerCode, model),
+                new RenderedPrompt(
+                        List.of(
+                                new RenderedPrompt.Message(RenderedPrompt.Role.SYSTEM, "Return JSON only."),
+                                new RenderedPrompt.Message(RenderedPrompt.Role.USER, "Return {\"status\":\"ok\"}.")),
+                        new PromptVersion("archdox-provider-connection-test", "v1")),
+                ProviderOptions.of(Map.of(AiModelCallMetadata.PROVIDER_CONNECTION_TEST, true)),
                 Duration.ofSeconds(5));
     }
 

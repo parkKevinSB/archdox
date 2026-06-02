@@ -1,74 +1,124 @@
 # ArchDox AI Harness
 
-이 폴더는 ArchDox의 AI Harness 설계를 독립적으로 정리한다.
+This folder describes how ArchDox uses AI harnesses inside the document
+workflow platform.
 
-AI Harness는 AI를 문서 생성 엔진 안에 섞는 기능이 아니다. AI를 Flower
-기반의 통제된 workflow 안에서 실행하고, 결과를 검증 가능한 finding으로
-남기는 실행 틀이다.
-
-## 핵심 방향
-
-ArchDox의 기존 기준은 유지한다.
+AI is not the source of truth. ArchDox source data remains:
 
 ```text
 report snapshot
 + template config
 + output layout
++ photos / evidence metadata
 -> document-engine
 -> HTML / DOCX / PDF
 ```
 
-AI Harness는 이 흐름의 앞뒤에 붙는다.
+AI harnesses assist around that source data:
 
 ```text
-문서 생성 전
--> 입력 누락, 법률/업무 기준, 사진 증빙 조건 검토
+before document generation
+  -> find missing fields, weak evidence, inconsistent dates, legal/business
+     risk signals, and checklist gaps
 
-문서 생성 후
--> 생성 결과 품질, 내부 변수 노출, 사진/표 누락, 법정 서식 충족 여부 검토
+after document generation
+  -> inspect generated output quality, formatting risk, missing sections,
+     unresolved placeholders, and photo/table consistency
 ```
 
-AI는 사실 데이터를 직접 바꾸지 않는다.
+## Module Boundary
 
-AI가 할 수 있는 일:
+| Module | Responsibility |
+| --- | --- |
+| `flower-ai-harness` | Generic AI execution lifecycle: prompt, model call, validation, retry/refine, findings, fake-provider tests. |
+| `archdox-ai-harness` | ArchDox-specific AI harnesses built with `flower-ai-harness`: report preflight, document QA, conversation planning, operations diagnosis. |
+| `archdox-worker` | Controlled action layer that decides which allowed ArchDox action may run and executes it through Flower. |
+| `archdox-agent` | Registered document/photo/artifact execution runtime. It is not an AI agent. |
 
-- 문제 발견
-- 근거 제시
-- 수정 제안
-- 초안 생성
-- 품질/법률/업무 기준 검토 보조
+## What AI May Do
 
-AI가 하면 안 되는 일:
+- Find likely problems.
+- Explain evidence.
+- Suggest corrections.
+- Draft text when the user or workflow allows it.
+- Help review legal/business/checklist consistency.
+- Produce structured findings for the UI.
 
-- 사용자가 입력하지 않은 현장 사실을 임의로 작성
-- 사진이 없는데 있는 것처럼 꾸미기
-- 법률 근거를 창작
-- 검토 결과를 사람 승인 없이 업무 데이터에 자동 반영
+## What AI Must Not Do
 
-## 문서 목록
+- Invent site facts that the user did not provide.
+- Pretend a missing photo or attachment exists.
+- Mutate report/document state directly without a registered action.
+- Bypass deterministic validation, policy gates, or office permissions.
+- Replace the user's final review and approval.
 
-- [ARCHITECTURE.md](ARCHITECTURE.md): 모듈/프로세스/의존성 구조
-- [ARCHDOX_AI_ORCHESTRATION_FLOW.md](ARCHDOX_AI_ORCHESTRATION_FLOW.md): ArchDox business-level AI orchestration flow boundary and phases
-- [FLOWER_BLOOM_RUNTIME.md](FLOWER_BLOOM_RUNTIME.md): Flower/Bloom 실행 방식
-- [HARNESS_TYPES.md](HARNESS_TYPES.md): 문서 QA, 법률검토, 템플릿 온보딩 등 하네스 유형
-- [DATA_AND_SCHEMA.md](DATA_AND_SCHEMA.md): run, step, finding, evidence 데이터 구조
-- [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md): 구현 단계
+## Documents
 
-## MVP 결론
+- [ARCHITECTURE.md](ARCHITECTURE.md): module/process/layer boundaries.
+- [ARCHDOX_AI_ORCHESTRATION_FLOW.md](ARCHDOX_AI_ORCHESTRATION_FLOW.md):
+  business-level AI orchestration flow boundary and phases.
+- [FLOWER_BLOOM_RUNTIME.md](FLOWER_BLOOM_RUNTIME.md): Flower/Bloom runtime
+  direction.
+- [HARNESS_TYPES.md](HARNESS_TYPES.md): document QA, legal review, template
+  candidate, and operations harness types.
+- [DATA_AND_SCHEMA.md](DATA_AND_SCHEMA.md): run, step, finding, and evidence
+  data shape.
+- [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md): implementation
+  phases.
 
-처음에는 별도 프로세스를 만들지 않는다.
+## MVP Decision
+
+The first version runs inside the Cloud API process:
 
 ```text
-코드 구조: flower-ai-harness 라이브러리 + archdox-ai-harness Gradle 모듈
-실행 구조: cloud-api 프로세스 내부
-미래 구조: ai-harness-worker 별도 프로세스로 분리 가능
+Code structure:
+  flower-ai-harness library
+  + archdox-ai-harness Gradle module
+
+Runtime structure:
+  cloud-api process
+
+Future option:
+  separate ai-harness-worker process if load, cost, or isolation demands it
 ```
 
-첫 구현 대상은 `Document QA Harness`, `Report Preflight Harness`,
-`Ops Diagnosis Harness`다. 문서 생성 품질, 생성 전 검토, 운영 진단은
-모두 ArchDox 업무 지식이 필요하므로 `archdox-ai-harness`에 둔다.
+The first ArchDox-owned harnesses are:
 
-나중에 observer, trace export, provider health, fake provider fixture 같은
-일부 기능이 다른 프로젝트에서도 반복되면 `flower-ai-harness-*` 범용
-모듈로 추출할 수 있다. 다만 MVP에서는 ArchDox 전용 모듈 안에서 먼저
-검증한다.
+- Report Preflight Harness
+- Document QA Harness
+- Worker Conversation Planner Harness
+- Ops Diagnosis Harness
+
+If observer, trace export, provider health, or fake provider fixtures become
+useful outside ArchDox, they may later be extracted into generic
+`flower-ai-harness-*` modules. Until then, they should prove themselves inside
+ArchDox first.
+
+## Observation Mode
+
+AI evaluation needs more than a success flag. During testing, Platform Admin can
+temporarily enable an in-memory observation mode:
+
+```text
+AI request submitted
+  -> capture rendered prompt messages
+  -> capture model/provider/resource metadata
+AI response received
+  -> capture raw model text
+  -> capture token usage, latency, finish reason, provider trace
+Harness validation/finding pipeline
+  -> existing trace events and findings remain the durable operational record
+```
+
+This mode is intentionally not a DB-backed customer-data log. It keeps only the
+recent bounded buffer, expires entries by TTL, clears on disable, and disappears
+on process restart. The purpose is model evaluation and prompt debugging:
+
+- Was the prompt giving the model enough context?
+- Did the model return valid structured JSON?
+- Were the final findings faithful to the raw response?
+- Is the chosen model too weak, too verbose, too strict, or too lenient?
+
+Permanent records remain `ai_model_call_logs`, harness trace events, findings,
+operation events, and document/report state. Raw prompt and raw response access
+must stay platform-admin scoped.

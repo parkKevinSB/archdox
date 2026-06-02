@@ -39,6 +39,7 @@ needed for the change.
 | Security | [architecture/SECURITY_POLICY.md](architecture/SECURITY_POLICY.md) |
 | Operations and platform admin | [architecture/OPERATIONS_AND_ADMIN.md](architecture/OPERATIONS_AND_ADMIN.md) |
 | AI harness and AI review | [ai-harness/README.md](ai-harness/README.md), [architecture/AI_PROVIDER_POLICY.md](architecture/AI_PROVIDER_POLICY.md) |
+| Office knowledge platform direction | [architecture/OFFICE_KNOWLEDGE_PLATFORM_STRATEGY.md](architecture/OFFICE_KNOWLEDGE_PLATFORM_STRATEGY.md) |
 | Git workflow | [development/GIT_WORKFLOW.md](development/GIT_WORKFLOW.md) |
 | Phase discipline | [development/PHASE_EXECUTION_RULE.md](development/PHASE_EXECUTION_RULE.md) |
 | Korean reference forms | [reference-forms/korean/README.md](reference-forms/korean/README.md) |

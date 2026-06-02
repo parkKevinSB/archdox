@@ -43,6 +43,8 @@ ArchDox should grow toward these workflow families:
 - document delivery and sharing
 - operational monitoring and recovery
 - configuration-based customer customization
+- office knowledge and performance intelligence from accumulated structured
+  project/site/report/photo/finding data
 
 ## Naming Guidance
 
@@ -81,3 +83,10 @@ it as a workflow first and a service method second.
 If a feature differs by office, report type, output layout, approval stage, or
 required checklist, treat it as a configuration candidate before adding Java
 branches. See `CONFIGURATION_BASED_CUSTOMIZATION.md`.
+
+## Office Knowledge Direction
+
+ArchDox should preserve structured workflow data so the platform can later
+support office knowledge workers such as performance summaries, similar case
+search, evidence gap analysis, and repeated-risk detection. This direction is
+defined in `OFFICE_KNOWLEDGE_PLATFORM_STRATEGY.md`.

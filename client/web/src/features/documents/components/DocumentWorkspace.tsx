@@ -223,7 +223,7 @@ function DocumentReportCard({
   const preflightActive = preflightRun ? isPreflightActive(preflightRun) : false;
   const preflightBlocking = preflightRun ? isPreflightBlocking(preflightRun) : false;
   const preflightCurrent = preflightRun ? preflightRun.reportRevision === generationRevision(report) : false;
-  const preflightReady = Boolean(preflightRun && preflightCurrent && preflightRun.status === "PASSED");
+  const preflightReady = Boolean(preflightRun && preflightCurrent && preflightRun.status === "PASSED" && !isPreflightAiPending(preflightRun));
   const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status)
     && !active
     && preflightReady
@@ -235,7 +235,8 @@ function DocumentReportCard({
   const creatingHtml = creating && creatingOutputFormat === "HTML";
   const creatingPdf = creating && creatingOutputFormat === "PDF";
   const preflightStatus = preflightStatusLabel(preflightRun, Boolean(preflightRun && !preflightCurrent));
-  const detailOpen = !preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status);
+  const preflightBusy = reviewing || preflightActive;
+  const detailOpen = preflightBusy || (!preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status));
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
@@ -275,6 +276,7 @@ function DocumentReportCard({
           <span>
             <strong>생성 전 검토</strong>
             <small>{preflightGateHint(preflightRun, report)}</small>
+            {preflightBusy ? <PreflightInlineProgress run={preflightRun} reviewing={reviewing} /> : null}
           </span>
           <em>{preflightStatus}</em>
         </summary>
@@ -582,6 +584,9 @@ function PreflightReviewPanel({
   const stale = run ? run.reportRevision !== currentRevision : false;
   const warning = stale || (run && isPreflightBlocking(run));
   const aiMode = run ? preflightAiMode(run) : null;
+  const progress = reviewing || (run && isPreflightActive(run))
+    ? preflightProgress(run, reviewing)
+    : null;
 
   return (
     <section className={warning ? "preflight-panel warning" : "preflight-panel"}>
@@ -599,6 +604,19 @@ function PreflightReviewPanel({
           {preflightStatusLabel(run, stale)}
         </span>
       </div>
+
+      {progress ? (
+        <div className="preflight-progress-row" aria-label={`생성 전 검토 진행률 ${progress.percent}%`}>
+          <div>
+            <strong>{progress.label}</strong>
+            <span>{progress.detail}</span>
+          </div>
+          <em>{progress.percent}%</em>
+          <div className="preflight-progress-track">
+            <div style={{ width: `${progress.percent}%` }} />
+          </div>
+        </div>
+      ) : null}
 
       <div className="preflight-gate-grid">
         <div className={deterministicBlockingCount > 0 ? "preflight-gate-item blocking" : "preflight-gate-item pass"}>
@@ -678,6 +696,24 @@ function PreflightReviewPanel({
         </button>
       </div>
     </section>
+  );
+}
+
+function PreflightInlineProgress({
+  reviewing,
+  run
+}: {
+  reviewing: boolean;
+  run: ReportPreflightReviewRunResponse | null;
+}) {
+  const progress = preflightProgress(run, reviewing);
+  return (
+    <span className="preflight-inline-progress" aria-label={`생성 전 검토 진행률 ${progress.percent}%`}>
+      <span>
+        <i style={{ width: `${progress.percent}%` }} />
+      </span>
+      <small>{progress.label}</small>
+    </span>
   );
 }
 
@@ -870,6 +906,9 @@ function preflightTitle(run: ReportPreflightReviewRunResponse | null, stale: boo
   if (!run) {
     return "생성 전 검토 전";
   }
+  if (isPreflightAiPending(run)) {
+    return "생성 전 검토 중";
+  }
   if (stale) {
     return "최신 revision 재검토 필요";
   }
@@ -895,6 +934,11 @@ function preflightDescription(
   if (!run) {
     return "문서 생성 전에 누락된 항목과 사진 상태를 확인할 수 있습니다.";
   }
+  if (isPreflightAiPending(run)) {
+    return run.harnessStatus === "RUNNING"
+      ? "코드 검증은 반영됐고 AI 검토 응답을 기다리고 있습니다."
+      : "코드 검증 후 AI 검토를 준비하고 있습니다.";
+  }
   if (run.status === "PASSED") {
     if (stale) {
       return `검토는 v${run.reportRevision} 기준입니다. 현재 제출 v${currentRevision} 기준으로 다시 검토해 주세요.`;
@@ -911,6 +955,98 @@ function preflightDescription(
     return "검토 중 오류가 발생했습니다. 다시 실행해 주세요.";
   }
   return "검토 결과를 준비하고 있습니다.";
+}
+
+function preflightProgress(run: ReportPreflightReviewRunResponse | null, reviewing: boolean) {
+  if (reviewing) {
+    return {
+      percent: 12,
+      label: "검토 요청 중",
+      detail: "서버에 검토 작업을 등록하고 있습니다."
+    };
+  }
+  if (!run) {
+    return {
+      percent: 8,
+      label: "검토 준비",
+      detail: "검토를 시작할 수 있습니다."
+    };
+  }
+  if (run.status === "REQUESTED") {
+    return {
+      percent: 28,
+      label: "검토 대기",
+      detail: "검토 작업이 등록되어 실행을 기다립니다."
+    };
+  }
+  if (isPreflightAiPending(run)) {
+    if (run.harnessStatus === "RUNNING") {
+      return {
+        percent: 78,
+        label: "AI 검토 중",
+        detail: `${run.aiModelId ?? run.aiProviderCode ?? "설정된 모델"} 응답을 기다리고 있습니다.`
+      };
+    }
+    return {
+      percent: 56,
+      label: "AI 검토 준비",
+      detail: "코드 검증 결과를 반영했고 AI 하네스 완료를 기다립니다."
+    };
+  }
+  if (run.status === "RUNNING") {
+    if (!run.aiReviewPlanned || run.harnessStatus === "SKIPPED") {
+      return {
+        percent: 62,
+        label: "코드 검증 중",
+        detail: "필수값, 상태, 제출 revision을 확인하고 있습니다."
+      };
+    }
+    if (run.harnessStatus === "RUNNING") {
+      return {
+        percent: 78,
+        label: "AI 검토 중",
+        detail: `${run.aiModelId ?? run.aiProviderCode ?? "설정된 모델"} 응답을 기다리고 있습니다.`
+      };
+    }
+    if (run.harnessStatus === "COMPLETED" || run.harnessStatus === "SUCCEEDED") {
+      return {
+        percent: 90,
+        label: "결과 정리 중",
+        detail: "AI 응답을 finding으로 변환하고 있습니다."
+      };
+    }
+    return {
+      percent: 48,
+      label: "검토 실행 중",
+      detail: run.aiReviewPlanned ? "코드 검증 후 AI 검토를 준비하고 있습니다." : "코드 검증을 진행하고 있습니다."
+    };
+  }
+  if (run.status === "PASSED") {
+    return {
+      percent: 100,
+      label: "검토 완료",
+      detail: "문서 생성이 가능합니다."
+    };
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return {
+      percent: 100,
+      label: "확인 필요",
+      detail: "수정 또는 리스크 수용이 필요한 항목이 있습니다."
+    };
+  }
+  if (run.status === "FAILED") {
+    return {
+      percent: 100,
+      label: "검토 실패",
+      detail: "오류 확인 후 다시 실행해 주세요."
+    };
+  }
+  return {
+    percent: 40,
+    label: "검토 진행 중",
+    detail: "검토 상태를 갱신하고 있습니다."
+  };
 }
 
 function preflightAiDescription(run: ReportPreflightReviewRunResponse) {
@@ -952,6 +1088,9 @@ function preflightGateHint(run: ReportPreflightReviewRunResponse | null, report:
   if (!run) {
     return "최신 제출본 기준 생성 전 검토가 필요합니다.";
   }
+  if (isPreflightAiPending(run)) {
+    return "AI 검토 진행 중";
+  }
   const currentRevision = generationRevision(report);
   if (run.reportRevision !== currentRevision) {
     return `검토 기준 v${run.reportRevision}, 현재 제출본 v${currentRevision}`;
@@ -971,6 +1110,9 @@ function preflightGateHint(run: ReportPreflightReviewRunResponse | null, report:
 function preflightStatusLabel(run: ReportPreflightReviewRunResponse | null, stale: boolean) {
   if (!run) {
     return "검토 전";
+  }
+  if (isPreflightAiPending(run)) {
+    return "검토 중";
   }
   if (stale) {
     return "재검토 필요";
@@ -1033,7 +1175,21 @@ function harnessStatusLabel(status: string) {
 }
 
 function isPreflightActive(run: ReportPreflightReviewRunResponse) {
-  return run.status === "REQUESTED" || run.status === "RUNNING";
+  return run.status === "REQUESTED" || run.status === "RUNNING" || isPreflightAiPending(run);
+}
+
+function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
+  if (!run.aiReviewPlanned) {
+    return false;
+  }
+  if (run.terminalReason === "DETERMINISTIC_PREFLIGHT_BLOCKED") {
+    return false;
+  }
+  return !isPreflightHarnessTerminal(run);
+}
+
+function isPreflightHarnessTerminal(run: ReportPreflightReviewRunResponse) {
+  return ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
 }
 
 function isPreflightBlocking(run: ReportPreflightReviewRunResponse) {

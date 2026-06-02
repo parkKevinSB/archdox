@@ -116,7 +116,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     refetchInterval: (query) => {
       const runsByReport = query.state.data as ReportPreflightRunsByReport | undefined;
       const hasActiveReview = Object.values(runsByReport ?? {}).some((runs) =>
-        runs.some((run) => isPreflightActive(run))
+        runs.some((run) => shouldPollPreflightRun(run))
       );
       return hasActiveReview ? 3000 : false;
     }
@@ -177,7 +177,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       );
       return Object.fromEntries(entries) as ReportPreflightFindingsByRun;
     },
-    refetchInterval: preflightRunsQuery.data && latestPreflightRuns.some(isPreflightActive) ? 3000 : false
+    refetchInterval: preflightRunsQuery.data && latestPreflightRuns.some(shouldPollPreflightFindings) ? 3000 : false
   });
 
   const createJobMutation = useMutation({
@@ -360,7 +360,40 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
 }
 
 function isPreflightActive(run: ReportPreflightReviewRunResponse) {
-  return run.status === "REQUESTED" || run.status === "RUNNING";
+  return run.status === "REQUESTED" || run.status === "RUNNING" || isPreflightAiPending(run);
+}
+
+function shouldPollPreflightRun(run: ReportPreflightReviewRunResponse) {
+  return isPreflightActive(run) || shouldPollRecentlyCompletedAiRun(run);
+}
+
+function shouldPollPreflightFindings(run: ReportPreflightReviewRunResponse) {
+  return isPreflightActive(run) || shouldPollRecentlyCompletedAiRun(run);
+}
+
+function shouldPollRecentlyCompletedAiRun(run: ReportPreflightReviewRunResponse) {
+  if (!run.aiReviewPlanned || !isPreflightHarnessTerminal(run)) {
+    return false;
+  }
+  const updatedAt = new Date(run.updatedAt).getTime();
+  if (!Number.isFinite(updatedAt)) {
+    return false;
+  }
+  return Date.now() - updatedAt < 20_000;
+}
+
+function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
+  if (!run.aiReviewPlanned) {
+    return false;
+  }
+  if (run.terminalReason === "DETERMINISTIC_PREFLIGHT_BLOCKED") {
+    return false;
+  }
+  return !isPreflightHarnessTerminal(run);
+}
+
+function isPreflightHarnessTerminal(run: ReportPreflightReviewRunResponse) {
+  return ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
 }
 
 async function waitForDeliveryDownloadUrl({

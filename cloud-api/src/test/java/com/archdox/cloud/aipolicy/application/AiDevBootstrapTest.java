@@ -98,4 +98,49 @@ class AiDevBootstrapTest {
         assertThat(policy.credentialDeliveryMode()).isEqualTo(AiCredentialDeliveryMode.PROXY_ONLY);
         assertThat(policy.budgetEnforcementEnabled()).isFalse();
     }
+
+    @Test
+    void enabledBootstrapDoesNotOverrideAlreadyConfiguredOfficePolicy() {
+        var properties = new AiDevBootstrapProperties();
+        properties.setEnabled(true);
+        var providerRepository = mock(AiProviderCredentialRepository.class);
+        var officePolicyRepository = mock(OfficeAiPolicyRepository.class);
+        var officeRepository = mock(OfficeRepository.class);
+        var office = mock(Office.class);
+        var ids = new AtomicLong(100L);
+        when(office.id()).thenReturn(10L);
+        when(providerRepository.findByProviderCode("fake-review")).thenReturn(Optional.empty());
+        when(providerRepository.findByProviderCode("fake-ops")).thenReturn(Optional.empty());
+        when(providerRepository.saveAndFlush(any(AiProviderCredential.class))).thenAnswer(invocation -> {
+            var provider = invocation.getArgument(0, AiProviderCredential.class);
+            ReflectionTestUtils.setField(provider, "id", ids.getAndIncrement());
+            return provider;
+        });
+        when(officeRepository.findAll()).thenReturn(List.of(office));
+        var existingPolicy = new OfficeAiPolicy(10L, 1L, java.time.OffsetDateTime.now());
+        existingPolicy.update(
+                true,
+                true,
+                false,
+                999L,
+                AiCredentialDeliveryMode.PROXY_ONLY,
+                false,
+                null,
+                "USD",
+                null,
+                null,
+                1L,
+                java.time.OffsetDateTime.now());
+        when(officePolicyRepository.findByOfficeId(10L)).thenReturn(Optional.of(existingPolicy));
+        var bootstrap = new AiDevBootstrap(
+                properties,
+                providerRepository,
+                officePolicyRepository,
+                officeRepository);
+
+        bootstrap.run(mock(ApplicationArguments.class));
+
+        assertThat(existingPolicy.preferredProviderCredentialId()).isEqualTo(999L);
+        verify(officePolicyRepository, times(0)).save(any(OfficeAiPolicy.class));
+    }
 }

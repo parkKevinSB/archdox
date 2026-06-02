@@ -37,6 +37,7 @@ fun DependencyHandlerScope.addHarnessRuntimeDependencies() {
 
 dependencies {
     implementation(project(":domain-shared"))
+    implementation(project(":archdox-worker"))
     implementation(project(":archdox-ai-harness"))
     implementation(project(":document-engine"))
     implementation(project(":bloom-core"))

@@ -5,6 +5,9 @@ import type {
   AiModelCallLog,
   AiModelPricingRule,
   AiHarnessTraceEvent,
+  AiObservation,
+  AiObservationMode,
+  AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
   AuthTokenResponse,
@@ -40,6 +43,14 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+type TokenRefreshHandler = () => Promise<string | null>;
+
+let tokenRefreshHandler: TokenRefreshHandler | null = null;
+
+export function configureTokenRefresh(handler: TokenRefreshHandler | null) {
+  tokenRefreshHandler = handler;
+}
+
 type RequestOptions = {
   token?: string | null;
   officeId?: number | null;
@@ -61,7 +72,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}, retryOnUnauthorized = true): Promise<T> {
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   Object.entries(options.query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -81,11 +92,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.set("X-Office-Id", String(options.officeId));
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: options.method ?? "GET",
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
+
+  if (response.status === 401 && retryOnUnauthorized && options.token && tokenRefreshHandler) {
+    const refreshedToken = await tokenRefreshHandler();
+    if (refreshedToken) {
+      headers.set("Authorization", `Bearer ${refreshedToken}`);
+      response = await fetch(url, {
+        method: options.method ?? "GET",
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      });
+    }
+  }
 
   if (!response.ok) {
     let message = `요청에 실패했습니다. (${response.status})`;
@@ -105,7 +128,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await response.json()) as T;
 }
 
-async function requestForm<T>(path: string, options: FormRequestOptions): Promise<T> {
+async function requestForm<T>(path: string, options: FormRequestOptions, retryOnUnauthorized = true): Promise<T> {
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   Object.entries(options.query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -122,11 +145,23 @@ async function requestForm<T>(path: string, options: FormRequestOptions): Promis
     headers.set("X-Office-Id", String(options.officeId));
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: options.method ?? "POST",
     headers,
     body: options.body
   });
+
+  if (response.status === 401 && retryOnUnauthorized && options.token && tokenRefreshHandler) {
+    const refreshedToken = await tokenRefreshHandler();
+    if (refreshedToken) {
+      headers.set("Authorization", `Bearer ${refreshedToken}`);
+      response = await fetch(url, {
+        method: options.method ?? "POST",
+        headers,
+        body: options.body
+      });
+    }
+  }
 
   if (!response.ok) {
     let message = `요청이 실패했습니다. (${response.status})`;
@@ -142,7 +177,7 @@ async function requestForm<T>(path: string, options: FormRequestOptions): Promis
   return (await response.json()) as T;
 }
 
-async function requestBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+async function requestBlob(path: string, options: RequestOptions = {}, retryOnUnauthorized = true): Promise<Blob> {
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   Object.entries(options.query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -158,10 +193,21 @@ async function requestBlob(path: string, options: RequestOptions = {}): Promise<
     headers.set("X-Office-Id", String(options.officeId));
   }
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: options.method ?? "GET",
     headers
   });
+
+  if (response.status === 401 && retryOnUnauthorized && options.token && tokenRefreshHandler) {
+    const refreshedToken = await tokenRefreshHandler();
+    if (refreshedToken) {
+      headers.set("Authorization", `Bearer ${refreshedToken}`);
+      response = await fetch(url, {
+        method: options.method ?? "GET",
+        headers
+      });
+    }
+  }
 
   if (!response.ok) {
     let message = `요청이 실패했습니다. (${response.status})`;
@@ -181,14 +227,21 @@ export function login(email: string, password: string) {
   return request<AuthTokenResponse>("/api/v1/auth/login", {
     method: "POST",
     body: { email, password }
-  });
+  }, false);
 }
 
 export function signup(email: string, password: string, name: string) {
   return request<AuthTokenResponse>("/api/v1/auth/signup", {
     method: "POST",
     body: { email, password, name, accountType: "PERSONAL" }
-  });
+  }, false);
+}
+
+export function refreshAuthToken(refreshToken: string) {
+  return request<AuthTokenResponse>("/api/v1/auth/refresh", {
+    method: "POST",
+    body: { refreshToken }
+  }, false);
 }
 
 export function me(token: string) {
@@ -555,6 +608,13 @@ export function publishPlatformAiProvider(token: string, providerId: number) {
   });
 }
 
+export function testPlatformAiProvider(token: string, providerId: number) {
+  return request<AiProviderConnectionTestResult>(`/api/v1/platform-admin/ai/providers/${providerId}/test`, {
+    token,
+    method: "POST"
+  });
+}
+
 export function getPlatformOfficeAiPolicies(token: string, limit = 100) {
   return request<OfficeAiPolicy[]>("/api/v1/platform-admin/ai/office-policies", {
     token,
@@ -577,6 +637,32 @@ export function getPlatformAiHarnessTraces(token: string, limit = 100, harnessRu
   return request<AiHarnessTraceEvent[]>("/api/v1/platform-admin/ai/harness-traces", {
     token,
     query: { limit, harnessRunId }
+  });
+}
+
+export function getPlatformAiObservationMode(token: string) {
+  return request<AiObservationMode>("/api/v1/platform-admin/ai/observation-mode", { token });
+}
+
+export function updatePlatformAiObservationMode(token: string, body: { enabled: boolean; clearExisting?: boolean }) {
+  return request<AiObservationMode>("/api/v1/platform-admin/ai/observation-mode", {
+    token,
+    method: "PUT",
+    body
+  });
+}
+
+export function clearPlatformAiObservations(token: string) {
+  return request<AiObservationMode>("/api/v1/platform-admin/ai/observations", {
+    token,
+    method: "DELETE"
+  });
+}
+
+export function getPlatformAiObservations(token: string, limit = 50) {
+  return request<AiObservation[]>("/api/v1/platform-admin/ai/observations", {
+    token,
+    query: { limit }
   });
 }
 

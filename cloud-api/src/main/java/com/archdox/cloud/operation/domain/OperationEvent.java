@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -85,8 +86,21 @@ public class OperationEvent {
         this.actorUserId = actorUserId;
         this.correlationId = correlationId;
         this.message = message;
-        this.payloadJson = payloadJson == null ? Map.of() : Map.copyOf(payloadJson);
+        this.payloadJson = copyPayload(payloadJson);
         this.createdAt = createdAt;
+    }
+
+    private Map<String, Object> copyPayload(Map<String, Object> payloadJson) {
+        if (payloadJson == null || payloadJson.isEmpty()) {
+            return Map.of();
+        }
+        var sanitized = new LinkedHashMap<String, Object>();
+        payloadJson.forEach((key, value) -> {
+            if (key != null && value != null) {
+                sanitized.put(key, value);
+            }
+        });
+        return Map.copyOf(sanitized);
     }
 
     public Long id() {

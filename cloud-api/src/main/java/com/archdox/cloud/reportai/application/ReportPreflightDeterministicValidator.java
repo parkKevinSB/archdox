@@ -5,6 +5,7 @@ import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStatus;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -74,16 +75,64 @@ public class ReportPreflightDeterministicValidator {
     }
 
     private void validateTargetPresence(InspectionReport report, ArrayList<ReportPreflightFinding> findings) {
+        var policy = targetPolicy(report.reportType());
+        if (policy.mode() == TargetRequirementMode.NONE) {
+            return;
+        }
         var targets = targetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(report.officeId(), report.id());
         if (targets.isEmpty()) {
             findings.add(new ReportPreflightFinding(
                     "DETERMINISTIC",
                     "REPORT_TARGET_NOT_SELECTED",
-                    "LOW",
+                    policy.severity(),
                     "report.targets",
-                    "점검 대상이 연결되지 않았습니다. 문서유형에 따라 대상 연결이 필요할 수 있습니다.",
+                    policy.message(),
                     "No inspection target is linked to the report",
-                    Map.of()));
+                    Map.of(
+                            "reportType", normalizeReportType(report.reportType()),
+                            "targetPolicy", policy.mode().name())));
         }
+    }
+
+    private static TargetPolicy targetPolicy(String reportType) {
+        return switch (normalizeReportType(reportType)) {
+            case "DAILY_SUPERVISION",
+                 "CONSTRUCTION_DAILY_LOG",
+                 "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                 "CONSTRUCTION_SUPERVISION_DAILY_LOG" ->
+                    new TargetPolicy(TargetRequirementMode.NONE, "NONE", "");
+            case "DEMOLITION_SAFETY_CHECK",
+                 "DEMOLITION_SAFETY_CHECKLIST" ->
+                    new TargetPolicy(
+                            TargetRequirementMode.REQUIRED,
+                            "HIGH",
+                            "해체공사 안전점검표는 해체 대상 구조물 또는 점검 대상을 연결해야 합니다.");
+            case "PERIODIC_SAFETY",
+                 "BUILDING_SAFETY_INSPECTION",
+                 "SAFETY_INSPECTION_REPORT" ->
+                    new TargetPolicy(
+                            TargetRequirementMode.RECOMMENDED,
+                            "LOW",
+                            "안전점검 문서는 건축물 또는 대상 시설을 연결하는 것을 권장합니다.");
+            default ->
+                    new TargetPolicy(TargetRequirementMode.NONE, "NONE", "");
+        };
+    }
+
+    private static String normalizeReportType(String reportType) {
+        return reportType == null ? "" : reportType.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private enum TargetRequirementMode {
+        NONE,
+        RECOMMENDED,
+        REQUIRED
+    }
+
+    private record TargetPolicy(
+            TargetRequirementMode mode,
+            String severity,
+            String message
+    ) {
     }
 }

@@ -10,13 +10,38 @@ The current repository contains:
 - `cloud-api`: Spring Boot Cloud API, tenancy, REST APIs, orchestration, storage,
   document jobs, Agent command routing.
 - `archdox-agent`: ArchDox Agent runtime for office/local or cloud-managed
-  execution.
+  document, photo, artifact, and storage execution. This is not an AI agent.
 - `document-engine`: reusable document generation primitives.
+- `archdox-ai-harness`: ArchDox-specific AI harnesses built on top of the
+  generic `flower-ai-harness` framework.
+- `archdox-worker`: controlled ArchDox worker action layer for policy,
+  approval, trace, and Flower-backed execution of domain actions.
 - `domain-shared`: small shared domain enums and values.
 - `client/web`: user-facing React app.
 - `admin`: operations/admin React app.
 - `docs`: architecture and development rules.
 - `infra`: infrastructure notes.
+
+## Runtime And AI Naming Boundary
+
+These names are intentionally different. Do not collapse them into one
+generic "agent" concept.
+
+| Name | Responsibility |
+| --- | --- |
+| `flower-ai-harness` | Generic framework for running one AI task reliably: prompt, model call, validation, retry/refine, findings, fake provider tests. It is not ArchDox-specific. |
+| `archdox-ai-harness` | ArchDox-specific AI tasks implemented with `flower-ai-harness`, such as report preflight review, document QA, worker conversation planning, and operations diagnosis. |
+| `archdox-worker` | ArchDox action orchestration layer. It checks policy/permission, records trace, and executes allowed domain actions through Flower. It may call AI harnesses or existing domain flows, but it does not render documents itself. |
+| `archdox-agent` | Registered execution server for document rendering, photo pickup, artifact upload/download, and configured storage. It can run as `LOCAL_OFFICE` or `CLOUD_MANAGED`. It is not an AI agent. |
+
+Short rule:
+
+```text
+AI judgment/language work -> archdox-ai-harness
+Controlled user/domain actions -> archdox-worker
+Document/file/storage execution -> archdox-agent
+Generic AI run lifecycle -> flower-ai-harness
+```
 
 ## Local Prerequisites
 

@@ -3,6 +3,8 @@ package com.archdox.cloud.global.api;
 import com.archdox.cloud.inspection.application.ReportSubmitValidationException;
 import com.archdox.cloud.inspection.dto.ReportSubmitValidationResponse;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(BadRequestException.class)
     ResponseEntity<ApiError> handleBadRequest(BadRequestException ex) {
         return error(HttpStatus.BAD_REQUEST, ex);
@@ -62,6 +66,18 @@ public class GlobalExceptionHandler {
                 message,
                 null,
                 fieldErrors));
+    }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Unhandled API exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiError.of(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "INTERNAL_SERVER_ERROR",
+                "errors.internalServerError",
+                "Unexpected server error",
+                null,
+                List.of()));
     }
 
     private ResponseEntity<ApiError> error(HttpStatus status, ApiException ex) {

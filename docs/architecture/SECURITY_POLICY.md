@@ -53,6 +53,12 @@ The Cloud API includes an early in-memory rate limit filter. It runs before JWT
 authorization and before office membership checks, so over-limit requests are
 rejected before application logic can reach the database.
 
+The application limiter is per Cloud API process. If multiple API instances are
+enabled later, effective limits multiply unless the edge layer or a shared
+Redis/DB limiter enforces global limits. Production must therefore keep
+Cloudflare/Nginx/ALB limits in front of Cloud API and treat the in-process
+limiter as the final guard, not the only guard.
+
 Protected groups:
 
 - `auth-login`: `POST /api/v1/auth/login`
@@ -77,6 +83,15 @@ The filter returns:
 
 This is not a substitute for Cloudflare or Nginx. It is the last application
 guard before DB-backed code.
+
+## Error Response Boundary
+
+Known application errors return stable API error codes. Unexpected exceptions
+must be logged server-side and returned to clients as a generic HTTP `500`
+response with code `INTERNAL_SERVER_ERROR`.
+
+Do not expose stack traces, SQL details, filesystem paths, credentials, or raw
+exception messages to browsers or Agents.
 
 ## Login Failure Lockout
 
@@ -175,6 +190,10 @@ Agent endpoints:
 These are public only because office Agents need to call back to the Cloud API.
 They still require rate limits, heartbeat timeout handling, duplicate connection
 policy, and registered Agent credentials.
+
+Agent outbound WebSocket messages must be serialized through the session
+registry. Direct concurrent `sendMessage()` calls on the same session are not
+allowed.
 
 ## AI Credential Boundary
 

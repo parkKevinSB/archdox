@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 @Component
 public class ArchDoxAgentSessionRegistry {
@@ -21,6 +22,7 @@ public class ArchDoxAgentSessionRegistry {
     private final ArchDoxAgentProperties properties;
     private final Map<Long, Map<String, WebSocketSession>> sessionsByAgentId = new ConcurrentHashMap<>();
     private final Map<String, RegisteredAgentSession> sessionRefsByWebSocketId = new ConcurrentHashMap<>();
+    private final Map<String, WebSocketSession> outboundSessionsByWebSocketId = new ConcurrentHashMap<>();
 
     public ArchDoxAgentSessionRegistry(
             ObjectMapper objectMapper,
@@ -32,8 +34,16 @@ public class ArchDoxAgentSessionRegistry {
         this.properties = properties;
     }
 
+    public void prepareOutboundSession(WebSocketSession session) {
+        if (session == null) {
+            return;
+        }
+        outboundSessionsByWebSocketId.computeIfAbsent(session.getId(), ignored -> decorate(session));
+    }
+
     @Transactional
     public void register(ArchDoxAgent agent, WebSocketSession session) {
+        var outboundSession = outboundSession(session);
         var now = OffsetDateTime.now();
         var agentSession = sessionRepository.save(new ArchDoxAgentSession(
                 agent,
@@ -42,7 +52,7 @@ public class ArchDoxAgentSessionRegistry {
                 now));
         sessionsByAgentId
                 .computeIfAbsent(agent.id(), ignored -> new ConcurrentHashMap<>())
-                .put(session.getId(), session);
+                .put(session.getId(), outboundSession);
         sessionRefsByWebSocketId.put(
                 session.getId(),
                 new RegisteredAgentSession(agent.id(), agentSession.id()));
@@ -57,6 +67,7 @@ public class ArchDoxAgentSessionRegistry {
                     .ifPresent(agentSession -> agentSession.disconnect(reason, OffsetDateTime.now()));
             return sessionRef.agentId();
         }
+        outboundSessionsByWebSocketId.remove(session.getId());
         return sessionRepository
                 .findByApiInstanceIdAndWebsocketSessionId(properties.getApiInstanceId(), session.getId())
                 .map(agentSession -> {
@@ -92,13 +103,25 @@ public class ArchDoxAgentSessionRegistry {
                 continue;
             }
             try {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+                sendMessage(session, message);
                 return true;
-            } catch (IOException ex) {
+            } catch (IOException | RuntimeException ex) {
                 // Try another active local socket for the same logical agent.
             }
         }
         return false;
+    }
+
+    public boolean send(WebSocketSession session, AgentOutboundMessage message) {
+        if (session == null || !session.isOpen()) {
+            return false;
+        }
+        try {
+            sendMessage(outboundSession(session), message);
+            return true;
+        } catch (IOException | RuntimeException ex) {
+            return false;
+        }
     }
 
     public boolean closeLocalSession(Long agentId, String websocketSessionId, String reason) {
@@ -114,6 +137,7 @@ public class ArchDoxAgentSessionRegistry {
             sessionsByAgentId.remove(agentId);
         }
         sessionRefsByWebSocketId.remove(websocketSessionId);
+        outboundSessionsByWebSocketId.remove(websocketSessionId);
         if (session == null || !session.isOpen()) {
             return false;
         }
@@ -133,6 +157,24 @@ public class ArchDoxAgentSessionRegistry {
         sessions.remove(websocketSessionId);
         if (sessions.isEmpty()) {
             sessionsByAgentId.remove(agentId);
+        }
+        outboundSessionsByWebSocketId.remove(websocketSessionId);
+    }
+
+    private WebSocketSession outboundSession(WebSocketSession session) {
+        return outboundSessionsByWebSocketId.computeIfAbsent(session.getId(), ignored -> decorate(session));
+    }
+
+    private WebSocketSession decorate(WebSocketSession session) {
+        return new ConcurrentWebSocketSessionDecorator(
+                session,
+                properties.safeWebsocketSendTimeLimitMs(),
+                properties.safeWebsocketSendBufferSizeBytes());
+    }
+
+    private void sendMessage(WebSocketSession session, AgentOutboundMessage message) throws IOException {
+        if (session.isOpen()) {
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
         }
     }
 

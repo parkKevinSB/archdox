@@ -4,10 +4,32 @@
 
 This module owns ArchDox prompt builders, input/output schemas, validation wiring, and finding extractors for bounded AI tasks such as document QA and report preflight review. It does not own REST controllers, authentication, office policy lookup, database writes, or UI state transitions. Those remain in `cloud-api`, which submits and orchestrates harness work through ArchDox Flower flows.
 
+## Relationship To `flower-ai-harness`
+
+`flower-ai-harness` is the generic AI run lifecycle framework. It knows how to
+execute one AI task safely, but it does not know what an ArchDox report,
+office, project, photo, checklist, or document job is.
+
+`archdox-ai-harness` is the ArchDox adapter layer on top of that framework. It
+turns ArchDox domain snapshots into prompts, validates ArchDox-specific
+responses, and maps AI findings back into ArchDox concepts.
+
+```text
+flower-ai-harness
+  = generic AI execution skeleton
+
+archdox-ai-harness
+  = ArchDox-specific AI work definitions using that skeleton
+```
+
+This module is also separate from `archdox-agent`. `archdox-agent` renders
+documents and moves files; it does not run AI review/planning logic.
+
 Current responsibilities:
 
 - Document QA harness specs and result mapping
 - Report preflight review harness specs and result mapping
+- Worker conversation planner harness specs and result mapping
 - ArchDox-specific prompt/schema/finding contracts
 - Testable fake-provider harness behavior without external API keys
 

@@ -222,6 +222,7 @@ GET  /api/v1/platform-admin/ai/providers
 POST /api/v1/platform-admin/ai/providers
 PUT  /api/v1/platform-admin/ai/providers/{providerId}
 POST /api/v1/platform-admin/ai/providers/{providerId}/publish
+POST /api/v1/platform-admin/ai/providers/{providerId}/test
 
 GET  /api/v1/platform-admin/ai/office-policies
 PUT  /api/v1/platform-admin/ai/office-policies/{officeId}
@@ -425,5 +426,15 @@ available, the call log must still be recorded, but cost may be empty.
 - Platform Admin UI has an AI management section for provider registration,
   provider publishing, pricing rules, office policy updates, budget guard,
   usage summary, and recent AI call logs.
+- Platform Admin may temporarily enable an in-memory AI observation mode while
+  testing models. This mode captures the rendered prompt, raw model response,
+  call metadata, token usage, latency, and error text for the most recent calls.
+  It is not a permanent audit log and must not be used as the primary customer
+  data store.
+- AI observation mode defaults to off unless explicitly enabled by configuration
+  or a platform-admin runtime action. Disabling it clears the in-memory buffer.
+  Entries expire by TTL and are lost on server restart.
+- Raw prompts and raw model responses should remain platform-admin only because
+  they may contain customer project, site, report, photo, or checklist data.
 - AWS/local/Tailscale deployments use the same application code; only provider
   credentials and policy settings differ.

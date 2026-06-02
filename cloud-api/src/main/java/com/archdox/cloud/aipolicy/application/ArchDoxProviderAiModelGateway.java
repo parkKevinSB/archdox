@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -39,9 +40,36 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
     private final AiFakeProviderProperties fakeProviderProperties;
     private final AiFakeResponseFactory fakeResponseFactory;
     private final AiSpringAiAdapterProperties springAiAdapterProperties;
+    private final AiObservationBufferService observationBufferService;
     private final Optional<SpringAiModelGateway> springAiModelGateway;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+
+    @Autowired
+    public ArchDoxProviderAiModelGateway(
+            AiProviderCredentialRepository providerRepository,
+            AiCredentialCipher credentialCipher,
+            AiModelCallLogService callLogService,
+            ObjectMapper objectMapper,
+            AiFakeProviderProperties fakeProviderProperties,
+            AiFakeResponseFactory fakeResponseFactory,
+            AiSpringAiAdapterProperties springAiAdapterProperties,
+            AiObservationBufferService observationBufferService,
+            Optional<SpringAiModelGateway> springAiModelGateway
+    ) {
+        this.providerRepository = providerRepository;
+        this.credentialCipher = credentialCipher;
+        this.callLogService = callLogService;
+        this.fakeProviderProperties = fakeProviderProperties;
+        this.fakeResponseFactory = fakeResponseFactory;
+        this.springAiAdapterProperties = springAiAdapterProperties;
+        this.observationBufferService = observationBufferService;
+        this.springAiModelGateway = springAiModelGateway == null ? Optional.empty() : springAiModelGateway;
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+    }
 
     public ArchDoxProviderAiModelGateway(
             AiProviderCredentialRepository providerRepository,
@@ -53,22 +81,22 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             AiSpringAiAdapterProperties springAiAdapterProperties,
             Optional<SpringAiModelGateway> springAiModelGateway
     ) {
-        this.providerRepository = providerRepository;
-        this.credentialCipher = credentialCipher;
-        this.callLogService = callLogService;
-        this.fakeProviderProperties = fakeProviderProperties;
-        this.fakeResponseFactory = fakeResponseFactory;
-        this.springAiAdapterProperties = springAiAdapterProperties;
-        this.springAiModelGateway = springAiModelGateway == null ? Optional.empty() : springAiModelGateway;
-        this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .build();
+        this(
+                providerRepository,
+                credentialCipher,
+                callLogService,
+                objectMapper,
+                fakeProviderProperties,
+                fakeResponseFactory,
+                springAiAdapterProperties,
+                AiObservationBufferService.disabled(),
+                springAiModelGateway);
     }
 
     @Override
     public AiModelCall submit(AiModelRequest request) {
         var callId = "archdox-ai-" + UUID.randomUUID();
+        observationBufferService.observeSubmitted(callId, request, OffsetDateTime.now());
         var future = CompletableFuture.supplyAsync(() -> callProvider(callId, request));
         return new ArchDoxAiModelCall(callId, future.orTimeout(
                 request.timeout().toMillis(),
@@ -83,18 +111,20 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 provider = providerRepository.findByProviderCode(request.modelId().provider()).orElse(null);
                 var response = fakeResponseFactory.create(request, fakeProviderProperties.safeLatencyMs());
                 recordSuccessSafely(callId, provider, request, response, requestedAt);
+                observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
                 return response;
             }
             if (springAiAdapterProperties.supports(request.modelId().provider())) {
                 provider = providerRepository.findByProviderCode(request.modelId().provider()).orElse(null);
                 var response = callSpringAiAdapter(request);
                 recordSuccessSafely(callId, provider, request, response, requestedAt);
+                observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
                 return response;
             }
             provider = providerRepository.findByProviderCode(request.modelId().provider())
                     .orElseThrow(() -> new GatewayException("No AI provider credential for provider code: "
                             + request.modelId().provider()));
-            if (provider.status() != AiProviderCredentialStatus.ACTIVE) {
+            if (provider.status() != AiProviderCredentialStatus.ACTIVE && !providerConnectionTest(request)) {
                 throw new GatewayException("AI provider credential is not active: " + provider.providerCode());
             }
             var response = switch (provider.providerType()) {
@@ -105,9 +135,11 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                                 + ". Use CUSTOM_HTTP for OpenAI-compatible gateways.");
             };
             recordSuccessSafely(callId, provider, request, response, requestedAt);
+            observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
             return response;
         } catch (RuntimeException ex) {
             recordFailureSafely(callId, provider, request, ex, requestedAt);
+            observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
             throw ex;
         }
     }
@@ -169,6 +201,9 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 throw new GatewayException("OpenAI provider requires an API key: " + provider.providerCode());
             }
             if (apiKey != null && !apiKey.isBlank()) {
+                if (provider.providerType() == AiProviderType.OPENAI && invalidOpenAiApiKey(apiKey)) {
+                    throw new GatewayException("OpenAI API key format is invalid for provider: " + provider.providerCode());
+                }
                 builder.header("Authorization", "Bearer " + apiKey);
             }
 
@@ -193,6 +228,8 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                                     "providerResponseId", json.path("id").asText(""))));
         } catch (GatewayException ex) {
             throw ex;
+        } catch (IllegalArgumentException ex) {
+            throw new GatewayException("AI provider request contains an invalid header value: " + provider.providerCode(), ex);
         } catch (Exception ex) {
             throw new GatewayException("AI provider call failed: " + provider.providerCode(), ex);
         }
@@ -280,6 +317,24 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         return request.options().get(key)
                 .filter(Number.class::isInstance)
                 .map(Number.class::cast);
+    }
+
+    private boolean providerConnectionTest(AiModelRequest request) {
+        return request.options().get(AiModelCallMetadata.PROVIDER_CONNECTION_TEST)
+                .map(value -> {
+                    if (value instanceof Boolean booleanValue) {
+                        return booleanValue;
+                    }
+                    return Boolean.parseBoolean(String.valueOf(value));
+                })
+                .orElse(false);
+    }
+
+    private boolean invalidOpenAiApiKey(String apiKey) {
+        return apiKey.contains(" ")
+                || apiKey.contains("\n")
+                || apiKey.contains("\r")
+                || !(apiKey.startsWith("sk-") || apiKey.startsWith("sk-proj-"));
     }
 
     private Optional<Integer> optionalInt(JsonNode node) {

@@ -11,6 +11,7 @@ public final class AiModelCallMetadata {
     public static final String WORKFLOW_KEY = "archdox.workflowKey";
     public static final String RESOURCE_TYPE = "archdox.resourceType";
     public static final String RESOURCE_ID = "archdox.resourceId";
+    public static final String PROVIDER_CONNECTION_TEST = "archdox.providerConnectionTest";
 
     private AiModelCallMetadata() {
     }

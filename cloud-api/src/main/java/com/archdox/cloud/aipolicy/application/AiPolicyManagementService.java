@@ -93,11 +93,12 @@ public class AiPolicyManagementService {
                 .ifPresent(existing -> {
                     throw new ConflictException("AI provider code already exists");
                 });
-        var apiKey = blankToNull(request.apiKey());
+        var type = providerType(request.providerType());
+        var apiKey = validateApiKey(type, blankToNull(request.apiKey()), true);
         var provider = providerRepository.save(new AiProviderCredential(
                 providerCode,
                 required(request.displayName(), "displayName"),
-                providerType(request.providerType()),
+                type,
                 blankToNull(request.baseUrl()),
                 blankToNull(request.defaultModel()),
                 credentialCipher.encrypt(apiKey),
@@ -116,10 +117,11 @@ public class AiPolicyManagementService {
     ) {
         platformAdminService.requirePlatformAdmin(principal);
         var provider = requireProvider(providerId);
-        var apiKey = blankToNull(request.apiKey());
+        var type = providerType(request.providerType());
+        var apiKey = validateApiKey(type, blankToNull(request.apiKey()), false);
         provider.update(
                 required(request.displayName(), "displayName"),
-                providerType(request.providerType()),
+                type,
                 blankToNull(request.baseUrl()),
                 blankToNull(request.defaultModel()),
                 apiKey != null,
@@ -451,5 +453,21 @@ public class AiPolicyManagementService {
             return null;
         }
         return value.trim();
+    }
+
+    private String validateApiKey(AiProviderType providerType, String apiKey, boolean create) {
+        if (providerType != AiProviderType.OPENAI || apiKey == null) {
+            return apiKey;
+        }
+        if (apiKey.contains(" ") || apiKey.contains("\n") || apiKey.contains("\r")
+                || !(apiKey.startsWith("sk-") || apiKey.startsWith("sk-proj-"))) {
+            throw new BadRequestException(
+                    "AI_PROVIDER_API_KEY_INVALID",
+                    "error.aiProvider.apiKeyInvalid",
+                    create
+                            ? "OpenAI API key must start with sk- or sk-proj-."
+                            : "OpenAI API key is invalid. Leave it empty to keep the existing key, or paste a key starting with sk- or sk-proj-.");
+        }
+        return apiKey;
     }
 }

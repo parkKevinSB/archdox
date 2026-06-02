@@ -27,12 +27,14 @@ import {
   Wifi,
   XCircle
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   acceptOfficeInvitation,
   addOfficeMember,
   cancelOfficeInvitation,
+  clearPlatformAiObservations,
+  configureTokenRefresh,
   createPlatformAiPricingRule,
   createPlatformAiProvider,
   createDocumentTemplate,
@@ -60,6 +62,8 @@ import {
   getPlatformAgents,
   getPlatformAiCallLogs,
   getPlatformAiHarnessTraces,
+  getPlatformAiObservationMode,
+  getPlatformAiObservations,
   getPlatformAiPreflightFindings,
   getPlatformAiProviders,
   getPlatformAiPricingRules,
@@ -81,7 +85,11 @@ import {
   me,
   publishDocumentTemplateRevision,
   publishPlatformAiProvider,
+  refreshAuthToken,
   signup,
+  testPlatformAiProvider,
+  updatePlatformAiObservationMode,
+  updatePlatformAiProvider,
   updatePlatformOfficeAiPolicy,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
@@ -94,6 +102,9 @@ import type {
   AiModelCallLog,
   AiHarnessTraceEvent,
   AiModelPricingRule,
+  AiObservation,
+  AiObservationMode,
+  AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
   ConfigDefinition,
@@ -153,6 +164,7 @@ type OfficeViewKey = Extract<
 >;
 type PlatformViewKey = Extract<ViewKey, "platform-overview" | "platform-incidents" | "platform-resources" | "platform-events">;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
+type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 
 type AdminState = {
   accessToken: string;
@@ -188,6 +200,8 @@ type PlatformOpsData = {
   officeAiPolicies: OfficeAiPolicy[];
   aiCallLogs: AiModelCallLog[];
   aiHarnessTraces: AiHarnessTraceEvent[];
+  aiObservationMode: AiObservationMode | null;
+  aiObservations: AiObservation[];
   aiPreflightFindings: PlatformReportPreflightFinding[];
   aiPricingRules: AiModelPricingRule[];
   aiUsageSummary: AiUsageSummary | null;
@@ -224,6 +238,8 @@ const emptyPlatformOpsData: PlatformOpsData = {
   officeAiPolicies: [],
   aiCallLogs: [],
   aiHarnessTraces: [],
+  aiObservationMode: null,
+  aiObservations: [],
   aiPreflightFindings: [],
   aiPricingRules: [],
   aiUsageSummary: null
@@ -253,6 +269,14 @@ const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
   { key: "ai-providers", label: "Provider/요금" },
   { key: "ai-policies", label: "사무소 정책" },
   { key: "ai-observer", label: "관측/검토" }
+];
+
+const aiObserverTabs: Array<{ key: AiObserverTabKey; label: string }> = [
+  { key: "summary", label: "요약" },
+  { key: "raw", label: "원문 관측" },
+  { key: "findings", label: "검토 결과" },
+  { key: "traces", label: "하네스 실행" },
+  { key: "calls", label: "호출/비용" }
 ];
 
 const platformViewKeys = new Set<ViewKey>(platformNavItems.map((item) => item.key));
@@ -323,6 +347,7 @@ const statusLabels: Record<string, string> = {
   RUNNING: "실행 중",
   SENDING: "전송 중",
   STEP_SAVED: "작성 중",
+  SUBMITTED: "요청 제출",
   SUSPENDED: "정지",
   UPLOADED: "업로드 완료",
   VIEWER: "조회자",
@@ -370,6 +395,7 @@ export default function App() {
   const [platformChecked, setPlatformChecked] = useState(false);
   const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
   const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
+  const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,6 +405,8 @@ export default function App() {
   const [pickupStatus, setPickupStatus] = useState("ALL");
   const [deliveryStatus, setDeliveryStatus] = useState("ALL");
   const [pendingInvitationToken, setPendingInvitationToken] = useState(() => invitationTokenFromPath());
+  const authRef = useRef<AdminState | null>(null);
+  const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
 
   const selectedOffice = useMemo(
     () => auth?.user.offices.find((office) => office.id === selectedOfficeId) ?? null,
@@ -403,6 +431,49 @@ export default function App() {
       setActiveView("ai-overview");
     }
   }
+
+  useEffect(() => {
+    authRef.current = auth;
+  }, [auth]);
+
+  useEffect(() => {
+    configureTokenRefresh(async () => {
+      const current = authRef.current;
+      if (!current) {
+        return null;
+      }
+      if (refreshInFlightRef.current) {
+        return refreshInFlightRef.current;
+      }
+      refreshInFlightRef.current = refreshAuthToken(current.refreshToken)
+        .then((token) => {
+          const nextAuth: AdminState = {
+            ...current,
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
+            user: authRef.current?.user ?? current.user
+          };
+          authRef.current = nextAuth;
+          setAuth(nextAuth);
+          window.localStorage.setItem(
+            AUTH_STORAGE_KEY,
+            JSON.stringify({ accessToken: nextAuth.accessToken, refreshToken: nextAuth.refreshToken })
+          );
+          return nextAuth.accessToken;
+        })
+        .catch(() => {
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+          setAuth(null);
+          setPlatformAdmin(null);
+          return null;
+        })
+        .finally(() => {
+          refreshInFlightRef.current = null;
+        });
+      return refreshInFlightRef.current;
+    });
+    return () => configureTokenRefresh(null);
+  }, []);
 
   useEffect(() => {
     if (!auth) {
@@ -494,7 +565,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
+      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
         getPlatformSummary(auth.accessToken),
         getPlatformUsers(auth.accessToken, 100),
         getPlatformOffices(auth.accessToken, 100),
@@ -511,11 +582,13 @@ export default function App() {
         getPlatformOfficeAiPolicies(auth.accessToken, 100),
         getPlatformAiCallLogs(auth.accessToken, 100),
         getPlatformAiHarnessTraces(auth.accessToken, 100),
+        getPlatformAiObservationMode(auth.accessToken),
+        getPlatformAiObservations(auth.accessToken, 50),
         getPlatformAiPreflightFindings(auth.accessToken, 100),
         getPlatformAiPricingRules(auth.accessToken, 100),
         getPlatformAiUsageSummary(auth.accessToken)
       ]);
-      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiPreflightFindings, aiPricingRules, aiUsageSummary });
+      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary });
     } catch (err) {
       setError(err instanceof Error ? err.message : "플랫폼 데이터를 불러오지 못했습니다.");
     } finally {
@@ -579,6 +652,36 @@ export default function App() {
     }
   }
 
+  async function handleUpdateAiProvider(
+    providerId: number,
+    body: {
+      displayName: string;
+      providerType: string;
+      baseUrl?: string | null;
+      defaultModel?: string | null;
+      apiKey?: string | null;
+    }
+  ) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformAiProvider(auth.accessToken, providerId, body);
+      setAiProviderTestResults((current) => {
+        const next = { ...current };
+        delete next[providerId];
+        return next;
+      });
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI Provider를 수정하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handlePublishAiProvider(providerId: number) {
     if (!auth || !platformAdmin) {
       return;
@@ -590,6 +693,55 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 제공자를 게시하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTestAiProvider(providerId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await testPlatformAiProvider(auth.accessToken, providerId);
+      setAiProviderTestResults((current) => ({ ...current, [providerId]: result }));
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI provider 연결 테스트를 실행하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateAiObservationMode(enabled: boolean) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformAiObservationMode(auth.accessToken, { enabled, clearExisting: !enabled });
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 관측 모드를 변경하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleClearAiObservations() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await clearPlatformAiObservations(auth.accessToken);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 관측 버퍼를 비우지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -962,6 +1114,8 @@ export default function App() {
               loading={loading}
               callLogs={platformData.aiCallLogs}
               harnessTraces={platformData.aiHarnessTraces}
+              observationMode={platformData.aiObservationMode}
+              observations={platformData.aiObservations}
               preflightFindings={platformData.aiPreflightFindings}
               pricingRules={platformData.aiPricingRules}
               providers={platformData.aiProviders}
@@ -970,8 +1124,14 @@ export default function App() {
               onCreatePricingRule={handleCreateAiPricingRule}
               onDisablePricingRule={handleDisableAiPricingRule}
               onCreateProvider={handleCreateAiProvider}
+              onUpdateProvider={handleUpdateAiProvider}
               onPublishProvider={handlePublishAiProvider}
+              onTestProvider={handleTestAiProvider}
+              onUpdateObservationMode={handleUpdateAiObservationMode}
+              onClearObservations={handleClearAiObservations}
+              onRefresh={refreshPlatform}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
+              providerTestResults={aiProviderTestResults}
             />
           )}
         </section>
@@ -2468,6 +2628,40 @@ function ProviderModeBadge({ provider }: { provider: AiProviderCredential }) {
   );
 }
 
+function AiProviderConnectionTestCell({
+  busy,
+  provider,
+  result,
+  onTest
+}: {
+  busy: boolean;
+  provider: AiProviderCredential;
+  result?: AiProviderConnectionTestResult;
+  onTest: (providerId: number) => Promise<void>;
+}) {
+  return (
+    <div className="provider-test-cell">
+      <button
+        className="button compact"
+        disabled={busy || !provider.defaultModel}
+        onClick={() => onTest(provider.id)}
+        title={provider.defaultModel ? "provider endpoint와 모델 호출을 짧게 테스트합니다." : "기본 모델을 먼저 입력하세요."}
+        type="button"
+      >
+        <Activity size={15} />
+        테스트
+      </button>
+      {result ? (
+        <span className={result.success ? "provider-test-result success" : "provider-test-result fail"}>
+          {result.success ? "성공" : "실패"}
+          {result.latencyMs == null ? "" : ` · ${result.latencyMs}ms`}
+        </span>
+      ) : null}
+      {result?.message ? <small title={result.message}>{result.message}</small> : null}
+    </div>
+  );
+}
+
 function StatusIcon({ status }: { status: string }) {
   const tone = statusTone(status);
   if (tone === "red") {
@@ -3015,6 +3209,8 @@ function AiManagementView({
   loading,
   callLogs,
   harnessTraces,
+  observationMode,
+  observations,
   preflightFindings,
   pricingRules,
   providers,
@@ -3023,13 +3219,21 @@ function AiManagementView({
   onCreatePricingRule,
   onDisablePricingRule,
   onCreateProvider,
+  onUpdateProvider,
   onPublishProvider,
+  onTestProvider,
+  onUpdateObservationMode,
+  onClearObservations,
+  onRefresh,
+  providerTestResults,
   onSaveOfficePolicy
 }: {
   view: AiViewKey;
   loading: boolean;
   callLogs: AiModelCallLog[];
   harnessTraces: AiHarnessTraceEvent[];
+  observationMode: AiObservationMode | null;
+  observations: AiObservation[];
   preflightFindings: PlatformReportPreflightFinding[];
   pricingRules: AiModelPricingRule[];
   providers: AiProviderCredential[];
@@ -3051,7 +3255,22 @@ function AiManagementView({
     defaultModel?: string | null;
     apiKey?: string | null;
   }) => Promise<void>;
+  onUpdateProvider: (
+    providerId: number,
+    body: {
+      displayName: string;
+      providerType: string;
+      baseUrl?: string | null;
+      defaultModel?: string | null;
+      apiKey?: string | null;
+    }
+  ) => Promise<void>;
   onPublishProvider: (providerId: number) => Promise<void>;
+  onTestProvider: (providerId: number) => Promise<void>;
+  onUpdateObservationMode: (enabled: boolean) => Promise<void>;
+  onClearObservations: () => Promise<void>;
+  onRefresh: () => Promise<void>;
+  providerTestResults: Record<number, AiProviderConnectionTestResult>;
   onSaveOfficePolicy: (
     officeId: number,
     body: {
@@ -3070,6 +3289,7 @@ function AiManagementView({
 }) {
   const [findingResolutionFilter, setFindingResolutionFilter] = useState("ALL");
   const [findingSeverityFilter, setFindingSeverityFilter] = useState("ALL");
+  const [observerTab, setObserverTab] = useState<AiObserverTabKey>("summary");
   const openBlockingFindings = preflightFindings.filter(isOpenBlockingAiFinding).length;
   const acceptedRiskFindings = preflightFindings.filter((finding) => finding.resolutionStatus === "ACCEPTED").length;
   const complianceFindings = preflightFindings.filter((finding) =>
@@ -3086,6 +3306,8 @@ function AiManagementView({
   const showProviders = view === "ai-providers";
   const showPolicies = view === "ai-policies";
   const showObserver = view === "ai-observer";
+  const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
+  const editingProvider = providers.find((provider) => provider.id === editingProviderId) ?? null;
 
   return (
     <div className="view-stack platform-view">
@@ -3111,13 +3333,52 @@ function AiManagementView({
       ) : null}
 
       {showOverview ? <AiProviderStatusPanel callLogs={callLogs} policies={policies} providers={providers} /> : null}
-      {showObserver ? <AiHarnessTracePanel traces={harnessTraces} /> : null}
+      {showObserver ? (
+        <>
+          <AiObserverTabBar
+            busy={loading}
+            tab={observerTab}
+            onRefresh={onRefresh}
+            onTabChange={setObserverTab}
+          />
+          {observerTab === "summary" ? (
+            <AiObserverSummaryPanel
+              callLogs={callLogs}
+              findings={preflightFindings}
+              harnessTraces={harnessTraces}
+              mode={observationMode}
+              observations={observations}
+            />
+          ) : null}
+          {observerTab === "raw" ? (
+            <AiObservationPanel
+              busy={loading}
+              mode={observationMode}
+              observations={observations}
+              onClear={onClearObservations}
+              onSetEnabled={onUpdateObservationMode}
+            />
+          ) : null}
+          {observerTab === "traces" ? <AiHarnessTracePanel traces={harnessTraces} /> : null}
+        </>
+      ) : null}
 
       <div className="dashboard-grid">
         {showProviders ? (
           <>
         <Panel title="AI 제공자 등록" icon={<KeyRound size={18} />}>
           <AiProviderForm busy={loading} onSubmit={onCreateProvider} />
+          {editingProvider ? (
+            <AiProviderEditForm
+              busy={loading}
+              provider={editingProvider}
+              onCancel={() => setEditingProviderId(null)}
+              onSubmit={async (providerId, body) => {
+                await onUpdateProvider(providerId, body);
+                setEditingProviderId(null);
+              }}
+            />
+          ) : null}
         </Panel>
         <Panel title="AI 단가 규칙" icon={<Gauge size={18} />}>
           <AiPricingRuleForm busy={loading} providers={providers} onSubmit={onCreatePricingRule} />
@@ -3144,7 +3405,7 @@ function AiManagementView({
       {showProviders ? (
         <Panel title="AI 제공자" icon={<KeyRound size={18} />} count={providers.length}>
         <Table
-          columns={["제공자", "실행 모드", "유형", "상태", "모델", "키", "버전", "작업"]}
+          columns={["제공자", "실행 모드", "유형", "상태", "모델", "키", "버전", "연결", "작업"]}
           empty="등록된 AI 제공자가 없습니다."
           rows={providers.map((provider) => [
             <CellTitle key="provider" title={provider.displayName} subtitle={`${provider.providerCode} / #${provider.id}`} />,
@@ -3154,6 +3415,22 @@ function AiManagementView({
             provider.defaultModel ?? "-",
             provider.apiKeyConfigured ? provider.apiKeyMasked ?? "설정됨" : "미설정",
             `v${provider.credentialVersion}`,
+            <AiProviderConnectionTestCell
+              busy={loading}
+              key="test"
+              provider={provider}
+              result={providerTestResults[provider.id]}
+              onTest={onTestProvider}
+            />,
+            <button
+              className="button"
+              disabled={loading}
+              key="edit"
+              onClick={() => setEditingProviderId(provider.id)}
+              type="button"
+            >
+              수정
+            </button>,
             <button
               className="button"
               disabled={loading || provider.status === "ACTIVE"}
@@ -3232,7 +3509,7 @@ function AiManagementView({
         </Panel>
       ) : null}
 
-      {showObserver ? (
+      {showObserver && observerTab === "findings" ? (
         <Panel
         title="생성 전 검토 결과"
         icon={<AlertTriangle size={18} />}
@@ -3275,7 +3552,7 @@ function AiManagementView({
         </Panel>
       ) : null}
 
-      {showObserver ? (
+      {showObserver && observerTab === "calls" ? (
         <Panel title="AI 호출 로그" icon={<Activity size={18} />} count={callLogs.length}>
         <Table
           columns={["시간", "사무소", "제공자", "모델", "기능", "상태", "토큰", "비용", "지연", "오류"]}
@@ -3295,6 +3572,325 @@ function AiManagementView({
         />
         </Panel>
       ) : null}
+    </div>
+  );
+}
+
+function AiObserverTabBar({
+  busy,
+  tab,
+  onTabChange,
+  onRefresh
+}: {
+  busy: boolean;
+  tab: AiObserverTabKey;
+  onTabChange: (tab: AiObserverTabKey) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  return (
+    <div className="ai-observer-toolbar">
+      <div className="ai-observer-tabs" role="tablist" aria-label="AI 관측 메뉴">
+        {aiObserverTabs.map((item) => (
+          <button
+            aria-selected={tab === item.key}
+            className={tab === item.key ? "ai-observer-tab active" : "ai-observer-tab"}
+            key={item.key}
+            onClick={() => onTabChange(item.key)}
+            role="tab"
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <button className="button" disabled={busy} onClick={onRefresh} type="button">
+        {busy ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+        새로고침
+      </button>
+    </div>
+  );
+}
+
+function AiObserverSummaryPanel({
+  callLogs,
+  findings,
+  harnessTraces,
+  mode,
+  observations
+}: {
+  callLogs: AiModelCallLog[];
+  findings: PlatformReportPreflightFinding[];
+  harnessTraces: AiHarnessTraceEvent[];
+  mode: AiObservationMode | null;
+  observations: AiObservation[];
+}) {
+  const enabled = mode?.enabled ?? false;
+  const openBlockingCount = findings.filter(isOpenBlockingAiFinding).length;
+  const openFindingCount = findings.filter((finding) => finding.resolutionStatus === "OPEN").length;
+  const harnessFailureCount = harnessTraces.filter((trace) => trace.eventType === "RUN_FAILED" || trace.eventType === "CALL_FAILED").length;
+  const callFailureCount = callLogs.filter((log) => log.status === "FAILED").length;
+  const latestObservation = observations[0] ?? null;
+  const latestCall = callLogs[0] ?? null;
+  const tokenTotal = callLogs.reduce((sum, log) => sum + (log.inputTokens ?? 0) + (log.outputTokens ?? 0), 0);
+  const knownCostLogs = callLogs.filter((log) => log.estimatedTotalCost != null && log.costCurrency);
+  const latestCostCurrency = knownCostLogs[0]?.costCurrency ?? "";
+  const costTotal = knownCostLogs.reduce((sum, log) => sum + (log.estimatedTotalCost ?? 0), 0);
+
+  return (
+    <Panel
+      title="AI 관측 요약"
+      icon={<Activity size={18} />}
+      count={observations.length + harnessTraces.length + findings.length + callLogs.length}
+    >
+      <div className="metric-grid ai-observer-metrics">
+        <MetricCard
+          label="원문 관측"
+          value={enabled ? "켜짐" : "꺼짐"}
+          detail={`${mode?.currentEntryCount ?? observations.length}건 임시 보관`}
+          icon={<Activity size={18} />}
+          tone={enabled ? "amber" : "slate"}
+        />
+        <MetricCard
+          label="검토 미처리"
+          value={openFindingCount}
+          detail={`차단급 ${openBlockingCount}건`}
+          icon={<AlertTriangle size={18} />}
+          tone={openBlockingCount > 0 ? "red" : openFindingCount > 0 ? "amber" : "green"}
+        />
+        <MetricCard
+          label="하네스 실패"
+          value={harnessFailureCount}
+          detail={`${harnessTraces.length}개 이벤트 기준`}
+          icon={<ShieldCheck size={18} />}
+          tone={harnessFailureCount > 0 ? "red" : "green"}
+        />
+        <MetricCard
+          label="호출 실패"
+          value={callFailureCount}
+          detail={`${callLogs.length}개 최근 호출 기준`}
+          icon={<Gauge size={18} />}
+          tone={callFailureCount > 0 ? "red" : "green"}
+        />
+        <MetricCard
+          label="최근 토큰"
+          value={tokenTotal}
+          detail="최근 호출 입력 + 출력"
+          icon={<KeyRound size={18} />}
+          tone="blue"
+        />
+        <MetricCard
+          label="예상 비용"
+          value={knownCostLogs.length === 0 ? "-" : `${latestCostCurrency} ${formatMoney(costTotal)}`}
+          detail="최근 호출 합산"
+          icon={<Gauge size={18} />}
+          tone="green"
+        />
+      </div>
+
+      <div className="ai-observer-guide">
+        <div className="ai-observer-priority">
+          <strong>먼저 볼 것</strong>
+          <span>
+            {openBlockingCount > 0
+              ? "검토 결과 탭에서 높음/긴급 미처리 항목을 먼저 확인하세요."
+              : callFailureCount > 0
+                ? "호출/비용 탭에서 실패한 Provider 호출을 먼저 확인하세요."
+                : harnessFailureCount > 0
+                  ? "하네스 실행 탭에서 실패 이벤트와 실행 ID를 확인하세요."
+                  : "현재는 치명적인 AI 운영 이슈가 보이지 않습니다."}
+          </span>
+        </div>
+        <div className="ai-observer-guide-list">
+          <div>
+            <strong>원문 관측</strong>
+            <span>테스트 중 모델이 실제로 받은 프롬프트와 응답을 확인합니다. 운영 중에는 잠깐만 켭니다.</span>
+          </div>
+          <div>
+            <strong>검토 결과</strong>
+            <span>사용자가 조치해야 하는 문서 생성 전 경고와 차단 항목을 봅니다.</span>
+          </div>
+          <div>
+            <strong>하네스 실행</strong>
+            <span>하네스가 어느 단계에서 성공/실패했는지 실행 단위로 추적합니다.</span>
+          </div>
+          <div>
+            <strong>호출/비용</strong>
+            <span>Provider, 모델, 토큰, 지연시간, 실패 메시지와 비용을 확인합니다.</span>
+          </div>
+        </div>
+        <div className="ai-observer-latest">
+          <div>
+            <span>최근 원문 관측</span>
+            <strong>
+              {latestObservation
+                ? `${latestObservation.providerCode} / ${latestObservation.modelName} / ${displayLabel(latestObservation.status)}`
+                : "없음"}
+            </strong>
+          </div>
+          <div>
+            <span>최근 호출 로그</span>
+            <strong>
+              {latestCall
+                ? `${latestCall.providerCode} / ${latestCall.modelName} / ${displayLabel(latestCall.status)}`
+                : "없음"}
+            </strong>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function AiObservationPanel({
+  busy,
+  mode,
+  observations,
+  onSetEnabled,
+  onClear
+}: {
+  busy: boolean;
+  mode: AiObservationMode | null;
+  observations: AiObservation[];
+  onSetEnabled: (enabled: boolean) => Promise<void>;
+  onClear: () => Promise<void>;
+}) {
+  const enabled = mode?.enabled ?? false;
+  const latest = observations[0] ?? null;
+
+  return (
+    <Panel
+      title="AI 원문 관측"
+      icon={<Activity size={18} />}
+      count={mode?.currentEntryCount ?? observations.length}
+      action={
+        <div className="card-actions compact">
+          <button
+            className={enabled ? "button danger" : "button primary"}
+            disabled={busy}
+            onClick={() => onSetEnabled(!enabled)}
+            type="button"
+          >
+            {busy ? <Loader2 className="spin" size={16} /> : enabled ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+            {enabled ? "관측 끄기" : "관측 켜기"}
+          </button>
+          <button className="button" disabled={busy || observations.length === 0} onClick={onClear} type="button">
+            <XCircle size={16} />
+            비우기
+          </button>
+        </div>
+      }
+    >
+      <div className={enabled ? "ai-observation-mode enabled" : "ai-observation-mode"}>
+        <div>
+          <strong>{enabled ? "디버그 관측 모드가 켜져 있습니다." : "디버그 관측 모드가 꺼져 있습니다."}</strong>
+          <span>
+            {enabled
+              ? `최근 ${mode?.maxEntries ?? 0}건, 최대 ${mode?.ttlMinutes ?? 0}분 동안 메모리에만 보관합니다. 서버 재시작 또는 모드 끄기 시 사라집니다.`
+              : "원문 프롬프트와 모델 응답은 저장하지 않습니다. 모델 평가가 필요할 때만 잠깐 켜세요."}
+          </span>
+        </div>
+        {latest ? (
+          <small>
+            최근 호출: {latest.providerCode} / {latest.modelName} / {displayLabel(latest.status)} / {formatDate(latest.updatedAt)}
+          </small>
+        ) : (
+          <small>관측 모드를 켠 뒤 AI 검토나 Provider 테스트를 실행하면 여기에 원문이 표시됩니다.</small>
+        )}
+      </div>
+
+      {observations.length === 0 ? (
+        <EmptyState message={enabled ? "아직 관측된 AI 호출이 없습니다." : "관측 모드를 켜면 최근 AI 호출 원문을 볼 수 있습니다."} />
+      ) : (
+        <div className="ai-observation-list">
+          {observations.map((observation) => (
+            <details className="ai-observation-card" key={observation.callId} open={observation.callId === latest?.callId}>
+              <summary>
+                <div>
+                  <strong>{displayLabel(observation.feature ?? observation.workflowType ?? "AI 호출")}</strong>
+                  <span>{observation.providerCode} / {observation.modelName}</span>
+                </div>
+                <div className="ai-observation-summary-meta">
+                  <StatusBadge status={observation.status} />
+                  <span>{tokenUsageSummary(observation)}</span>
+                  <span>{observation.latencyMs == null ? "-" : `${observation.latencyMs}ms`}</span>
+                </div>
+              </summary>
+
+              <div className="ai-observation-meta-grid">
+                <div>
+                  <span>호출 ID</span>
+                  <strong>{observation.callId}</strong>
+                </div>
+                <div>
+                  <span>사무소</span>
+                  <strong>{observation.officeId ? `#${observation.officeId}` : "-"}</strong>
+                </div>
+                <div>
+                  <span>리소스</span>
+                  <strong>{observation.resourceType ? `${displayLabel(observation.resourceType)} #${observation.resourceId ?? "-"}` : "-"}</strong>
+                </div>
+                <div>
+                  <span>완료 사유</span>
+                  <strong>{observation.finishReason ?? "-"}</strong>
+                </div>
+              </div>
+
+              {Object.keys(observation.requestOptions ?? {}).length > 0 ? (
+                <AiObservationCodeBlock
+                  title="요청 메타데이터"
+                  value={JSON.stringify(observation.requestOptions, null, 2)}
+                />
+              ) : null}
+
+              <div className="ai-observation-section">
+                <div className="ai-observation-section-title">
+                  <strong>렌더링된 프롬프트</strong>
+                  {observation.promptTruncated ? <span>일부 잘림</span> : null}
+                </div>
+                {observation.promptMessages.map((message, index) => (
+                  <AiObservationCodeBlock
+                    key={`${observation.callId}-${message.role}-${index}`}
+                    title={message.role}
+                    value={message.content}
+                  />
+                ))}
+              </div>
+
+              <div className="ai-observation-section">
+                <div className="ai-observation-section-title">
+                  <strong>모델 원문 응답</strong>
+                  {observation.responseTruncated ? <span>일부 잘림</span> : null}
+                </div>
+                <AiObservationCodeBlock
+                  title={observation.errorType ? `오류: ${observation.errorType}` : "response"}
+                  value={observation.errorMessage ?? observation.responseText ?? "아직 응답을 받지 않았습니다."}
+                />
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function AiObservationCodeBlock({ title, value }: { title: string; value: string }) {
+  async function copy() {
+    if (!navigator.clipboard) {
+      return;
+    }
+    await navigator.clipboard.writeText(value);
+  }
+
+  return (
+    <div className="ai-observation-code-block">
+      <div>
+        <span>{title}</span>
+        <button className="icon-button" onClick={copy} title="복사" type="button">
+          <Copy size={14} />
+        </button>
+      </div>
+      <pre>{value}</pre>
     </div>
   );
 }
@@ -3540,6 +4136,105 @@ function AiProviderForm({
         {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
         등록
       </button>
+    </form>
+  );
+}
+
+function AiProviderEditForm({
+  busy,
+  provider,
+  onSubmit,
+  onCancel
+}: {
+  busy: boolean;
+  provider: AiProviderCredential;
+  onSubmit: (
+    providerId: number,
+    body: {
+      displayName: string;
+      providerType: string;
+      baseUrl?: string | null;
+      defaultModel?: string | null;
+      apiKey?: string | null;
+    }
+  ) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [values, setValues] = useState({
+    displayName: provider.displayName,
+    providerType: provider.providerType,
+    baseUrl: provider.baseUrl ?? "",
+    defaultModel: provider.defaultModel ?? "",
+    apiKey: ""
+  });
+
+  useEffect(() => {
+    setValues({
+      displayName: provider.displayName,
+      providerType: provider.providerType,
+      baseUrl: provider.baseUrl ?? "",
+      defaultModel: provider.defaultModel ?? "",
+      apiKey: ""
+    });
+  }, [provider.id]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit(provider.id, {
+      displayName: values.displayName,
+      providerType: values.providerType,
+      baseUrl: normalizeFormValue(values.baseUrl),
+      defaultModel: normalizeFormValue(values.defaultModel),
+      apiKey: normalizeFormValue(values.apiKey)
+    });
+  }
+
+  return (
+    <form className="ai-policy-form provider-edit-form" onSubmit={submit}>
+      <div className="policy-note">
+        {provider.providerCode} / #{provider.id} 수정 중입니다. API 키를 비워두면 기존 키를 유지합니다.
+      </div>
+      <label>
+        표시명
+        <input value={values.displayName} onChange={(event) => setValues({ ...values, displayName: event.target.value })} required />
+      </label>
+      <label>
+        제공자 유형
+        <select value={values.providerType} onChange={(event) => setValues({ ...values, providerType: event.target.value })}>
+          {aiProviderTypeOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        기본 URL
+        <input value={values.baseUrl} onChange={(event) => setValues({ ...values, baseUrl: event.target.value })} />
+      </label>
+      <label>
+        기본 모델
+        <input value={values.defaultModel} onChange={(event) => setValues({ ...values, defaultModel: event.target.value })} />
+      </label>
+      <label>
+        새 API 키
+        <input
+          autoComplete="off"
+          type="password"
+          value={values.apiKey}
+          onChange={(event) => setValues({ ...values, apiKey: event.target.value })}
+          placeholder="비워두면 기존 키를 유지합니다"
+        />
+      </label>
+      <div className="card-actions">
+        <button className="button primary" disabled={busy} type="submit">
+          {busy ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
+          수정 저장
+        </button>
+        <button className="button" disabled={busy} onClick={onCancel} type="button">
+          취소
+        </button>
+      </div>
     </form>
   );
 }
@@ -3931,6 +4626,13 @@ function tokenUsageLabel(log: AiModelCallLog) {
     return "-";
   }
   return `${log.inputTokens ?? 0} / ${log.outputTokens ?? 0}`;
+}
+
+function tokenUsageSummary(observation: AiObservation) {
+  if (observation.inputTokens == null && observation.outputTokens == null) {
+    return "토큰 -";
+  }
+  return `토큰 ${observation.inputTokens ?? 0} / ${observation.outputTokens ?? 0}`;
 }
 
 function costLabel(log: AiModelCallLog) {

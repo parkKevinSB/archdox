@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.finding.AiFinding;
 import io.github.parkkevinsb.flower.ai.harness.finding.FindingSink;
+import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunContext;
+import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunId;
 import io.github.parkkevinsb.flower.ai.harness.test.AiHarnessTestExtension;
 import io.github.parkkevinsb.flower.ai.harness.test.fake.FakeResponseProgram;
 import io.github.parkkevinsb.flower.core.flow.FlowState;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +78,25 @@ class ReportPreflightHarnessFactoryTest {
         assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
         assertThat(flow.context().attempt()).isEqualTo(2);
         assertThat(sink.findings).isEmpty();
+    }
+
+    @Test
+    void promptGuidesKoreanOutputAndSavedAtDateSeverity() {
+        var ctx = new AiHarnessRunContext(
+                new AiHarnessRunId("test-run"),
+                ReportPreflightHarnessFactory.HARNESS_ID,
+                ReportPreflightHarnessFactory.PROMPT_VERSION,
+                Instant.parse("2026-06-01T00:00:00Z"));
+
+        var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
+        var system = prompt.messages().get(0).content();
+
+        assertThat(prompt.version().version()).isEqualTo("1.0.1");
+        assertThat(system)
+                .contains("Write summary, message, evidence, and suggestion in Korean")
+                .contains("savedAt is the data-entry/save timestamp")
+                .contains("normally use LOW or MEDIUM")
+                .contains("Do not translate stable code/category/severity enum values");
     }
 
     private static ReportPreflightInput input() {

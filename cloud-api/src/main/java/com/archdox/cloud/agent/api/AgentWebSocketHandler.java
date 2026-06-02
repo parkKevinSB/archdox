@@ -47,6 +47,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) {
         session.setTextMessageSizeLimit(properties.safeWebsocketMaxTextMessageBufferBytes());
         session.setBinaryMessageSizeLimit(properties.safeWebsocketMaxBinaryMessageBufferBytes());
+        sessionRegistry.prepareOutboundSession(session);
     }
 
     @Override
@@ -105,8 +106,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void send(WebSocketSession session, AgentOutboundMessage message) throws Exception {
-        if (session.isOpen()) {
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+        if (!sessionRegistry.send(session, message)) {
+            throw new IllegalStateException("Failed to send WebSocket message to ArchDox Agent");
         }
     }
 }

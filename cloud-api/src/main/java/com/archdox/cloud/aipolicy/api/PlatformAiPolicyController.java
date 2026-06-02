@@ -4,21 +4,28 @@ import com.archdox.cloud.aiharness.application.AiHarnessTraceEventService;
 import com.archdox.cloud.aiharness.dto.AiHarnessTraceEventResponse;
 import com.archdox.cloud.aipolicy.application.AiModelCallLogService;
 import com.archdox.cloud.aipolicy.application.AiModelPricingRuleService;
+import com.archdox.cloud.aipolicy.application.AiObservationBufferService;
 import com.archdox.cloud.aipolicy.application.AiPolicyManagementService;
+import com.archdox.cloud.aipolicy.application.AiProviderConnectionTestService;
 import com.archdox.cloud.aipolicy.application.AiUsageReadService;
 import com.archdox.cloud.aipolicy.dto.AiModelCallLogResponse;
 import com.archdox.cloud.aipolicy.dto.AiModelPricingRuleResponse;
+import com.archdox.cloud.aipolicy.dto.AiObservationModeResponse;
+import com.archdox.cloud.aipolicy.dto.AiObservationResponse;
+import com.archdox.cloud.aipolicy.dto.AiProviderConnectionTestResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderCredentialResponse;
 import com.archdox.cloud.aipolicy.dto.AiUsageSummaryResponse;
 import com.archdox.cloud.aipolicy.dto.CreateAiModelPricingRuleRequest;
 import com.archdox.cloud.aipolicy.dto.CreateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.OfficeAiPolicyResponse;
+import com.archdox.cloud.aipolicy.dto.UpdateAiObservationModeRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateOfficeAiPolicyRequest;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.reportai.application.ReportPreflightFindingOpsService;
 import com.archdox.cloud.reportai.dto.PlatformReportPreflightFindingResponse;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +45,8 @@ public class PlatformAiPolicyController {
     private final AiUsageReadService usageReadService;
     private final ReportPreflightFindingOpsService preflightFindingOpsService;
     private final AiHarnessTraceEventService traceEventService;
+    private final AiProviderConnectionTestService connectionTestService;
+    private final AiObservationBufferService observationBufferService;
 
     public PlatformAiPolicyController(
             AiPolicyManagementService service,
@@ -45,7 +54,9 @@ public class PlatformAiPolicyController {
             AiModelPricingRuleService pricingRuleService,
             AiUsageReadService usageReadService,
             ReportPreflightFindingOpsService preflightFindingOpsService,
-            AiHarnessTraceEventService traceEventService
+            AiHarnessTraceEventService traceEventService,
+            AiProviderConnectionTestService connectionTestService,
+            AiObservationBufferService observationBufferService
     ) {
         this.service = service;
         this.callLogService = callLogService;
@@ -53,6 +64,8 @@ public class PlatformAiPolicyController {
         this.usageReadService = usageReadService;
         this.preflightFindingOpsService = preflightFindingOpsService;
         this.traceEventService = traceEventService;
+        this.connectionTestService = connectionTestService;
+        this.observationBufferService = observationBufferService;
     }
 
     @GetMapping("/providers")
@@ -83,6 +96,14 @@ public class PlatformAiPolicyController {
             @PathVariable Long providerId
     ) {
         return service.publishProvider(principal(authentication), providerId);
+    }
+
+    @PostMapping("/providers/{providerId}/test")
+    public AiProviderConnectionTestResponse testProvider(
+            Authentication authentication,
+            @PathVariable Long providerId
+    ) {
+        return connectionTestService.testProvider(principal(authentication), providerId);
     }
 
     @GetMapping("/office-policies")
@@ -121,6 +142,32 @@ public class PlatformAiPolicyController {
                 harnessId,
                 eventType,
                 limit);
+    }
+
+    @GetMapping("/observation-mode")
+    public AiObservationModeResponse observationMode(Authentication authentication) {
+        return observationBufferService.mode(principal(authentication));
+    }
+
+    @PutMapping("/observation-mode")
+    public AiObservationModeResponse updateObservationMode(
+            Authentication authentication,
+            @RequestBody UpdateAiObservationModeRequest request
+    ) {
+        return observationBufferService.updateMode(principal(authentication), request);
+    }
+
+    @DeleteMapping("/observations")
+    public AiObservationModeResponse clearObservations(Authentication authentication) {
+        return observationBufferService.clear(principal(authentication));
+    }
+
+    @GetMapping("/observations")
+    public List<AiObservationResponse> observations(
+            Authentication authentication,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return observationBufferService.observations(principal(authentication), limit);
     }
 
     @GetMapping("/preflight-findings")

@@ -23,10 +23,12 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 You are ArchDox report preflight QA.
                 Review inspection or construction supervision report input before document generation.
                 Return JSON only. Do not include markdown.
+                Write summary, message, evidence, and suggestion in Korean for Korean office users.
+                Keep code, category, severity, status, confidence, and location as stable English enum-like values.
                 The JSON must match:
                 {
                   "status": "PASS|WARN|FAIL",
-                  "summary": "short review summary",
+                  "summary": "short Korean review summary",
                   "confidence": "LOW|MEDIUM|HIGH",
                   "issues": [
                     {
@@ -34,9 +36,9 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                       "category": "GENERAL|COMPLETENESS|CONSISTENCY|EVIDENCE|COMPLIANCE|LEGAL_RISK|WORDING",
                       "severity": "INFO|LOW|MEDIUM|HIGH|CRITICAL",
                       "location": "field, step, checklist item, or section",
-                      "message": "human readable issue",
-                      "evidence": "input evidence",
-                      "suggestion": "recommended correction"
+                      "message": "human readable Korean issue",
+                      "evidence": "Korean explanation of input evidence",
+                      "suggestion": "Korean recommended correction"
                     }
                   ]
                 }
@@ -51,6 +53,17 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 Do not repeat deterministic findings unless you can add a concrete extra reason.
                 Use FAIL only for issues that should block document generation.
                 Use WARN for issues that should be reviewed by a person before generation.
+                Severity guidance:
+                - savedAt is the data-entry/save timestamp, not necessarily the real inspection time.
+                - Do not mark inspectionDate vs savedAt differences as HIGH or CRITICAL unless the input clearly proves an impossible or legally blocking chronology.
+                - If inspectionDate is after savedAt, normally use LOW or MEDIUM and ask the user to verify the date.
+                - Use HIGH only when the contradiction directly affects required report facts, approval, or document validity.
+                - Use LOW for wording cleanup, typos, or unclear follow-up text that does not block generation.
+                - Use MEDIUM for missing evidence, vague safety/compliance remarks, or contradictions that need human review.
+                Korean wording guidance:
+                - Be concise and professional.
+                - Avoid overly legalistic language unless the input includes a concrete compliance risk.
+                - Do not translate stable code/category/severity enum values.
                 """;
         var user = """
                 Review this ArchDox report input before document generation.

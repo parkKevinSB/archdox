@@ -7,6 +7,7 @@ import com.archdox.cloud.documentai.application.DocumentAiReviewProperties;
 import com.archdox.cloud.photo.application.PhotoDerivativeProperties;
 import com.archdox.cloud.photo.application.PhotoPickupProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
+import com.archdox.cloud.worker.ArchDoxWorkerRuntimeProperties;
 import io.github.parkkevinsb.bloom.EventBus;
 import io.github.parkkevinsb.bloom.LocalEventBus;
 import io.github.parkkevinsb.flower.bloom.BloomEventBus;
@@ -31,6 +32,8 @@ public class ArchDoxRuntimeConfiguration {
     public static final String MONITORING_WORKER = "monitoring";
     public static final String PLATFORM_OPS_WORKER = "platform-ops";
     public static final String PLATFORM_OPS_AI_WORKER = "platform-ops-ai";
+    public static final String ARCHDOX_WORKER_SERVICE_WORKER = "archdox-worker";
+    public static final String ARCHDOX_WORKER_PLANNER_AI_WORKER = "archdox-worker-planner-ai";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -46,7 +49,8 @@ public class ArchDoxRuntimeConfiguration {
             DocumentDeliveryProperties documentDeliveryProperties,
             DocumentAiReviewProperties documentAiReviewProperties,
             ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties,
-            PlatformOpsDetectionProperties platformOpsDetectionProperties
+            PlatformOpsDetectionProperties platformOpsDetectionProperties,
+            ArchDoxWorkerRuntimeProperties archDoxWorkerRuntimeProperties
     ) {
         return Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
@@ -82,6 +86,12 @@ public class ArchDoxRuntimeConfiguration {
                         .build())
                 .worker(Worker.builder(PLATFORM_OPS_AI_WORKER)
                         .intervalMillis(platformOpsDetectionProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(ARCHDOX_WORKER_SERVICE_WORKER)
+                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(ARCHDOX_WORKER_PLANNER_AI_WORKER)
+                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
                         .build())
                 .build();
     }

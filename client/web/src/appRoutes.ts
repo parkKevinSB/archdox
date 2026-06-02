@@ -7,6 +7,7 @@ export const viewPaths: Record<ViewKey, string> = {
   reports: "/reports",
   photos: "/photos",
   jobs: "/documents",
+  chat: "/chat",
   more: "/more"
 };
 
@@ -25,6 +26,9 @@ export function viewFromPath(pathname: string): ViewKey {
   }
   if (pathname.startsWith("/documents")) {
     return "jobs";
+  }
+  if (pathname.startsWith("/chat")) {
+    return "chat";
   }
   if (pathname.startsWith("/more")) {
     return "more";
