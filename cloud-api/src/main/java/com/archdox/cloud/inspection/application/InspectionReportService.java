@@ -19,6 +19,7 @@ import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.project.application.ProjectService;
 import com.archdox.cloud.site.application.SiteService;
+import com.archdox.cloud.supervisionledger.application.SiteSupervisionLedgerService;
 import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +39,7 @@ public class InspectionReportService {
     private final ReportSubmitValidationService submitValidationService;
     private final DocumentTypeRegistryService documentTypeRegistryService;
     private final WorkspaceCascadeDeletionService deletionService;
+    private final SiteSupervisionLedgerService supervisionLedgerService;
 
     public InspectionReportService(
             InspectionReportRepository reportRepository,
@@ -47,7 +49,8 @@ public class InspectionReportService {
             OfficePermissionService permissionService,
             ReportSubmitValidationService submitValidationService,
             DocumentTypeRegistryService documentTypeRegistryService,
-            WorkspaceCascadeDeletionService deletionService
+            WorkspaceCascadeDeletionService deletionService,
+            SiteSupervisionLedgerService supervisionLedgerService
     ) {
         this.reportRepository = reportRepository;
         this.stepRepository = stepRepository;
@@ -57,6 +60,7 @@ public class InspectionReportService {
         this.submitValidationService = submitValidationService;
         this.documentTypeRegistryService = documentTypeRegistryService;
         this.deletionService = deletionService;
+        this.supervisionLedgerService = supervisionLedgerService;
     }
 
     @Transactional(readOnly = true)
@@ -127,6 +131,9 @@ public class InspectionReportService {
                         principal.userId(),
                         now)));
         report.markStepSaved(normalizedStepCode, now);
+        if ("DAILY_LOG".equals(normalizedStepCode) || "BASIC_INFO".equals(normalizedStepCode)) {
+            supervisionLedgerService.syncReportDailyLog(report, principal.userId(), now);
+        }
         return toStepResponse(step);
     }
 
@@ -136,7 +143,9 @@ public class InspectionReportService {
         permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
         requireCanSubmit(report);
         submitValidationService.requireValid(report);
-        report.submit(OffsetDateTime.now());
+        var now = OffsetDateTime.now();
+        report.submit(now);
+        supervisionLedgerService.confirmReportRevision(report, principal.userId(), now);
         return toResponse(report, principal);
     }
 

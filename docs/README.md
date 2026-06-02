@@ -33,7 +33,7 @@ needed for the change.
 | Document engine and formats | [architecture/DOCUMENT_NEUTRAL_MODEL.md](architecture/DOCUMENT_NEUTRAL_MODEL.md), [architecture/KOREAN_DOCUMENT_FORMAT_STRATEGY.md](architecture/KOREAN_DOCUMENT_FORMAT_STRATEGY.md), [DOCUMENT_RENDER_RUNTIME_POLICY.md](DOCUMENT_RENDER_RUNTIME_POLICY.md) |
 | Images and storage | [architecture/IMAGE_UPLOAD_POLICY.md](architecture/IMAGE_UPLOAD_POLICY.md), [architecture/DEPLOYMENT_PORTABILITY.md](architecture/DEPLOYMENT_PORTABILITY.md) |
 | Configuration and templates | [architecture/CONFIGURATION_BASED_CUSTOMIZATION.md](architecture/CONFIGURATION_BASED_CUSTOMIZATION.md) |
-| Project/site/target hierarchy | [architecture/SITE_TARGET_HIERARCHY.md](architecture/SITE_TARGET_HIERARCHY.md) |
+| Project/site/target hierarchy | [architecture/SITE_TARGET_HIERARCHY.md](architecture/SITE_TARGET_HIERARCHY.md), [architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md](architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md) |
 | User-facing UI | [architecture/CLIENT_PRODUCT_UI_DIRECTION.md](architecture/CLIENT_PRODUCT_UI_DIRECTION.md), [architecture/UI_WORKFLOW_ORCHESTRATION.md](architecture/UI_WORKFLOW_ORCHESTRATION.md) |
 | React structure | [architecture/FRONTEND_ARCHITECTURE.md](architecture/FRONTEND_ARCHITECTURE.md), [architecture/FRONTEND_STACK_DECISION.md](architecture/FRONTEND_STACK_DECISION.md) |
 | Security | [architecture/SECURITY_POLICY.md](architecture/SECURITY_POLICY.md) |

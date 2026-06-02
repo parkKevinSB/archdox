@@ -63,6 +63,7 @@ public class WorkspaceCascadeDeletionService {
                 from archdox_worker_chat_sessions
                 where office_id = :officeId and project_id = :projectId
                 """, params);
+        update("delete from site_supervision_entries where office_id = :officeId and project_id = :projectId", params);
         update("delete from inspection_targets where office_id = :officeId and project_id = :projectId", params);
         update("delete from project_assignments where office_id = :officeId and project_id = :projectId", params);
         update("delete from sites where office_id = :officeId and project_id = :projectId", params);
@@ -106,6 +107,10 @@ public class WorkspaceCascadeDeletionService {
                 """, params);
         update("""
                 delete from inspection_targets
+                where office_id = :officeId and project_id = :projectId and site_id = :siteId
+                """, params);
+        update("""
+                delete from site_supervision_entries
                 where office_id = :officeId and project_id = :projectId and site_id = :siteId
                 """, params);
         update("""
@@ -202,6 +207,11 @@ public class WorkspaceCascadeDeletionService {
                 """, params);
         update("""
                 delete from inspection_report_assignments where report_id in (
+                """ + reportIdQuery + """
+                )
+                """, params);
+        update("""
+                delete from site_supervision_entries where source_report_id in (
                 """ + reportIdQuery + """
                 )
                 """, params);

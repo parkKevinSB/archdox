@@ -126,6 +126,91 @@ class SiteIntegrationTest {
     }
 
     @Test
+    void dailySupervisionStepSynchronizesSiteSupervisionLedger() throws Exception {
+        var user = signup("site-ledger@example.com", "Site Ledger");
+        var projectId = createProject(user, "Ledger Project");
+        var siteId = createSite(user, projectId, "Ledger Site");
+        var reportId = createReport(user, projectId, siteId);
+
+        saveBasicInfo(user, reportId, "2026-06-02");
+
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "DAILY_LOG")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {
+                                    "dailyItems": {
+                                      "groups": [
+                                        {
+                                          "id": "group-1",
+                                          "floor": "1F",
+                                          "tradeCode": "REINFORCED_CONCRETE",
+                                          "trade": "Reinforced concrete",
+                                          "processCode": "REBAR_ASSEMBLY",
+                                          "process": "Rebar assembly",
+                                          "items": [
+                                            {
+                                              "id": "item-1",
+                                              "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                              "item": "Rebar count and pitch",
+                                              "content": "Checked rebar spacing and count.",
+                                              "photoIds": [10, 11]
+                                            },
+                                            {
+                                              "id": "item-2",
+                                              "itemCode": "RC_REBAR_ANCHORAGE",
+                                              "item": "Anchorage length",
+                                              "content": "Anchorage length reviewed.",
+                                              "photoIds": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stepCode").value("DAILY_LOG"));
+
+        mockMvc.perform(get("/api/v1/projects/{projectId}/sites/{siteId}/supervision-ledger/entries", projectId, siteId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].entryDate").value("2026-06-02"))
+                .andExpect(jsonPath("$[0].status").value("DRAFT"))
+                .andExpect(jsonPath("$[0].tradeCode").value("REINFORCED_CONCRETE"))
+                .andExpect(jsonPath("$[0].processCode").value("REBAR_ASSEMBLY"))
+                .andExpect(jsonPath("$[0].sourceReportId").value(reportId))
+                .andExpect(jsonPath("$[0].sourceReportRevision").value(1));
+
+        saveBasicInfo(user, reportId, "2026-06-03");
+
+        mockMvc.perform(get("/api/v1/projects/{projectId}/sites/{siteId}/supervision-ledger/entries", projectId, siteId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].entryDate").value("2026-06-03"));
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        mockMvc.perform(get("/api/v1/projects/{projectId}/sites/{siteId}/supervision-ledger/entries", projectId, siteId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
+    }
+
+    @Test
     void userCannotAccessAnotherOfficeSite() throws Exception {
         var userA = signup("site-alpha@example.com", "Site Alpha");
         var userB = signup("site-bravo@example.com", "Site Bravo");
@@ -246,6 +331,25 @@ class SiteIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result.getResponse().getContentAsString());
+    }
+
+    private void saveBasicInfo(TestUser user, long reportId, String inspectionDate) throws Exception {
+        var body = """
+                {
+                  "payload": {
+                    "inspectionDate": "%s",
+                    "weather": "SUNNY",
+                    "chiefSupervisorName": "Chief Supervisor",
+                    "architectAssistantName": "Assistant"
+                  }
+                }
+                """.formatted(inspectionDate);
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "BASIC_INFO")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
     }
 
     private long readId(String json) throws Exception {

@@ -1,6 +1,6 @@
 # ArchDox Current State
 
-Last updated: 2026-06-01
+Last updated: 2026-06-03
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
@@ -73,6 +73,12 @@ These are development-only credentials.
 - Office knowledge platform direction is documented: accumulated structured
   project/site/report/checklist/photo/finding/document/operation data should be
   treated as future office memory, not just temporary document-generation input.
+- Site supervision ledger foundation exists: construction daily log `DAILY_LOG`
+  saves now synchronize structured trade/process/item/photo observations into
+  `site_supervision_entries`, and report submission promotes the matching
+  report revision entries from `DRAFT` to `CONFIRMED`. Future trade-specific
+  checklist and supervision-report screens should reuse this ledger rather than
+  scraping another document's step payload.
 - Preflight document review gate tied to report revision state.
 - AI harness foundation for document review assistance, with code validation
   expected before AI validation.
