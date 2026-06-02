@@ -237,36 +237,45 @@ class DocxTemplateSmokeTest {
                 Map.of(
                         "templateFields", Map.of(
                                 "serialNo", "DL-2026-0524-001",
-                                "chiefSupervisorName", "Supervisor Kim",
-                                "architectAssistantName", "Assistant Park",
-                                "constructionName", "Reference Tower",
+                                "chiefSupervisorName", "김감리",
+                                "architectAssistantName", "박건축",
+                                "constructionName", "레퍼런스 타워 신축공사",
                                 "inspectionDate", "2026-05-24",
                                 "inspectionDayOfWeek", "Sunday",
-                                "weather", "Clear",
-                                "specialNotes", "Slab rebar spacing and cover depth checked.",
-                                "issueAndAction", "Opening guardrail reinforcement completed."),
-                        "layoutSections", Map.of(
-                                "supervisionItemsSection", Map.of(
-                                        "type", "CHECKLIST_TABLE",
-                                        "includeTitle", false,
-                                        "tableStyle", "ArchDoxInspectionTable",
-                                        "headerFill", "FFF2CC",
-                                        "borderColor", "C9A227",
-                                        "fields", List.of(
-                                                Map.of("label", KO_TRADE_AND_PROCESS, "source", "answer.trade", "width", 3000),
-                                                Map.of("label", KO_SUPERVISION_ITEM, "source", "label", "width", 2500),
-                                                Map.of("label", KO_SUPERVISION_CONTENT, "source", "note", "width", 3500)))),
-                        "checklistAnswers", List.of(
-                                Map.of(
-                                        "itemCode", "LOG-001",
-                                        "label", "Slab rebar placement",
-                                        "answer", Map.of("trade", "Reinforced concrete / 3F", "value", "OK"),
-                                        "note", "Spacing, anchorage length, and cover depth verified."),
-                                Map.of(
-                                        "itemCode", "LOG-002",
-                                        "label", "Temporary safety rail",
-                                        "answer", Map.of("trade", "Temporary work / 3F", "value", "ACTION_DONE"),
-                                        "note", "Opening guardrail added and photo evidence attached."))),
+                                "weather", "맑음",
+                                "specialNotes", "3층 슬래브 철근 배근 상태를 확인했습니다.",
+                                "issueAndAction", "개구부 주변 안전난간 보강 완료"),
+                        "steps", Map.of(
+                                "DAILY_LOG", Map.of(
+                                        "payload", Map.of(
+                                                "dailyItems", Map.of(
+                                                        "groups", List.of(
+                                                                Map.of(
+                                                                        "tradeCode", "REINFORCED_CONCRETE",
+                                                                        "trade", "철근 콘크리트 공사",
+                                                                        "process", "기초, 지하층 바닥",
+                                                                        "floor", "기초층",
+                                                                        "items", List.of(
+                                                                                Map.of(
+                                                                                        "itemCode", "REBAR_ASSEMBLY",
+                                                                                        "item", "철근 조립, 배근",
+                                                                                        "content", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                        "photoIds", List.of(1, 2)),
+                                                                                Map.of(
+                                                                                        "itemCode", "REBAR_CERTIFICATE",
+                                                                                        "item", "철근 규격 증명서",
+                                                                                        "content", "KS마크 또는 시험성적증명서 확인",
+                                                                                        "photoIds", List.of()))),
+                                                                Map.of(
+                                                                        "tradeCode", "TEMPORARY_WORKS",
+                                                                        "trade", "가설공사",
+                                                                        "process", "3층",
+                                                                        "floor", "3층",
+                                                                        "items", List.of(Map.of(
+                                                                                "itemCode", "SETTING_OUT",
+                                                                                "item", "줄쳐보기",
+                                                                                "content", "대지경계 및 기준선 확인",
+                                                                                "photoIds", List.of()))))))))),
                 List.of(),
                 OutputFormat.DOCX));
 
@@ -282,13 +291,13 @@ class DocxTemplateSmokeTest {
         assertTrue(documentXml.contains("공종 및 세부공정"));
         assertTrue(documentXml.contains("감리 항목"));
         assertTrue(documentXml.contains("감리내용"));
-        assertTrue(documentXml.contains("Supervisor Kim"));
-        assertTrue(documentXml.contains("Reference Tower"));
+        assertTrue(documentXml.contains("김감리"));
+        assertTrue(documentXml.contains("레퍼런스 타워 신축공사"));
         assertTrue(documentXml.contains("2026"));
         assertTrue(documentXml.contains("24"));
-        assertTrue(documentXml.contains("Reinforced concrete / 3F"));
-        assertTrue(documentXml.contains("Slab rebar placement"));
-        assertTrue(documentXml.contains("Opening guardrail added"));
+        assertTrue(documentXml.contains("철근 콘크리트 공사"));
+        assertTrue(documentXml.contains("철근 조립, 배근"));
+        assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
         assertTrue(documentXml.contains(KO_SPECIAL_NOTES));
         assertTrue(documentXml.contains(KO_ISSUE_AND_ACTION));
         assertTrue(documentXml.contains("작성방법"));
@@ -297,7 +306,7 @@ class DocxTemplateSmokeTest {
         assertTrue(!documentXml.contains("${"));
         assertTrue(countOccurrences(documentXml, "<w:tbl>") >= 5);
 
-        writeSmokeArtifact("pdf-reference-construction-daily-supervision-log.docx", content);
+        writeSmokeArtifact("construction-daily-supervision-official-reference.docx", content);
     }
 
     @Test

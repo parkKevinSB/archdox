@@ -1,0 +1,161 @@
+{
+  "catalogCode": "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24",
+  "catalogName": "건축공사 감리세부기준 단계별/공종별 감리 체크리스트",
+  "version": 1,
+  "status": "ACTIVE",
+  "source": {
+    "documentTitle": "[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준)",
+    "revisionLabel": "개정 2020. 12. 24.",
+    "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
+    "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data."
+  },
+  "documentLayoutPolicy": {
+    "canonicalData": "report snapshot + workflow revision + domain catalog version + template/layout revision",
+    "defaultOfficialLayout": {
+      "templateCode": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+      "formRevision": "건축공사 감리세부기준 별지 제2호서식 개정 2017. 2. 4.",
+      "layoutVersion": 1
+    }
+  },
+  "floorOptions": [
+    "전층",
+    "기초층",
+    "기초, 지하층 바닥",
+    "지하층",
+    "지하층 바닥",
+    "1층",
+    "2층",
+    "3층",
+    "옥상"
+  ],
+  "processOptions": [
+    "기초",
+    "기초, 지하층 바닥",
+    "지하층 바닥",
+    "골조",
+    "슬라브",
+    "벽체",
+    "마감",
+    "옥상"
+  ],
+  "trades": [
+    {
+      "code": "TEMPORARY_WORKS",
+      "name": "가설공사",
+      "sourcePages": [22],
+      "processes": ["-"],
+      "items": [
+        {"code": "SITE_CONDITION", "name": "부지 상황 확인", "basis": "대지의 고저차 및 설계도서 확인"},
+        {"code": "SETTING_OUT", "name": "줄쳐보기", "basis": "대지경계 확인"},
+        {"code": "BENCHMARK", "name": "벤치마크(BM)", "basis": "기준점 및 위치 변화 확인"},
+        {"code": "BATTER_BOARD", "name": "규준틀", "basis": "먹매김 확인"},
+        {"code": "BEARING_CAPACITY", "name": "지내력", "basis": "설계 지내력의 육안 또는 서류 확인"}
+      ]
+    },
+    {
+      "code": "EARTH_WORKS",
+      "name": "토공사",
+      "sourcePages": [23],
+      "processes": ["-"],
+      "items": [
+        {"code": "EXCAVATION", "name": "터파기", "basis": "터파기 깊이와 바닥면 상태 확인"},
+        {"code": "SHORING", "name": "흙막이", "basis": "흙막이 설치 및 안전상태 확인"},
+        {"code": "DRAINAGE", "name": "배수상태", "basis": "공사용 배수 및 현장 배수상태 확인"},
+        {"code": "FOUNDATION_SOIL", "name": "바닥면 토질상태", "basis": "바닥면 토질 및 지지층 확인"}
+      ]
+    },
+    {
+      "code": "PILE_AND_FOUNDATION",
+      "name": "지정 및 기초공사",
+      "sourcePages": [24, 25],
+      "processes": ["말뚝공사", "지정공사"],
+      "items": [
+        {"code": "PILE_POSITION", "name": "말뚝 위치", "basis": "말뚝 위치 및 시공상태 확인"},
+        {"code": "PILE_RECORD", "name": "말뚝 시공기록", "basis": "시공기록 및 시험자료 확인"},
+        {"code": "GRAVEL_FOUNDATION", "name": "자갈 쇄석 지정", "basis": "바닥면 레벨 및 지정공사 확인"},
+        {"code": "LEAN_CONCRETE", "name": "밑창콘크리트", "basis": "배합, 두께, 레벨 확인"},
+        {"code": "FOUNDATION_BOTTOM", "name": "기초저면 확인", "basis": "기초저면 상태 및 레벨 확인"}
+      ]
+    },
+    {
+      "code": "FORMWORK",
+      "name": "거푸집 공사",
+      "sourcePages": [26],
+      "processes": ["-"],
+      "items": [
+        {"code": "MARKING", "name": "먹매김", "basis": "각층 바닥 먹매김 확인"},
+        {"code": "LEVEL", "name": "레벨", "basis": "기준 레벨 확인"},
+        {"code": "FORM_INSTALLATION", "name": "거푸집 설치상태", "basis": "거푸집 위치, 고정, 치수 확인"},
+        {"code": "FORM_RELEASE_AGENT", "name": "박리제 도포상태", "basis": "박리제 도포 및 오염 여부 확인"}
+      ]
+    },
+    {
+      "code": "REINFORCED_CONCRETE",
+      "name": "철근 콘크리트 공사",
+      "sourcePages": [27, 81],
+      "processes": ["기초, 지하층 바닥", "전층", "슬라브", "벽체", "기둥", "보", "콘크리트 타설", "콘크리트 양생"],
+      "items": [
+        {"code": "REBAR_ASSEMBLY", "name": "철근 조립, 배근", "basis": "개수, 철근지름, 피치, 정착길이, 이음위치 확인"},
+        {"code": "REBAR_CERTIFICATE", "name": "철근 규격 증명서", "basis": "KS마크 또는 시험성적증명서 확인"},
+        {"code": "CONCRETE_PLACEMENT", "name": "콘크리트 타설", "basis": "작업원 인원, 타설중지, 슬럼프와 공기량 확인"},
+        {"code": "CONCRETE_CURING", "name": "콘크리트 양생", "basis": "타설 후 보양, 적정 온도, 적재금지 확인"},
+        {"code": "COMPRESSIVE_STRENGTH", "name": "콘크리트 압축강도 시험", "basis": "공시체 채취요령, 압축강도 시험기록 확인"},
+        {"code": "CONCRETE_SURFACE", "name": "콘크리트 상태 확인", "basis": "공동, 자갈노출, 균열, 철근 노출부 확인"}
+      ]
+    },
+    {
+      "code": "STEEL_FRAME",
+      "name": "철골 공사",
+      "sourcePages": [30, 31],
+      "processes": ["제작요령서", "공장가공", "제품 공장 검사", "용접공사"],
+      "items": [
+        {"code": "STEEL_PROCESSING", "name": "강재 가공방법 확인", "basis": "절단 및 가공방법 확인"},
+        {"code": "STEEL_MATERIAL", "name": "강재의 재질 확인", "basis": "강재 재질 및 증빙 확인"},
+        {"code": "WELDING_ROD", "name": "용접봉 확인", "basis": "용접봉 규격과 사용 적합성 확인"},
+        {"code": "SHOP_INSPECTION", "name": "공장 검사보고서", "basis": "사내 검사보고서 수리 확인"},
+        {"code": "TRIAL_ASSEMBLY", "name": "제품가조립 상태", "basis": "제품가조립 및 표시 상태 확인"},
+        {"code": "WELDING_SEQUENCE", "name": "용접순서 및 절차", "basis": "용접순서, 용접절차, 시방서 확인"}
+      ]
+    },
+    {
+      "code": "MASONRY_ALC_PANEL",
+      "name": "벽돌·블록·ALC 패널 공사",
+      "sourcePages": [32, 33, 34],
+      "processes": ["벽돌공사", "블록공사", "ALC공사"],
+      "items": [
+        {"code": "MATERIAL_DELIVERY", "name": "자재 반입", "basis": "반입 자재 규격 및 품질 확인"},
+        {"code": "LAYING_STATUS", "name": "쌓기 상태", "basis": "쌓기 방법, 줄눈, 수직·수평 상태 확인"},
+        {"code": "OPENING_REINFORCEMENT", "name": "개구부 보강", "basis": "개구부 주변 보강상태 확인"}
+      ]
+    },
+    {
+      "code": "WATERPROOFING",
+      "name": "방수공사",
+      "sourcePages": [39],
+      "processes": ["바탕정리", "방수층 시공", "배수구 주변 처리"],
+      "items": [
+        {"code": "BASE_PREPARATION", "name": "바탕면 정리", "basis": "바탕면 청소, 건조, 균열 처리 확인"},
+        {"code": "WATERPROOF_LAYER", "name": "방수층 시공", "basis": "방수층 두께, 겹침, 들뜸 여부 확인"},
+        {"code": "DRAIN_DETAIL", "name": "배수구 주변 처리", "basis": "드레인 주변 방수 보강 확인"},
+        {"code": "LEAK_TEST", "name": "누수 여부 확인", "basis": "담수 또는 누수 확인 결과"}
+      ]
+    },
+    {
+      "code": "FINISHING",
+      "name": "마감공사",
+      "sourcePages": [42, 46, 47],
+      "processes": ["미장", "도장", "수장", "타일"],
+      "items": [
+        {"code": "FINISH_MATERIAL", "name": "자재 반입", "basis": "마감 자재 규격 및 견본품 일치 여부 확인"},
+        {"code": "BASE_CONDITION", "name": "시공면 상태", "basis": "바탕면 평활도, 건조상태, 오염 여부 확인"},
+        {"code": "FINISH_LEVEL", "name": "마감 레벨", "basis": "마감 레벨 및 줄눈 상태 확인"},
+        {"code": "CURING_PROTECTION", "name": "보양 상태", "basis": "마감 후 보양 및 손상 방지 상태 확인"}
+      ]
+    }
+  ],
+  "futureWork": [
+    "Extract all 49 unique trade/detail groups from the reference PDF into this catalog.",
+    "Add office-level catalog overrides after the system catalog stabilizes.",
+    "Connect checklist answer schemas to catalog item codes so daily logs and checklist documents share the same domain vocabulary."
+  ]
+}

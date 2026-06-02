@@ -1,13 +1,17 @@
 import { Camera, Plus, Trash2, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { usePhotoWorkspace } from "../../../photos/hooks/usePhotoWorkspace";
 import { PhotoUploadTaskStrip } from "../../../photos/components/PhotoPipelinePanel";
+import { getSupervisionDomainCatalog } from "../../api";
+import type { SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
 type DailySupervisionItem = {
   content: string;
   id: string;
   item: string;
+  itemCode?: string;
   photoIds: number[];
 };
 
@@ -16,7 +20,9 @@ type DailySupervisionGroup = {
   id: string;
   items: DailySupervisionItem[];
   process: string;
+  processCode?: string;
   trade: string;
+  tradeCode?: string;
 };
 
 type DailyItemsPayload = {
@@ -24,61 +30,7 @@ type DailyItemsPayload = {
 };
 
 const DAILY_ITEMS_FIELD = "dailyItems";
-
-const floorOptions = ["전층", "기초층", "지하층", "지하층 바닥", "1층", "2층", "3층", "옥상"];
-
-const tradeCatalog = [
-  {
-    trade: "가설공사",
-    items: ["부지 상황 확인", "줄쳐보기", "벤치마크(BM)", "규준틀"]
-  },
-  {
-    trade: "토공사",
-    items: ["터파기", "흙막이", "배수상태", "바닥면 토질상태"]
-  },
-  {
-    trade: "지정 및 기초공사",
-    items: ["자갈 쇄석 지정", "밑창콘크리트", "기초저면 확인", "레벨 확인"]
-  },
-  {
-    trade: "거푸집공사",
-    items: ["먹매김", "레벨", "거푸집 설치상태", "박리제 도포상태"]
-  },
-  {
-    trade: "철근 콘크리트 공사",
-    items: ["철근 조립, 배근", "철근 규격 증명서", "피복 두께", "정착 길이", "이음 위치", "타설"]
-  },
-  {
-    trade: "조적공사",
-    items: ["자재 반입", "쌓기 상태", "줄눈 상태", "개구부 보강"]
-  },
-  {
-    trade: "방수공사",
-    items: ["바탕면 정리", "방수층 시공", "배수구 주변 처리", "누수 여부 확인"]
-  },
-  {
-    trade: "마감공사",
-    items: ["자재 반입", "시공면 상태", "마감 품질", "보양 상태"]
-  }
-];
-
-const defaultContentByItem: Record<string, string> = {
-  "부지 상황 확인": "대지의 고저차 설계도서 확인",
-  "줄쳐보기": "대지경계 확인",
-  "벤치마크(BM)": "기준점의 확인\nBM위치에 대한 변화 확인",
-  "규준틀": "먹매김 확인",
-  "터파기": "터파기 깊이 확인\n바닥면의 토질상태 확인",
-  "자갈 쇄석 지정": "바닥면의 레벨 확인\n지정공사의 확인",
-  "밑창콘크리트": "밑창콘크리트의 배합, 두께 확인",
-  "먹매김": "각층 바닥 먹매김 확인",
-  "레벨": "타설레벨 확인",
-  "철근 조립, 배근": "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인\n- 이음위치와 이음길이 확인",
-  "철근 규격 증명서": "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
-  "피복 두께": "철근 피복 두께 확인",
-  "정착 길이": "정착 길이 및 굽힘정착 깊이 확인",
-  "이음 위치": "이음위치와 이음길이 확인",
-  "타설": "날씨 및 바탕면 확인"
-};
+const CATALOG_CODE = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
 
 export function DailySupervisionItemsStep({
   canWriteReports,
@@ -97,6 +49,14 @@ export function DailySupervisionItemsStep({
     token,
     uploadContext: { stepCode: definition.code }
   });
+  const catalogQuery = useQuery({
+    queryKey: ["supervisionDomainCatalog", officeId, CATALOG_CODE],
+    queryFn: () => getSupervisionDomainCatalog(token, officeId, CATALOG_CODE)
+  });
+  const catalog = catalogQuery.data ?? null;
+  const trades = catalog?.trades ?? [];
+  const floorOptions = catalog?.floorOptions ?? [];
+  const processOptions = catalog?.processOptions ?? [];
 
   const totalItems = useMemo(() => groups.reduce((sum, group) => sum + group.items.length, 0), [groups]);
   const totalPhotos = useMemo(
@@ -124,6 +84,7 @@ export function DailySupervisionItemsStep({
   }
 
   function addGroup() {
+    const defaultTrade = trades[0] ?? null;
     commit([
       ...groups,
       {
@@ -131,7 +92,8 @@ export function DailySupervisionItemsStep({
         id: newId("group"),
         items: [emptyItem()],
         process: "",
-        trade: tradeCatalog[0].trade
+        trade: defaultTrade?.name ?? "",
+        tradeCode: defaultTrade?.code
       }
     ]);
   }
@@ -144,7 +106,7 @@ export function DailySupervisionItemsStep({
     commit(groups.filter((group) => group.id !== groupId));
   }
 
-  function addItem(groupId: string, itemName?: string) {
+  function addItem(groupId: string, catalogItem?: SupervisionCatalogItem) {
     commit(groups.map((group) => {
       if (group.id !== groupId) {
         return group;
@@ -154,14 +116,25 @@ export function DailySupervisionItemsStep({
         items: [
           ...group.items,
           {
-            content: defaultContentByItem[itemName ?? ""] ?? "",
+            content: "",
             id: newId("item"),
-            item: itemName ?? "",
+            item: catalogItem?.name ?? "",
+            itemCode: catalogItem?.code,
             photoIds: []
           }
         ]
       };
     }));
+  }
+
+  function selectTrade(groupId: string, tradeCode: string) {
+    const selected = trades.find((trade) => trade.code === tradeCode);
+    updateGroup(groupId, {
+      process: "",
+      processCode: undefined,
+      trade: selected?.name ?? "",
+      tradeCode: selected?.code
+    });
   }
 
   function updateItem(groupId: string, itemId: string, patch: Partial<DailySupervisionItem>) {
@@ -214,10 +187,23 @@ export function DailySupervisionItemsStep({
       <input type="hidden" {...register(DAILY_ITEMS_FIELD)} />
 
       <div className="daily-supervision-summary">
-        <span>공정 그룹 {groups.length}개</span>
+        <span>공종 그룹 {groups.length}개</span>
         <span>감리 항목 {totalItems}개</span>
         <span>연결 사진 {totalPhotos}장</span>
+        {catalog ? <span>카탈로그 v{catalog.version}</span> : null}
       </div>
+
+      {catalogQuery.isLoading ? (
+        <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오는 중입니다.</p>
+      ) : null}
+      {catalogQuery.error ? (
+        <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오지 못했습니다. 직접 입력은 가능합니다.</p>
+      ) : null}
+      {catalog?.source ? (
+        <p className="daily-supervision-muted">
+          기준: {catalog.source.documentTitle} {catalog.source.revisionLabel ? `· ${catalog.source.revisionLabel}` : ""}
+        </p>
+      ) : null}
 
       {groups.length === 0 ? (
         <div className="daily-supervision-empty">
@@ -234,11 +220,11 @@ export function DailySupervisionItemsStep({
             <article className="daily-supervision-group" key={group.id}>
               <header className="daily-supervision-group-head">
                 <div>
-                  <span>공정 그룹 {groupIndex + 1}</span>
+                  <span>공종 그룹 {groupIndex + 1}</span>
                   <strong>{group.trade || "공종 미선택"}</strong>
                 </div>
                 <button
-                  aria-label="공정 그룹 삭제"
+                  aria-label="공종 그룹 삭제"
                   className="icon-button danger"
                   disabled={!canWriteReports}
                   onClick={() => removeGroup(group.id)}
@@ -250,28 +236,6 @@ export function DailySupervisionItemsStep({
 
               <div className="daily-supervision-group-fields">
                 <label>
-                  공종
-                  <select
-                    disabled={!canWriteReports}
-                    onChange={(event) => updateGroup(group.id, { trade: event.target.value })}
-                    value={group.trade}
-                  >
-                    {tradeCatalog.map((entry) => (
-                      <option key={entry.trade} value={entry.trade}>{entry.trade}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  세부공정
-                  <input
-                    disabled={!canWriteReports}
-                    list="daily-process-options"
-                    onChange={(event) => updateGroup(group.id, { process: event.target.value })}
-                    placeholder="예: 기초, 지하층 바닥"
-                    value={group.process}
-                  />
-                </label>
-                <label>
                   층/구역
                   <input
                     disabled={!canWriteReports}
@@ -281,11 +245,44 @@ export function DailySupervisionItemsStep({
                     value={group.floor}
                   />
                 </label>
+                <label>
+                  공종
+                  {trades.length > 0 ? (
+                    <select
+                      disabled={!canWriteReports}
+                      onChange={(event) => selectTrade(group.id, event.target.value)}
+                      value={group.tradeCode ?? ""}
+                    >
+                      <option value="">공종 선택</option>
+                      {trades.map((entry) => (
+                        <option key={entry.code} value={entry.code}>{entry.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      disabled={!canWriteReports}
+                      onChange={(event) => updateGroup(group.id, { trade: event.target.value, tradeCode: undefined })}
+                      placeholder="예: 철근 콘크리트 공사"
+                      value={group.trade}
+                    />
+                  )}
+                </label>
+                <label>
+                  세부공정
+                  <input
+                    disabled={!canWriteReports}
+                    list={`daily-process-options-${group.id}`}
+                    onChange={(event) => updateGroup(group.id, { process: event.target.value, processCode: undefined })}
+                    placeholder="예: 기초, 지하층 바닥"
+                    value={group.process}
+                  />
+                </label>
               </div>
 
               <DailyItemPicker
                 canWriteReports={canWriteReports}
                 group={group}
+                trades={trades}
                 onAdd={(itemName) => addItem(group.id, itemName)}
               />
 
@@ -311,10 +308,13 @@ export function DailySupervisionItemsStep({
                       <input
                         disabled={!canWriteReports}
                         list={`daily-item-options-${group.id}`}
-                        onChange={(event) => updateItem(group.id, item.id, {
-                          content: item.content || defaultContentByItem[event.target.value] || "",
-                          item: event.target.value
-                        })}
+                        onChange={(event) => {
+                          const catalogItem = itemByName(group, trades, event.target.value);
+                          updateItem(group.id, item.id, {
+                            item: event.target.value,
+                            itemCode: catalogItem?.code
+                          });
+                        }}
                         placeholder="예: 철근 조립, 배근"
                         value={item.item}
                       />
@@ -364,8 +364,13 @@ export function DailySupervisionItemsStep({
               </div>
 
               <datalist id={`daily-item-options-${group.id}`}>
-                {suggestedItems(group.trade).map((item) => (
-                  <option key={item} value={item} />
+                {suggestedItems(group, trades).map((item) => (
+                  <option key={item.code} value={item.name} />
+                ))}
+              </datalist>
+              <datalist id={`daily-process-options-${group.id}`}>
+                {suggestedProcesses(group, trades, processOptions).map((option) => (
+                  <option key={option} value={option} />
                 ))}
               </datalist>
             </article>
@@ -385,11 +390,6 @@ export function DailySupervisionItemsStep({
       <datalist id="daily-floor-options">
         {floorOptions.map((option) => <option key={option} value={option} />)}
       </datalist>
-      <datalist id="daily-process-options">
-        {["기초", "지하층 바닥", "기초, 지하층 바닥", "전층", "슬라브", "벽체", "옥상"].map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
     </>
   );
 }
@@ -397,39 +397,67 @@ export function DailySupervisionItemsStep({
 function DailyItemPicker({
   canWriteReports,
   group,
-  onAdd
+  onAdd,
+  trades
 }: {
   canWriteReports: boolean;
   group: DailySupervisionGroup;
-  onAdd: (itemName?: string) => void;
+  onAdd: (item?: SupervisionCatalogItem) => void;
+  trades: SupervisionCatalogTrade[];
 }) {
   const [selected, setSelected] = useState("");
-  const items = suggestedItems(group.trade);
+  const items = suggestedItems(group, trades);
+  const selectedItem = items.find((item) => item.code === selected);
 
   useEffect(() => {
-    setSelected(items[0] ?? "");
-  }, [group.trade, items]);
+    setSelected(items[0]?.code ?? "");
+  }, [group.tradeCode, items]);
 
   return (
     <div className="daily-supervision-item-picker">
       <select disabled={!canWriteReports} onChange={(event) => setSelected(event.target.value)} value={selected}>
+        <option value="">감리 항목 선택</option>
         {items.map((item) => (
-          <option key={item} value={item}>{item}</option>
+          <option key={item.code} value={item.code}>{item.name}</option>
         ))}
       </select>
-      <button className="secondary-button" disabled={!canWriteReports} onClick={() => onAdd(selected)} type="button">
+      <button
+        className="secondary-button"
+        disabled={!canWriteReports || !selectedItem}
+        onClick={() => onAdd(selectedItem)}
+        type="button"
+      >
         <Plus size={16} />
         감리 항목 추가
       </button>
-      <button className="secondary-button" disabled={!canWriteReports} onClick={() => onAdd("")} type="button">
+      <button className="secondary-button" disabled={!canWriteReports} onClick={() => onAdd(undefined)} type="button">
         직접 입력
       </button>
     </div>
   );
 }
 
-function suggestedItems(trade: string) {
-  return tradeCatalog.find((entry) => entry.trade === trade)?.items ?? tradeCatalog[0].items;
+function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
+  return selectedTrade(group, trades)?.items ?? [];
+}
+
+function itemByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
+  return suggestedItems(group, trades).find((item) => item.name === name);
+}
+
+function suggestedProcesses(
+  group: DailySupervisionGroup,
+  trades: SupervisionCatalogTrade[],
+  catalogProcessOptions: string[]
+) {
+  return uniqueStrings([...(selectedTrade(group, trades)?.processes ?? []), ...catalogProcessOptions])
+    .filter((option) => option && option !== "-");
+}
+
+function selectedTrade(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
+  return trades.find((trade) => trade.code === group.tradeCode)
+    ?? trades.find((trade) => trade.name === group.trade)
+    ?? null;
 }
 
 function emptyItem(): DailySupervisionItem {
@@ -472,7 +500,9 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
     id: text(raw.id) || newId(`group-${index}`),
     items: Array.isArray(raw.items) ? raw.items.map((item, itemIndex) => normalizeItem(item, itemIndex)).filter(Boolean) as DailySupervisionItem[] : [],
     process: text(raw.process),
-    trade: text(raw.trade) || tradeCatalog[0].trade
+    processCode: optionalText(raw.processCode),
+    trade: text(raw.trade),
+    tradeCode: optionalText(raw.tradeCode)
   };
 }
 
@@ -485,6 +515,7 @@ function normalizeItem(value: unknown, index: number): DailySupervisionItem | nu
     content: text(raw.content),
     id: text(raw.id) || newId(`item-${index}`),
     item: text(raw.item),
+    itemCode: optionalText(raw.itemCode),
     photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : [])
   };
 }
@@ -493,8 +524,17 @@ function text(value: unknown) {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
 
+function optionalText(value: unknown) {
+  const normalized = text(value).trim();
+  return normalized ? normalized : undefined;
+}
+
 function uniqueNumbers(values: unknown[]) {
   return [...new Set(values.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0))];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
 function newId(prefix: string) {

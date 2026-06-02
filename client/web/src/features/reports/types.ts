@@ -67,3 +67,38 @@ export type DocumentTypeDefinition = {
 };
 
 export type ReportWizardFormValues = Record<string, string>;
+
+export type SupervisionCatalogItem = {
+  basis?: string | null;
+  code: string;
+  name: string;
+};
+
+export type SupervisionCatalogTrade = {
+  code: string;
+  items: SupervisionCatalogItem[];
+  name: string;
+  processes?: string[];
+  sourcePages?: number[];
+};
+
+export type SupervisionDomainCatalog = {
+  catalogCode: string;
+  catalogName: string;
+  documentLayoutPolicy?: {
+    defaultOfficialLayout?: {
+      formRevision?: string;
+      layoutVersion?: number;
+      templateCode?: string;
+    };
+  };
+  floorOptions?: string[];
+  processOptions?: string[];
+  source?: {
+    documentTitle?: string;
+    revisionLabel?: string;
+  };
+  status: string;
+  trades: SupervisionCatalogTrade[];
+  version: number;
+};

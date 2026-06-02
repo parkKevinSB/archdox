@@ -105,6 +105,17 @@ class DocumentTypeRegistryIntegrationTest {
         assertTrue(hasStepField(constructionDailyWorkflow, "DAILY_LOG", "dailyItems"));
         assertTrue(hasStepField(constructionDailyWorkflow, "REMARKS", "issueAndAction"));
 
+        mockMvc.perform(get("/api/v1/supervision-domain-catalogs/{catalogCode}",
+                        "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogCode").value("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24"))
+                .andExpect(jsonPath("$.source.revisionLabel").value("개정 2020. 12. 24."))
+                .andExpect(jsonPath("$.documentLayoutPolicy.defaultOfficialLayout.layoutVersion").value(1))
+                .andExpect(jsonPath("$.trades[0].code").value("TEMPORARY_WORKS"))
+                .andExpect(jsonPath("$.trades[4].code").value("REINFORCED_CONCRETE"));
+
         var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");
         assertTrue(hasSection(constructionReportLayout, "reportOpinionSection", "CHECKLIST_TABLE"));
         assertTrue(hasSection(constructionReportLayout, "photoSection", "PHOTO_TABLE"));

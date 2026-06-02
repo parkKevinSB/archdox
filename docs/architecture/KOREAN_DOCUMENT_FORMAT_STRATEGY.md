@@ -512,6 +512,20 @@ same report snapshot
 = different document form without office-specific business code
 ```
 
+## Construction Supervision Domain Catalog
+
+Construction supervision trade/process/check item lists are not UI dropdown
+constants. They are versioned domain knowledge. The first code-managed catalog
+is documented in:
+
+```text
+docs/architecture/CONSTRUCTION_SUPERVISION_DOMAIN_CATALOG.md
+```
+
+The daily supervision UI must read this catalog from Cloud API and store stable
+codes such as `tradeCode` and `itemCode` alongside Korean display names. This
+keeps report data reusable even when a public form layout is revised.
+
 Phase 8 smoke coverage now checks the two core Korean default templates with
 realistic sample report snapshots:
 

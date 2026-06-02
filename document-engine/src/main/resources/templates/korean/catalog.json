@@ -23,6 +23,8 @@
       "templateKind": "OFFICIAL_SUBMISSION",
       "customizationPolicy": "COPY_AND_OVERRIDE",
       "renderingPolicy": "BUNDLED_OFFICIAL_RENDERER",
+      "formRevision": "건축공사 감리세부기준 별지 제2호서식 개정 2017. 2. 4.",
+      "layoutVersion": 1,
       "richSections": [
         "supervisionItemsSection",
         "checklistPhotoSection",

@@ -1,5 +1,10 @@
 import { request } from "../../api/http";
-import type { DocumentTypeDefinition, InspectionStep, ReportFlowDefinition } from "./types";
+import type {
+  DocumentTypeDefinition,
+  InspectionStep,
+  ReportFlowDefinition,
+  SupervisionDomainCatalog
+} from "./types";
 
 export function getDocumentTypes(token: string, officeId: number) {
   return request<DocumentTypeDefinition[]>("/api/v1/document-types", { token, officeId });
@@ -14,4 +19,11 @@ export function getReportWorkflowDefinition(token: string, officeId: number, rep
     token,
     officeId
   });
+}
+
+export function getSupervisionDomainCatalog(token: string, officeId: number, catalogCode: string) {
+  return request<SupervisionDomainCatalog>(
+    `/api/v1/supervision-domain-catalogs/${encodeURIComponent(catalogCode)}`,
+    { token, officeId }
+  );
 }
