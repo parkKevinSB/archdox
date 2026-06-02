@@ -61,7 +61,7 @@ class ConfigurationRegistryIntegrationTest {
         assertTrue(hasField(body, "constructionTrade"));
         assertFalse(hasField(body, "demolitionWorkerName"));
         assertTrue(hasPreset(body, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
-        assertTrue(hasPreset(body, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
+        assertFalse(hasPreset(body, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
         var officialPreset = preset(body, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2");
         assertTrue(officialPreset.get("templateKind").asText().equals("OFFICIAL_SUBMISSION"));
         assertTrue(officialPreset.get("renderingPolicy").asText().equals("BUNDLED_OFFICIAL_RENDERER"));

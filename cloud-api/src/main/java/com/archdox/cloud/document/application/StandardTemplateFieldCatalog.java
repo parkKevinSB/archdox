@@ -126,17 +126,10 @@ public class StandardTemplateFieldCatalog {
             officialPreset(
                     "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
                     "공식 제출용 공사감리일지 별지 2",
-                    "공공기관 제출 서식에 가까운 공사감리일지 기본 필드 묶음입니다.",
+                    "ArchDox의 공사감리일지 정본입니다. 별지 제2호서식 기준의 공식 제출용 렌더러를 사용합니다.",
                     RENDERING_BUNDLED_OFFICIAL_RENDERER,
                     DAILY_REPORT_TYPES,
                     List.of("documentTitle", "serialNo", "chiefSupervisorName", "architectAssistantName", "assistantArchitectName", "constructionName", "inspectionDate", "inspectionDayOfWeek", "weather", "constructionTrade", "detailedProcess", "floor", "supervisionItem", "supervisionContent", "specialNotes", "issueAndAction", "correctionResults"),
-                    List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
-            officeInternalPreset(
-                    "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION",
-                    "사무소 내부용 공사감리일지",
-                    "사무소 운영, 회의, 내부 검토용으로 자유롭게 편집해 쓰는 공사감리일지 프리셋입니다.",
-                    DAILY_REPORT_TYPES,
-                    List.of("documentTitle", "projectName", "siteName", "inspectionDate", "weather", "inspectorName", "constructionTrade", "workDescription", "supervisionContent", "specialNotes", "issueAndAction", "photoSection"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
             officeInternalPreset(
                     "OFFICE_INTERNAL_CONSTRUCTION_SUPERVISION_REPORT",

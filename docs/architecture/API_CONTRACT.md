@@ -1504,7 +1504,7 @@ Example response:
     {
       "code": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
       "title": "공식 제출용 공사감리일지 별지 2",
-      "description": "공공기관 제출 서식에 가까운 공사감리일지 기본 필드 묶음입니다.",
+      "description": "ArchDox의 공사감리일지 정본입니다. 별지 제2호서식 기준의 공식 제출용 렌더러를 사용합니다.",
       "templateKind": "OFFICIAL_SUBMISSION",
       "customizationPolicy": "COPY_AND_OVERRIDE",
       "renderingPolicy": "BUNDLED_OFFICIAL_RENDERER",

@@ -15,24 +15,20 @@ class StandardTemplateFieldCatalogTest {
         assertTrue(hasField(dailyCatalog, "constructionName"));
         assertTrue(hasField(dailyCatalog, "constructionTrade"));
         assertTrue(hasPreset(dailyCatalog, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
-        assertTrue(hasPreset(dailyCatalog, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
+        assertFalse(hasPreset(dailyCatalog, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
         assertFalse(hasField(dailyCatalog, "demolitionWorkerName"));
         assertFalse(hasPreset(dailyCatalog, "KOREAN_DEMOLITION_SAFETY_CHECK_APPENDIX_1"));
     }
 
     @Test
-    void dailySupervisionPresetsExposeTemplatePolicies() {
+    void dailySupervisionPresetIsOfficialSubmissionOnly() {
         var dailyCatalog = catalog.catalog("daily_supervision");
 
         var officialPreset = preset(dailyCatalog, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2");
         assertTrue(officialPreset.templateKind().equals("OFFICIAL_SUBMISSION"));
         assertTrue(officialPreset.customizationPolicy().equals("COPY_AND_OVERRIDE"));
         assertTrue(officialPreset.renderingPolicy().equals("BUNDLED_OFFICIAL_RENDERER"));
-
-        var internalPreset = preset(dailyCatalog, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION");
-        assertTrue(internalPreset.templateKind().equals("OFFICE_INTERNAL"));
-        assertTrue(internalPreset.customizationPolicy().equals("OFFICE_EDITABLE"));
-        assertTrue(internalPreset.renderingPolicy().equals("DOCX_TEMPLATE_BINDING"));
+        assertFalse(hasPreset(dailyCatalog, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
     }
 
     @Test
