@@ -1462,6 +1462,13 @@ function InsightChatView({ office }: { office: Office | null }) {
               </p>
             </div>
           </div>
+          <div className="insight-chat-retention">
+            <strong>임시 채팅</strong>
+            <span>
+              분석 채팅 원문은 장기 보관하지 않는 방향입니다. 실제 기능이 연결되면 화면을 나가거나 새로고침하기 전에 확인창을 띄우고,
+              필요한 경우 질문 요약, 참조한 데이터, 분석 결과만 운영 기록으로 남깁니다.
+            </span>
+          </div>
           <div className="insight-chat-example-grid">
             {examples.map((example) => (
               <button disabled key={example} type="button">

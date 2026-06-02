@@ -97,6 +97,43 @@ Insight Chat
     instead of unlimited raw chat history
 ```
 
+Server-side chat structure must eventually reflect these types instead of
+treating every chat as a project/report chat.
+
+Recommended future shape:
+
+```text
+WORK_CHAT
+  scope: project/site/report
+  storage: active session messages during work; delete or summarize after completion
+  durable result: report steps, findings, document jobs, operation events
+
+OFFICE_INSIGHT_CHAT
+  scope: office
+  storage: ephemeral transcript; optional compact query/result summary
+  durable result: referenced resource ids, generated insight result, operation events
+
+PLATFORM_OPS_CHAT
+  scope: platform admin
+  storage: ephemeral transcript; no raw log/secret persistence
+  durable result: diagnosis summary, issue/event references, operation events
+```
+
+Do not reuse `archdox_worker_chat_sessions` blindly for all future chat types
+without adding an explicit `chat_type`/`scope_type` concept or introducing a
+separate insight/ops chat session model. Work chat is action-oriented. Insight
+and ops chat are query/diagnosis-oriented.
+
+For ephemeral chat UX:
+
+```text
+- show a visible notice that raw chat history is not saved
+- if the user typed messages or received an answer, warn on menu navigation,
+  browser back, refresh, or tab close where technically possible
+- for hard browser/app termination, do not rely on preserving transcript
+- persist only compact summaries, referenced ids, generated outputs, and audit events
+```
+
 ## Worker Service, Not Generic Platform
 
 Do not build a general-purpose worker marketplace or generic AI automation

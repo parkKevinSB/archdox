@@ -3378,6 +3378,26 @@ button.list-row {
   line-height: 1.55;
 }
 
+.insight-chat-retention {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #ead5a4;
+  border-radius: 8px;
+  color: #64470d;
+  background: #fff8e7;
+}
+
+.insight-chat-retention strong {
+  font-size: 13px;
+}
+
+.insight-chat-retention span {
+  color: #7b5b13;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .insight-chat-example-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
