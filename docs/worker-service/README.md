@@ -82,6 +82,21 @@ Existing UI
   = review, edit, approve, manage, submit, and audit the work
 ```
 
+ArchDox chat entry points are separated by lifecycle and responsibility:
+
+```text
+Work Chat
+  - tied to a selected project and usually a site/report
+  - helps create reports, save steps, run review, and request document generation
+  - short-lived; after completion the durable record is the report/document/finding
+
+Insight Chat
+  - tied to office-level knowledge and analytics
+  - asks questions across projects, sites, reports, photos, findings, and documents
+  - should store compact query summaries, referenced resource ids, and analysis results
+    instead of unlimited raw chat history
+```
+
 ## Worker Service, Not Generic Platform
 
 Do not build a general-purpose worker marketplace or generic AI automation

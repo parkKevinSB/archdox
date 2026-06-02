@@ -1,6 +1,7 @@
 import {
   Bell,
   Camera,
+  BarChart3,
   ClipboardList,
   FileText,
   Loader2,
@@ -127,11 +128,12 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof ClipboardList 
   { key: "reports", label: "리포트", icon: FileText },
   { key: "jobs", label: "문서", icon: UploadCloud },
   { key: "photos", label: "사진", icon: Camera },
-  { key: "chat", label: "채팅", icon: MessageSquare }
+  { key: "workChat", label: "작업 채팅", icon: MessageSquare },
+  { key: "insightChat", label: "분석 채팅", icon: BarChart3 }
 ];
 
 const bottomNavItems = navItems.filter((item) =>
-  ["projects", "sites", "reports", "jobs", "photos", "chat"].includes(item.key)
+  ["projects", "sites", "reports", "jobs", "photos", "workChat", "insightChat"].includes(item.key)
 );
 
 const projectBusinessTypeOptions: CodeOption[] = [
@@ -949,7 +951,7 @@ export default function App() {
               onRefreshWorkspace={() => loadWorkspace()}
             />
           )}
-          {activeView === "chat" && (
+          {activeView === "workChat" && (
             <ProjectWorkerChat
               officeId={selectedOfficeId}
               project={selectedProject}
@@ -959,6 +961,7 @@ export default function App() {
               onSessionSync={handleWorkerChatSessionSync}
             />
           )}
+          {activeView === "insightChat" && <InsightChatView office={selectedOffice} />}
           {activeView === "more" && <MoreView user={auth.user} onLogout={logout} />}
         </main>
       </section>
@@ -1428,6 +1431,52 @@ function WorkflowPath({
           <strong>{step.label}</strong>
         </div>
       ))}
+    </div>
+  );
+}
+
+function InsightChatView({ office }: { office: Office | null }) {
+  const examples = [
+    "최근 2년간 지적사항이 많았던 현장 알려줘",
+    "우리 사무소 감리 실적 요약해줘",
+    "사진 증거가 부족했던 리포트 찾아줘",
+    "반복되는 안전 지적사항 유형 정리해줘"
+  ];
+  return (
+    <div className="view-stack insight-chat-view">
+      <ViewHeader
+        title="분석 채팅"
+        text={`${office?.displayName ?? "현재 사무소"}의 프로젝트, 현장, 리포트, 사진, 문서 데이터를 바탕으로 묻는 사무소 분석 채팅입니다.`}
+      />
+      <Panel title="사무소 데이터 분석">
+        <div className="insight-chat-shell">
+          <div className="insight-chat-intro">
+            <div className="row-icon">
+              <BarChart3 size={19} />
+            </div>
+            <div>
+              <strong>분석 채팅은 작업 채팅과 분리됩니다.</strong>
+              <p>
+                작업 채팅은 특정 리포트 작성과 문서 생성을 돕고, 분석 채팅은 사무소 전체 데이터를 조회하고 요약하는 용도입니다.
+                질문 원문을 길게 보관하기보다 참조 데이터와 요약 결과 중심으로 남기는 방향으로 확장합니다.
+              </p>
+            </div>
+          </div>
+          <div className="insight-chat-example-grid">
+            {examples.map((example) => (
+              <button disabled key={example} type="button">
+                {example}
+              </button>
+            ))}
+          </div>
+          <form className="insight-chat-composer">
+            <textarea disabled rows={2} placeholder="분석 Worker 연결 후 사용할 수 있습니다." />
+            <button disabled type="button" className="worker-chat-send-button">
+              <MessageSquare size={17} />
+            </button>
+          </form>
+        </div>
+      </Panel>
     </div>
   );
 }
