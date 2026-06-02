@@ -5,9 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -17,11 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.zip.ZipInputStream;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 class CoreKoreanDocumentGenerationSmokeTest {
-    private static final byte[] SAMPLE_PNG = Base64.getDecoder().decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lz7S4QAAAABJRU5ErkJggg==");
+    private static final byte[] SAMPLE_PNG = samplePng();
 
     private final DocxTemplateDocumentEngine engine = new DocxTemplateDocumentEngine(
             spec -> BundledDocumentTemplates.read(spec.storageRef()),
@@ -79,6 +86,8 @@ class CoreKoreanDocumentGenerationSmokeTest {
         assertNotNull(zipEntryBytes(docx.content(), "word/media/archdox-photo-1.png"));
         assertTrue(pdf.fileName().endsWith(".pdf"));
         assertTrue(pdf.bytes() > 0);
+
+        writeSmokeArtifact("construction-daily-supervision-official.docx", docx.content());
     }
 
     @Test
@@ -264,6 +273,49 @@ class CoreKoreanDocumentGenerationSmokeTest {
             }
         }
         return null;
+    }
+
+    private void writeSmokeArtifact(String fileName, byte[] content) throws IOException {
+        var outputDir = Path.of("build", "archdox-smoke");
+        Files.createDirectories(outputDir);
+        Files.write(outputDir.resolve(fileName), content);
+    }
+
+    private static byte[] samplePng() {
+        var image = new BufferedImage(640, 420, BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+            graphics.setColor(new Color(215, 215, 215));
+            graphics.setStroke(new BasicStroke(2));
+            for (int x = 0; x <= image.getWidth(); x += 80) {
+                graphics.drawLine(x, 0, x, image.getHeight());
+            }
+            for (int y = 0; y <= image.getHeight(); y += 70) {
+                graphics.drawLine(0, y, image.getWidth(), y);
+            }
+            graphics.setColor(new Color(40, 40, 40));
+            graphics.setStroke(new BasicStroke(8));
+            graphics.drawRect(20, 20, image.getWidth() - 40, image.getHeight() - 40);
+            graphics.setColor(new Color(70, 100, 140));
+            graphics.drawRect(80, 90, 480, 240);
+            graphics.setColor(new Color(55, 110, 60));
+            graphics.drawLine(80, 330, 260, 180);
+            graphics.drawLine(260, 180, 390, 260);
+            graphics.drawLine(390, 260, 560, 110);
+            graphics.setFont(new Font("SansSerif", Font.BOLD, 28));
+            graphics.setColor(new Color(30, 30, 30));
+            graphics.drawString("ARCHDOX SAMPLE PHOTO", 180, 205);
+        } finally {
+            graphics.dispose();
+        }
+        try (var output = new ByteArrayOutputStream()) {
+            ImageIO.write(image, "png", output);
+            return output.toByteArray();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to create sample PNG", ex);
+        }
     }
 
     private static final class FakePdfExporter implements DocumentArtifactExporter {

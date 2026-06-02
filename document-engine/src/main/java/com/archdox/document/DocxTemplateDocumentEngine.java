@@ -34,6 +34,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     private static final String DEFAULT_BORDER_COLOR = "D9DDE3";
     private static final String DEFAULT_HEADER_FILL = "F3F4F6";
     private static final String DEFAULT_TITLE_FILL = "EEF2F7";
+    private static final int OFFICIAL_PAGE_WIDTH = 10460;
 
     private final TemplateContentResolver templateContentResolver;
     private final PhotoContentResolver photoContentResolver;
@@ -228,12 +229,12 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         body.append(spacerParagraph(80));
         body.append(officialDailyLogWorkTableXml(context));
         body.append(spacerParagraph(70));
-        body.append(officialLinedSectionXml("특기사항", binding(context, "specialNotes"), 1350));
+        body.append(officialLinedSectionXml("특기사항", binding(context, "specialNotes"), 1420));
         body.append(spacerParagraph(70));
         body.append(officialLinedSectionXml(
                 "지적사항 및 처리결과",
                 binding(context, "issueAndAction", "correctionResults"),
-                1550));
+                1600));
         body.append(officialPhotoEvidenceXml(context));
         body.append(spacerParagraph(100));
         body.append(officialAuthoringGuideXml());
@@ -256,7 +257,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         return """
                 <w:tbl>
                   <w:tblPr>
-                    <w:tblW w:w="10000" w:type="dxa"/>
+                    <w:tblW w:w="%d" w:type="dxa"/>
                     <w:tblBorders>
                       <w:top w:val="nil"/>
                       <w:left w:val="nil"/>
@@ -266,17 +267,18 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                       <w:insideV w:val="nil"/>
                     </w:tblBorders>
                   </w:tblPr>
-                  <w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="4000"/><w:gridCol w:w="3000"/></w:tblGrid>
+                  <w:tblGrid><w:gridCol w:w="3138"/><w:gridCol w:w="4184"/><w:gridCol w:w="3138"/></w:tblGrid>
                   %s
                 </w:tbl>
                 %s
                 """.formatted(
+                OFFICIAL_PAGE_WIDTH,
                 officialRow(List.of(
-                        officialCell(List.of(officialParagraph("[별지 제2호서식]", false, 24, "left")), "3000", 1),
-                        officialCell(List.of(officialParagraph("공사감리일지", true, 34, "center")), "4000", 1),
-                        officialCell(List.of(officialParagraph("", false, 20, "right")), "3000", 1)),
-                        760),
-                horizontalRuleParagraph(18));
+                        officialCell(List.of(officialParagraph("[별지 제2호서식]", false, 26, "left")), "3138", 1),
+                        officialCell(List.of(officialParagraph("공사감리일지", true, 44, "center")), "4184", 1),
+                        officialCell(List.of(officialParagraph("", false, 20, "right")), "3138", 1)),
+                        900),
+                horizontalRuleParagraph(22));
     }
 
     private String officialDailyLogHeaderXml(DocxRenderContext context) throws IOException {
@@ -297,16 +299,25 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 officialParagraph("(서명 또는 인)", false, 18, "right"));
         var rows = new StringBuilder();
         rows.append(officialRow(List.of(
-                officialCell(supervisorCell, "5000", 2),
-                officialCell(assistantCell, "5000", 2)),
+                officialCell(supervisorCell, "5230", 2),
+                officialCell(assistantCell, "5230", 2)),
                 820));
         rows.append(officialRow(List.of(
-                officialCell(List.of(officialParagraph("공사명", false, 22, "left")), "1600", 1),
+                officialCell(List.of(officialParagraph("공사명", false, 22, "left")), "1700", 1),
                 officialCell(List.of(
                         officialParagraph(constructionName, false, 21, "left"),
-                        officialParagraph(dateLine, false, 21, "center")), "8400", 3)),
+                        officialParagraph(dateLine, false, 21, "center")), "8760", 3)),
                 900));
-        return officialTableXml(List.of("1600", "3400", "1800", "3200"), rows.toString(), 10000, 8);
+        return officialTableXml(
+                List.of("1700", "3530", "1800", "3430"),
+                rows.toString(),
+                OFFICIAL_PAGE_WIDTH,
+                0,
+                0,
+                14,
+                0,
+                4,
+                4);
     }
 
     private String officialDailyLogWorkTableXml(DocxRenderContext context) {
@@ -314,21 +325,30 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         var items = officialSupervisionRows(context);
         var visibleRows = Math.max(4, items.size());
         rows.append(officialRow(List.of(
-                officialCell(List.of(officialParagraph("작업사항", false, 19, "center")), "1300", 1, null, "restart", "center"),
-                officialCell(List.of(officialParagraph("공종", false, 18, "center")), "1300", 1),
-                officialCell(List.of(officialParagraph("감리착안사항", false, 18, "center")), "2300", 1),
-                officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "5100", 1)),
+                officialCell(List.of(officialParagraph("작업사항", false, 19, "center")), "1450", 1, null, "restart", "center"),
+                officialCell(List.of(officialParagraph("공종", false, 18, "center")), "1400", 1),
+                officialCell(List.of(officialParagraph("감리착안사항", false, 18, "center")), "2450", 1),
+                officialCell(List.of(officialParagraph("감리내용", false, 18, "center")), "6160", 1)),
                 520));
         for (int i = 0; i < visibleRows; i++) {
             var item = i < items.size() ? items.get(i) : OfficialSupervisionRow.blank();
             rows.append(officialRow(List.of(
-                    officialCell(List.of(officialParagraph("", false, 18, "center")), "1300", 1, null, "continue", "center"),
-                    officialCell(officialParagraphs(item.trade(), 18, "left"), "1300", 1),
-                    officialCell(officialParagraphs(item.focus(), 18, "left"), "2300", 1),
-                    officialCell(officialParagraphs(item.content(), 18, "left"), "5100", 1)),
-                    760));
+                    officialCell(List.of(officialParagraph("", false, 18, "center")), "1450", 1, null, "continue", "center"),
+                    officialCell(officialParagraphs(item.trade(), 18, "left"), "1400", 1),
+                    officialCell(officialParagraphs(item.focus(), 18, "left"), "2450", 1),
+                    officialCell(officialParagraphs(item.content(), 18, "left"), "6160", 1)),
+                    820));
         }
-        return officialTableXml(List.of("1300", "1300", "2300", "5100"), rows.toString(), 10000, 5);
+        return officialTableXml(
+                List.of("1450", "1400", "2450", "6160"),
+                rows.toString(),
+                OFFICIAL_PAGE_WIDTH,
+                8,
+                0,
+                8,
+                0,
+                4,
+                4);
     }
 
     private List<OfficialSupervisionRow> officialSupervisionRows(DocxRenderContext context) {
@@ -363,8 +383,17 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         var paragraphs = new ArrayList<String>();
         paragraphs.add(officialParagraph(title, false, 18, "left"));
         paragraphs.addAll(officialParagraphs(value, 18, "left"));
-        var row = officialRow(List.of(officialCell(paragraphs, "10000", 1)), heightTwips);
-        return officialTableXml(List.of("10000"), row, 10000, 4);
+        var row = officialRow(List.of(officialCell(paragraphs, String.valueOf(OFFICIAL_PAGE_WIDTH), 1)), heightTwips);
+        return officialTableXml(
+                List.of(String.valueOf(OFFICIAL_PAGE_WIDTH)),
+                row,
+                OFFICIAL_PAGE_WIDTH,
+                8,
+                0,
+                3,
+                0,
+                0,
+                0);
     }
 
     private String officialPhotoEvidenceXml(DocxRenderContext context) throws IOException {
@@ -374,7 +403,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         }
         var rows = new StringBuilder();
         rows.append(officialRow(List.of(
-                officialCell(List.of(officialParagraph("사진 및 설명", true, 19, "center")), "10000", 2)),
+                officialCell(List.of(officialParagraph("사진 및 설명", true, 19, "center")), String.valueOf(OFFICIAL_PAGE_WIDTH), 2)),
                 420));
         for (int i = 0; i < photos.size(); i += 2) {
             var left = photos.get(i);
@@ -383,12 +412,12 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             if (i + 1 < photos.size()) {
                 cells.add(officialPhotoCell(photos.get(i + 1), context));
             } else {
-                cells.add(officialCell(List.of(officialParagraph("", false, 18, "center")), "5000", 1));
+                cells.add(officialCell(List.of(officialParagraph("", false, 18, "center")), "5230", 1));
             }
-            rows.append(officialRow(cells, 2600));
+            rows.append(officialRow(cells, 3200));
         }
-        return spacerParagraph(90)
-                + officialTableXml(List.of("5000", "5000"), rows.toString(), 10000, 4);
+        return pageBreakParagraph()
+                + officialTableXml(List.of("5230", "5230"), rows.toString(), OFFICIAL_PAGE_WIDTH, 4);
     }
 
     private String officialPhotoCell(PhotoAsset photo, DocxRenderContext context) throws IOException {
@@ -400,7 +429,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             paragraphs.add(officialParagraph("이미지 없음", false, 18, "center"));
         }
         paragraphs.add(officialParagraph(officialPhotoCaption(photo), false, 18, "center"));
-        return officialCell(paragraphs, "5000", 1);
+        return officialCell(paragraphs, "5230", 1);
     }
 
     private String officialPhotoCaption(PhotoAsset photo) {
@@ -419,24 +448,47 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 .map(line -> officialParagraph(line, false, 16, "left"))
                 .toList();
         var rows = officialRow(List.of(
-                officialCell(List.of(officialParagraph("작성방법", true, 17, "center")), "10000", 1, "BFBFBF", null, "center")),
+                officialCell(List.of(officialParagraph("작성방법", true, 17, "center")), String.valueOf(OFFICIAL_PAGE_WIDTH), 1, "BFBFBF", null, "center")),
                 360);
-        rows += officialRow(List.of(officialCell(bodyParagraphs, "10000", 1)), 1160);
-        return officialTableXml(List.of("10000"), rows, 10000, 5);
+        rows += officialRow(List.of(officialCell(bodyParagraphs, String.valueOf(OFFICIAL_PAGE_WIDTH), 1)), 1160);
+        return officialTableXml(
+                List.of(String.valueOf(OFFICIAL_PAGE_WIDTH)),
+                rows,
+                OFFICIAL_PAGE_WIDTH,
+                8,
+                0,
+                8,
+                0,
+                3,
+                0);
     }
 
     private String officialTableXml(List<String> columnWidths, String rows, int tableWidth, int borderSize) {
+        return officialTableXml(columnWidths, rows, tableWidth, borderSize, borderSize, borderSize, borderSize, borderSize, borderSize);
+    }
+
+    private String officialTableXml(
+            List<String> columnWidths,
+            String rows,
+            int tableWidth,
+            int topBorder,
+            int leftBorder,
+            int bottomBorder,
+            int rightBorder,
+            int insideHBorder,
+            int insideVBorder
+    ) {
         return """
                 <w:tbl>
                   <w:tblPr>
                     <w:tblW w:w="%d" w:type="dxa"/>
                     <w:tblBorders>
-                      <w:top w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
-                      <w:left w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
-                      <w:bottom w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
-                      <w:right w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
-                      <w:insideH w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
-                      <w:insideV w:val="single" w:sz="%d" w:space="0" w:color="000000"/>
+                      %s
+                      %s
+                      %s
+                      %s
+                      %s
+                      %s
                     </w:tblBorders>
                   </w:tblPr>
                   <w:tblGrid>%s</w:tblGrid>
@@ -444,14 +496,21 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 </w:tbl>
                 """.formatted(
                 tableWidth,
-                borderSize,
-                borderSize,
-                borderSize,
-                borderSize,
-                borderSize,
-                borderSize,
+                officialBorderXml("top", topBorder),
+                officialBorderXml("left", leftBorder),
+                officialBorderXml("bottom", bottomBorder),
+                officialBorderXml("right", rightBorder),
+                officialBorderXml("insideH", insideHBorder),
+                officialBorderXml("insideV", insideVBorder),
                 tableGrid(columnWidths),
                 rows);
+    }
+
+    private String officialBorderXml(String edge, int size) {
+        if (size <= 0) {
+            return "<w:%s w:val=\"nil\"/>".formatted(edge);
+        }
+        return "<w:%s w:val=\"single\" w:sz=\"%d\" w:space=\"0\" w:color=\"000000\"/>".formatted(edge, size);
     }
 
     private String officialRow(List<String> cells, int heightTwips) {
@@ -486,10 +545,10 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                   <w:tcPr>
                     <w:tcW w:w="%s" w:type="dxa"/>%s%s%s%s
                     <w:tcMar>
-                      <w:top w:w="80" w:type="dxa"/>
-                      <w:left w:w="90" w:type="dxa"/>
-                      <w:bottom w:w="80" w:type="dxa"/>
-                      <w:right w:w="90" w:type="dxa"/>
+                      <w:top w:w="95" w:type="dxa"/>
+                      <w:left w:w="110" w:type="dxa"/>
+                      <w:bottom w:w="95" w:type="dxa"/>
+                      <w:right w:w="110" w:type="dxa"/>
                     </w:tcMar>
                   </w:tcPr>
                   %s
@@ -544,6 +603,14 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                   <w:pPr><w:spacing w:before="0" w:after="%d"/></w:pPr>
                 </w:p>
                 """.formatted(Math.max(0, heightTwips));
+    }
+
+    private String pageBreakParagraph() {
+        return """
+                <w:p>
+                  <w:r><w:br w:type="page"/></w:r>
+                </w:p>
+                """;
     }
 
     private InspectionDateParts inspectionDateParts(DocxRenderContext context) {
