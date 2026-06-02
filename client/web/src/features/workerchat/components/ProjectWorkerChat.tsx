@@ -43,6 +43,7 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasPendingReply = useMemo(
     () => session?.messages.some((item) => item.role === "ASSISTANT" && item.status === "PENDING") ?? false,
     [session]
@@ -85,6 +86,10 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
     setSession(nextSession);
     onSessionSync?.(nextSession);
   }
+
+  useEffect(() => {
+    resizeComposerTextarea(composerTextareaRef.current);
+  }, [message]);
 
   useEffect(() => {
     if (!plannerSuggestedPayload) {
@@ -480,10 +485,14 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
           />
           <form className="worker-chat-composer" onSubmit={submit}>
             <textarea
+              ref={composerTextareaRef}
               disabled={sending || hasPendingReply}
-              onChange={(event) => setMessage(event.target.value)}
+              onChange={(event) => {
+                setMessage(event.target.value);
+                resizeComposerTextarea(event.currentTarget);
+              }}
               placeholder={session?.stage === "REPORT_WORKING" ? "선택한 작성 단계에 저장할 내용을 입력하세요." : "예: 오늘 감리일지 작성을 시작하고 싶습니다."}
-              rows={1}
+              rows={2}
               value={message}
             />
             <button
@@ -507,6 +516,23 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
       </Panel>
     </div>
   );
+}
+
+function resizeComposerTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) {
+    return;
+  }
+  const style = window.getComputedStyle(element);
+  const lineHeight = Number.parseFloat(style.lineHeight) || 20;
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const borderTop = Number.parseFloat(style.borderTopWidth) || 0;
+  const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+  const minHeight = Math.ceil(lineHeight * 2 + paddingTop + paddingBottom + borderTop + borderBottom);
+  const maxHeight = Math.ceil(lineHeight * 4 + paddingTop + paddingBottom + borderTop + borderBottom);
+  element.style.height = "auto";
+  element.style.height = `${Math.min(Math.max(element.scrollHeight, minHeight), maxHeight)}px`;
+  element.style.overflowY = element.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
 function WorkerChatActionPanel({

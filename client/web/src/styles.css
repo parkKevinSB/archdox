@@ -3291,15 +3291,16 @@ button.list-row {
 
 .worker-chat-composer textarea {
   width: 100%;
-  min-height: 42px;
-  max-height: 112px;
+  min-height: 59px;
+  max-height: 108px;
   padding: 10px 12px;
   border: 1px solid #cfd9d8;
   border-radius: 8px;
   outline: 0;
   color: #1f2c2b;
   background: #ffffff;
-  line-height: 1.4;
+  line-height: 19px;
+  overflow-y: hidden;
   resize: none;
 }
 
@@ -3313,6 +3314,7 @@ button.list-row {
   width: 40px;
   height: 40px;
   min-width: 40px;
+  align-self: end;
   padding: 0;
   place-items: center;
   border: 1px solid #1d5d51;
