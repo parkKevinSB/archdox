@@ -124,6 +124,9 @@ public class ConfigurationRegistryService {
                                 preset.code(),
                                 preset.title(),
                                 preset.description(),
+                                preset.templateKind(),
+                                preset.customizationPolicy(),
+                                preset.renderingPolicy(),
                                 preset.reportTypes(),
                                 preset.recommendedFields(),
                                 preset.layoutSections()))

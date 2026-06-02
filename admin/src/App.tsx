@@ -2292,6 +2292,11 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                     <span>{preset.code}</span>
                   </div>
                   <p>{preset.description}</p>
+                  <div className="template-preset-meta">
+                    <span>{displayLabel(preset.templateKind)}</span>
+                    <span>{displayLabel(preset.customizationPolicy)}</span>
+                    <span>{displayLabel(preset.renderingPolicy)}</span>
+                  </div>
                   <code>{preset.recommendedFields.map((field) => `\${${field}}`).join(" ")}</code>
                 </article>
               ))}
@@ -4720,11 +4725,20 @@ function viewTitle(view: ViewKey) {
   return navItems.find((item) => item.key === view)?.label ?? "대시보드";
 }
 
+const templatePolicyLabels: Record<string, string> = {
+  BUNDLED_OFFICIAL_RENDERER: "번들 공식 렌더러",
+  COPY_AND_OVERRIDE: "복사 후 오버라이드",
+  DOCX_TEMPLATE_BINDING: "DOCX 템플릿 바인딩",
+  OFFICE_EDITABLE: "사무소 편집 가능",
+  OFFICE_INTERNAL: "사무소 내부용",
+  OFFICIAL_SUBMISSION: "공식 제출용"
+};
+
 function displayLabel(value?: string | null) {
   if (!value) {
     return "-";
   }
-  return statusLabels[value] ?? codeLabels[value] ?? value;
+  return statusLabels[value] ?? codeLabels[value] ?? templatePolicyLabels[value] ?? value;
 }
 
 function statusTone(status: string) {

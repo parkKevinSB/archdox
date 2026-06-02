@@ -7,6 +7,9 @@
       "storageRef": "templates/korean/korean-construction-supervision-report-appendix-1.docx",
       "title": "Construction supervision report appendix 1",
       "outputFormat": "DOCX",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "DOCX_TEMPLATE_BINDING",
       "richSections": [
         "reportOpinionSection",
         "photoSection"
@@ -17,6 +20,9 @@
       "storageRef": "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
       "title": "Construction daily supervision log appendix 2",
       "outputFormat": "DOCX",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "BUNDLED_OFFICIAL_RENDERER",
       "richSections": [
         "supervisionItemsSection",
         "checklistPhotoSection",
@@ -28,6 +34,9 @@
       "storageRef": "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
       "title": "Demolition safety checklist appendix 1",
       "outputFormat": "DOCX",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "DOCX_TEMPLATE_BINDING",
       "richSections": [
         "safetyChecklistSection"
       ]
@@ -37,6 +46,9 @@
       "storageRef": "templates/korean/korean-demolition-daily-supervision-log-appendix-2.docx",
       "title": "Demolition daily supervision log appendix 2",
       "outputFormat": "DOCX",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "DOCX_TEMPLATE_BINDING",
       "richSections": [
         "supervisionItemsSection"
       ]
@@ -46,6 +58,9 @@
       "storageRef": "templates/korean/korean-demolition-completion-report-appendix-3.docx",
       "title": "Demolition completion report appendix 3",
       "outputFormat": "DOCX",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "DOCX_TEMPLATE_BINDING",
       "richSections": [
         "supervisorDeploymentSection"
       ]

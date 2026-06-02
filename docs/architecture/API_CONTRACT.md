@@ -1503,8 +1503,11 @@ Example response:
   "presets": [
     {
       "code": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
-      "title": "Korean construction daily supervision appendix 2",
-      "description": "Field set for daily construction supervision logs.",
+      "title": "공식 제출용 공사감리일지 별지 2",
+      "description": "공공기관 제출 서식에 가까운 공사감리일지 기본 필드 묶음입니다.",
+      "templateKind": "OFFICIAL_SUBMISSION",
+      "customizationPolicy": "COPY_AND_OVERRIDE",
+      "renderingPolicy": "BUNDLED_OFFICIAL_RENDERER",
       "reportTypes": ["DAILY_SUPERVISION", "CONSTRUCTION_DAILY_LOG"],
       "recommendedFields": ["documentTitle", "constructionName", "inspectionDate"],
       "layoutSections": ["CHECKLIST_TABLE", "PHOTO_TABLE"]

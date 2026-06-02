@@ -61,6 +61,10 @@ class ConfigurationRegistryIntegrationTest {
         assertTrue(hasField(body, "constructionTrade"));
         assertFalse(hasField(body, "demolitionWorkerName"));
         assertTrue(hasPreset(body, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
+        assertTrue(hasPreset(body, "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION"));
+        var officialPreset = preset(body, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2");
+        assertTrue(officialPreset.get("templateKind").asText().equals("OFFICIAL_SUBMISSION"));
+        assertTrue(officialPreset.get("renderingPolicy").asText().equals("BUNDLED_OFFICIAL_RENDERER"));
     }
 
     @Test
@@ -290,6 +294,15 @@ class ConfigurationRegistryIntegrationTest {
             }
         }
         return false;
+    }
+
+    private JsonNode preset(JsonNode body, String code) {
+        for (JsonNode preset : body.get("presets")) {
+            if (code.equals(preset.get("code").asText())) {
+                return preset;
+            }
+        }
+        throw new IllegalArgumentException("Preset not found: " + code);
     }
 
     private String bearer(String token) {

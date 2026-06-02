@@ -6,6 +6,13 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class StandardTemplateFieldCatalog {
+    private static final String TEMPLATE_KIND_OFFICIAL_SUBMISSION = "OFFICIAL_SUBMISSION";
+    private static final String TEMPLATE_KIND_OFFICE_INTERNAL = "OFFICE_INTERNAL";
+    private static final String CUSTOMIZATION_COPY_AND_OVERRIDE = "COPY_AND_OVERRIDE";
+    private static final String CUSTOMIZATION_OFFICE_EDITABLE = "OFFICE_EDITABLE";
+    private static final String RENDERING_DOCX_TEMPLATE_BINDING = "DOCX_TEMPLATE_BINDING";
+    private static final String RENDERING_BUNDLED_OFFICIAL_RENDERER = "BUNDLED_OFFICIAL_RENDERER";
+
     private static final List<String> CONSTRUCTION_REPORT_TYPES = List.of(
             "CONSTRUCTION_SUPERVISION_REPORT",
             "SUPERVISION_REPORT");
@@ -108,38 +115,57 @@ public class StandardTemplateFieldCatalog {
     );
 
     private static final List<TemplateFormPreset> PRESETS = List.of(
-            preset(
+            officialPreset(
                     "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
-                    "Korean construction supervision report appendix 1",
-                    "Field set for construction supervision summary reports.",
+                    "공식 제출용 공사감리보고서 별지 1",
+                    "공공기관 제출 서식에 가까운 공사감리보고서 기본 필드 묶음입니다.",
+                    RENDERING_DOCX_TEMPLATE_BINDING,
                     CONSTRUCTION_REPORT_TYPES,
                     List.of("documentTitle", "permitNumber", "permitDate", "siteAddress", "lotNumber", "constructionName", "supervisionStartDate", "supervisionEndDate", "chiefSupervisorName", "supervisorName", "relationEngineerOpinion", "comprehensiveOpinion", "specialNotes"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
-            preset(
+            officialPreset(
                     "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2",
-                    "Korean construction daily supervision appendix 2",
-                    "Field set for daily construction supervision logs.",
+                    "공식 제출용 공사감리일지 별지 2",
+                    "공공기관 제출 서식에 가까운 공사감리일지 기본 필드 묶음입니다.",
+                    RENDERING_BUNDLED_OFFICIAL_RENDERER,
                     DAILY_REPORT_TYPES,
                     List.of("documentTitle", "serialNo", "chiefSupervisorName", "architectAssistantName", "assistantArchitectName", "constructionName", "inspectionDate", "inspectionDayOfWeek", "weather", "constructionTrade", "detailedProcess", "floor", "supervisionItem", "supervisionContent", "specialNotes", "issueAndAction", "correctionResults"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
-            preset(
+            officeInternalPreset(
+                    "OFFICE_INTERNAL_CONSTRUCTION_DAILY_SUPERVISION",
+                    "사무소 내부용 공사감리일지",
+                    "사무소 운영, 회의, 내부 검토용으로 자유롭게 편집해 쓰는 공사감리일지 프리셋입니다.",
+                    DAILY_REPORT_TYPES,
+                    List.of("documentTitle", "projectName", "siteName", "inspectionDate", "weather", "inspectorName", "constructionTrade", "workDescription", "supervisionContent", "specialNotes", "issueAndAction", "photoSection"),
+                    List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
+            officeInternalPreset(
+                    "OFFICE_INTERNAL_CONSTRUCTION_SUPERVISION_REPORT",
+                    "사무소 내부용 감리보고서",
+                    "사무소별 보고 문구, 사진 배치, 내부 검토 섹션을 조정해 쓰는 감리보고서 프리셋입니다.",
+                    CONSTRUCTION_REPORT_TYPES,
+                    List.of("documentTitle", "projectName", "siteName", "constructionStartDate", "constructionEndDate", "supervisorName", "comprehensiveOpinion", "specialNotes", "photoSection"),
+                    List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
+            officialPreset(
                     "KOREAN_DEMOLITION_SAFETY_CHECK_APPENDIX_1",
-                    "Korean demolition safety checklist appendix 1",
-                    "Field set for demolition safety stage checks.",
+                    "공식 제출용 해체공사 안전점검표 별지 1",
+                    "해체공사 안전점검표 기본 필드 묶음입니다.",
+                    RENDERING_DOCX_TEMPLATE_BINDING,
                     DEMOLITION_SAFETY_REPORT_TYPES,
                     List.of("documentTitle", "safetyInspectionDate", "inspectionLocation", "supervisorName", "demolitionWorkerName", "safetyCheckStage", "inspectionCriteria", "inspectionResult", "correctiveAction", "safetyChecklistItems", "checklistPhotoSummary"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
-            preset(
+            officialPreset(
                     "KOREAN_DEMOLITION_DAILY_SUPERVISION_APPENDIX_2",
-                    "Korean demolition daily supervision appendix 2",
-                    "Field set for demolition daily supervision logs.",
+                    "공식 제출용 해체공사 감리일지 별지 2",
+                    "해체공사 감리일지 기본 필드 묶음입니다.",
+                    RENDERING_DOCX_TEMPLATE_BINDING,
                     DEMOLITION_DAILY_REPORT_TYPES,
                     List.of("documentTitle", "supervisorName", "assistantSupervisorName", "constructionName", "inspectionDate", "inspectionDayOfWeek", "weather", "workDescription", "demolitionWorkStage", "supervisionFocus", "supervisionContent", "specialNotes", "issueAndAction"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
-            preset(
+            officialPreset(
                     "KOREAN_DEMOLITION_COMPLETION_REPORT_APPENDIX_3",
-                    "Korean demolition completion report appendix 3",
-                    "Field set for demolition supervision completion reports.",
+                    "공식 제출용 해체공사 감리완료보고서 별지 3",
+                    "해체공사 감리완료보고서 기본 필드 묶음입니다.",
+                    RENDERING_DOCX_TEMPLATE_BINDING,
                     DEMOLITION_COMPLETION_REPORT_TYPES,
                     List.of("documentTitle", "workName", "siteAddress", "supervisorName", "supervisorOfficeName", "contractorName", "serviceName", "reportDate", "constructionStartDate", "constructionEndDate", "comprehensiveOpinion", "specialNotes", "checklistSummary"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE"))
@@ -191,7 +217,28 @@ public class StandardTemplateFieldCatalog {
         return new TemplateFieldDefinition(key, label, category, source, example, description, List.copyOf(reportTypes));
     }
 
-    private static TemplateFormPreset preset(
+    private static TemplateFormPreset officialPreset(
+            String code,
+            String title,
+            String description,
+            String renderingPolicy,
+            List<String> reportTypes,
+            List<String> recommendedFields,
+            List<String> layoutSections
+    ) {
+        return new TemplateFormPreset(
+                code,
+                title,
+                description,
+                TEMPLATE_KIND_OFFICIAL_SUBMISSION,
+                CUSTOMIZATION_COPY_AND_OVERRIDE,
+                renderingPolicy,
+                List.copyOf(reportTypes),
+                List.copyOf(recommendedFields),
+                List.copyOf(layoutSections));
+    }
+
+    private static TemplateFormPreset officeInternalPreset(
             String code,
             String title,
             String description,
@@ -203,6 +250,9 @@ public class StandardTemplateFieldCatalog {
                 code,
                 title,
                 description,
+                TEMPLATE_KIND_OFFICE_INTERNAL,
+                CUSTOMIZATION_OFFICE_EDITABLE,
+                RENDERING_DOCX_TEMPLATE_BINDING,
                 List.copyOf(reportTypes),
                 List.copyOf(recommendedFields),
                 List.copyOf(layoutSections));
@@ -230,6 +280,9 @@ public class StandardTemplateFieldCatalog {
             String code,
             String title,
             String description,
+            String templateKind,
+            String customizationPolicy,
+            String renderingPolicy,
             List<String> reportTypes,
             List<String> recommendedFields,
             List<String> layoutSections

@@ -285,6 +285,9 @@ export type TemplateFormPreset = {
   code: string;
   title: string;
   description: string;
+  templateKind: string;
+  customizationPolicy: string;
+  renderingPolicy: string;
   reportTypes: string[];
   recommendedFields: string[];
   layoutSections: string[];
