@@ -3325,6 +3325,16 @@ button.list-row {
   background: #174c43;
 }
 
+.worker-chat-send-button.cancel {
+  border-color: #4d5a58;
+  color: #ffffff;
+  background: #4d5a58;
+}
+
+.worker-chat-send-button.cancel:hover:not(:disabled) {
+  background: #37413f;
+}
+
 .worker-chat-send-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

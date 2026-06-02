@@ -99,6 +99,13 @@ public class ArchDoxWorkerChatMessage {
         this.updatedAt = now;
     }
 
+    public void cancel(String content, Map<String, Object> metadataJson, OffsetDateTime now) {
+        this.status = ArchDoxWorkerChatMessageStatus.CANCELLED;
+        this.content = content;
+        this.metadataJson = metadataJson == null ? Map.of() : Map.copyOf(metadataJson);
+        this.updatedAt = now;
+    }
+
     public Long id() {
         return id;
     }

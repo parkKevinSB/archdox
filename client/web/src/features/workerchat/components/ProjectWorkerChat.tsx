@@ -1,8 +1,8 @@
-import { Bot, CheckCircle2, Loader2, MessageSquare, SendHorizontal, Sparkles } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, MessageSquare, SendHorizontal, Sparkles, Square } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, InlineAlert, Panel, StatusBadge, ViewHeader } from "../../../components/common";
 import type { Project } from "../../../types";
-import { openWorkerChatSession, sendWorkerChatMessage } from "../api";
+import { cancelWorkerChatAction, openWorkerChatSession, sendWorkerChatMessage } from "../api";
 import type {
   WorkerChatChoice,
   WorkerChatMessage,
@@ -40,6 +40,7 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
   const [selectedStepCode, setSelectedStepCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const hasPendingReply = useMemo(
@@ -68,7 +69,7 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
     [latestAssistant]
   );
   const selectedWorkflowStep = workflowSteps.find((step) => step.code === selectedStepCode) ?? workflowSteps[0] ?? null;
-  const processingText = processingStatusText({ loading, sending, pendingMessage: latestPendingAssistant });
+  const processingText = processingStatusText({ cancelling, loading, sending, pendingMessage: latestPendingAssistant });
   const documentTabAvailable = latestAssistant?.metadata?.documentTabAvailable === true;
   const workflowState = session?.workflowState ?? {};
   const effectiveNextAction = workflowState.documentJobActive || workflowState.documentGenerated
@@ -189,6 +190,22 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
       setError(err instanceof Error ? err.message : "메시지를 보내지 못했습니다.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function cancelActiveAction() {
+    if (!officeId || !project || !hasPendingReply) {
+      return;
+    }
+    setCancelling(true);
+    setError(null);
+    try {
+      const nextSession = await cancelWorkerChatAction(token, officeId, project.id);
+      syncSession(nextSession);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "진행 중인 작업을 취소하지 못했습니다.");
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -418,6 +435,7 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
                       <strong>{item.role === "ASSISTANT" ? "ArchDox Worker" : "나"}</strong>
                       {item.status === "PENDING" ? <span>작업 중</span> : null}
                       {item.status === "FAILED" ? <span>실패</span> : null}
+                      {item.status === "CANCELLED" ? <span>취소됨</span> : null}
                     </div>
                     <p>{item.content}</p>
                     <WorkerChatChoices disabled={sending || hasPendingReply} message={item} onSelect={selectChoice} />
@@ -469,13 +487,20 @@ export function ProjectWorkerChat({ officeId, project, token, onOpenDocuments, o
               value={message}
             />
             <button
-              aria-label="보내기"
-              className="worker-chat-send-button"
-              disabled={sending || hasPendingReply || !message.trim()}
-              title="보내기"
-              type="submit"
+              aria-label={hasPendingReply ? "정지" : "보내기"}
+              className={hasPendingReply ? "worker-chat-send-button cancel" : "worker-chat-send-button"}
+              disabled={hasPendingReply ? cancelling : sending || !message.trim()}
+              onClick={hasPendingReply ? cancelActiveAction : undefined}
+              title={hasPendingReply ? "정지" : "보내기"}
+              type={hasPendingReply ? "button" : "submit"}
             >
-              {sending ? <Loader2 className="spin" size={17} /> : <SendHorizontal size={17} />}
+              {hasPendingReply
+                ? cancelling
+                  ? <Loader2 className="spin" size={17} />
+                  : <Square size={15} />
+                : sending
+                  ? <Loader2 className="spin" size={17} />
+                  : <SendHorizontal size={17} />}
             </button>
           </form>
         </div>
@@ -724,14 +749,19 @@ function WorkerChatPlannerProposalCard({
 }
 
 function processingStatusText({
+  cancelling,
   loading,
   pendingMessage,
   sending
 }: {
+  cancelling: boolean;
   loading: boolean;
   pendingMessage: WorkerChatMessage | null;
   sending: boolean;
 }) {
+  if (cancelling) {
+    return "작업 취소 중...";
+  }
   if (loading) {
     return "채팅을 불러오는 중...";
   }

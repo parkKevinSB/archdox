@@ -1,5 +1,5 @@
 export type WorkerChatMessageRole = "USER" | "ASSISTANT" | "SYSTEM";
-export type WorkerChatMessageStatus = "PENDING" | "COMPLETED" | "FAILED";
+export type WorkerChatMessageStatus = "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
 export type WorkerChatSessionStatus = "ACTIVE" | "COMPLETED" | "CANCELLED" | "EXPIRED";
 export type WorkerChatStage =
   | "AWAITING_SITE"

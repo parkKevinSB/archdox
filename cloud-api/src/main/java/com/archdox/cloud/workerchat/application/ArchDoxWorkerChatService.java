@@ -229,6 +229,53 @@ public class ArchDoxWorkerChatService {
     }
 
     @Transactional
+    public ArchDoxWorkerChatSessionResponse cancelActiveAction(Long projectId, UserPrincipal principal) {
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        validateProjectAccess(officeId, projectId, principal.userId());
+        var session = sessionRepository.findFirstByOfficeIdAndProjectIdAndUserIdAndStatusOrderByUpdatedAtDesc(
+                        officeId,
+                        projectId,
+                        principal.userId(),
+                        ArchDoxWorkerChatSessionStatus.ACTIVE)
+                .orElseThrow(() -> new BadRequestException("Active worker chat session not found"));
+        var message = messageRepository
+                .findFirstByOfficeIdAndSessionIdAndRoleAndStatusOrderByCreatedAtDescIdDesc(
+                        officeId,
+                        session.id(),
+                        ArchDoxWorkerChatMessageRole.ASSISTANT,
+                        ArchDoxWorkerChatMessageStatus.PENDING)
+                .orElseThrow(() -> new BadRequestException(
+                        "WORKER_CHAT_NO_PENDING_ACTION",
+                        "errors.workerChat.noPendingAction",
+                        "No pending worker chat action can be cancelled",
+                        Map.of("sessionId", session.id())));
+        var now = OffsetDateTime.now();
+        var metadata = new LinkedHashMap<String, Object>(message.metadataJson());
+        metadata.put("cancelled", true);
+        metadata.put("cancelledAt", now.toString());
+        putIfNotNull(metadata, "actionType", message.workerActionType());
+        message.cancel("작업을 취소했습니다. 필요한 내용을 다시 입력해주세요.", metadata, now);
+        session.touch(now);
+        operationEventService.record(
+                officeId,
+                OperationEventSeverity.INFO,
+                "ARCHDOX_WORKER_CHAT_ACTION_CANCELLED",
+                "archdox-worker-chat",
+                workflowKey(session.id()),
+                "ARCHDOX_WORKER_CHAT_MESSAGE",
+                message.id(),
+                principal.userId(),
+                null,
+                "ArchDox Worker chat action was cancelled by the user.",
+                Map.of(
+                        "projectId", projectId,
+                        "sessionId", session.id(),
+                        "assistantMessageId", message.id(),
+                        "actionType", message.workerActionType() == null ? "" : message.workerActionType()));
+        return toResponse(session);
+    }
+
+    @Transactional
     public void completeAssistantReply(
             Long officeId,
             Long sessionId,
@@ -236,6 +283,9 @@ public class ArchDoxWorkerChatService {
             String userMessage,
             boolean plannerEligible
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         var now = OffsetDateTime.now();
         var reply = buildFlowReply(session);
@@ -254,6 +304,9 @@ public class ArchDoxWorkerChatService {
     public void failAssistantReply(Long officeId, Long sessionId, Long assistantMessageId, String reason) {
         var session = requireSession(officeId, sessionId);
         var message = requireAssistantMessage(officeId, sessionId, assistantMessageId);
+        if (message.status() != ArchDoxWorkerChatMessageStatus.PENDING) {
+            return;
+        }
         var now = OffsetDateTime.now();
         message.fail("작업 중 문제가 발생했습니다. 잠시 후 다시 요청해주세요.", Map.of("reason", reasonOf(reason)), now);
         session.touch(now);
@@ -268,6 +321,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var name = requiredString(payload, "name", "Site name is required");
@@ -301,6 +357,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var siteId = longValue(payload.get("siteId"));
@@ -342,6 +401,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var reportId = longValue(payload.get("reportId"));
@@ -391,6 +453,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var reportId = longValue(payload.get("reportId"));
@@ -435,6 +500,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var reportId = longValue(payload.get("reportId"));
@@ -482,6 +550,9 @@ public class ArchDoxWorkerChatService {
             Long assistantMessageId,
             Map<String, Object> payload
     ) {
+        if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
+            return;
+        }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
         var reportId = longValue(payload.get("reportId"));
@@ -910,6 +981,11 @@ public class ArchDoxWorkerChatService {
                 .orElseThrow(() -> new NotFoundException("ArchDox worker chat message not found"));
     }
 
+    private boolean assistantMessagePending(Long officeId, Long sessionId, Long assistantMessageId) {
+        return requireAssistantMessage(officeId, sessionId, assistantMessageId).status()
+                == ArchDoxWorkerChatMessageStatus.PENDING;
+    }
+
     private Site requireSite(Long officeId, Long projectId, Long siteId) {
         var site = siteRepository.findByIdAndOfficeId(siteId, officeId)
                 .orElseThrow(() -> new NotFoundException("Site not found"));
@@ -936,6 +1012,25 @@ public class ArchDoxWorkerChatService {
             ArchDoxWorkerActionType actionType
     ) {
         var message = requireAssistantMessage(session.officeId(), session.id(), assistantMessageId);
+        if (message.status() != ArchDoxWorkerChatMessageStatus.PENDING) {
+            operationEventService.record(
+                    session.officeId(),
+                    OperationEventSeverity.INFO,
+                    "ARCHDOX_WORKER_CHAT_REPLY_IGNORED",
+                    "archdox-worker-chat",
+                    workflowKey(session.id()),
+                    "ARCHDOX_WORKER_CHAT_MESSAGE",
+                    assistantMessageId,
+                    session.userId(),
+                    null,
+                    "ArchDox Worker chat reply was ignored because the message was no longer pending.",
+                    Map.of(
+                            "projectId", session.projectId(),
+                            "sessionId", session.id(),
+                            "status", message.status().name(),
+                            "actionType", actionType.name()));
+            return;
+        }
         var metadata = new LinkedHashMap<String, Object>(reply.metadata());
         metadata.put("actionType", actionType.name());
         message.complete(reply.content(), metadata, now);

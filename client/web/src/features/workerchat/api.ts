@@ -39,6 +39,14 @@ export function openWorkerChatSession(token: string, officeId: number, projectId
   return request<WorkerChatSession>(`/api/v1/projects/${projectId}/worker-chat`, { token, officeId });
 }
 
+export function cancelWorkerChatAction(token: string, officeId: number, projectId: number) {
+  return request<WorkerChatSession>(`/api/v1/projects/${projectId}/worker-chat/cancel`, {
+    token,
+    officeId,
+    method: "POST"
+  });
+}
+
 export function sendWorkerChatMessage(
   token: string,
   officeId: number,

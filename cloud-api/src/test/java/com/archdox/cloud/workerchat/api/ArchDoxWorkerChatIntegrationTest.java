@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -288,6 +289,47 @@ class ArchDoxWorkerChatIntegrationTest {
         assertThat(reply.get("metadata").get("nextAction").asText()).isEqualTo("CREATE_SITE");
         assertThat(afterPlanner.get("stage").asText()).isEqualTo("AWAITING_SITE");
         assertThat(afterPlanner.get("siteId").isNull()).isTrue();
+    }
+
+    @Test
+    void workerChatCanCancelPendingAssistantAction() throws Exception {
+        var user = signup("worker-chat-cancel@example.com", "Worker Cancel");
+        var projectId = createProject(user.accessToken(), user.officeId(), "Worker Cancel Project");
+        var opened = openWorkerChat(user, projectId);
+        var sessionId = opened.get("id").asLong();
+        var pendingId = jdbcTemplate.queryForObject("""
+                insert into archdox_worker_chat_messages (
+                    office_id,
+                    session_id,
+                    user_id,
+                    role,
+                    status,
+                    content,
+                    worker_request_id,
+                    worker_action_type,
+                    metadata_json,
+                    created_at,
+                    updated_at
+                )
+                values (?, ?, null, 'ASSISTANT', 'PENDING', '작업 중입니다.', ?, 'WORKER_CHAT_ADVANCE', '{}'::jsonb, now(), now())
+                returning id
+                """,
+                Long.class,
+                user.officeId(),
+                sessionId,
+                UUID.randomUUID());
+
+        var cancelledResult = mockMvc.perform(post("/api/v1/projects/{projectId}/worker-chat/cancel", projectId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        var cancelled = objectMapper.readTree(cancelledResult.getResponse().getContentAsString());
+        var last = lastMessage(cancelled);
+        assertThat(last.get("id").asLong()).isEqualTo(pendingId);
+        assertThat(last.get("status").asText()).isEqualTo("CANCELLED");
+        assertThat(last.get("metadata").get("cancelled").asBoolean()).isTrue();
     }
 
     private JsonNode awaitLastAssistantReply(TestUser user, long projectId) throws Exception {

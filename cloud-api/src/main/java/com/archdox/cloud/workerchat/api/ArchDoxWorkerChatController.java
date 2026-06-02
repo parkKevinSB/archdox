@@ -36,6 +36,11 @@ public class ArchDoxWorkerChatController {
         return chatService.send(projectId, request, principal(authentication));
     }
 
+    @PostMapping("/cancel")
+    public ArchDoxWorkerChatSessionResponse cancel(@PathVariable Long projectId, Authentication authentication) {
+        return chatService.cancelActiveAction(projectId, principal(authentication));
+    }
+
     private UserPrincipal principal(Authentication authentication) {
         return (UserPrincipal) authentication.getPrincipal();
     }

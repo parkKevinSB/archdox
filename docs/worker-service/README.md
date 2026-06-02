@@ -367,6 +367,39 @@ ArchDoxWorkerTrace / ArchDoxWorkerAuditEvent
     generated findings/artifacts, approval decisions, and failures
 ```
 
+## Cancellation Policy
+
+Worker chat must support user-initiated cancellation because users can send the
+wrong instruction or change their mind while an action is still being handled.
+
+MVP cancellation is intentionally conservative:
+
+```text
+Can cancel:
+  - the latest PENDING assistant action in the chat session
+  - queued or not-yet-started ArchDox Worker actions
+  - late worker replies, by ignoring them once the message is CANCELLED
+
+Does not automatically roll back:
+  - already-created sites
+  - already-created reports
+  - already-saved report steps
+  - already-submitted reports
+  - already-created document jobs
+```
+
+Reason:
+
+```text
+Cancellation is a workflow control.
+Rollback is a domain recovery operation.
+```
+
+For now, cancellation marks the pending chat message as `CANCELLED`, records an
+operation event, and prevents late completion callbacks from overwriting that
+message. Longer-running operations such as AI review and document generation
+can later add explicit `CANCEL_REQUESTED` semantics at their own domain level.
+
 ## Planner Pattern
 
 The planner should choose only from a fixed list of allowed actions.
