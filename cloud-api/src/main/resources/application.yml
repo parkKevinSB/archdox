@@ -106,7 +106,7 @@ archdox:
         max-requests: ${ARCHDOX_RATE_LIMIT_REFRESH_MAX_REQUESTS:30}
         window: ${ARCHDOX_RATE_LIMIT_REFRESH_WINDOW:1m}
       platform-admin:
-        max-requests: ${ARCHDOX_RATE_LIMIT_PLATFORM_ADMIN_MAX_REQUESTS:120}
+        max-requests: ${ARCHDOX_RATE_LIMIT_PLATFORM_ADMIN_MAX_REQUESTS:600}
         window: ${ARCHDOX_RATE_LIMIT_PLATFORM_ADMIN_WINDOW:1m}
       office-ops:
         max-requests: ${ARCHDOX_RATE_LIMIT_OFFICE_OPS_MAX_REQUESTS:180}

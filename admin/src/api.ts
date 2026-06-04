@@ -124,8 +124,11 @@ async function request<T>(path: string, options: RequestOptions = {}, retryOnUna
   if (!response.ok) {
     let message = `요청에 실패했습니다. (${response.status})`;
     try {
-      const error = (await response.json()) as { message?: string };
+      const error = (await response.json()) as { code?: string; message?: string };
       message = error.message ?? message;
+      if (response.status === 429 || error.code === "RATE_LIMITED") {
+        message = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+      }
     } catch {
       // Keep the generic message when the server does not return JSON.
     }
@@ -177,8 +180,11 @@ async function requestForm<T>(path: string, options: FormRequestOptions, retryOn
   if (!response.ok) {
     let message = `요청이 실패했습니다. (${response.status})`;
     try {
-      const error = (await response.json()) as { message?: string };
+      const error = (await response.json()) as { code?: string; message?: string };
       message = error.message ?? message;
+      if (response.status === 429 || error.code === "RATE_LIMITED") {
+        message = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+      }
     } catch {
       // Keep the generic message when the server does not return JSON.
     }
@@ -223,8 +229,11 @@ async function requestBlob(path: string, options: RequestOptions = {}, retryOnUn
   if (!response.ok) {
     let message = `요청이 실패했습니다. (${response.status})`;
     try {
-      const error = (await response.json()) as { message?: string };
+      const error = (await response.json()) as { code?: string; message?: string };
       message = error.message ?? message;
+      if (response.status === 429 || error.code === "RATE_LIMITED") {
+        message = "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+      }
     } catch {
       // Binary endpoint may not return JSON.
     }

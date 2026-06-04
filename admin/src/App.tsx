@@ -736,43 +736,114 @@ export default function App() {
     }
   }
 
-  async function refreshPlatform() {
+  async function refreshPlatform(view: ViewKey = activeView) {
     if (!auth || !platformAdmin) {
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, legalSyncRuns, legalChangeSets, legalChangeDigests, engineApiKeys, workerGovernance, workerApprovals, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
-        getPlatformSummary(auth.accessToken),
-        getPlatformUsers(auth.accessToken, 100),
-        getPlatformOffices(auth.accessToken, 100),
-        getPlatformAgents(auth.accessToken, 100),
-        getPlatformCommands(auth.accessToken, 100),
-        getPlatformDocumentJobs(auth.accessToken, 100),
-        getPlatformPhotos(auth.accessToken, 100),
-        getPlatformDeliveries(auth.accessToken, 100),
-        getPlatformEvents(auth.accessToken, 100),
-        getPlatformOpsRuns(auth.accessToken, 50),
-        getPlatformOpsIncidents(auth.accessToken, 50),
-        getPlatformOpsFindings(auth.accessToken, 50),
-        getPlatformLegalSyncRuns(auth.accessToken, 50),
-        getPlatformLegalChangeSets(auth.accessToken, 50),
-        getPlatformLegalChangeDigests(auth.accessToken, 50),
-        getPlatformEngineApiKeys(auth.accessToken),
-        getPlatformWorkerGovernance(auth.accessToken, 7, 30),
-        getPlatformWorkerApprovals(auth.accessToken, 50),
-        getPlatformAiProviders(auth.accessToken),
-        getPlatformOfficeAiPolicies(auth.accessToken, 100),
-        getPlatformAiCallLogs(auth.accessToken, 100),
-        getPlatformAiHarnessTraces(auth.accessToken, 100),
-        getPlatformAiObservationMode(auth.accessToken),
-        getPlatformAiObservations(auth.accessToken, 50),
-        getPlatformAiPreflightFindings(auth.accessToken, 100),
-        getPlatformAiPricingRules(auth.accessToken, 100),
-        getPlatformAiUsageSummary(auth.accessToken)
-      ]);
-      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, legalSyncRuns, legalChangeSets, legalChangeDigests, engineApiKeys, workerGovernance, workerApprovals, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary });
+      const token = auth.accessToken;
+      const next: Partial<PlatformOpsData> = {};
+
+      if (view === "platform-overview") {
+        const [summary, opsIncidents, opsRuns, opsFindings] = await Promise.all([
+          getPlatformSummary(token),
+          getPlatformOpsIncidents(token, 50),
+          getPlatformOpsRuns(token, 50),
+          getPlatformOpsFindings(token, 50)
+        ]);
+        Object.assign(next, { summary, opsIncidents, opsRuns, opsFindings });
+      } else if (view === "platform-offices") {
+        next.offices = await getPlatformOffices(token, 100);
+      } else if (view === "platform-users") {
+        next.users = await getPlatformUsers(token, 100);
+      } else if (view === "platform-agents") {
+        next.agents = await getPlatformAgents(token, 100);
+      } else if (view === "platform-commands") {
+        next.commands = await getPlatformCommands(token, 100);
+      } else if (view === "platform-document-jobs") {
+        next.documents = await getPlatformDocumentJobs(token, 100);
+      } else if (view === "platform-photo-delivery") {
+        const [photos, deliveries] = await Promise.all([
+          getPlatformPhotos(token, 100),
+          getPlatformDeliveries(token, 100)
+        ]);
+        Object.assign(next, { photos, deliveries });
+      } else if (view === "platform-incidents") {
+        const [summary, opsRuns, opsIncidents, opsFindings] = await Promise.all([
+          getPlatformSummary(token),
+          getPlatformOpsRuns(token, 50),
+          getPlatformOpsIncidents(token, 50),
+          getPlatformOpsFindings(token, 50)
+        ]);
+        Object.assign(next, { summary, opsRuns, opsIncidents, opsFindings });
+      } else if (view === "platform-events") {
+        const [summary, events] = await Promise.all([
+          getPlatformSummary(token),
+          getPlatformEvents(token, 100)
+        ]);
+        Object.assign(next, { summary, events });
+      } else if (view === "platform-templates") {
+        const [summary, offices] = await Promise.all([
+          getPlatformSummary(token),
+          getPlatformOffices(token, 100)
+        ]);
+        Object.assign(next, { summary, offices });
+      } else if (view === "platform-legal") {
+        const [legalSyncRuns, legalChangeSets, legalChangeDigests] = await Promise.all([
+          getPlatformLegalSyncRuns(token, 50),
+          getPlatformLegalChangeSets(token, 50),
+          getPlatformLegalChangeDigests(token, 50)
+        ]);
+        Object.assign(next, { legalSyncRuns, legalChangeSets, legalChangeDigests });
+      } else if (view === "platform-engine-keys") {
+        const [engineApiKeys, offices, users] = await Promise.all([
+          getPlatformEngineApiKeys(token),
+          getPlatformOffices(token, 100),
+          getPlatformUsers(token, 100)
+        ]);
+        Object.assign(next, { engineApiKeys, offices, users });
+      } else if (view === "platform-worker-governance") {
+        next.workerGovernance = await getPlatformWorkerGovernance(token, 7, 30);
+      } else if (view === "platform-worker-approvals") {
+        next.workerApprovals = await getPlatformWorkerApprovals(token, 50);
+      } else if (view === "ai-overview") {
+        const [aiProviders, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings] = await Promise.all([
+          getPlatformAiProviders(token),
+          getPlatformOfficeAiPolicies(token, 100),
+          getPlatformAiUsageSummary(token),
+          getPlatformAiCallLogs(token, 100),
+          getPlatformAiPreflightFindings(token, 100)
+        ]);
+        Object.assign(next, { aiProviders, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings });
+      } else if (view === "ai-providers") {
+        const [aiProviders, aiPricingRules, aiUsageSummary] = await Promise.all([
+          getPlatformAiProviders(token),
+          getPlatformAiPricingRules(token, 100),
+          getPlatformAiUsageSummary(token)
+        ]);
+        Object.assign(next, { aiProviders, aiPricingRules, aiUsageSummary });
+      } else if (view === "ai-policies") {
+        const [aiProviders, officeAiPolicies] = await Promise.all([
+          getPlatformAiProviders(token),
+          getPlatformOfficeAiPolicies(token, 100)
+        ]);
+        Object.assign(next, { aiProviders, officeAiPolicies });
+      } else if (view === "ai-observer") {
+        const [aiObservationMode, aiObservations, aiHarnessTraces, aiCallLogs, aiPreflightFindings] = await Promise.all([
+          getPlatformAiObservationMode(token),
+          getPlatformAiObservations(token, 50),
+          getPlatformAiHarnessTraces(token, 100),
+          getPlatformAiCallLogs(token, 100),
+          getPlatformAiPreflightFindings(token, 100)
+        ]);
+        Object.assign(next, { aiObservationMode, aiObservations, aiHarnessTraces, aiCallLogs, aiPreflightFindings });
+      } else {
+        next.summary = await getPlatformSummary(token);
+      }
+
+      setPlatformData((current) => ({ ...current, ...next }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "플랫폼 데이터를 불러오지 못했습니다.");
     } finally {
