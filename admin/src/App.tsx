@@ -309,7 +309,7 @@ const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDa
 const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-overview", label: "개요" },
   { key: "platform-incidents", label: "이슈/진단" },
-  { key: "platform-resources", label: "리소스" },
+  { key: "platform-resources", label: "전체 회원/사무소" },
   { key: "platform-legal", label: "법령" },
   { key: "platform-engine-keys", label: "Engine API Key" },
   { key: "platform-worker-governance", label: "Worker 통제" },
@@ -499,39 +499,14 @@ export default function App() {
     [auth]
   );
 
-  const platformManagedOffices = useMemo(
-    () => {
-      if (!platformAdmin) {
-        return [];
-      }
-      const existingOfficeIds = new Set(auth?.user.offices.map((office) => office.id) ?? []);
-      return platformData.offices
-        .filter((office) => !existingOfficeIds.has(office.id))
-        .map((office): Office => ({
-          id: office.id,
-          officeCode: office.officeCode,
-          displayName: office.displayName,
-          type: office.type,
-          planCode: office.planCode,
-          role: "OWNER"
-        }));
-    },
-    [auth?.user.offices, platformAdmin, platformData.offices]
-  );
-
-  const platformManagedOfficeOffices = useMemo(
-    () => platformManagedOffices.filter(isOfficeAdminOffice),
-    [platformManagedOffices]
-  );
-
-  const platformManagedPersonalOffices = useMemo(
-    () => platformManagedOffices.filter(isPersonalTemplateOffice),
-    [platformManagedOffices]
+  const visiblePersonalTemplateOffices = useMemo(
+    () => platformAdmin ? [] : personalTemplateOffices,
+    [personalTemplateOffices, platformAdmin]
   );
 
   const consoleOffices = useMemo(
-    () => [...adminOffices, ...platformManagedOfficeOffices, ...personalTemplateOffices, ...platformManagedPersonalOffices],
-    [adminOffices, platformManagedOfficeOffices, personalTemplateOffices, platformManagedPersonalOffices]
+    () => [...adminOffices, ...visiblePersonalTemplateOffices],
+    [adminOffices, visiblePersonalTemplateOffices]
   );
 
   const selectedOffice = useMemo(
@@ -656,18 +631,10 @@ export default function App() {
       setSelectedOfficeId(null);
       return;
     }
-    if (
-      platformAdmin
-      && selectedOffice?.type === "PERSONAL"
-      && platformManagedOfficeOffices.length > 0
-    ) {
-      setSelectedOfficeId(platformManagedOfficeOffices[0].id);
-      return;
-    }
     if (!selectedOfficeId || !consoleOffices.some((office) => office.id === selectedOfficeId)) {
       setSelectedOfficeId(consoleOffices[0].id);
     }
-  }, [auth, consoleOffices, platformAdmin, platformManagedOfficeOffices, selectedOffice, selectedOfficeId]);
+  }, [auth, consoleOffices, selectedOfficeId]);
 
   useEffect(() => {
     if (!auth || !platformChecked) {
