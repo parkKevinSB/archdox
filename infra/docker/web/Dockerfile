@@ -16,11 +16,12 @@ COPY admin/package*.json ./
 RUN npm ci
 COPY admin ./
 ENV VITE_API_BASE_URL=
-RUN npm run build -- --base=/admin/
+RUN npm run build
 
 FROM nginx:1.27-alpine
 
 COPY infra/docker/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY public-site /usr/share/nginx/html/public
 COPY --from=client-builder /workspace/client/web/dist /usr/share/nginx/html/client
 COPY --from=admin-builder /workspace/admin/dist /usr/share/nginx/html/admin
 

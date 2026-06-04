@@ -2,6 +2,7 @@ package com.archdox.cloud.office.application;
 
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.shared.MembershipStatus;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,9 +16,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class OfficeContextFilter extends OncePerRequestFilter {
     private final OfficeMembershipRepository membershipRepository;
+    private final PlatformAdminService platformAdminService;
 
-    public OfficeContextFilter(OfficeMembershipRepository membershipRepository) {
+    public OfficeContextFilter(
+            OfficeMembershipRepository membershipRepository,
+            PlatformAdminService platformAdminService
+    ) {
         this.membershipRepository = membershipRepository;
+        this.platformAdminService = platformAdminService;
     }
 
     @Override
@@ -36,7 +42,7 @@ public class OfficeContextFilter extends OncePerRequestFilter {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid X-Office-Id");
                     return;
                 }
-                if (!membershipRepository.existsByUserIdAndOfficeIdAndStatus(
+                if (!platformAdminService.isPlatformAdmin(principal) && !membershipRepository.existsByUserIdAndOfficeIdAndStatus(
                         principal.userId(),
                         officeId,
                         MembershipStatus.ACTIVE)) {

@@ -1,4 +1,4 @@
-import { Cloud, FileImage, HardDrive, Loader2, UploadCloud, X } from "lucide-react";
+import { Camera, Cloud, FileImage, HardDrive, Loader2, Trash2, UploadCloud, X } from "lucide-react";
 import { useState, type ChangeEvent } from "react";
 import { EmptyState, StatusBadge } from "../../../components/common";
 import type { InspectionReport } from "../../../types";
@@ -11,9 +11,15 @@ type PhotoPipelinePanelProps = {
   emptyText?: string;
   emptyTitle?: string;
   officeId: number | null;
+  photoContexts?: Record<number, PhotoDisplayContext>;
   report: InspectionReport;
   token: string;
   workspace: PhotoWorkspaceState;
+};
+
+export type PhotoDisplayContext = {
+  caption: string;
+  detail?: string;
 };
 
 export function PhotoPipelinePanel({
@@ -21,6 +27,7 @@ export function PhotoPipelinePanel({
   emptyText = "현장 사진을 올리면 원본/작업본/썸네일 처리 상태를 여기에서 확인합니다.",
   emptyTitle = "아직 업로드된 사진이 없습니다",
   officeId,
+  photoContexts = {},
   report,
   token,
   workspace
@@ -43,6 +50,17 @@ export function PhotoPipelinePanel({
             <span>현재 단계: {report.currentStep ?? "FIELD_PHOTOS"}</span>
           </div>
           <label className={!canUpload ? "primary-button disabled" : "primary-button"}>
+            {workspace.uploading ? <Loader2 className="spin" size={17} /> : <Camera size={17} />}
+            사진 촬영
+            <input
+              accept="image/*"
+              capture="environment"
+              disabled={!canUpload}
+              onChange={handleFilesSelected}
+              type="file"
+            />
+          </label>
+          <label className={!canUpload ? "secondary-button disabled" : "secondary-button"}>
             {workspace.uploading ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
             {workspace.uploading ? "대기열에 추가" : "사진 업로드"}
             <input
@@ -66,7 +84,9 @@ export function PhotoPipelinePanel({
               key={photo.id}
               officeId={officeId}
               onCancelPendingUpload={workspace.cancelPendingPhotoUpload}
+              onDeletePhoto={workspace.deletePhoto}
               photo={photo}
+              photoContext={photoContexts[photo.id]}
               token={token}
             />
           ))}
@@ -119,12 +139,16 @@ export function PhotoUploadTaskStrip({
 function PhotoCard({
   officeId,
   onCancelPendingUpload,
+  onDeletePhoto,
   photo,
+  photoContext,
   token
 }: {
   officeId: number | null;
   onCancelPendingUpload: (photoId: number) => Promise<void>;
+  onDeletePhoto: (photoId: number) => Promise<void>;
   photo: PhotoResponse;
+  photoContext?: PhotoDisplayContext;
   token: string;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -134,6 +158,7 @@ function PhotoCard({
   const thumbnail = photo.assets.find((asset) => asset.assetType === "THUMBNAIL");
   const previewAssetType = selectPreviewAssetType(thumbnail, working);
   const pendingUpload = photo.status === "PENDING_UPLOAD";
+  const displayCaption = photoContext?.caption || photo.caption || photo.stepCode || `Photo #${photo.id}`;
   const preview = usePhotoAssetPreview({
     assetType: previewAssetType,
     officeId,
@@ -166,6 +191,8 @@ function PhotoCard({
               {photo.stepCode ?? "FIELD_PHOTOS"} · {formatBytes(photo.bytes ?? 0)} · {photo.width ?? "-"}x
               {photo.height ?? "-"}
             </span>
+            <span>{displayCaption}</span>
+            {photoContext?.detail ? <span>{photoContext.detail}</span> : null}
           </div>
           <StatusBadge status={photo.status} />
         </div>
@@ -205,6 +232,31 @@ function PhotoCard({
             >
               {deleting ? <Loader2 className="spin" size={15} /> : <X size={15} />}
               삭제
+            </button>
+          </div>
+        ) : null}
+
+        {!pendingUpload ? (
+          <div className="photo-pending-alert">
+            <span>리포트와 문서 출력에서 이 사진을 제거할 수 있습니다.</span>
+            <button
+              className="text-button danger"
+              disabled={deleting}
+              onClick={async () => {
+                if (!window.confirm("사진을 삭제하시겠습니까? 연결된 감리 항목에서도 제거됩니다.")) {
+                  return;
+                }
+                setDeleting(true);
+                try {
+                  await onDeletePhoto(photo.id);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              type="button"
+            >
+              {deleting ? <Loader2 className="spin" size={15} /> : <Trash2 size={15} />}
+              사진 삭제
             </button>
           </div>
         ) : null}

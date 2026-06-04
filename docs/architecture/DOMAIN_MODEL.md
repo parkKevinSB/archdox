@@ -58,17 +58,29 @@ but every mutating API must enforce the matching office role.
 | Manage office members/invitations | n/a | yes | yes, except OWNER role | no | no |
 | Create/archive projects | OWNER | yes | yes | no | no |
 | Create/archive sites and inspection targets | OWNER | yes | yes | if project `MANAGER` | no |
-| Create reports, save steps, submit/cancel reports | OWNER | yes | yes | yes, unless assignments narrow access | no |
-| Save checklist answers and attach report targets | OWNER | yes | yes | yes, unless assignments narrow access | no |
+| Create reports, save steps, submit/cancel reports | OWNER | yes | yes | only with project/report assignment | no |
+| Save checklist answers and attach report targets | OWNER | yes | yes | only with project/report assignment | no |
 
 Rule: project creation/archive is office management data in the MVP, so it
 requires `OWNER` or `ADMIN` in an `OFFICE` workspace. Site/target structure may
 also be managed by a member explicitly assigned to the project as `MANAGER`.
 
-Rule: report writing is normal field/operator work, so `MEMBER` can write
-reports and checklist answers while no project/report assignments exist. Once
-assignments are added, project/report assignment narrows the writer set.
-`VIEWER` remains read-only.
+Rule: report writing is normal field/operator work, but an office `MEMBER` must
+still receive explicit project/report assignment before creating reports,
+editing steps, uploading report photos, submitting, reopening, or requesting
+document generation. `VIEWER` remains read-only.
+
+Rule: the client must not special-case `PERSONAL` or `OFFICE` behavior by
+itself. The Cloud API exposes effective office/project/report permissions, and
+the UI uses those permissions for buttons and navigation. The server remains the
+source of truth for every mutating operation.
+
+Rule: a `PERSONAL` workspace does not need project/report assignment setup.
+The personal `OWNER` is treated as the creator, writer, reviewer, and signer for
+MVP workflows. The UI should not show assignment-management panels in a personal
+workspace. Document signature role is still a document-slot choice, so the UI may
+recommend a role such as `총괄감리책임자` for the official daily supervision log,
+but the personal user can sign without any separate role grant.
 
 ## Office Invitation
 
@@ -109,9 +121,11 @@ physical sites.
 - Rule: project business type is selected from a controlled code list. The
   current API field is still named `buildingType`/`building_type`, but product
   copy should call it `업무 유형`.
-- MVP business type codes: `CONSTRUCTION_SUPERVISION`,
-  `BUILDING_SAFETY_INSPECTION`, `FACILITY_INSPECTION`,
-  `ASBESTOS_SUPERVISION`, `MAINTENANCE_INSPECTION`, `OTHER`.
+- Active MVP business type code: `CONSTRUCTION_SUPERVISION`.
+- Deferred business scopes such as building safety inspection, facility
+  inspection, asbestos supervision, maintenance inspection, and demolition
+  supervision must stay out of current project/report creation flows until their
+  own domain catalogs, workflow, and document set are implemented.
 - Rule: the current MVP table still carries some site-like fields. The intended
   hierarchy is `project -> site -> inspection_target`.
 
@@ -177,9 +191,9 @@ document type.
   steps, DOCX template, and neutral output layout.
 - Rule: these defaults are the baseline only. Published office-specific
   template/workflow/rule/output-layout revisions may override them later.
-- Rule: adding a new standard document such as demolition safety checklist must
-  add a registry row and checklist pack instead of adding renderer branches like
-  `if reportType == X`.
+- Rule: adding any future standard document must add a registry row and
+  checklist pack in that document's own domain phase instead of adding renderer
+  branches like `if reportType == X`.
 - Rule: the generated document source remains the neutral report snapshot plus
   selected configuration. PDF/HWPX/HWP/HTML are artifact outputs, not source
   models.
@@ -200,11 +214,9 @@ document type.
 - Status values: `ACTIVE`, `REMOVED`
 - Rule: assigning/removing project users requires personal `OWNER`, or office
   `OWNER`/`ADMIN`.
-- Rule: when a project has no active assignments, office `MEMBER` users may
-  write reports under it for MVP compatibility.
-- Rule: once any active project assignment exists, office `MEMBER` report
-  writing is limited to active project assignments with role `MANAGER` or
-  `REPORT_WRITER`.
+- Rule: office `MEMBER` report writing under a project requires an active
+  project assignment with role `MANAGER` or `REPORT_WRITER`, unless a report
+  assignment narrows the user set for a specific report.
 - Rule: project assignment events must be recorded as operation events.
 
 ## Inspection Report
@@ -299,8 +311,19 @@ later, site/target-specific variants.
   `display_order`, `options_json`.
 - Rule: checklist definitions are reusable schema/configuration, not per-report
   answers.
-- Rule: MVP seeds default schemas for `DAILY_SUPERVISION`, `PERIODIC_SAFETY`,
-  and `FACILITY_CHECK`.
+- Rule: current user-facing defaults are construction supervision document
+  types: `CONSTRUCTION_DAILY_SUPERVISION_LOG` and
+  `CONSTRUCTION_SUPERVISION_REPORT`.
+- Rule: old exploratory document types such as `DAILY_SUPERVISION`,
+  `PERIODIC_SAFETY`, and `FACILITY_CHECK` are legacy-only and must not be used
+  for new report creation.
+- Rule: demolition supervision document types and schemas are deferred until a
+  separate demolition-supervision phase is explicitly opened.
+- Rule: fresh DB seeds must not insert deferred or legacy document types. The
+  current seed set creates only construction supervision document definitions
+  and their checklist schemas. `V40__remove_deferred_document_types.sql` is a
+  compatibility cleanup for dev/pre-production databases that already consumed
+  older exploratory seeds; do not rely on UI filtering as the primary guard.
 - Rule: future office-specific schemas should resolve by
   `officeId + reportType + siteType + targetType`.
 
@@ -337,9 +360,27 @@ later, site/target-specific variants.
   - upload status (`PENDING_UPLOAD`, `UPLOADED`, `DELETED`)
   - pickup status (`NOT_REQUIRED`, `PENDING`, `PICKED_UP`, `FAILED`)
   - storage location
+- Current metadata covers project/report/site/step/checklist/hash/storage and
+  derivative assets. Photo evidence context is now intentionally first-class
+  enough for construction-supervision MVP:
+  - `site_id`
+  - `site_supervision_entry_id` as a weak ledger/projection link
+  - `trade_code`, `process_code`, `inspection_item_code`
+  - photographer/user id and taken-at timestamp
+  - original file hash and logical original storage key
+  - thumbnail/working/original asset refs
+  - user-facing `caption`, `location_note`, and future `drawing_ref`
+- Future evidence-model expansion should add first-class domains for:
+  - related issue/finding/corrective action
+  - drawing/floor-plan coordinate/marker
+  - whether the photo was included in a generated report/document
 - Rule: photo metadata belongs in cloud; actual file handling depends on the
   selected storage and delivery policy.
 - Rule: `storage_ref` is a logical key, not an absolute local filesystem path.
+- Rule: Cloud should store logical evidence links and storage refs, not local
+  NAS absolute paths. An office/user-side AI agent or MCP client may ask
+  ArchDox for photo/document context, but it should receive scoped logical
+  references and signed/delivery URLs, not raw filesystem authority.
 - Rule: current MVP uses `API_LOCAL` upload instructions; production targets
   remain `S3`, `CLOUD_MEDIATED`, and `ARCHDOX_AGENT_DIRECT`.
 - Rule: office original pickup completion updates the `ORIGINAL` asset to
@@ -557,6 +598,19 @@ revisions.
   `input_snapshot_json.signature`. The UI can offer a pre-generation signing
   step, but signature input is optional. When the user skips signing, generation
   continues and signature areas are rendered blank.
+- Rule: in a `PERSONAL` workspace, the current personal `OWNER` may sign their
+  own generated documents without assignment lookup. If the user supplies a
+  signature, Cloud API treats the personal signer as the all-in-one responsible
+  signer for MVP documents and records signature slots such as
+  `CHIEF_SUPERVISOR`, `ARCHITECT_ASSISTANT`, `WRITER`, and `REVIEWER`. A document
+  renders only the slots it actually contains; skipped signatures leave all
+  signature areas blank.
+- Rule: in an `OFFICE` workspace, assignment and membership decide whether the
+  user can request generation. The signature renderer should use the user's
+  project/report role mapping to select the proper document signature slot, for
+  example a project `MANAGER` as `CHIEF_SUPERVISOR` and a report `WRITER` or
+  project `REPORT_WRITER` as `ARCHITECT_ASSISTANT`/`WRITER`. Future office roles
+  may refine this mapping without changing the document job contract.
 - Rule: whether a signature is rendered is document-type/template policy, not a
   global rule. Daily supervision log defaults render a signature area; other
   document types render signatures only when their template/layout asks for it.

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ArchDox 법령 업데이트는 건축·감리 업무에 영향을 줄 수 있는 법령 및 기준 변경을 업무 관점으로 정리하는 예정 기능입니다."
+    />
+    <title>법령 업데이트 | ArchDox</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="ArchDox home">
+        <span class="brand-mark">aX</span>
+        <span>archdoX</span>
+      </a>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="/#engine">Engine</a>
+        <a href="/connect/">AI 연결</a>
+        <a href="/developers/mcp/">MCP</a>
+        <a href="/legal-updates/" aria-current="page">법령 업데이트</a>
+        <a class="nav-login" href="https://app.archdox.co.kr">업무 앱 로그인</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-hero">
+        <p class="eyebrow">Legal updates</p>
+        <h1>법령 변경을 원문 목록이 아니라 업무 영향으로 읽습니다.</h1>
+        <p>
+          ArchDox는 국가법령정보 공동활용 API에서 가져온 법령·행정규칙 변경을 추적하고,
+          공사감리 업무에 영향이 있는 변경을 digest 형태로 정리하는 방향으로 개발 중입니다.
+        </p>
+      </section>
+
+      <section class="section-band light-band">
+        <div class="section-head">
+          <p class="eyebrow">Update digest</p>
+          <h2>사용자는 게시글처럼 읽고, 운영자는 원문 diff를 추적합니다.</h2>
+        </div>
+        <div class="digest-list">
+          <article>
+            <time datetime="2026-06-04">2026.06.04</time>
+            <h3>공사감리 세부기준 변경 영향 분석 예시</h3>
+            <p>
+              감리일지 작성 항목, 사진 증거, 공종별 검사항목에 영향을 줄 수 있는 변경을 요약합니다.
+            </p>
+            <span>예정 기능</span>
+          </article>
+          <article>
+            <time datetime="2026-06-04">2026.06.04</time>
+            <h3>건축법 시행령 조문 변경 감지 예시</h3>
+            <p>
+              변경된 조문, 시행일, 관련 문서 유형, ArchDox 룰셋 반영 필요 여부를 함께 표시합니다.
+            </p>
+            <span>예정 기능</span>
+          </article>
+          <article>
+            <time datetime="2026-06-04">2026.06.04</time>
+            <h3>법령 변경 알림과 검토 기준일 고정</h3>
+            <p>
+              문서 검토 결과에는 어떤 기준일과 어떤 법령 버전이 사용되었는지 기록합니다.
+            </p>
+            <span>예정 기능</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="split-section">
+        <div>
+          <p class="eyebrow">Legal corpus</p>
+          <h2>AI가 법령을 바로 검색해 판단하지 않습니다.</h2>
+          <p>
+            법령 원문은 동기화, 버전 저장, hash 비교, 변경 감지, 업무 도메인 바인딩을 거친 뒤
+            검토 컨텍스트로 사용됩니다.
+          </p>
+        </div>
+        <div class="process-list">
+          <article>
+            <span>1</span>
+            <div>
+              <h3>Source Sync</h3>
+              <p>공식 법령 API에서 추적 대상 법령과 행정규칙만 가져옵니다.</p>
+            </div>
+          </article>
+          <article>
+            <span>2</span>
+            <div>
+              <h3>Diff Detection</h3>
+              <p>조문 단위 hash와 버전 정보를 비교해 실제 변경을 감지합니다.</p>
+            </div>
+          </article>
+          <article>
+            <span>3</span>
+            <div>
+              <h3>Impact Digest</h3>
+              <p>감리일지, 공종별 체크리스트, 문서 생성 룰에 미치는 영향을 요약합니다.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="cta-band">
+        <div>
+          <p class="eyebrow">Current status</p>
+          <h2>실제 변경 목록은 ArchDox 앱 안에서 먼저 제공됩니다.</h2>
+          <p>공개 사이트는 제품 방향 안내이고, 인증된 사용자의 법령 메뉴는 업무 앱에서 제공됩니다.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="primary-action" href="https://app.archdox.co.kr">업무 앱 로그인</a>
+          <a class="secondary-action" href="/developers/mcp/">Engine 구조 보기</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>archdoX</span>
+      <p>법령 원문보다 중요한 것은, 지금 업무에 어떤 영향을 주는지입니다.</p>
+    </footer>
+  </body>
+</html>

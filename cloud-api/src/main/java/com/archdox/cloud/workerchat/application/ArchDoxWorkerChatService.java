@@ -1,12 +1,9 @@
 package com.archdox.cloud.workerchat.application;
 
 import com.archdox.cloud.global.api.BadRequestException;
-import com.archdox.cloud.document.application.DocumentJobService;
+import com.archdox.cloud.document.application.DocumentGenerationRequestService;
 import com.archdox.cloud.document.domain.DocumentWorkerType;
 import com.archdox.cloud.document.dto.CreateDocumentJobRequest;
-import com.archdox.cloud.document.event.DocumentGenerationRequested;
-import com.archdox.cloud.document.flow.DocumentGenerationFlowFactory;
-import com.archdox.cloud.document.flow.DocumentGenerationWorker;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -94,10 +91,8 @@ public class ArchDoxWorkerChatService {
     private final ReportPreflightReviewWorker preflightReviewWorker;
     private final ReportPreflightReviewRunRepository preflightRunRepository;
     private final ReportPreflightReviewFindingRepository preflightFindingRepository;
-    private final DocumentJobService documentJobService;
+    private final DocumentGenerationRequestService documentGenerationRequestService;
     private final DocumentJobRepository documentJobRepository;
-    private final DocumentGenerationFlowFactory documentGenerationFlowFactory;
-    private final DocumentGenerationWorker documentGenerationWorker;
     private final OfficePermissionService permissionService;
     private final ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider;
     private final ObjectProvider<ArchDoxWorkerServiceWorker> workerProvider;
@@ -118,10 +113,8 @@ public class ArchDoxWorkerChatService {
             ReportPreflightReviewWorker preflightReviewWorker,
             ReportPreflightReviewRunRepository preflightRunRepository,
             ReportPreflightReviewFindingRepository preflightFindingRepository,
-            DocumentJobService documentJobService,
+            DocumentGenerationRequestService documentGenerationRequestService,
             DocumentJobRepository documentJobRepository,
-            DocumentGenerationFlowFactory documentGenerationFlowFactory,
-            DocumentGenerationWorker documentGenerationWorker,
             OfficePermissionService permissionService,
             ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider,
             ObjectProvider<ArchDoxWorkerServiceWorker> workerProvider,
@@ -141,10 +134,8 @@ public class ArchDoxWorkerChatService {
         this.preflightReviewWorker = preflightReviewWorker;
         this.preflightRunRepository = preflightRunRepository;
         this.preflightFindingRepository = preflightFindingRepository;
-        this.documentJobService = documentJobService;
+        this.documentGenerationRequestService = documentGenerationRequestService;
         this.documentJobRepository = documentJobRepository;
-        this.documentGenerationFlowFactory = documentGenerationFlowFactory;
-        this.documentGenerationWorker = documentGenerationWorker;
         this.permissionService = permissionService;
         this.flowFactoryProvider = flowFactoryProvider;
         this.workerProvider = workerProvider;
@@ -567,16 +558,10 @@ public class ArchDoxWorkerChatService {
         var workerType = documentWorkerTypeValue(payload.get("workerType"));
         var job = withOfficeContext(
                 officeId,
-                () -> documentJobService.create(
+                () -> documentGenerationRequestService.request(
                         report.id(),
                         new CreateDocumentJobRequest(outputFormat, workerType, null),
                         workerPrincipal(userId)));
-        registerAfterCommit(() -> documentGenerationWorker.submit(documentGenerationFlowFactory.create(new DocumentGenerationRequested(
-                job.officeId(),
-                job.reportId(),
-                job.id(),
-                job.workerType(),
-                OffsetDateTime.now()))));
         var now = OffsetDateTime.now();
         if (session.reportId() == null) {
             session.selectReport(report.id(), now);

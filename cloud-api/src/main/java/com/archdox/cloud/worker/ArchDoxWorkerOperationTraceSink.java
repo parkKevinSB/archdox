@@ -2,6 +2,7 @@ package com.archdox.cloud.worker;
 
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
+import com.archdox.cloud.worker.approval.application.WorkerApprovalRequestService;
 import com.archdox.worker.application.ArchDoxWorkerTraceEvent;
 import com.archdox.worker.application.ArchDoxWorkerTraceEventType;
 import com.archdox.worker.application.ArchDoxWorkerTraceSink;
@@ -12,9 +13,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class ArchDoxWorkerOperationTraceSink implements ArchDoxWorkerTraceSink {
     private final OperationEventService operationEventService;
+    private final WorkerApprovalRequestService approvalRequestService;
 
-    public ArchDoxWorkerOperationTraceSink(OperationEventService operationEventService) {
+    public ArchDoxWorkerOperationTraceSink(
+            OperationEventService operationEventService,
+            WorkerApprovalRequestService approvalRequestService
+    ) {
         this.operationEventService = operationEventService;
+        this.approvalRequestService = approvalRequestService;
     }
 
     @Override
@@ -33,6 +39,9 @@ public class ArchDoxWorkerOperationTraceSink implements ArchDoxWorkerTraceSink {
                 null,
                 event.message(),
                 payload(event));
+        if (event.eventType() == ArchDoxWorkerTraceEventType.APPROVAL_REQUIRED) {
+            approvalRequestService.createFromTrace(event);
+        }
     }
 
     private OperationEventSeverity severity(ArchDoxWorkerTraceEventType eventType) {

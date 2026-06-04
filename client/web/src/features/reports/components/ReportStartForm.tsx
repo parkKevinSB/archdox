@@ -127,10 +127,6 @@ function categoryLabel(category: string) {
   switch (category) {
     case "CONSTRUCTION_SUPERVISION":
       return "공사감리";
-    case "DEMOLITION_SUPERVISION":
-      return "해체감리";
-    case "SAFETY_INSPECTION":
-      return "안전점검";
     default:
       return category;
   }

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ArchDox MCP Gateway는 외부 AI Agent가 ArchDox Engine을 안전하게 호출하기 위한 어댑터입니다."
+    />
+    <title>MCP 개발자 안내 | ArchDox</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="ArchDox home">
+        <span class="brand-mark">aX</span>
+        <span>archdoX</span>
+      </a>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="/#engine">Engine</a>
+        <a href="/connect/">AI 연결</a>
+        <a href="/developers/mcp/" aria-current="page">MCP</a>
+        <a href="/legal-updates/">법령 업데이트</a>
+        <a class="nav-login" href="https://app.archdox.co.kr">업무 앱 로그인</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-hero">
+        <p class="eyebrow">MCP Gateway</p>
+        <h1>MCP는 엔진이 아니라, ArchDox Engine을 호출하는 배포 채널입니다.</h1>
+        <p>
+          외부 AI Agent는 문서와 사실을 제출하고, ArchDox는 컨텍스트 정규화, 룰 선택,
+          검토 실행, 감사 기록을 책임집니다.
+        </p>
+      </section>
+
+      <section class="section-band light-band">
+        <div class="section-head">
+          <p class="eyebrow">Architecture</p>
+          <h2>AI가 도구를 직접 휘두르지 않게 합니다.</h2>
+        </div>
+        <div class="code-panel">
+          <pre><code>Customer AI Agent
+  -> ArchDox MCP Gateway
+  -> Context Intake
+  -> Context Normalization
+  -> Public Canonical Context
+  -> Engine Policy Gate
+  -> Flower-controlled Review Flow
+  -> Structured Review Result</code></pre>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-head">
+          <p class="eyebrow">Planned tools</p>
+          <h2>처음에는 검토 세션 기반 도구만 제공합니다.</h2>
+        </div>
+        <div class="tool-grid">
+          <article>
+            <code>create_review_session</code>
+            <p>검토 세션을 만들고 입력 범위, 기준일, 도구 권한을 고정합니다.</p>
+          </article>
+          <article>
+            <code>submit_document</code>
+            <p>문서 텍스트, 파일 메타데이터, 추출된 원문 조각을 제출합니다.</p>
+          </article>
+          <article>
+            <code>submit_context_facts</code>
+            <p>현장 조건, 공종, 구조, 용도 같은 추출 사실을 evidence와 함께 보냅니다.</p>
+          </article>
+          <article>
+            <code>normalize_context</code>
+            <p>고객 표현을 ArchDox 공용 canonical context로 정규화합니다.</p>
+          </article>
+          <article>
+            <code>run_validation</code>
+            <p>코드 검증, 룰 평가, 허용된 AI 검토를 실행합니다.</p>
+          </article>
+          <article>
+            <code>get_review_result</code>
+            <p>누락 항목, 근거, 수정 액션, 감사 메타데이터를 조회합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="split-section">
+        <div>
+          <p class="eyebrow">Canonical context</p>
+          <h2>외부 Agent에게 내부 DTO를 만들라고 요구하지 않습니다.</h2>
+          <p>
+            고객 Agent는 문서, 사실, evidence, confidence를 제출합니다. ArchDox가 정규화하고
+            내부 도메인 컨텍스트로 변환합니다.
+          </p>
+        </div>
+        <div class="code-panel compact">
+          <pre><code>{
+  "building": {
+    "uses": ["NEIGHBORHOOD_LIVING_FACILITY"],
+    "structureType": "REINFORCED_CONCRETE"
+  },
+  "construction": {
+    "workType": "FOUNDATION_CONCRETE_PLACEMENT"
+  },
+  "document": {
+    "type": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+    "workDate": "2026-06-04"
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <section class="cta-band">
+        <div>
+          <p class="eyebrow">Status</p>
+          <h2>MCP 공개 전 REST Engine API와 인증/쿼터를 먼저 안정화합니다.</h2>
+          <p>
+            현재는 개발 방향 안내입니다. 실제 MCP endpoint는 `mcp.archdox.co.kr`에서 열릴 예정입니다.
+          </p>
+        </div>
+        <div class="cta-actions">
+          <a class="primary-action" href="/connect/">Agent Connect 보기</a>
+          <a class="secondary-action" href="/">메인으로 돌아가기</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>archdoX</span>
+      <p>MCP는 엔진을 노출하는 안전한 통로이고, 엔진의 권한자는 ArchDox입니다.</p>
+    </footer>
+  </body>
+</html>

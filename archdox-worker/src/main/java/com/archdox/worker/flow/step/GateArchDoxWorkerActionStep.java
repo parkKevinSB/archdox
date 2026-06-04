@@ -27,7 +27,7 @@ public class GateArchDoxWorkerActionStep extends Step {
 
     @Override
     protected StepResult onTick(StepContext ctx) {
-        var decision = policyGate.evaluate(session.request(), session.action());
+        var decision = policyGate.evaluate(session.request(), session.action(), session.definition());
         session.policyDecision(decision);
         if (!decision.allowed()) {
             session.result(ArchDoxWorkerActionResult.rejected(decision.reasonCode(), decision.message()));

@@ -11,6 +11,8 @@ export type ReportStepComponentProps = {
   report: InspectionReport;
   renderChecklistPanel?: () => ReactNode;
   revision?: number;
+  savedStep?: InspectionStep;
+  savedSteps?: Record<string, InspectionStep>;
   token: string;
 };
 

@@ -32,15 +32,20 @@ import {
   ApiError,
   acceptOfficeInvitation,
   addOfficeMember,
+  archiveProject,
+  approvePlatformWorkerApproval,
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
+  createPlatformEngineApiKey,
   createPlatformAiPricingRule,
   createPlatformAiProvider,
   createDocumentTemplate,
   createDocumentTemplateRevision,
   createOfficeInvitation,
+  createProject,
   deactivateOfficeMember,
+  deleteProject,
   diagnosePlatformOpsIncident,
   detectPlatformStuckHealth,
   disablePlatformAiPricingRule,
@@ -58,6 +63,8 @@ import {
   getOfficeMembers,
   getOperationEvents,
   getPhotos,
+  getProjectAssignments,
+  getProjects,
   getPlatformAdminMe,
   getPlatformAgents,
   getPlatformAiCallLogs,
@@ -72,6 +79,12 @@ import {
   getPlatformDeliveries,
   getPlatformDocumentJobs,
   getPlatformEvents,
+  getPlatformEngineApiKeys,
+  getPlatformLegalChangeDigests,
+  getPlatformLegalChangeSets,
+  getPlatformLegalSyncRuns,
+  getPlatformWorkerApprovals,
+  getPlatformWorkerGovernance,
   getPlatformOffices,
   getPlatformOfficeAiPolicies,
   getPlatformOpsFindings,
@@ -86,13 +99,20 @@ import {
   publishDocumentTemplateRevision,
   publishPlatformAiProvider,
   refreshAuthToken,
+  removeProjectAssignment,
+  rejectPlatformWorkerApproval,
+  revokePlatformEngineApiKey,
   signup,
+  startPlatformLegalFakeSync,
+  startPlatformLegalOpenDataSync,
   testPlatformAiProvider,
+  updateProject,
   updatePlatformAiObservationMode,
   updatePlatformAiProvider,
   updatePlatformOfficeAiPolicy,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
+  upsertProjectAssignment,
   uploadDocumentTemplateRevisionContent
 } from "./api";
 import type {
@@ -108,9 +128,14 @@ import type {
   AiProviderCredential,
   AiUsageSummary,
   ConfigDefinition,
+  CreateEngineApiKeyResponse,
   DocumentDelivery,
   DocumentJob,
   DocumentTemplateRevision,
+  EngineApiKey,
+  LegalChangeDigest,
+  LegalChangeSet,
+  LegalSyncRun,
   MeResponse,
   MembershipRole,
   Office,
@@ -135,8 +160,14 @@ import type {
   PlatformReportPreflightFinding,
   PlatformUserOps,
   Photo,
+  Project,
+  ProjectAssignment,
+  ProjectAssignmentRole,
+  ProjectFormRequest,
   TemplateFieldCatalog,
-  TemplateFieldDefinition
+  TemplateFieldDefinition,
+  WorkerApprovalRequest,
+  WorkerGovernanceSummary
 } from "./types";
 
 type ViewKey =
@@ -145,6 +176,7 @@ type ViewKey =
   | "commands"
   | "documents"
   | "members"
+  | "projects"
   | "templates"
   | "photos"
   | "deliveries"
@@ -152,6 +184,10 @@ type ViewKey =
   | "platform-overview"
   | "platform-incidents"
   | "platform-resources"
+  | "platform-legal"
+  | "platform-engine-keys"
+  | "platform-worker-governance"
+  | "platform-worker-approvals"
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
@@ -160,9 +196,9 @@ type ViewKey =
 
 type OfficeViewKey = Extract<
   ViewKey,
-  "dashboard" | "agents" | "commands" | "documents" | "members" | "templates" | "photos" | "deliveries" | "events"
+  "dashboard" | "agents" | "commands" | "documents" | "members" | "projects" | "templates" | "photos" | "deliveries" | "events"
 >;
-type PlatformViewKey = Extract<ViewKey, "platform-overview" | "platform-incidents" | "platform-resources" | "platform-events">;
+type PlatformViewKey = Extract<ViewKey, "platform-overview" | "platform-incidents" | "platform-resources" | "platform-legal" | "platform-engine-keys" | "platform-worker-governance" | "platform-worker-approvals" | "platform-events">;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 
@@ -196,6 +232,12 @@ type PlatformOpsData = {
   opsRuns: PlatformOpsRun[];
   opsIncidents: PlatformOpsIncident[];
   opsFindings: PlatformOpsFinding[];
+  legalSyncRuns: LegalSyncRun[];
+  legalChangeSets: LegalChangeSet[];
+  legalChangeDigests: LegalChangeDigest[];
+  engineApiKeys: EngineApiKey[];
+  workerGovernance: WorkerGovernanceSummary | null;
+  workerApprovals: WorkerApprovalRequest[];
   aiProviders: AiProviderCredential[];
   officeAiPolicies: OfficeAiPolicy[];
   aiCallLogs: AiModelCallLog[];
@@ -234,6 +276,12 @@ const emptyPlatformOpsData: PlatformOpsData = {
   opsRuns: [],
   opsIncidents: [],
   opsFindings: [],
+  legalSyncRuns: [],
+  legalChangeSets: [],
+  legalChangeDigests: [],
+  engineApiKeys: [],
+  workerGovernance: null,
+  workerApprovals: [],
   aiProviders: [],
   officeAiPolicies: [],
   aiCallLogs: [],
@@ -251,6 +299,7 @@ const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDa
   { key: "commands", label: "명령", icon: Command },
   { key: "documents", label: "문서 작업", icon: FileText },
   { key: "members", label: "멤버", icon: Users },
+  { key: "projects", label: "프로젝트", icon: FileText },
   { key: "templates", label: "템플릿", icon: Upload },
   { key: "photos", label: "사진", icon: Camera },
   { key: "deliveries", label: "전달", icon: Truck },
@@ -261,6 +310,10 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-overview", label: "개요" },
   { key: "platform-incidents", label: "이슈/진단" },
   { key: "platform-resources", label: "리소스" },
+  { key: "platform-legal", label: "법령" },
+  { key: "platform-engine-keys", label: "Engine API Key" },
+  { key: "platform-worker-governance", label: "Worker 통제" },
+  { key: "platform-worker-approvals", label: "Worker 승인" },
   { key: "platform-events", label: "이벤트/로그" }
 ];
 
@@ -295,7 +348,9 @@ function isPlatformScopedView(view: ViewKey) {
 }
 
 const adminRoles = new Set(["OWNER", "ADMIN"]);
+const personalTemplateNavItems = navItems.filter((item) => item.key === "templates");
 const memberRoleOptions: MembershipRole[] = ["OWNER", "ADMIN", "MEMBER", "VIEWER"];
+const projectAssignmentRoleOptions: ProjectAssignmentRole[] = ["MANAGER", "REPORT_WRITER", "VIEWER"];
 const commandFilterOptions = ["ALL", "PENDING", "DELIVERED", "ACKED", "COMPLETED", "FAILED", "EXPIRED"];
 const documentFilterOptions = ["ALL", "REQUESTED", "GENERATING", "GENERATED", "FAILED"];
 const photoFilterOptions = ["ALL", "PENDING_UPLOAD", "UPLOADED"];
@@ -304,6 +359,32 @@ const deliveryFilterOptions = ["ALL", "REQUESTED", "SENDING", "COMPLETED", "FAIL
 const aiProviderTypeOptions = ["OPENAI", "OLLAMA", "GEMINI", "ANTHROPIC", "CUSTOM_HTTP"];
 const aiFindingResolutionOptions = ["ALL", "OPEN", "RESOLVED", "ACCEPTED"];
 const aiFindingSeverityOptions = ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+
+function isOfficeAdminOffice(office?: Office | null) {
+  return Boolean(office && office.type !== "PERSONAL" && adminRoles.has(office.role));
+}
+
+function isPersonalTemplateOffice(office?: Office | null) {
+  return Boolean(office && office.type === "PERSONAL" && office.role === "OWNER");
+}
+
+function isConsoleOffice(office?: Office | null) {
+  return isOfficeAdminOffice(office) || isPersonalTemplateOffice(office);
+}
+
+function firstConsoleOffice(offices: Office[]) {
+  return offices.find(isOfficeAdminOffice) ?? offices.find(isPersonalTemplateOffice) ?? null;
+}
+
+function navItemsForOffice(office?: Office | null) {
+  if (isOfficeAdminOffice(office)) {
+    return navItems;
+  }
+  if (isPersonalTemplateOffice(office)) {
+    return personalTemplateNavItems;
+  }
+  return [];
+}
 
 const statusLabels: Record<string, string> = {
   ACKED: "수신 확인",
@@ -363,9 +444,8 @@ const codeLabels: Record<string, string> = {
   CLOUD_MANAGED: "클라우드 관리형",
   CLOUD_OFFICE: "클라우드 사무소",
   CUSTOM_HTTP: "사용자 HTTP",
-  DAILY_SUPERVISION: "공사감리일지",
+  CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
   DETERMINISTIC: "코드 검증",
-  DEMOLITION_SAFETY_CHECKLIST: "해체공사 안전점검표",
   DOCUMENT_GENERATION: "문서 생성 AI",
   DOCUMENT_REVIEW: "문서 검토 AI",
   DOCUMENT_DELIVERY_REQUEST: "문서 전달 요청",
@@ -396,6 +476,7 @@ export default function App() {
   const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
   const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
+  const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -408,15 +489,52 @@ export default function App() {
   const authRef = useRef<AdminState | null>(null);
   const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
 
-  const selectedOffice = useMemo(
-    () => auth?.user.offices.find((office) => office.id === selectedOfficeId) ?? null,
-    [auth, selectedOfficeId]
-  );
-
   const adminOffices = useMemo(
-    () => auth?.user.offices.filter((office) => adminRoles.has(office.role)) ?? [],
+    () => auth?.user.offices.filter(isOfficeAdminOffice) ?? [],
     [auth]
   );
+
+  const personalTemplateOffices = useMemo(
+    () => auth?.user.offices.filter(isPersonalTemplateOffice) ?? [],
+    [auth]
+  );
+
+  const platformManagedOffices = useMemo(
+    () => {
+      if (!platformAdmin) {
+        return [];
+      }
+      const existingOfficeIds = new Set(auth?.user.offices.map((office) => office.id) ?? []);
+      return platformData.offices
+        .filter((office) => !existingOfficeIds.has(office.id))
+        .map((office): Office => ({
+          id: office.id,
+          officeCode: office.officeCode,
+          displayName: office.displayName,
+          type: office.type,
+          planCode: office.planCode,
+          role: "OWNER"
+        }));
+    },
+    [auth?.user.offices, platformAdmin, platformData.offices]
+  );
+
+  const consoleOffices = useMemo(
+    () => [...adminOffices, ...personalTemplateOffices, ...platformManagedOffices],
+    [adminOffices, personalTemplateOffices, platformManagedOffices]
+  );
+
+  const selectedOffice = useMemo(
+    () => consoleOffices.find((office) => office.id === selectedOfficeId) ?? null,
+    [consoleOffices, selectedOfficeId]
+  );
+
+  const officeNavItems = useMemo(
+    () => navItemsForOffice(selectedOffice),
+    [selectedOffice]
+  );
+  const platformOnlyAdmin = Boolean(platformAdmin) && adminOffices.length === 0;
+  const visibleOfficeNavItems = officeNavItems;
 
   function togglePlatformGroup() {
     setExpandedNavGroups((current) => ({ ...current, platform: !current.platform }));
@@ -485,6 +603,7 @@ export default function App() {
     getPlatformAdminMe(auth.accessToken)
       .then((admin) => {
         setPlatformAdmin(admin);
+        setExpandedNavGroups({ platform: true, ai: true });
         if (adminOffices.length === 0) {
           setActiveView("platform-overview");
         }
@@ -504,11 +623,13 @@ export default function App() {
     me(stored.accessToken)
       .then((user) => {
         const savedOfficeId = Number(window.localStorage.getItem(OFFICE_STORAGE_KEY));
-        const firstAdminOffice = user.offices.find((office) => adminRoles.has(office.role));
+        const savedOffice = user.offices.find((office) => office.id === savedOfficeId && isConsoleOffice(office));
+        const firstOffice = firstConsoleOffice(user.offices);
         setAuth({ ...stored, user });
-        setSelectedOfficeId(
-          user.offices.some((office) => office.id === savedOfficeId) ? savedOfficeId : firstAdminOffice?.id ?? null
-        );
+        setSelectedOfficeId(savedOffice?.id ?? firstOffice?.id ?? null);
+        if ((savedOffice ?? firstOffice) && !isOfficeAdminOffice(savedOffice ?? firstOffice)) {
+          setActiveView("templates");
+        }
       })
       .catch(() => {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -516,6 +637,44 @@ export default function App() {
       })
       .finally(() => setBooting(false));
   }, []);
+
+  useEffect(() => {
+    if (!auth) {
+      return;
+    }
+    if (consoleOffices.length === 0) {
+      setSelectedOfficeId(null);
+      return;
+    }
+    if (!selectedOfficeId || !consoleOffices.some((office) => office.id === selectedOfficeId)) {
+      setSelectedOfficeId(consoleOffices[0].id);
+    }
+  }, [auth, consoleOffices, selectedOfficeId]);
+
+  useEffect(() => {
+    if (!auth || !platformChecked) {
+      return;
+    }
+    if (platformOnlyAdmin && !selectedOffice && !isPlatformScopedView(activeView)) {
+      setActiveView("platform-overview");
+      return;
+    }
+    if (isPlatformScopedView(activeView)) {
+      if (!platformAdmin && officeNavItems[0]) {
+        setActiveView(officeNavItems[0].key);
+      }
+      return;
+    }
+    if (!selectedOffice) {
+      if (platformAdmin) {
+        setActiveView("platform-overview");
+      }
+      return;
+    }
+    if (!officeNavItems.some((item) => item.key === activeView)) {
+      setActiveView(officeNavItems[0]?.key ?? "templates");
+    }
+  }, [activeView, auth, officeNavItems, platformAdmin, platformChecked, platformOnlyAdmin, selectedOffice]);
 
   useEffect(() => {
     if (!auth || !selectedOfficeId) {
@@ -535,6 +694,12 @@ export default function App() {
 
   async function refresh() {
     if (!auth || !selectedOfficeId) {
+      return;
+    }
+    if (!isOfficeAdminOffice(selectedOffice)) {
+      setOpsData(emptyOpsData);
+      setError(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -565,7 +730,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
+      const [summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, legalSyncRuns, legalChangeSets, legalChangeDigests, engineApiKeys, workerGovernance, workerApprovals, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary] = await Promise.all([
         getPlatformSummary(auth.accessToken),
         getPlatformUsers(auth.accessToken, 100),
         getPlatformOffices(auth.accessToken, 100),
@@ -578,6 +743,12 @@ export default function App() {
         getPlatformOpsRuns(auth.accessToken, 50),
         getPlatformOpsIncidents(auth.accessToken, 50),
         getPlatformOpsFindings(auth.accessToken, 50),
+        getPlatformLegalSyncRuns(auth.accessToken, 50),
+        getPlatformLegalChangeSets(auth.accessToken, 50),
+        getPlatformLegalChangeDigests(auth.accessToken, 50),
+        getPlatformEngineApiKeys(auth.accessToken),
+        getPlatformWorkerGovernance(auth.accessToken, 7, 30),
+        getPlatformWorkerApprovals(auth.accessToken, 50),
         getPlatformAiProviders(auth.accessToken),
         getPlatformOfficeAiPolicies(auth.accessToken, 100),
         getPlatformAiCallLogs(auth.accessToken, 100),
@@ -588,7 +759,7 @@ export default function App() {
         getPlatformAiPricingRules(auth.accessToken, 100),
         getPlatformAiUsageSummary(auth.accessToken)
       ]);
-      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary });
+      setPlatformData({ summary, users, offices, agents, commands, documents, photos, deliveries, events, opsRuns, opsIncidents, opsFindings, legalSyncRuns, legalChangeSets, legalChangeDigests, engineApiKeys, workerGovernance, workerApprovals, aiProviders, officeAiPolicies, aiCallLogs, aiHarnessTraces, aiObservationMode, aiObservations, aiPreflightFindings, aiPricingRules, aiUsageSummary });
     } catch (err) {
       setError(err instanceof Error ? err.message : "플랫폼 데이터를 불러오지 못했습니다.");
     } finally {
@@ -608,6 +779,122 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "플랫폼 상태 감지에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPlatformLegalFakeSync() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await startPlatformLegalFakeSync(auth.accessToken);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 동기화를 시작하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPlatformLegalOpenDataSync() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await startPlatformLegalOpenDataSync(auth.accessToken);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "실제 법령 동기화를 시작하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateEngineApiKey(body: {
+    displayName: string;
+    ownerUserId: number;
+    officeId?: number | null;
+    scopes: string[];
+    dailyRequestUnitLimit?: number | null;
+    expiresAt?: string | null;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const created = await createPlatformEngineApiKey(auth.accessToken, body);
+      setIssuedEngineApiKey(created);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Engine API Key를 발급하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRevokeEngineApiKey(apiKeyId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("이 Engine API Key를 폐기할까요? 폐기 후에는 외부 Engine API 호출에 사용할 수 없습니다.")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await revokePlatformEngineApiKey(auth.accessToken, apiKeyId);
+      if (issuedEngineApiKey?.key.id === apiKeyId) {
+        setIssuedEngineApiKey(null);
+      }
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Engine API Key를 폐기하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleApproveWorkerApproval(approvalRequestId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("이 Worker action을 승인하고 실행할까요?")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await approvePlatformWorkerApproval(auth.accessToken, approvalRequestId, "Approved from platform admin UI.");
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Worker 승인 요청을 승인하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRejectWorkerApproval(approvalRequestId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("이 Worker action을 반려할까요?")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await rejectPlatformWorkerApproval(auth.accessToken, approvalRequestId, "Rejected from platform admin UI.");
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Worker 승인 요청을 반려하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -816,9 +1103,10 @@ export default function App() {
   }
 
   function handleAuthenticated(nextAuth: AdminState) {
-    const firstAdminOffice = nextAuth.user.offices.find((office) => adminRoles.has(office.role));
+    const firstOffice = firstConsoleOffice(nextAuth.user.offices);
     setAuth(nextAuth);
-    setSelectedOfficeId(firstAdminOffice?.id ?? nextAuth.user.offices[0]?.id ?? null);
+    setSelectedOfficeId(firstOffice?.id ?? null);
+    setActiveView(firstOffice && !isOfficeAdminOffice(firstOffice) ? "templates" : "dashboard");
     window.localStorage.setItem(
       AUTH_STORAGE_KEY,
       JSON.stringify({ accessToken: nextAuth.accessToken, refreshToken: nextAuth.refreshToken })
@@ -871,7 +1159,7 @@ export default function App() {
     );
   }
 
-  if (adminOffices.length === 0 && !platformAdmin) {
+  if (consoleOffices.length === 0 && !platformAdmin) {
     return (
       <FullScreenCenter>
         <ShieldCheck size={42} />
@@ -902,13 +1190,15 @@ export default function App() {
             value={activeView}
             onChange={(event) => setActiveView(event.target.value as ViewKey)}
           >
-            <optgroup label="사무소 운영">
-              {navItems.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </optgroup>
+            {visibleOfficeNavItems.length > 0 ? (
+              <optgroup label="사무소 운영">
+                {visibleOfficeNavItems.map((item) => (
+                  <option key={item.key} value={item.key}>
+                    {item.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
             {platformAdmin ? (
               <>
                 <optgroup label="플랫폼 관리">
@@ -932,21 +1222,25 @@ export default function App() {
         </label>
 
         <nav className="main-nav" aria-label="운영 메뉴">
-          <span className="nav-section-label">사무소 운영</span>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                className={activeView === item.key ? "nav-item active" : "nav-item"}
-                type="button"
-                onClick={() => setActiveView(item.key)}
-              >
-                <Icon size={18} />
-                {item.label}
-              </button>
-            );
-          })}
+          {visibleOfficeNavItems.length > 0 ? (
+            <>
+              <span className="nav-section-label">사무소 운영</span>
+              {visibleOfficeNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.key}
+                    className={activeView === item.key ? "nav-item active" : "nav-item"}
+                    type="button"
+                    onClick={() => setActiveView(item.key)}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </>
+          ) : null}
           {platformAdmin ? (
             <>
               <span className="nav-section-label">플랫폼 운영</span>
@@ -1030,7 +1324,7 @@ export default function App() {
                   value={selectedOfficeId ?? ""}
                   onChange={(event) => setSelectedOfficeId(Number(event.target.value))}
                 >
-                  {adminOffices.map((office) => (
+                  {consoleOffices.map((office) => (
                     <option key={office.id} value={office.id}>
                       {office.displayName} · {displayLabel(office.role)}
                     </option>
@@ -1076,6 +1370,13 @@ export default function App() {
               onMutated={refresh}
             />
           )}
+          {activeView === "projects" && auth && selectedOffice && (
+            <ProjectsManagementView
+              token={auth.accessToken}
+              office={selectedOffice}
+              onMutated={refresh}
+            />
+          )}
           {activeView === "templates" && auth && selectedOfficeId && (
             <TemplatesView token={auth.accessToken} officeId={selectedOfficeId} />
           )}
@@ -1105,7 +1406,15 @@ export default function App() {
               onRefresh={refreshPlatform}
               lastDetection={lastPlatformDetection}
               onDetectStuck={runPlatformDetection}
+              onLegalFakeSync={runPlatformLegalFakeSync}
+              onLegalOpenDataSync={runPlatformLegalOpenDataSync}
+              issuedEngineApiKey={issuedEngineApiKey}
+              onCreateEngineApiKey={handleCreateEngineApiKey}
+              onRevokeEngineApiKey={handleRevokeEngineApiKey}
+              onDismissIssuedEngineApiKey={() => setIssuedEngineApiKey(null)}
               onDiagnoseIncident={runPlatformIncidentDiagnosis}
+              onApproveWorkerApproval={handleApproveWorkerApproval}
+              onRejectWorkerApproval={handleRejectWorkerApproval}
             />
           )}
           {isAiView(activeView) && (
@@ -1849,6 +2158,513 @@ function MembersView({
   );
 }
 
+function ProjectsManagementView({
+  token,
+  office,
+  onMutated
+}: {
+  token: string;
+  office: Office;
+  onMutated: () => void | Promise<void>;
+}) {
+  const emptyProjectForm: ProjectFormRequest = {
+    name: "",
+    address: "",
+    buildingType: "CONSTRUCTION_SUPERVISION",
+    startDate: "",
+    endDate: ""
+  };
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [members, setMembers] = useState<OfficeMember[]>([]);
+  const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [createForm, setCreateForm] = useState<ProjectFormRequest>(emptyProjectForm);
+  const [editForm, setEditForm] = useState<ProjectFormRequest>(emptyProjectForm);
+  const [assignmentUserId, setAssignmentUserId] = useState("");
+  const [assignmentRole, setAssignmentRole] = useState<ProjectAssignmentRole>("REPORT_WRITER");
+  const [loading, setLoading] = useState(false);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) ?? null,
+    [projects, selectedProjectId]
+  );
+  const activeMembers = members.filter((member) => member.status === "ACTIVE");
+  const canManageProjects = adminRoles.has(office.role);
+
+  useEffect(() => {
+    refreshProjectsAndMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, office.id]);
+
+  useEffect(() => {
+    if (projects.length === 0) {
+      setSelectedProjectId(null);
+      return;
+    }
+    if (!selectedProjectId || !projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedProject) {
+      setAssignments([]);
+      setEditForm(emptyProjectForm);
+      return;
+    }
+    setEditForm(projectFormFromProject(selectedProject));
+    loadAssignments(selectedProject.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject?.id]);
+
+  async function refreshProjectsAndMembers() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [nextProjects, nextMembers] = await Promise.all([
+        getProjects(token, office.id),
+        getOfficeMembers(token, office.id)
+      ]);
+      setProjects(nextProjects);
+      setMembers(nextMembers);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadAssignments(projectId: number) {
+    setError(null);
+    try {
+      setAssignments(await getProjectAssignments(token, office.id, projectId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트 배정 정보를 불러오지 못했습니다.");
+    }
+  }
+
+  async function submitCreateProject(event: FormEvent) {
+    event.preventDefault();
+    const body = normalizeProjectForm(createForm);
+    if (!body.name) {
+      setError("프로젝트 이름을 입력해야 합니다.");
+      return;
+    }
+    setBusyAction("create-project");
+    setNotice(null);
+    setError(null);
+    try {
+      const created = await createProject(token, office.id, body);
+      setCreateForm(emptyProjectForm);
+      setProjects((current) => [created, ...current]);
+      setSelectedProjectId(created.id);
+      setNotice(`${created.name} 프로젝트를 생성했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트를 생성하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function submitUpdateProject(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProject) {
+      return;
+    }
+    const body = normalizeProjectForm(editForm);
+    if (!body.name) {
+      setError("프로젝트 이름을 입력해야 합니다.");
+      return;
+    }
+    setBusyAction(`update-project-${selectedProject.id}`);
+    setNotice(null);
+    setError(null);
+    try {
+      const updated = await updateProject(token, office.id, selectedProject.id, body);
+      replaceProject(updated);
+      setNotice(`${updated.name} 프로젝트 정보를 저장했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트 정보를 저장하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function archiveSelectedProject() {
+    if (!selectedProject) {
+      return;
+    }
+    setBusyAction(`archive-project-${selectedProject.id}`);
+    setNotice(null);
+    setError(null);
+    try {
+      const updated = await archiveProject(token, office.id, selectedProject.id);
+      replaceProject(updated);
+      setNotice(`${updated.name} 프로젝트를 보관 상태로 변경했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트를 보관하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function deleteSelectedProject() {
+    if (!selectedProject) {
+      return;
+    }
+    const confirmed = window.confirm(
+      `${selectedProject.name} 프로젝트를 삭제하면 연결된 현장, 리포트, 사진, 문서가 함께 삭제됩니다. 계속할까요?`
+    );
+    if (!confirmed) {
+      return;
+    }
+    setBusyAction(`delete-project-${selectedProject.id}`);
+    setNotice(null);
+    setError(null);
+    try {
+      await deleteProject(token, office.id, selectedProject.id);
+      setProjects((current) => current.filter((project) => project.id !== selectedProject.id));
+      setAssignments([]);
+      setNotice(`${selectedProject.name} 프로젝트를 삭제했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트를 삭제하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function submitAssignment(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedProject) {
+      return;
+    }
+    const userId = Number(assignmentUserId);
+    if (!Number.isInteger(userId)) {
+      setError("배정할 멤버를 선택해야 합니다.");
+      return;
+    }
+    setBusyAction("upsert-project-assignment");
+    setNotice(null);
+    setError(null);
+    try {
+      const updated = await upsertProjectAssignment(token, office.id, selectedProject.id, {
+        userId,
+        role: assignmentRole
+      });
+      setAssignmentUserId("");
+      setAssignmentRole("REPORT_WRITER");
+      setAssignments((current) => {
+        const exists = current.some((assignment) => assignment.userId === updated.userId);
+        return exists
+          ? current.map((assignment) => (assignment.userId === updated.userId ? updated : assignment))
+          : [updated, ...current];
+      });
+      setNotice(`${updated.email ?? `user #${updated.userId}`} 배정을 저장했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트 배정을 저장하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function removeAssignment(assignment: ProjectAssignment) {
+    if (!selectedProject) {
+      return;
+    }
+    setBusyAction(`remove-project-assignment-${assignment.userId}`);
+    setNotice(null);
+    setError(null);
+    try {
+      await removeProjectAssignment(token, office.id, selectedProject.id, assignment.userId);
+      setAssignments((current) => current.filter((item) => item.userId !== assignment.userId));
+      setNotice(`${assignment.email ?? `user #${assignment.userId}`} 배정을 해제했습니다.`);
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "프로젝트 배정을 해제하지 못했습니다.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function replaceProject(project: Project) {
+    setProjects((current) => current.map((item) => (item.id === project.id ? project : item)));
+  }
+
+  function updateCreateForm(field: keyof ProjectFormRequest, value: string) {
+    setCreateForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateEditForm(field: keyof ProjectFormRequest, value: string) {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <div className="view-stack">
+      {notice ? <InlineNotice message={notice} /> : null}
+      {error ? <InlineAlert message={error} /> : null}
+
+      <div className="project-management-grid">
+        <Panel
+          title="프로젝트 목록"
+          icon={<FileText size={18} />}
+          count={projects.length}
+          action={
+            <button className="icon-button" onClick={refreshProjectsAndMembers} type="button" title="새로고침" aria-label="새로고침">
+              {loading ? <Loader2 className="spin" size={18} /> : <RefreshCcw size={18} />}
+            </button>
+          }
+        >
+          <div className="config-panel-body">
+            <div className="selectable-list">
+              {projects.length === 0 ? (
+                <EmptyState message="관리할 프로젝트가 없습니다." />
+              ) : (
+                projects.map((project) => (
+                  <button
+                    className={project.id === selectedProjectId ? "selectable-row active" : "selectable-row"}
+                    key={project.id}
+                    onClick={() => setSelectedProjectId(project.id)}
+                    type="button"
+                  >
+                    <CellTitle
+                      title={project.name}
+                      subtitle={`${project.address ?? "주소 미입력"} · #${project.id}`}
+                    />
+                    <StatusBadge status={project.status} />
+                  </button>
+                ))
+              )}
+            </div>
+
+            <form className="project-form" onSubmit={submitCreateProject}>
+              <label>
+                프로젝트 이름
+                <input
+                  disabled={!canManageProjects}
+                  onChange={(event) => updateCreateForm("name", event.target.value)}
+                  placeholder="예: 2026 상반기 공사감리"
+                  required
+                  value={createForm.name ?? ""}
+                />
+              </label>
+              <label>
+                주소
+                <input
+                  disabled={!canManageProjects}
+                  onChange={(event) => updateCreateForm("address", event.target.value)}
+                  placeholder="현장 주소 또는 대표 주소"
+                  value={createForm.address ?? ""}
+                />
+              </label>
+              <label>
+                업무유형
+                <select
+                  disabled={!canManageProjects}
+                  onChange={(event) => updateCreateForm("buildingType", event.target.value)}
+                  value={createForm.buildingType ?? ""}
+                >
+                  <option value="CONSTRUCTION_SUPERVISION">공사감리</option>
+                  <option value="">미지정</option>
+                </select>
+              </label>
+              <div className="date-pair">
+                <label>
+                  시작일
+                  <input
+                    disabled={!canManageProjects}
+                    onChange={(event) => updateCreateForm("startDate", event.target.value)}
+                    type="date"
+                    value={createForm.startDate ?? ""}
+                  />
+                </label>
+                <label>
+                  종료일
+                  <input
+                    disabled={!canManageProjects}
+                    onChange={(event) => updateCreateForm("endDate", event.target.value)}
+                    type="date"
+                    value={createForm.endDate ?? ""}
+                  />
+                </label>
+              </div>
+              <button className="button primary" disabled={!canManageProjects || busyAction === "create-project"} type="submit">
+                {busyAction === "create-project" ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+                프로젝트 생성
+              </button>
+            </form>
+          </div>
+        </Panel>
+
+        <Panel
+          title="프로젝트 상세/배정"
+          icon={<Users size={18} />}
+          count={assignments.length}
+        >
+          <div className="config-panel-body">
+            {!selectedProject ? (
+              <EmptyState message="왼쪽에서 프로젝트를 선택하세요." />
+            ) : (
+              <>
+                <form className="project-form" onSubmit={submitUpdateProject}>
+                  <label>
+                    프로젝트 이름
+                    <input
+                      disabled={!canManageProjects}
+                      onChange={(event) => updateEditForm("name", event.target.value)}
+                      required
+                      value={editForm.name ?? ""}
+                    />
+                  </label>
+                  <label>
+                    주소
+                    <input
+                      disabled={!canManageProjects}
+                      onChange={(event) => updateEditForm("address", event.target.value)}
+                      value={editForm.address ?? ""}
+                    />
+                  </label>
+                  <label>
+                    업무유형
+                    <select
+                      disabled={!canManageProjects}
+                      onChange={(event) => updateEditForm("buildingType", event.target.value)}
+                      value={editForm.buildingType ?? ""}
+                    >
+                      <option value="CONSTRUCTION_SUPERVISION">공사감리</option>
+                      <option value="">미지정</option>
+                    </select>
+                  </label>
+                  <div className="date-pair">
+                    <label>
+                      시작일
+                      <input
+                        disabled={!canManageProjects}
+                        onChange={(event) => updateEditForm("startDate", event.target.value)}
+                        type="date"
+                        value={editForm.startDate ?? ""}
+                      />
+                    </label>
+                    <label>
+                      종료일
+                      <input
+                        disabled={!canManageProjects}
+                        onChange={(event) => updateEditForm("endDate", event.target.value)}
+                        type="date"
+                        value={editForm.endDate ?? ""}
+                      />
+                    </label>
+                  </div>
+                  <div className="project-action-row">
+                    <button
+                      className="button primary"
+                      disabled={!canManageProjects || busyAction === `update-project-${selectedProject.id}`}
+                      type="submit"
+                    >
+                      {busyAction === `update-project-${selectedProject.id}` ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
+                      기본정보 저장
+                    </button>
+                    <button
+                      className="button"
+                      disabled={!canManageProjects || selectedProject.status === "ARCHIVED" || busyAction === `archive-project-${selectedProject.id}`}
+                      onClick={archiveSelectedProject}
+                      type="button"
+                    >
+                      보관
+                    </button>
+                    <button
+                      className="button danger"
+                      disabled={!canManageProjects || busyAction === `delete-project-${selectedProject.id}`}
+                      onClick={deleteSelectedProject}
+                      type="button"
+                    >
+                      {busyAction === `delete-project-${selectedProject.id}` ? <Loader2 className="spin" size={16} /> : <XCircle size={16} />}
+                      삭제
+                    </button>
+                  </div>
+                </form>
+
+                <div className="assignment-rule-note">
+                  <strong>배정 기준</strong>
+                  <span>MANAGER는 총괄감리책임자 서명 후보, REPORT_WRITER는 건축사보/작성자 서명 후보로 사용됩니다.</span>
+                </div>
+
+                <form className="project-assignment-form" onSubmit={submitAssignment}>
+                  <label>
+                    멤버
+                    <select
+                      disabled={!canManageProjects || activeMembers.length === 0}
+                      onChange={(event) => setAssignmentUserId(event.target.value)}
+                      value={assignmentUserId}
+                    >
+                      <option value="">멤버 선택</option>
+                      {activeMembers.map((member) => (
+                        <option key={member.userId} value={member.userId}>
+                          {member.name} · {member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    프로젝트 역할
+                    <select
+                      disabled={!canManageProjects}
+                      onChange={(event) => setAssignmentRole(event.target.value as ProjectAssignmentRole)}
+                      value={assignmentRole}
+                    >
+                      {projectAssignmentRoleOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {projectAssignmentRoleLabel(option)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="button primary" disabled={!canManageProjects || busyAction === "upsert-project-assignment"} type="submit">
+                    {busyAction === "upsert-project-assignment" ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+                    배정 저장
+                  </button>
+                </form>
+
+                <Table
+                  columns={["멤버", "역할", "상태", "배정일", "관리"]}
+                  empty="프로젝트 배정이 없습니다."
+                  rows={assignments.map((assignment) => [
+                    <CellTitle
+                      key="member"
+                      title={assignment.name ?? assignment.email ?? `user #${assignment.userId}`}
+                      subtitle={assignment.email ? `user #${assignment.userId}` : null}
+                    />,
+                    projectAssignmentRoleLabel(assignment.role),
+                    <StatusBadge key="status" status={assignment.status} />,
+                    formatDate(assignment.assignedAt),
+                    <button
+                      className="button danger"
+                      disabled={!canManageProjects || busyAction === `remove-project-assignment-${assignment.userId}`}
+                      key="remove"
+                      onClick={() => removeAssignment(assignment)}
+                      type="button"
+                    >
+                      {busyAction === `remove-project-assignment-${assignment.userId}` ? <Loader2 className="spin" size={16} /> : <XCircle size={16} />}
+                      해제
+                    </button>
+                  ])}
+                />
+              </>
+            )}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
 function TemplatesView({ token, officeId }: { token: string; officeId: number }) {
   const [templates, setTemplates] = useState<ConfigDefinition[]>([]);
   const [revisions, setRevisions] = useState<DocumentTemplateRevision[]>([]);
@@ -2118,7 +2934,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                 <span>보고서 유형</span>
                 <input
                   onChange={(event) => setReportTypeFilter(event.target.value)}
-                  placeholder="DAILY_SUPERVISION"
+                  placeholder="CONSTRUCTION_DAILY_SUPERVISION_LOG"
                   type="text"
                   value={reportTypeFilter}
                 />
@@ -2153,7 +2969,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
                 보고서 유형
                 <input
                   onChange={(event) => setTemplateReportType(event.target.value)}
-                  placeholder="DAILY_SUPERVISION"
+                  placeholder="CONSTRUCTION_DAILY_SUPERVISION_LOG"
                   type="text"
                   value={templateReportType}
                 />
@@ -2350,7 +3166,7 @@ function TemplatesView({ token, officeId }: { token: string; officeId: number })
               보고서 유형
               <input
                 onChange={(event) => setOverrideReportType(event.target.value)}
-                placeholder="DAILY_SUPERVISION"
+                placeholder="CONSTRUCTION_DAILY_SUPERVISION_LOG"
                 required
                 type="text"
                 value={overrideReportType}
@@ -2760,7 +3576,15 @@ function PlatformView({
   onRefresh,
   lastDetection,
   onDetectStuck,
-  onDiagnoseIncident
+  onLegalFakeSync,
+  onLegalOpenDataSync,
+  issuedEngineApiKey,
+  onCreateEngineApiKey,
+  onRevokeEngineApiKey,
+  onDismissIssuedEngineApiKey,
+  onDiagnoseIncident,
+  onApproveWorkerApproval,
+  onRejectWorkerApproval
 }: {
   view: PlatformViewKey;
   data: PlatformOpsData;
@@ -2769,7 +3593,22 @@ function PlatformView({
   onRefresh: () => void;
   lastDetection: PlatformHealthDetection | null;
   onDetectStuck: () => void;
+  onLegalFakeSync: () => void;
+  onLegalOpenDataSync: () => void;
+  issuedEngineApiKey: CreateEngineApiKeyResponse | null;
+  onCreateEngineApiKey: (body: {
+    displayName: string;
+    ownerUserId: number;
+    officeId?: number | null;
+    scopes: string[];
+    dailyRequestUnitLimit?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
+  onRevokeEngineApiKey: (apiKeyId: number) => Promise<void>;
+  onDismissIssuedEngineApiKey: () => void;
   onDiagnoseIncident: (incidentId: number) => void;
+  onApproveWorkerApproval: (approvalRequestId: number) => Promise<void>;
+  onRejectWorkerApproval: (approvalRequestId: number) => Promise<void>;
 }) {
   const summary = data.summary;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
@@ -2791,6 +3630,10 @@ function PlatformView({
   const showOverview = view === "platform-overview";
   const showIncidents = view === "platform-incidents";
   const showResources = view === "platform-resources";
+  const showLegal = view === "platform-legal";
+  const showEngineKeys = view === "platform-engine-keys";
+  const showWorkerGovernance = view === "platform-worker-governance";
+  const showWorkerApprovals = view === "platform-worker-approvals";
   const showEvents = view === "platform-events";
 
   return (
@@ -2821,6 +3664,103 @@ function PlatformView({
               ? `${formatDate(lastDetection.detectedAt)} 기준 운영 감지 Flow #${lastDetection.opsRunId}를 요청했습니다. 결과는 운영 이슈/진단 목록에서 갱신됩니다.`
               : `${formatDate(lastDetection.detectedAt)} 기준 멈춤 후보 ${lastDetection.total}건을 감지했습니다.`
           }
+        />
+      ) : null}
+
+      {showLegal ? (
+        <div className="dashboard-grid">
+          <Panel
+            title="법령 동기화"
+            icon={<ShieldCheck size={18} />}
+            action={<>
+              <button className="button primary" disabled={loading} onClick={onLegalOpenDataSync} type="button">
+                {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+                실제 동기화
+              </button>
+              <button className="button" disabled={loading} onClick={onLegalFakeSync} type="button">
+                {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+                Fake 동기화
+              </button>
+              </>}
+          >
+            <div className="metric-grid compact">
+              <MetricCard icon={<Gauge size={20} />} label="동기화 Run" value={data.legalSyncRuns.length} detail="최근 50건" tone="blue" />
+              <MetricCard icon={<Activity size={20} />} label="Change Set" value={data.legalChangeSets.length} detail="법령 원천 diff" tone="amber" />
+              <MetricCard icon={<FileText size={20} />} label="게시 요약" value={data.legalChangeDigests.length} detail="사용자 노출 digest" tone="green" />
+            </div>
+            <InlineNotice message="현재는 국가법령 API 승인 전 테스트용 fake source를 사용합니다. 실제 API가 붙어도 Flow/DB/API 구조는 동일하게 유지됩니다." />
+          </Panel>
+
+          <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
+            <Table
+              columns={["제목", "상태", "출처", "시행일", "게시", "요약"]}
+              empty="게시된 법령 변경사항이 없습니다."
+              rows={data.legalChangeDigests.slice(0, 20).map((digest) => [
+                <CellTitle key="digest" title={digest.title} subtitle={`Digest #${digest.id} / Change Set #${digest.changeSetId}`} />,
+                <StatusBadge key="status" status={digest.status} />,
+                displayLabel(digest.source),
+                digest.effectiveDate ?? "-",
+                formatDate(digest.publishedAt),
+                digest.summary
+              ])}
+            />
+          </Panel>
+
+          <Panel title="법령 변경 원천 기록" icon={<Activity size={18} />} count={data.legalChangeSets.length}>
+            <Table
+              columns={["Change Set", "상태", "Act", "시행일", "감지", "요약"]}
+              empty="법령 변경 원천 기록이 없습니다."
+              rows={data.legalChangeSets.slice(0, 20).map((changeSet) => [
+                <CellTitle key="change-set" title={`Change Set #${changeSet.id}`} subtitle={`run #${changeSet.syncRunId ?? "-"} / version #${changeSet.newVersionId}`} />,
+                <StatusBadge key="status" status={changeSet.status} />,
+                `#${changeSet.actId}`,
+                changeSet.effectiveDate ?? "-",
+                formatDate(changeSet.detectedAt),
+                changeSet.summary
+              ])}
+            />
+          </Panel>
+
+          <Panel title="법령 동기화 Run" icon={<Clock3 size={18} />} count={data.legalSyncRuns.length}>
+            <Table
+              columns={["Run", "상태", "Source", "Trigger", "시작", "완료"]}
+              empty="법령 동기화 Run이 없습니다."
+              rows={data.legalSyncRuns.slice(0, 20).map((run) => [
+                <CellTitle key="run" title={`Run #${run.id}`} subtitle={run.failureCode ?? "failure 없음"} />,
+                <StatusBadge key="status" status={run.status} />,
+                run.sourceCode,
+                displayLabel(run.triggerType),
+                formatDate(run.startedAt),
+                formatDate(run.completedAt)
+              ])}
+            />
+          </Panel>
+        </div>
+      ) : null}
+
+      {showEngineKeys ? (
+        <EngineApiKeyManagementPanel
+          busy={loading}
+          keys={data.engineApiKeys}
+          offices={data.offices}
+          users={data.users}
+          issuedKey={issuedEngineApiKey}
+          onCreate={onCreateEngineApiKey}
+          onDismissIssuedKey={onDismissIssuedEngineApiKey}
+          onRevoke={onRevokeEngineApiKey}
+        />
+      ) : null}
+
+      {showWorkerGovernance ? (
+        <WorkerGovernancePanel summary={data.workerGovernance} />
+      ) : null}
+
+      {showWorkerApprovals ? (
+        <WorkerApprovalPanel
+          approvals={data.workerApprovals}
+          busy={loading}
+          onApprove={onApproveWorkerApproval}
+          onReject={onRejectWorkerApproval}
         />
       ) : null}
 
@@ -2995,6 +3935,371 @@ function PlatformView({
         </Panel>
       ) : null}
     </div>
+  );
+}
+
+function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary | null }) {
+  if (!summary) {
+    return (
+      <Panel title="Worker 통제 지표" icon={<ShieldCheck size={18} />}>
+        <EmptyState message="Worker 통제 지표를 불러오지 못했습니다." />
+      </Panel>
+    );
+  }
+
+  return (
+    <div className="view-stack">
+      <Panel
+        title="Worker 통제 지표"
+        icon={<ShieldCheck size={18} />}
+        action={<span className="panel-context">{summary.days}일 기준</span>}
+      >
+        <div className="metric-grid compact">
+          <MetricCard icon={<Activity size={20} />} label="Trace" value={summary.totalTraceEvents} detail={`${formatDate(summary.from)} 이후`} tone="blue" />
+          <MetricCard icon={<ShieldCheck size={20} />} label="Catch rate" value={`${summary.catchRate}%`} detail={`${summary.policyDenied + summary.actionRejected + summary.actionUnknown}건 차단`} tone={summary.catchRate > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="Approval" value={`${summary.approvalRequiredRate}%`} detail={`${summary.approvalRequired}건 승인 필요`} tone="slate" />
+          <MetricCard icon={<AlertTriangle size={20} />} label="Failure" value={`${summary.failureRate}%`} detail={`${summary.actionFailed}건 실패`} tone={summary.actionFailed > 0 ? "red" : "green"} />
+        </div>
+        <InlineNotice message={summary.dataPolicy} />
+      </Panel>
+
+      <div className="dashboard-grid">
+        <Panel title="게이트 판단 분포" icon={<Gauge size={18} />} count={summary.eventTypes.length}>
+          <Table
+            columns={["이벤트", "건수"]}
+            empty="Worker trace 이벤트가 없습니다."
+            rows={summary.eventTypes.slice(0, 20).map((group) => [
+              <StatusBadge key="event" status={group.eventType ?? "UNKNOWN"} />,
+              group.count
+            ])}
+          />
+        </Panel>
+
+        <Panel title="차단/승인/실패 이유" icon={<AlertTriangle size={18} />} count={summary.reasons.length}>
+          <Table
+            columns={["판단", "이유", "건수"]}
+            empty="차단, 승인요구, 실패 이유가 없습니다."
+            rows={summary.reasons.slice(0, 20).map((group) => [
+              <StatusBadge key="event" status={group.eventType ?? "UNKNOWN"} />,
+              group.reasonCode ?? "-",
+              group.count
+            ])}
+          />
+        </Panel>
+      </div>
+
+      <Panel title="액션별 trace" icon={<Command size={18} />} count={summary.actionEvents.length}>
+        <Table
+          columns={["액션", "이벤트", "건수"]}
+          empty="액션별 trace가 없습니다."
+          rows={summary.actionEvents.slice(0, 30).map((group) => [
+            group.actionType ?? "-",
+            <StatusBadge key="event" status={group.eventType ?? "UNKNOWN"} />,
+            group.count
+          ])}
+        />
+      </Panel>
+
+      <Panel title="최근 Worker trace 샘플" icon={<Activity size={18} />} count={summary.recentEvents.length}>
+        <Table
+          columns={["시간", "이벤트", "사무소", "액션", "메시지"]}
+          empty="최근 Worker trace가 없습니다."
+          rows={summary.recentEvents.slice(0, 30).map((event) => [
+            formatDate(event.createdAt),
+            <StatusBadge key="event" status={event.eventType.replace("ARCHDOX_WORKER_", "")} />,
+            event.officeId ? `#${event.officeId}` : "-",
+            stringValue(asPlainObject(event.payload).actionType) || "-",
+            event.message
+          ])}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function WorkerApprovalPanel({
+  approvals,
+  busy,
+  onApprove,
+  onReject
+}: {
+  approvals: WorkerApprovalRequest[];
+  busy: boolean;
+  onApprove: (approvalRequestId: number) => Promise<void>;
+  onReject: (approvalRequestId: number) => Promise<void>;
+}) {
+  const pending = approvals.filter((approval) => approval.status === "PENDING").length;
+  const approved = approvals.filter((approval) => approval.status === "APPROVED").length;
+  const rejected = approvals.filter((approval) => approval.status === "REJECTED").length;
+  const expired = approvals.filter((approval) => approval.status === "EXPIRED").length;
+
+  return (
+    <div className="view-stack">
+      <Panel
+        title="Worker 승인 대기"
+        icon={<ShieldCheck size={18} />}
+        action={<span className="panel-context">최근 {approvals.length}건</span>}
+      >
+        <div className="metric-grid compact">
+          <MetricCard icon={<Clock3 size={20} />} label="대기" value={pending} detail="실행 전 승인 필요" tone={pending > 0 ? "amber" : "green"} />
+          <MetricCard icon={<CheckCircle2 size={20} />} label="승인" value={approved} detail="승인 후 재실행" tone="green" />
+          <MetricCard icon={<XCircle size={20} />} label="반려" value={rejected} detail="실행 차단" tone={rejected > 0 ? "red" : "slate"} />
+          <MetricCard icon={<AlertTriangle size={20} />} label="만료" value={expired} detail="재요청 필요" tone={expired > 0 ? "amber" : "slate"} />
+        </div>
+        <InlineNotice message="승인 요청은 Worker trace에서 생성됩니다. 원문 trace와 실행 이력은 operation_events에 남고, 이 화면은 승인 상태와 재실행 연결만 관리합니다." />
+      </Panel>
+
+      <Panel title="Worker 승인 요청" icon={<Command size={18} />} count={approvals.length}>
+        <Table
+          columns={["요청", "상태", "사무소", "컨텍스트", "사유", "요청일", "결정", "작업"]}
+          empty="승인이 필요한 Worker action이 없습니다."
+          rows={approvals.map((approval) => [
+            <CellTitle
+              key="approval"
+              title={approval.actionType}
+              subtitle={`${approval.requestSource} / ${approval.actionOrigin} / #${approval.id}`}
+            />,
+            <StatusBadge key="status" status={approval.status} />,
+            approval.officeId ? `#${approval.officeId}` : "-",
+            contextSummary(approval),
+            <CellTitle
+              key="reason"
+              title={approval.decisionCode ?? approval.actionReason ?? "-"}
+              subtitle={approval.decisionMessage ?? payloadPreview(approval.actionPayload)}
+            />,
+            formatDate(approval.requestedAt),
+            approval.decidedAt ? (
+              <CellTitle key="decision" title={formatDate(approval.decidedAt)} subtitle={approval.decisionReason ?? "-"} />
+            ) : (
+              "-"
+            ),
+            approval.status === "PENDING" ? (
+              <div className="card-actions compact" key="actions">
+                <button className="button compact" disabled={busy} onClick={() => void onApprove(approval.id)} type="button">
+                  승인
+                </button>
+                <button className="button compact danger" disabled={busy} onClick={() => void onReject(approval.id)} type="button">
+                  반려
+                </button>
+              </div>
+            ) : (
+              <StatusBadge key="done" status={approval.status} />
+            )
+          ])}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function contextSummary(approval: WorkerApprovalRequest) {
+  const parts = [
+    approval.userId ? `user #${approval.userId}` : "",
+    approval.projectId ? `project #${approval.projectId}` : "",
+    approval.siteId ? `site #${approval.siteId}` : "",
+    approval.reportId ? `report #${approval.reportId}` : "",
+    approval.documentJobId ? `job #${approval.documentJobId}` : ""
+  ].filter(Boolean);
+  return parts.length ? parts.join(" / ") : "-";
+}
+
+function payloadPreview(payload: Record<string, unknown>) {
+  const json = JSON.stringify(payload ?? {});
+  return json.length > 120 ? `${json.slice(0, 120)}...` : json;
+}
+
+function EngineApiKeyManagementPanel({
+  busy,
+  keys,
+  offices,
+  users,
+  issuedKey,
+  onCreate,
+  onDismissIssuedKey,
+  onRevoke
+}: {
+  busy: boolean;
+  keys: EngineApiKey[];
+  offices: PlatformOfficeOps[];
+  users: PlatformUserOps[];
+  issuedKey: CreateEngineApiKeyResponse | null;
+  onCreate: (body: {
+    displayName: string;
+    ownerUserId: number;
+    officeId?: number | null;
+    scopes: string[];
+    dailyRequestUnitLimit?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
+  onDismissIssuedKey: () => void;
+  onRevoke: (apiKeyId: number) => Promise<void>;
+}) {
+  const activeCount = keys.filter((key) => key.status === "ACTIVE").length;
+  const revokedCount = keys.filter((key) => key.status === "REVOKED").length;
+
+  return (
+    <div className="view-stack">
+      <div className="engine-key-grid">
+        <Panel title="Engine API Key 발급" icon={<KeyRound size={18} />}>
+          <EngineApiKeyCreateForm busy={busy} users={users} offices={offices} onSubmit={onCreate} />
+          {issuedKey ? (
+            <div className="issued-key-card">
+              <div>
+                <strong>새 API Key가 발급되었습니다.</strong>
+                <span>이 값은 지금 한 번만 표시됩니다. 외부 Agent나 MCP 테스트 설정에 보관하세요.</span>
+              </div>
+              <code>{issuedKey.apiKey}</code>
+              <div className="card-actions">
+                <button className="button compact" type="button" onClick={() => void navigator.clipboard.writeText(issuedKey.apiKey)}>
+                  <Copy size={14} />
+                  복사
+                </button>
+                <button className="button compact" type="button" onClick={onDismissIssuedKey}>
+                  확인
+                </button>
+              </div>
+            </div>
+          ) : (
+            <InlineNotice message="발급된 API Key 원문은 DB에 저장하지 않습니다. 잃어버리면 새 키를 발급하고 기존 키를 폐기하세요." />
+          )}
+        </Panel>
+
+        <Panel title="Engine API Key 상태" icon={<Gauge size={18} />}>
+          <div className="metric-grid compact">
+            <MetricCard icon={<KeyRound size={20} />} label="전체 키" value={keys.length} detail="최근 200개" tone="blue" />
+            <MetricCard icon={<CheckCircle2 size={20} />} label="활성" value={activeCount} detail="외부 호출 가능" tone="green" />
+            <MetricCard icon={<XCircle size={20} />} label="폐기" value={revokedCount} detail="사용 불가" tone="red" />
+          </div>
+          <InlineAlert message="현재는 review-session 테스트용 Foundation입니다. 고객별 quota, billing, developer portal은 다음 단계에서 붙입니다." />
+        </Panel>
+      </div>
+
+      <Panel title="발급된 Engine API Key" icon={<KeyRound size={18} />} count={keys.length}>
+        <Table
+          columns={["키", "상태", "소유자", "사무소", "스코프", "최근 사용", "만료", "작업"]}
+          empty="발급된 Engine API Key가 없습니다."
+          rows={keys.map((key) => [
+            <CellTitle key="key" title={key.displayName} subtitle={`${key.maskedKey} / #${key.id}`} />,
+            <StatusBadge key="status" status={key.status} />,
+            userLabel(users, key.ownerUserId),
+            key.officeId ? officeLabel(offices, key.officeId) : "-",
+            key.scopes.join(", "),
+            formatDate(key.lastUsedAt),
+            formatDate(key.expiresAt),
+            key.status === "ACTIVE" ? (
+              <button className="button compact danger" disabled={busy} onClick={() => onRevoke(key.id)} type="button">
+                폐기
+              </button>
+            ) : (
+              <StatusBadge status="REVOKED" />
+            )
+          ])}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function EngineApiKeyCreateForm({
+  busy,
+  offices,
+  users,
+  onSubmit
+}: {
+  busy: boolean;
+  offices: PlatformOfficeOps[];
+  users: PlatformUserOps[];
+  onSubmit: (body: {
+    displayName: string;
+    ownerUserId: number;
+    officeId?: number | null;
+    scopes: string[];
+    dailyRequestUnitLimit?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
+}) {
+  const [displayName, setDisplayName] = useState("Codex Engine API Key");
+  const [ownerUserId, setOwnerUserId] = useState<number | "">(users[0]?.id ?? "");
+  const [officeId, setOfficeId] = useState<number | "">("");
+  const [allScopes, setAllScopes] = useState(false);
+  const [dailyRequestUnitLimit, setDailyRequestUnitLimit] = useState(1000);
+  const [expiresAt, setExpiresAt] = useState("");
+
+  useEffect(() => {
+    if (ownerUserId === "" && users[0]) {
+      setOwnerUserId(users[0].id);
+    }
+  }, [ownerUserId, users]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (ownerUserId === "") {
+      return;
+    }
+    await onSubmit({
+      displayName: normalizeFormValue(displayName) ?? "Engine API Key",
+      ownerUserId,
+      officeId: officeId === "" ? null : officeId,
+      scopes: allScopes ? ["ALL"] : ["ENGINE_REVIEW_SESSION"],
+      dailyRequestUnitLimit,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+    });
+  }
+
+  if (users.length === 0) {
+    return <EmptyState message="키를 발급할 사용자 계정이 없습니다." />;
+  }
+
+  return (
+    <form className="engine-key-form" onSubmit={submit}>
+      <label>
+        표시명
+        <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
+      </label>
+      <label>
+        소유자
+        <select value={ownerUserId} onChange={(event) => setOwnerUserId(Number(event.target.value))} required>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name} / {user.email} / #{user.id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        사무소 연결
+        <select value={officeId} onChange={(event) => setOfficeId(event.target.value ? Number(event.target.value) : "")}>
+          <option value="">없음</option>
+          {offices.map((office) => (
+            <option key={office.id} value={office.id}>
+              {office.displayName} / {office.officeCode} / #{office.id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        만료일
+        <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+      </label>
+      <label>
+        1??request unit ?쒕룄
+        <input
+          min={1}
+          type="number"
+          value={dailyRequestUnitLimit}
+          onChange={(event) => setDailyRequestUnitLimit(Math.max(1, Number(event.target.value) || 1))}
+        />
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={allScopes} onChange={(event) => setAllScopes(event.target.checked)} />
+        ALL 스코프로 발급
+      </label>
+      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION입니다. 외부 문서 검토 세션 테스트에는 기본값을 권장합니다.</div>
+      <button className="button primary" disabled={busy || ownerUserId === ""} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+        API Key 발급
+      </button>
+    </form>
   );
 }
 
@@ -4739,6 +6044,51 @@ function displayLabel(value?: string | null) {
     return "-";
   }
   return statusLabels[value] ?? codeLabels[value] ?? templatePolicyLabels[value] ?? value;
+}
+
+function userLabel(users: PlatformUserOps[], userId?: number | null) {
+  if (!userId) {
+    return "-";
+  }
+  const user = users.find((candidate) => candidate.id === userId);
+  return user ? `${user.name} / ${user.email} / #${user.id}` : `#${userId}`;
+}
+
+function officeLabel(offices: PlatformOfficeOps[], officeId?: number | null) {
+  if (!officeId) {
+    return "-";
+  }
+  const office = offices.find((candidate) => candidate.id === officeId);
+  return office ? `${office.displayName} / ${office.officeCode} / #${office.id}` : `#${officeId}`;
+}
+
+function projectAssignmentRoleLabel(role: ProjectAssignmentRole) {
+  const labels: Record<ProjectAssignmentRole, string> = {
+    MANAGER: "총괄/프로젝트 관리자",
+    REPORT_WRITER: "작성자/건축사보",
+    VIEWER: "조회자"
+  };
+  return labels[role] ?? role;
+}
+
+function projectFormFromProject(project: Project): ProjectFormRequest {
+  return {
+    name: project.name,
+    address: project.address ?? "",
+    buildingType: project.buildingType ?? "CONSTRUCTION_SUPERVISION",
+    startDate: project.startDate ?? "",
+    endDate: project.endDate ?? ""
+  };
+}
+
+function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
+  return {
+    name: normalizeFormValue(form.name) ?? "",
+    address: normalizeFormValue(form.address ?? ""),
+    buildingType: normalizeFormValue(form.buildingType ?? ""),
+    startDate: normalizeFormValue(form.startDate ?? ""),
+    endDate: normalizeFormValue(form.endDate ?? "")
+  };
 }
 
 function statusTone(status: string) {

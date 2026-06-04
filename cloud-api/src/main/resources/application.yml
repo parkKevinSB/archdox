@@ -147,6 +147,17 @@ archdox:
       photo-pickup-stuck-minutes: ${PLATFORM_HEALTH_PHOTO_PICKUP_STUCK_MINUTES:30}
       delivery-stuck-minutes: ${PLATFORM_HEALTH_DELIVERY_STUCK_MINUTES:15}
       max-detected-items: ${PLATFORM_HEALTH_MAX_DETECTED_ITEMS:100}
+  legal:
+    sync:
+      worker-interval-ms: ${LEGAL_SYNC_WORKER_INTERVAL_MS:250}
+      open-api:
+        enabled: ${LEGAL_OPEN_API_ENABLED:false}
+        oc: ${LEGAL_OPEN_API_OC:}
+        base-url: ${LEGAL_OPEN_API_BASE_URL:https://www.law.go.kr/DRF}
+        user-agent: ${LEGAL_OPEN_API_USER_AGENT:Mozilla/5.0 ArchDox/1.0}
+        request-timeout-ms: ${LEGAL_OPEN_API_REQUEST_TIMEOUT_MS:20000}
+        request-interval-ms: ${LEGAL_OPEN_API_REQUEST_INTERVAL_MS:800}
+        max-attempts: ${LEGAL_OPEN_API_MAX_ATTEMPTS:3}
   agent:
     api-instance-id: ${AGENT_API_INSTANCE_ID:}
     shared-secret: ${AGENT_SHARED_SECRET:dev-agent-secret-change-me}

@@ -10,9 +10,17 @@ import java.time.OffsetDateTime;
 
 public record CreatePhotoUploadIntentRequest(
         Long projectId,
+        Long siteId,
         Long reportId,
         @Size(max = 100) String stepCode,
         Long checklistItemId,
+        Long siteSupervisionEntryId,
+        @Size(max = 120) String tradeCode,
+        @Size(max = 120) String processCode,
+        @Size(max = 180) String inspectionItemCode,
+        @Size(max = 500) String caption,
+        @Size(max = 500) String locationNote,
+        @Size(max = 300) String drawingRef,
         PhotoCaptureKind captureKind,
         @NotBlank @Size(max = 100) String mime,
         @NotNull @Positive Long bytes,

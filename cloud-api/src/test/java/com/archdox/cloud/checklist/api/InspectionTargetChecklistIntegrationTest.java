@@ -101,13 +101,15 @@ class InspectionTargetChecklistIntegrationTest {
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.schema.code").value("PERIODIC_SAFETY_DEFAULT"))
+                .andExpect(jsonPath("$.schema.code").value("CONSTRUCTION_SUPERVISION_REPORT_DEFAULT"))
                 .andExpect(jsonPath("$.schema.items", hasSize(4)))
                 .andExpect(jsonPath("$.answers", hasSize(0)))
                 .andReturn();
-        var crackCheckItemId = checklistItemId(checklistResult.getResponse().getContentAsString(), "CRACK_CHECK");
+        var fieldInvestigationItemId = checklistItemId(
+                checklistResult.getResponse().getContentAsString(),
+                "FIELD_INVESTIGATION");
 
-        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/checklist/answers/{itemCode}", reportId, "CRACK_CHECK")
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/checklist/answers/{itemCode}", reportId, "FIELD_INVESTIGATION")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,12 +123,12 @@ class InspectionTargetChecklistIntegrationTest {
                                 }
                                 """.formatted(targetId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.itemCode").value("CRACK_CHECK"))
+                .andExpect(jsonPath("$.itemCode").value("FIELD_INVESTIGATION"))
                 .andExpect(jsonPath("$.answer.value").value("관찰"))
                 .andExpect(jsonPath("$.note").value("2층 복도 미세 균열 관찰"));
 
         saveBasicInfoStep(user, reportId);
-        uploadWorkingPhoto(user, projectId, reportId, crackCheckItemId);
+        uploadWorkingPhoto(user, projectId, reportId, fieldInvestigationItemId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -150,17 +152,17 @@ class InspectionTargetChecklistIntegrationTest {
         assertFalse(targets.isEmpty());
         assertFalse(checklistAnswers.isEmpty());
         var firstAnswer = (Map<?, ?>) checklistAnswers.get(0);
-        assertEquals("CRACK_CHECK", firstAnswer.get("itemCode"));
+        assertEquals("FIELD_INVESTIGATION", firstAnswer.get("itemCode"));
         assertEquals(1, firstAnswer.get("photoCount"));
         var answerPhotos = (List<?>) firstAnswer.get("photos");
         assertFalse(answerPhotos.isEmpty());
         var firstPhoto = (Map<?, ?>) answerPhotos.get(0);
-        assertEquals("CRACK_CHECK", firstPhoto.get("checklistItemCode"));
-        assertEquals(crackCheckItemId, ((Number) firstPhoto.get("checklistItemId")).longValue());
+        assertEquals("FIELD_INVESTIGATION", firstPhoto.get("checklistItemCode"));
+        assertEquals(fieldInvestigationItemId, ((Number) firstPhoto.get("checklistItemId")).longValue());
         var checklistPhotos = (List<?>) snapshot.get("checklistPhotos");
         assertFalse(checklistPhotos.isEmpty());
         var firstChecklistPhotoGroup = (Map<?, ?>) checklistPhotos.get(0);
-        assertEquals("CRACK_CHECK", firstChecklistPhotoGroup.get("itemCode"));
+        assertEquals("FIELD_INVESTIGATION", firstChecklistPhotoGroup.get("itemCode"));
         assertEquals(1, firstChecklistPhotoGroup.get("photoCount"));
     }
 
@@ -195,8 +197,8 @@ class InspectionTargetChecklistIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name": "Safety Project",
-                                  "buildingType": "BUILDING_SAFETY_INSPECTION"
+                                  "name": "Construction Supervision Project",
+                                  "buildingType": "CONSTRUCTION_SUPERVISION"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -249,7 +251,7 @@ class InspectionTargetChecklistIntegrationTest {
                                 {
                                   "projectId": %d,
                                   "siteId": %d,
-                                  "reportType": "PERIODIC_SAFETY",
+                                  "reportType": "CONSTRUCTION_SUPERVISION_REPORT",
                                   "title": "Safety report"
                                 }
                                 """.formatted(projectId, siteId)))
@@ -268,6 +270,7 @@ class InspectionTargetChecklistIntegrationTest {
                                   "payload": {
                                     "inspectionDate": "2026-05-23",
                                     "inspectorName": "Target Checklist",
+                                    "supervisorName": "Target Checklist",
                                     "weather": "Clear",
                                     "location": "Safety Site"
                                   }

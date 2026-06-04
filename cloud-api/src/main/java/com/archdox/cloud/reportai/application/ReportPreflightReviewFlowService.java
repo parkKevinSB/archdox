@@ -1,5 +1,7 @@
 package com.archdox.cloud.reportai.application;
 
+import com.archdox.cloud.engine.application.ArchDoxEngineFinding;
+import com.archdox.cloud.engine.application.EngineValidationResult;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
@@ -8,8 +10,18 @@ import com.archdox.cloud.reportai.domain.ReportPreflightReviewFinding;
 import com.archdox.cloud.reportai.flow.ReportPreflightReviewRequest;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewFindingRepository;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewRunRepository;
+import com.archdox.cloud.worker.engine.EngineWorkerActionSubmissionRequest;
+import com.archdox.cloud.worker.engine.EngineWorkerActionSubmissionResult;
+import com.archdox.cloud.worker.engine.EngineWorkerActionSubmissionService;
+import com.archdox.worker.domain.ArchDoxWorkerActionType;
+import com.archdox.worker.domain.ArchDoxWorkerRequestContext;
+import com.archdox.worker.domain.ArchDoxWorkerRequestSource;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +31,8 @@ public class ReportPreflightReviewFlowService {
     private final ReportPreflightReviewRunRepository runRepository;
     private final ReportPreflightReviewFindingRepository findingRepository;
     private final ReportPreflightDeterministicValidator deterministicValidator;
+    private final ReportPreflightEngineBoundaryService engineBoundaryService;
+    private final EngineWorkerActionSubmissionService workerActionSubmissionService;
     private final OperationEventService operationEventService;
 
     public ReportPreflightReviewFlowService(
@@ -26,12 +40,16 @@ public class ReportPreflightReviewFlowService {
             ReportPreflightReviewRunRepository runRepository,
             ReportPreflightReviewFindingRepository findingRepository,
             ReportPreflightDeterministicValidator deterministicValidator,
+            ReportPreflightEngineBoundaryService engineBoundaryService,
+            EngineWorkerActionSubmissionService workerActionSubmissionService,
             OperationEventService operationEventService
     ) {
         this.reportRepository = reportRepository;
         this.runRepository = runRepository;
         this.findingRepository = findingRepository;
         this.deterministicValidator = deterministicValidator;
+        this.engineBoundaryService = engineBoundaryService;
+        this.workerActionSubmissionService = workerActionSubmissionService;
         this.operationEventService = operationEventService;
     }
 
@@ -51,7 +69,12 @@ public class ReportPreflightReviewFlowService {
                 .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
         run.markRunning(OffsetDateTime.now());
         findingRepository.deleteByReviewRunId(run.id());
-        var result = deterministicValidator.validate(report);
+        var deterministicResult = deterministicValidator.validate(report);
+        var engineResult = engineBoundaryService.validate(report, request.requestedBy());
+        var workerActionSubmission = workerActionSubmissionService.submitAfterCommit(
+                engineResult,
+                workerActionSubmissionRequest(request, report));
+        var result = combinedResult(deterministicResult, engineResult);
         for (var finding : result.findings()) {
             findingRepository.save(new ReportPreflightReviewFinding(
                     request.officeId(),
@@ -86,13 +109,7 @@ public class ReportPreflightReviewFlowService {
                 result.blocksGeneration()
                         ? "Report preflight validation found blocking issues."
                         : "Report preflight validation passed.",
-                Map.of(
-                        "reportId", request.reportId(),
-                        "reviewRunId", request.reviewRunId(),
-                        "findingCount", result.findings().size(),
-                        "blockingFindingCount", result.blockingFindingCount(),
-                        "aiReviewPlanned", run.hasHarness(),
-                        "aiReviewSkipped", result.blocksGeneration() || !run.hasHarness()));
+                validationEventMetadata(request, result, engineResult, workerActionSubmission, run.hasHarness()));
         return result;
     }
 
@@ -213,6 +230,102 @@ public class ReportPreflightReviewFlowService {
         return "report:" + request.reportId() + ":preflight-run:" + request.reviewRunId();
     }
 
+    private static ReportPreflightValidationResult combinedResult(
+            ReportPreflightValidationResult deterministicResult,
+            EngineValidationResult engineResult
+    ) {
+        var findings = new ArrayList<ReportPreflightFinding>();
+        findings.addAll(deterministicResult.findings());
+        findings.addAll(engineResult.findings().stream()
+                .map(finding -> toPreflightFinding(finding, engineResult))
+                .toList());
+        return new ReportPreflightValidationResult(List.copyOf(findings));
+    }
+
+    private static EngineWorkerActionSubmissionRequest workerActionSubmissionRequest(
+            ReportPreflightReviewRequest request,
+            com.archdox.cloud.inspection.domain.InspectionReport report
+    ) {
+        return new EngineWorkerActionSubmissionRequest(
+                null,
+                ArchDoxWorkerRequestSource.UI,
+                "Report preflight Engine follow-up action",
+                new ArchDoxWorkerRequestContext(
+                        request.requestedBy(),
+                        request.officeId(),
+                        report.projectId(),
+                        report.siteId(),
+                        report.id(),
+                        null,
+                        "ko-KR"),
+                workerActionPayload(request, report),
+                Set.of(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
+    }
+
+    private static Map<String, Object> workerActionPayload(
+            ReportPreflightReviewRequest request,
+            com.archdox.cloud.inspection.domain.InspectionReport report
+    ) {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("officeId", request.officeId());
+        payload.put("reportId", request.reportId());
+        payload.put("reviewRunId", request.reviewRunId());
+        payload.put("projectId", report.projectId());
+        if (report.siteId() != null) {
+            payload.put("siteId", report.siteId());
+        }
+        if (request.requestedBy() != null) {
+            payload.put("requestedBy", request.requestedBy());
+        }
+        return Map.copyOf(payload);
+    }
+
+    private static Map<String, Object> validationEventMetadata(
+            ReportPreflightReviewRequest request,
+            ReportPreflightValidationResult result,
+            EngineValidationResult engineResult,
+            EngineWorkerActionSubmissionResult workerActionSubmission,
+            boolean aiReviewPlanned
+    ) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("reportId", request.reportId());
+        metadata.put("reviewRunId", request.reviewRunId());
+        metadata.put("findingCount", result.findings().size());
+        metadata.put("blockingFindingCount", result.blockingFindingCount());
+        metadata.put("engineRunId", engineResult.engineRunId());
+        metadata.put("engineStatus", engineResult.status().name());
+        metadata.put("engineFindingCount", engineResult.findings().size());
+        metadata.put("workerActionCandidates", workerActionSubmission.candidates());
+        metadata.put("workerActionSubmission", workerActionSubmission.toMetadata());
+        metadata.put("aiReviewPlanned", aiReviewPlanned);
+        metadata.put("aiReviewSkipped", result.blocksGeneration() || !aiReviewPlanned);
+        return Map.copyOf(metadata);
+    }
+
+    private static ReportPreflightFinding toPreflightFinding(
+            ArchDoxEngineFinding finding,
+            EngineValidationResult engineResult
+    ) {
+        var attributes = new LinkedHashMap<String, String>();
+        attributes.put("engineRunId", engineResult.engineRunId());
+        attributes.put("engineStatus", engineResult.status().name());
+        attributes.put("enginePhase", engineResult.enginePhase());
+        attributes.put("engineSource", finding.source() == null ? "" : finding.source().name());
+        attributes.put("engineCategory", finding.category());
+        if (!finding.legalReferences().isEmpty()) {
+            attributes.put("legalReferences", String.join(",", finding.legalReferences()));
+        }
+        finding.metadata().forEach((key, value) -> attributes.put("engine." + key, String.valueOf(value)));
+        return new ReportPreflightFinding(
+                "DETERMINISTIC",
+                finding.code(),
+                severity(finding.severity()),
+                finding.location(),
+                finding.message(),
+                evidence(finding),
+                Map.copyOf(attributes));
+    }
+
     private static boolean isBlockingSeverity(String severity) {
         return "HIGH".equals(severity) || "CRITICAL".equals(severity);
     }
@@ -222,5 +335,23 @@ public class ReportPreflightReviewFlowService {
             return reason;
         }
         return "Report preflight review failed";
+    }
+
+    private static String severity(String severity) {
+        if (severity == null || severity.isBlank()) {
+            return "LOW";
+        }
+        return severity.trim().toUpperCase();
+    }
+
+    private static String evidence(ArchDoxEngineFinding finding) {
+        if (!finding.legalReferences().isEmpty()) {
+            return "legalReferences=" + String.join(",", finding.legalReferences());
+        }
+        var engineCheck = finding.metadata().get("engineCheck");
+        if (engineCheck != null) {
+            return String.valueOf(engineCheck);
+        }
+        return "engineRunId";
     }
 }

@@ -286,10 +286,9 @@ should be a compatible extension, not a redesign.
 
 Examples:
 
-- `DAILY_SUPERVISION + BUILDING`
-- `PERIODIC_SAFETY + BUILDING`
-- `FACILITY_CHECK + EQUIPMENT`
-- `ASBESTOS_SURVEY + ROOM/MATERIAL`
+- Current scope: `CONSTRUCTION_DAILY_SUPERVISION_LOG + BUILDING`
+- Current scope: `CONSTRUCTION_SUPERVISION_REPORT + BUILDING`
+- Deferred scope example: `ASBESTOS_SURVEY + ROOM/MATERIAL`
 
 ## MVP Rule
 

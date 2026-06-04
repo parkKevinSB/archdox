@@ -4,6 +4,19 @@ This document records the current REST contract that client, admin, cloud, and
 archdox-agent work must respect. Update this file whenever endpoint behavior or
 DTO shape changes.
 
+Current report creation APIs should use canonical document type codes. In
+particular, new construction daily supervision reports use
+`CONSTRUCTION_DAILY_SUPERVISION_LOG`. The active MVP scope is construction
+supervision only: `CONSTRUCTION_DAILY_SUPERVISION_LOG` and
+`CONSTRUCTION_SUPERVISION_REPORT`. Earlier exploratory examples using
+`DAILY_SUPERVISION`, `PERIODIC_SAFETY`, `FACILITY_CHECK`, or demolition
+supervision codes are legacy/deferred notes and must not be used as new
+implementation guidance. Fresh database seeds create only the two current
+construction-supervision document types. Migration
+`V40__remove_deferred_document_types.sql` is retained only to clean
+dev/pre-production databases that already consumed earlier broad exploratory
+seeds.
+
 ## Common Rules
 
 - Public API base path: `/api/v1`
@@ -163,11 +176,27 @@ Response `200`:
       "displayName": "User Name",
       "type": "PERSONAL",
       "planCode": "PERSONAL_FREE",
-      "role": "OWNER"
+      "role": "OWNER",
+      "permissions": {
+        "manageOfficeMembers": false,
+        "manageProjects": true,
+        "manageProjectAssignments": false,
+        "manageSites": true,
+        "createReports": true,
+        "writeReports": true,
+        "deleteReports": true,
+        "generateDocuments": true,
+        "uploadPhotos": true,
+        "accessOfficeAdmin": false
+      }
     }
   ]
 }
 ```
+
+The client must use `permissions` for coarse office-scoped button visibility.
+Project-specific and report-specific actions must prefer `ProjectResponse`
+permission fields and `InspectionReportResponse.writeAllowed`.
 
 ## Offices
 
@@ -394,8 +423,8 @@ Operation events:
 All project endpoints require `Authorization` and `X-Office-Id`.
 Create/archive additionally require project-manager permission: personal
 `OWNER`, or office `OWNER`/`ADMIN`.
-Project assignment management also requires personal `OWNER`, or office
-`OWNER`/`ADMIN`.
+Project assignment management requires office `OWNER`/`ADMIN`; personal
+workspaces do not expose assignment management UI.
 
 `project` is the largest business container. It may contain one or many
 `site` rows. User-facing Korean copy may call a `site` "현장"; do not collapse
@@ -412,13 +441,24 @@ Response `200`:
     "officeId": 10,
     "name": "Site A",
     "address": "Seoul",
-    "buildingType": "BUILDING_SAFETY_INSPECTION",
+    "buildingType": "CONSTRUCTION_SUPERVISION",
     "startDate": "2026-05-01",
     "endDate": null,
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "manageAllowed": true,
+    "structureManageAllowed": true,
+    "reportCreateAllowed": true
   }
 ]
 ```
+
+Permission fields are calculated for the authenticated user:
+
+- `manageAllowed`: can edit/archive/delete the project.
+- `structureManageAllowed`: can create/archive sites and inspection targets
+  under the project. Office `MEMBER` requires project `MANAGER`.
+- `reportCreateAllowed`: can create reports under the project. Office `MEMBER`
+  requires project `MANAGER` or `REPORT_WRITER`.
 
 ### POST `/api/v1/projects`
 
@@ -428,21 +468,23 @@ Request:
 {
   "name": "Site A",
   "address": "Seoul",
-  "buildingType": "BUILDING_SAFETY_INSPECTION",
+  "buildingType": "CONSTRUCTION_SUPERVISION",
   "startDate": "2026-05-01",
   "endDate": null
 }
 ```
 
 `buildingType` is the current API field name, but it represents the project
-business type in the product UI. Supported MVP codes:
+business type in the product UI. The active MVP business scope is construction
+supervision only, so the supported active code is:
 
 - `CONSTRUCTION_SUPERVISION`
-- `BUILDING_SAFETY_INSPECTION`
-- `FACILITY_INSPECTION`
-- `ASBESTOS_SUPERVISION`
-- `MAINTENANCE_INSPECTION`
-- `OTHER`
+
+Other business lines such as building safety inspection, facility inspection,
+asbestos supervision, maintenance inspection, and demolition supervision are
+deferred domain scopes. They must not be exposed in current report creation or
+project creation flows until their own domain catalog and document set are
+implemented.
 
 Response `201`: `ProjectResponse`
 
@@ -665,21 +707,21 @@ Response `200`:
   {
     "id": 1,
     "officeId": null,
-    "code": "DEMOLITION_SAFETY_CHECKLIST",
-    "reportType": "DEMOLITION_SAFETY_CHECKLIST",
-    "name": "Demolition safety checklist",
-    "description": "Default demolition safety inspection form.",
-    "category": "DEMOLITION_SUPERVISION",
-    "defaultTemplateCode": "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
-    "defaultTemplateStorageRef": "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
-    "checklistSchemaCode": "DEMOLITION_SAFETY_CHECKLIST_DEFAULT",
+    "code": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+    "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+    "name": "Construction daily supervision log",
+    "description": "Default construction supervision daily log.",
+    "category": "CONSTRUCTION_SUPERVISION",
+    "defaultTemplateCode": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+    "defaultTemplateStorageRef": "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
+    "checklistSchemaCode": "CONSTRUCTION_DAILY_SUPERVISION_LOG_DEFAULT",
     "defaultOutputFormat": "DOCX",
-    "displayOrder": 10,
+    "displayOrder": 40,
     "steps": [
       {
         "code": "BASIC_INFO",
         "title": "Basic information",
-        "description": "Inspection date, location, supervisor, and stage.",
+        "description": "Work date, weather, chief supervisor, and architect assistant.",
         "stepType": "FORM",
         "savePolicy": "ON_NAVIGATE",
         "fields": []
@@ -700,9 +742,9 @@ API normalizes it and stores the canonical `reportType` on the report.
 
 All inspection report endpoints require `Authorization` and `X-Office-Id`.
 Create, step save, submit, cancel, checklist save, and report-target attach
-require report-writer permission: personal `OWNER`, or office
-`OWNER`/`ADMIN`/`MEMBER`. Project/report assignments may narrow office
-`MEMBER` write access once assignments exist. `VIEWER` is read-only.
+require report-writer permission: personal `OWNER`, office `OWNER`/`ADMIN`, or
+an office `MEMBER` with an active project/report assignment. A plain office
+`MEMBER` without assignment is not a writer. `VIEWER` is read-only.
 
 ### GET `/api/v1/inspection-reports`
 
@@ -721,8 +763,8 @@ Response `200`:
     "projectId": 100,
     "siteId": 200,
     "reportNo": "IR-20260521-0001",
-    "reportType": "DAILY_SUPERVISION",
-    "title": "Daily Report",
+    "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+    "title": "Construction Daily Supervision Log",
     "status": "DRAFT",
     "currentStep": null,
     "templateId": null,
@@ -748,8 +790,8 @@ Request:
 {
   "projectId": 100,
   "siteId": 200,
-  "reportType": "DAILY_SUPERVISION",
-  "title": "Daily Report",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+  "title": "Construction Daily Supervision Log",
   "templateId": null
 }
 ```
@@ -889,17 +931,17 @@ Response `200`:
 {
   "reportId": 10,
   "officeId": 1,
-  "reportType": "DAILY_SUPERVISION",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
   "siteType": "BUILDING",
   "targetType": "BUILDING",
-  "flowId": "inspection-report-writing",
-  "title": "리포트 작성",
+  "flowId": "construction-daily-supervision-log-writing",
+  "title": "공사감리일지 작성",
   "source": "BUILT_IN_DEFAULT",
   "definitionId": null,
   "revisionId": null,
   "version": null,
   "checklistSchemaId": 500,
-  "checklistSchemaCode": "DAILY_SUPERVISION_DEFAULT",
+  "checklistSchemaCode": "CONSTRUCTION_DAILY_SUPERVISION_LOG_DEFAULT",
   "checklistSchemaVersion": 1,
   "steps": [
     {
@@ -977,11 +1019,11 @@ Response `200`:
   "schema": {
     "id": 500,
     "officeId": null,
-    "reportType": "PERIODIC_SAFETY",
+    "reportType": "CONSTRUCTION_SUPERVISION_REPORT",
     "siteType": null,
     "targetType": null,
-    "code": "PERIODIC_SAFETY_DEFAULT",
-    "name": "정기 안전점검 기본 체크리스트",
+    "code": "CONSTRUCTION_SUPERVISION_REPORT_DEFAULT",
+    "name": "공사감리보고서 기본 체크리스트",
     "version": 1,
     "schema": {},
     "items": [
@@ -1476,19 +1518,19 @@ keeps the resolved `templateFields` values immutable for later auditing.
 Template field catalog:
 
 ```http
-GET /api/v1/config/document-template-fields?reportType=DAILY_SUPERVISION
+GET /api/v1/config/document-template-fields?reportType=CONSTRUCTION_DAILY_SUPERVISION_LOG
 ```
 
 The endpoint is read-only admin metadata. It lists standard placeholders that
 can be used in DOCX templates and form presets derived from inspected Korean
-supervision/demolition forms. It does not create templates and does not replace
+construction supervision forms. It does not create templates and does not replace
 template revision `schema.bindings`.
 
 Example response:
 
 ```json
 {
-  "reportType": "DAILY_SUPERVISION",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
   "fields": [
     {
       "key": "constructionName",
@@ -1508,7 +1550,7 @@ Example response:
       "templateKind": "OFFICIAL_SUBMISSION",
       "customizationPolicy": "COPY_AND_OVERRIDE",
       "renderingPolicy": "BUNDLED_OFFICIAL_RENDERER",
-      "reportTypes": ["DAILY_SUPERVISION", "CONSTRUCTION_DAILY_LOG"],
+      "reportTypes": ["CONSTRUCTION_DAILY_SUPERVISION_LOG"],
       "recommendedFields": ["documentTitle", "constructionName", "inspectionDate"],
       "layoutSections": ["CHECKLIST_TABLE", "PHOTO_TABLE"]
     }
@@ -1622,8 +1664,16 @@ Fields:
 When `signature` is present, Cloud API stores it in the job
 `inputSnapshotJson.signature` and also exposes common aliases under
 `inputSnapshotJson.templateFields` such as `signedByName`, `signedByRole`, and
-`signatureSignedAt`. The document type/template decides whether the signature is
-rendered. The document engine may render `${signatureBlock}`,
+`signatureSignedAt`. Cloud API also normalizes internal `signatureSlots` from the
+active office type and role/assignment policy. Clients do not send
+`signatureSlots` directly. For a `PERSONAL` workspace, a supplied signature is
+treated as an all-in-one personal signer and may be applied to official slots
+such as `CHIEF_SUPERVISOR` and `ARCHITECT_ASSISTANT`; skipped signatures still
+render blank areas. For an `OFFICE` workspace, report/project assignments select
+the matching slot, for example project `MANAGER` to `CHIEF_SUPERVISOR` and
+report `WRITER`/project `REPORT_WRITER` to `ARCHITECT_ASSISTANT`/`WRITER`.
+The document type/template decides whether the signature is rendered. The
+document engine may render `${signatureBlock}`,
 `${signatureImage}`, `${writerSignature}`, or document-type default signature
 blocks such as the default daily supervision log signature area. If no signature
 is supplied, signature placeholders render as blank.
@@ -2370,16 +2420,16 @@ The following definition groups share the same basic create/list shape:
 List:
 
 ```text
-GET /api/v1/config/{group}?reportType=DAILY_SUPERVISION
+GET /api/v1/config/{group}?reportType=CONSTRUCTION_DAILY_SUPERVISION_LOG
 ```
 
 Create:
 
 ```json
 {
-  "code": "DAILY_TEMPLATE",
-  "name": "Daily Template",
-  "reportType": "DAILY_SUPERVISION"
+  "code": "CONSTRUCTION_DAILY_TEMPLATE",
+  "name": "Construction Daily Template",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG"
 }
 ```
 
@@ -2389,9 +2439,9 @@ Response:
 {
   "id": 1,
   "officeId": 10,
-  "code": "DAILY_TEMPLATE",
-  "name": "Daily Template",
-  "reportType": "DAILY_SUPERVISION",
+  "code": "CONSTRUCTION_DAILY_TEMPLATE",
+  "name": "Construction Daily Template",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
   "status": "ACTIVE",
   "createdBy": 1,
   "createdAt": "2026-05-22T00:00:00+09:00",
@@ -2635,7 +2685,7 @@ Response includes each selected part with `source=OFFICE_OVERRIDE`.
 ### Resolve Configuration
 
 ```text
-GET /api/v1/config/resolve?reportType=DAILY_SUPERVISION
+GET /api/v1/config/resolve?reportType=CONSTRUCTION_DAILY_SUPERVISION_LOG
 ```
 
 Response:
@@ -2643,14 +2693,14 @@ Response:
 ```json
 {
   "officeId": 10,
-  "reportType": "DAILY_SUPERVISION",
+  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
   "template": {
     "source": "OFFICE_OVERRIDE",
     "definitionId": 1,
     "revisionId": 100,
-    "code": "DAILY_TEMPLATE",
-    "name": "Daily Template",
-    "reportType": "DAILY_SUPERVISION",
+    "code": "CONSTRUCTION_DAILY_TEMPLATE",
+    "name": "Construction Daily Template",
+    "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
     "version": 1
   },
   "workflow": {

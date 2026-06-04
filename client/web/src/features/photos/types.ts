@@ -26,9 +26,19 @@ export type PhotoResponse = {
   id: number;
   officeId: number;
   projectId: number;
+  siteId?: number | null;
   reportId?: number | null;
   stepCode?: string | null;
   checklistItemId?: number | null;
+  siteSupervisionEntryId?: number | null;
+  tradeCode?: string | null;
+  processCode?: string | null;
+  inspectionItemCode?: string | null;
+  caption?: string | null;
+  locationNote?: string | null;
+  drawingRef?: string | null;
+  contextLabel?: string | null;
+  contextDescription?: string | null;
   captureKind: PhotoCaptureKind;
   status: PhotoStatus;
   mime: string;
@@ -68,9 +78,17 @@ export type PhotoUploadIntentResponse = {
 
 export type CreatePhotoUploadIntentRequest = {
   projectId?: number | null;
+  siteId?: number | null;
   reportId?: number | null;
   stepCode?: string | null;
   checklistItemId?: number | null;
+  siteSupervisionEntryId?: number | null;
+  tradeCode?: string | null;
+  processCode?: string | null;
+  inspectionItemCode?: string | null;
+  caption?: string | null;
+  locationNote?: string | null;
+  drawingRef?: string | null;
   captureKind?: PhotoCaptureKind;
   mime: string;
   bytes: number;

@@ -9,6 +9,48 @@ export type Office = {
   role: MembershipRole;
 };
 
+export type ProjectStatus = "ACTIVE" | "ARCHIVED" | string;
+
+export type Project = {
+  id: number;
+  officeId: number;
+  name: string;
+  address?: string | null;
+  buildingType?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: ProjectStatus;
+  manageAllowed?: boolean;
+  structureManageAllowed?: boolean;
+  reportCreateAllowed?: boolean;
+};
+
+export type ProjectAssignmentRole = "MANAGER" | "REPORT_WRITER" | "VIEWER";
+
+export type AssignmentStatus = "ACTIVE" | "REMOVED" | string;
+
+export type ProjectAssignment = {
+  id: number;
+  officeId: number;
+  projectId: number;
+  userId: number;
+  email?: string | null;
+  name?: string | null;
+  role: ProjectAssignmentRole;
+  status: AssignmentStatus;
+  assignedBy?: number | null;
+  assignedAt: string;
+  updatedAt: string;
+};
+
+export type ProjectFormRequest = {
+  name: string;
+  address?: string | null;
+  buildingType?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+};
+
 export type MembershipStatus = "ACTIVE" | "SUSPENDED" | "LEFT";
 
 export type OfficeInvitationStatus = "PENDING" | "ACCEPTED" | "CANCELLED" | "EXPIRED";
@@ -241,6 +283,67 @@ export type OperationEvent = {
   message: string;
   payload: Record<string, unknown>;
   createdAt: string;
+};
+
+export type WorkerGovernanceGroup = {
+  actionType?: string | null;
+  eventType?: string | null;
+  reasonCode?: string | null;
+  count: number;
+};
+
+export type WorkerGovernanceSummary = {
+  from: string;
+  to: string;
+  officeId?: number | null;
+  days: number;
+  totalTraceEvents: number;
+  requestReceived: number;
+  policyAllowed: number;
+  policyDenied: number;
+  approvalRequired: number;
+  actionSucceeded: number;
+  actionFailed: number;
+  actionRejected: number;
+  actionUnknown: number;
+  catchRate: number;
+  approvalRequiredRate: number;
+  failureRate: number;
+  dataPolicy: string;
+  eventTypes: WorkerGovernanceGroup[];
+  actionEvents: WorkerGovernanceGroup[];
+  reasons: WorkerGovernanceGroup[];
+  recentEvents: OperationEvent[];
+};
+
+export type WorkerApprovalRequest = {
+  id: number;
+  officeId?: number | null;
+  status: string;
+  workerRequestId: string;
+  executionRequestId?: string | null;
+  requestSource: string;
+  command?: string | null;
+  userId?: number | null;
+  projectId?: number | null;
+  siteId?: number | null;
+  reportId?: number | null;
+  documentJobId?: number | null;
+  locale: string;
+  actionType: string;
+  actionOrigin: string;
+  actionReason?: string | null;
+  confidence: number;
+  actionPayload: Record<string, unknown>;
+  decisionCode?: string | null;
+  decisionMessage?: string | null;
+  decidedByUserId?: number | null;
+  decisionReason?: string | null;
+  requestedAt: string;
+  expiresAt?: string | null;
+  decidedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ConfigDefinition = {
@@ -497,6 +600,47 @@ export type PlatformOpsFinding = {
   createdAt: string;
 };
 
+export type LegalSyncRun = {
+  id: number;
+  triggerType: string;
+  sourceCode: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string | null;
+  failureCode?: string | null;
+  summaryJson: Record<string, unknown>;
+};
+
+export type LegalChangeSet = {
+  id: number;
+  actId: number;
+  syncRunId?: number | null;
+  previousVersionId?: number | null;
+  newVersionId: number;
+  status: string;
+  effectiveDate?: string | null;
+  detectedAt: string;
+  summary: string;
+};
+
+export type LegalChangeDigest = {
+  id: number;
+  changeSetId: number;
+  status: string;
+  source: string;
+  title: string;
+  summary: string;
+  impactSummary?: string | null;
+  affectedReportTypes: string[];
+  affectedCatalogItems: string[];
+  aiHarnessRunId?: string | null;
+  effectiveDate?: string | null;
+  detectedAt: string;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AiProviderType = "OPENAI" | "OLLAMA" | "GEMINI" | "ANTHROPIC" | "CUSTOM_HTTP";
 export type AiProviderCredentialStatus = "DRAFT" | "ACTIVE" | "DISABLED";
 export type AiCredentialDeliveryMode = "PROXY_ONLY" | "EPHEMERAL_TOKEN" | "DIRECT_SECRET";
@@ -664,6 +808,29 @@ export type PlatformReportPreflightFinding = {
   resolvedBy?: number | null;
   resolvedAt?: string | null;
   createdAt: string;
+};
+
+export type EngineApiKey = {
+  id: number;
+  keyId: string;
+  maskedKey: string;
+  displayName: string;
+  ownerUserId: number;
+  officeId?: number | null;
+  issuedByUserId: number;
+  scopes: string[];
+  dailyRequestUnitLimit: number;
+  status: "ACTIVE" | "REVOKED" | string;
+  expiresAt?: string | null;
+  lastUsedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateEngineApiKeyResponse = {
+  key: EngineApiKey;
+  apiKey: string;
 };
 
 export type AiModelCallLog = {

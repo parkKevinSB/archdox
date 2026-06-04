@@ -18,6 +18,7 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.domain.OfficeMembership;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.shared.MembershipRole;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 class OfficeOpsReadServiceTest {
     private final OfficeMembershipRepository membershipRepository = mock(OfficeMembershipRepository.class);
+    private final PlatformAdminService platformAdminService = mock(PlatformAdminService.class);
     private final ArchDoxAgentRepository agentRepository = mock(ArchDoxAgentRepository.class);
     private final ArchDoxAgentSessionRepository sessionRepository = mock(ArchDoxAgentSessionRepository.class);
     private final ArchDoxAgentCommandRepository commandRepository = mock(ArchDoxAgentCommandRepository.class);
@@ -39,6 +41,7 @@ class OfficeOpsReadServiceTest {
 
     private final OfficeOpsReadService service = new OfficeOpsReadService(
             membershipRepository,
+            platformAdminService,
             agentRepository,
             sessionRepository,
             commandRepository,
@@ -83,5 +86,22 @@ class OfficeOpsReadServiceTest {
         assertThrows(
                 ForbiddenException.class,
                 () -> service.getSummary(new UserPrincipal(1L, "member@example.com")));
+    }
+
+    @Test
+    void platformAdminCanReadSummaryWithoutOfficeMembership() {
+        OfficeContext.set(10L);
+        var principal = new UserPrincipal(1L, "platform@example.com");
+        when(platformAdminService.isPlatformAdmin(principal)).thenReturn(true);
+        when(agentRepository.countByOfficeId(10L)).thenReturn(2L);
+        when(agentRepository.countByOfficeIdAndStatus(10L, ArchDoxAgentStatus.ONLINE)).thenReturn(1L);
+        when(documentJobRepository.countByOfficeIdAndStatus(10L, DocumentJobStatus.GENERATING)).thenReturn(3L);
+
+        var response = service.getSummary(principal);
+
+        assertEquals(10L, response.officeId());
+        assertEquals(2L, response.agents().total());
+        assertEquals(1L, response.agents().byStatus().get("ONLINE"));
+        assertEquals(3L, response.documentJobs().byStatus().get("GENERATING"));
     }
 }

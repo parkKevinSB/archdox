@@ -48,12 +48,6 @@ public class SiteSupervisionEntry {
     @Column(name = "process_name")
     private String processName;
 
-    @Column(name = "item_code")
-    private String itemCode;
-
-    @Column(name = "item_name")
-    private String itemName;
-
     @Column(name = "inspection_item_code")
     private String inspectionItemCode;
 
@@ -135,8 +129,6 @@ public class SiteSupervisionEntry {
             String tradeName,
             String processCode,
             String processName,
-            String itemCode,
-            String itemName,
             String inspectionItemCode,
             String inspectionItemName,
             String supervisionContent,
@@ -167,8 +159,6 @@ public class SiteSupervisionEntry {
         this.tradeName = tradeName;
         this.processCode = processCode;
         this.processName = processName;
-        this.itemCode = itemCode;
-        this.itemName = itemName;
         this.inspectionItemCode = inspectionItemCode;
         this.inspectionItemName = inspectionItemName;
         this.supervisionContent = supervisionContent;
@@ -231,14 +221,6 @@ public class SiteSupervisionEntry {
 
     public String processName() {
         return processName;
-    }
-
-    public String itemCode() {
-        return itemCode;
-    }
-
-    public String itemName() {
-        return itemName;
     }
 
     public String inspectionItemCode() {

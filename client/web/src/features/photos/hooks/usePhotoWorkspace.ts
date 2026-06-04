@@ -4,6 +4,7 @@ import {
   cancelPhotoUpload,
   confirmPhotoUpload,
   createPhotoUploadIntent,
+  deletePhoto,
   listPhotosByReport,
   uploadPhotoContent
 } from "../api";
@@ -23,6 +24,13 @@ type UsePhotoWorkspaceOptions = {
 
 export type PhotoUploadContext = {
   checklistItemId?: number | null;
+  siteSupervisionEntryId?: number | null;
+  tradeCode?: string | null;
+  processCode?: string | null;
+  inspectionItemCode?: string | null;
+  caption?: string | null;
+  locationNote?: string | null;
+  drawingRef?: string | null;
   stepCode?: string | null;
 };
 
@@ -175,13 +183,28 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
 
           const resolvedContext = {
             checklistItemId: task.checklistItemId ?? uploadContext?.checklistItemId ?? null,
+            siteSupervisionEntryId: uploadContext?.siteSupervisionEntryId ?? null,
+            tradeCode: uploadContext?.tradeCode ?? null,
+            processCode: uploadContext?.processCode ?? null,
+            inspectionItemCode: uploadContext?.inspectionItemCode ?? null,
+            caption: uploadContext?.caption ?? null,
+            locationNote: uploadContext?.locationNote ?? null,
+            drawingRef: uploadContext?.drawingRef ?? null,
             stepCode: task.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
           };
           const intent = await createPhotoUploadIntent(token, officeId, {
             projectId: report.projectId,
+            siteId: report.siteId,
             reportId: report.id,
             stepCode: resolvedContext.stepCode,
             checklistItemId: resolvedContext.checklistItemId,
+            siteSupervisionEntryId: resolvedContext.siteSupervisionEntryId,
+            tradeCode: resolvedContext.tradeCode,
+            processCode: resolvedContext.processCode,
+            inspectionItemCode: resolvedContext.inspectionItemCode,
+            caption: resolvedContext.caption,
+            locationNote: resolvedContext.locationNote,
+            drawingRef: resolvedContext.drawingRef,
             captureKind: "UPLOAD",
             mime: prepared.mime,
             bytes: prepared.bytes,
@@ -340,6 +363,14 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
     await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
   }, [officeId, queryClient, reportId, token]);
 
+  const deleteUploadedPhoto = useCallback(async (photoId: number) => {
+    if (!officeId) {
+      return;
+    }
+    await deletePhoto(token, officeId, photoId);
+    await queryClient.invalidateQueries({ queryKey: ["photos", officeId, reportId] });
+  }, [officeId, queryClient, reportId, token]);
+
   useEffect(() => {
     return () => {
       for (const task of tasksRef.current) {
@@ -359,6 +390,7 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
     allPhotos: photosQuery.data ?? [],
     cancelPendingPhotoUpload,
     cancelUploadTask,
+    deletePhoto: deleteUploadedPhoto,
     loading: photosQuery.isLoading,
     photos: photosQuery.data ?? [],
     refreshPhotos: photosQuery.refetch,

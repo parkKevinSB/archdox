@@ -9,6 +9,7 @@ public record OfficeSummaryResponse(
         String displayName,
         OfficeType type,
         String planCode,
-        MembershipRole role
+        MembershipRole role,
+        OfficePermissionSummaryResponse permissions
 ) {
 }

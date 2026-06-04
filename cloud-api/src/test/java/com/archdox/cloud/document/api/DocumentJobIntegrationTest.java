@@ -109,7 +109,7 @@ class DocumentJobIntegrationTest {
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -136,7 +136,7 @@ class DocumentJobIntegrationTest {
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -161,7 +161,7 @@ class DocumentJobIntegrationTest {
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -177,7 +177,7 @@ class DocumentJobIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contentRevision").value(2));
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
@@ -201,7 +201,7 @@ class DocumentJobIntegrationTest {
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -240,7 +240,7 @@ class DocumentJobIntegrationTest {
         var siteId = createSite(user, projectId);
         var reportId = createReport(user, projectId, siteId);
         saveStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -310,7 +310,7 @@ class DocumentJobIntegrationTest {
         assertTrue(documentXml.contains("Inspection date: 2026-05-23"));
         assertTrue(documentXml.contains("Date parts: 2026-5-23 (\uD1A0)"));
         assertTrue(documentXml.contains("Inspector: Document Job"));
-        assertTrue(documentXml.contains("Checklist summary: Checked"));
+        assertTrue(documentXml.contains("Supervision content: Checked rebar spacing"));
     }
 
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {
@@ -322,7 +322,7 @@ class DocumentJobIntegrationTest {
                                 {
                                   "code": "DAILY_TEMPLATE",
                                   "name": "Daily Template",
-                                  "reportType": "DAILY_SUPERVISION"
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -342,7 +342,7 @@ class DocumentJobIntegrationTest {
                                       "inspectionDate": "steps.BASIC_INFO.payload.inspectionDate",
                                       "inspectorName": "steps.BASIC_INFO.payload.inspectorName",
                                       "weather": "steps.BASIC_INFO.payload.weather",
-                                      "checklistSummary": "steps.CHECKLIST.payload.checklistSummary"
+                                      "supervisionContent": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent"
                                     }
                                   },
                                   "composePolicy": {
@@ -368,12 +368,12 @@ class DocumentJobIntegrationTest {
                         Date parts: ${inspectionYear}-${inspectionMonth}-${inspectionDay} (${inspectionDayOfWeek})
                         Inspector: ${inspectorName}
                         Weather: ${weather}
-                        Checklist summary: ${checklistSummary}
+                        Supervision content: ${supervisionContent}
                         Issue count: ${issueCount}
                         Photos:
                         ${photoSection}
-                        Checklist:
-                        ${checklistSection}
+                        Daily log:
+                        ${dailyLogSection}
                         Template: ${templateCode} v${templateVersion}
                         """));
         var uploadResult = mockMvc.perform(multipart("/api/v1/config/document-template-revisions/{revisionId}/content", revisionId)
@@ -406,7 +406,7 @@ class DocumentJobIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
         var layoutRevisionId = createOutputLayoutRevision(user);
-        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "DAILY_SUPERVISION")
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "CONSTRUCTION_DAILY_SUPERVISION_LOG")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -431,7 +431,7 @@ class DocumentJobIntegrationTest {
                                 {
                                   "code": "DAILY_LAYOUT",
                                   "name": "Daily Layout",
-                                  "reportType": "DAILY_SUPERVISION"
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -461,11 +461,11 @@ class DocumentJobIntegrationTest {
                                         ]
                                       },
                                       {
-                                        "key": "checklistSection",
+                                        "key": "dailyLogSection",
                                         "type": "VALUE",
-                                        "title": "Checklist Section",
-                                        "valueLabel": "Summary",
-                                        "source": "steps.CHECKLIST.payload.checklistSummary"
+                                        "title": "Daily Log Section",
+                                        "valueLabel": "Supervision Content",
+                                        "source": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent"
                                       }
                                     ]
                                   }
@@ -730,7 +730,7 @@ class DocumentJobIntegrationTest {
                                 {
                                   "projectId": %d,
                                   "siteId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                                   "title": "Daily supervision report"
                                 }
                                 """.formatted(projectId, siteId)))
@@ -749,6 +749,7 @@ class DocumentJobIntegrationTest {
                                   "payload": {
                                     "inspectionDate": "2026-05-23",
                                     "inspectorName": "Document Job",
+                                    "chiefSupervisorName": "Document Job",
                                     "weather": "Clear",
                                     "location": "Site A"
                                   }
@@ -757,16 +758,33 @@ class DocumentJobIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private void saveChecklistStep(TestUser user, long reportId) throws Exception {
-        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "CHECKLIST")
+    private void saveDailyLogStep(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "DAILY_LOG")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "payload": {
-                                    "checklistSummary": "Checked",
-                                    "issueCount": 0
+                                    "dailyItems": {
+                                      "groups": [
+                                        {
+                                          "tradeCode": "REINFORCED_CONCRETE",
+                                          "tradeName": "Reinforced concrete",
+                                          "processCode": "REBAR_ASSEMBLY",
+                                          "processName": "Rebar assembly",
+                                          "floor": "1F",
+                                          "entries": [
+                                            {
+                                              "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                              "inspectionItemName": "Rebar count and pitch",
+                                              "supervisionContent": "Checked rebar spacing",
+                                              "photoIds": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
                                   }
                                 }
                                 """))

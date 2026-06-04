@@ -31,7 +31,10 @@ public class ExecuteArchDoxWorkerActionStep extends Step {
                 "WORKER_ACTION_STARTED",
                 "Worker action started"));
         try {
-            var result = session.executor().execute(new ArchDoxWorkerExecutionContext(session.request(), session.action()));
+            var result = session.executor().execute(new ArchDoxWorkerExecutionContext(
+                    session.request(),
+                    session.action(),
+                    session.definition()));
             session.result(result);
             var eventType = switch (result.status()) {
                 case SUCCEEDED -> ArchDoxWorkerTraceEventType.ACTION_SUCCEEDED;

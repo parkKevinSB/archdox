@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.shared.MembershipStatus;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
@@ -25,6 +26,9 @@ class OfficeContextFilterTest {
     OfficeMembershipRepository membershipRepository;
 
     @Mock
+    PlatformAdminService platformAdminService;
+
+    @Mock
     FilterChain filterChain;
 
     @AfterEach
@@ -35,7 +39,7 @@ class OfficeContextFilterTest {
 
     @Test
     void rejectsNonActiveMembership() throws Exception {
-        var filter = new OfficeContextFilter(membershipRepository);
+        var filter = new OfficeContextFilter(membershipRepository, platformAdminService);
         var request = new MockHttpServletRequest("GET", "/api/v1/projects");
         var response = new MockHttpServletResponse();
         request.addHeader("X-Office-Id", "10");
@@ -54,7 +58,7 @@ class OfficeContextFilterTest {
 
     @Test
     void setsOfficeContextForActiveMembership() throws Exception {
-        var filter = new OfficeContextFilter(membershipRepository);
+        var filter = new OfficeContextFilter(membershipRepository, platformAdminService);
         var request = new MockHttpServletRequest("GET", "/api/v1/projects");
         var response = new MockHttpServletResponse();
         request.addHeader("X-Office-Id", "10");
@@ -69,5 +73,28 @@ class OfficeContextFilterTest {
 
         assertEquals(200, response.getStatus());
         verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void platformAdminCanSetOfficeContextWithoutMembership() throws Exception {
+        var filter = new OfficeContextFilter(membershipRepository, platformAdminService);
+        var request = new MockHttpServletRequest("GET", "/api/v1/projects");
+        var response = new MockHttpServletResponse();
+        var principal = new UserPrincipal(1L, "admin@example.com");
+        request.addHeader("X-Office-Id", "10");
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                principal,
+                null));
+
+        when(platformAdminService.isPlatformAdmin(principal)).thenReturn(true);
+
+        filter.doFilter(request, response, filterChain);
+
+        assertEquals(200, response.getStatus());
+        verify(filterChain).doFilter(request, response);
+        verify(membershipRepository, never()).existsByUserIdAndOfficeIdAndStatus(
+                1L,
+                10L,
+                MembershipStatus.ACTIVE);
     }
 }

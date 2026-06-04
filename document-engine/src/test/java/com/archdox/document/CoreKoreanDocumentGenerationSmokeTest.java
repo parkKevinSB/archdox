@@ -154,26 +154,26 @@ class CoreKoreanDocumentGenerationSmokeTest {
                                         "dailyItems", Map.of(
                                                 "groups", List.of(
                                                         Map.of(
-                                                                "trade", "철근 콘크리트 공사",
-                                                                "process", "기초, 지하층 바닥",
+                                                                "tradeName", "철근 콘크리트 공사",
+                                                                "processName", "기초, 지하층 바닥",
                                                                 "floor", "",
-                                                                "items", List.of(
+                                                                "entries", List.of(
                                                                         Map.of(
-                                                                                "item", "철근 조립, 배근",
-                                                                                "content", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                "inspectionItemName", "철근 조립, 배근",
+                                                                                "supervisionContent", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
                                                                                 "photoIds", List.of(1, 2)),
                                                                         Map.of(
-                                                                                "item", "철근 규격 증명서",
-                                                                                "content", "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
+                                                                                "inspectionItemName", "철근 규격 증명서",
+                                                                                "supervisionContent", "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
                                                                                 "photoIds", List.of()))),
                                                         Map.of(
-                                                                "trade", "가설공사",
-                                                                "process", "3층",
+                                                                "tradeName", "가설공사",
+                                                                "processName", "3층",
                                                                 "floor", "",
-                                                                "items", List.of(
+                                                                "entries", List.of(
                                                                         Map.of(
-                                                                                "item", "안전난간 설치 상태",
-                                                                                "content", "개구부 주변 안전난간 보강 완료",
+                                                                                "inspectionItemName", "안전난간 설치 상태",
+                                                                                "supervisionContent", "개구부 주변 안전난간 보강 완료",
                                                                                 "photoIds", List.of(3))))))))),
                 "checklistAnswers", List.of(
                         Map.of(

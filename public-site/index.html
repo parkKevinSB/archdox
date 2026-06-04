@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ArchDox Engine은 감리 문서를 검토 가능한 업무 컨텍스트로 정규화하고, 기준일·법령·룰셋·감사로그 기반의 구조화된 검토 결과를 제공합니다."
+    />
+    <title>ArchDox Engine</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="product-home">
+    <header class="site-header product-header">
+      <a class="brand product-brand" href="/" aria-label="ArchDox home">
+        <span class="brand-mark">AD</span>
+        <span>archdoX</span>
+      </a>
+      <nav class="top-nav product-nav" aria-label="Primary navigation">
+        <a href="/#platform">Platform</a>
+        <a href="/developers/mcp/">Docs</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/#use-cases">Use Cases</a>
+        <a href="/legal-updates/">Resources</a>
+      </nav>
+      <div class="product-header-actions">
+        <a class="header-link" href="/developers/mcp/">MCP</a>
+        <a class="try-free" href="https://app.archdox.co.kr/signup">무료 시작</a>
+        <a class="login-link" href="https://app.archdox.co.kr/login">로그인</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="engine-hero" id="platform">
+        <div class="engine-hero-field" aria-hidden="true"></div>
+        <div class="engine-copy">
+          <p class="engine-eyebrow">ArchDox Compliance Engine</p>
+          <h1>건축 업무 검토를 AI Agent에 연결하세요.</h1>
+          <p>
+            감리 문서, 공종, 현장 조건을 ArchDox 표준 컨텍스트로 바꾸고 기준일·법령·룰셋을
+            고정해 누락 항목, 근거, 수정 액션, 감사 이력을 구조화된 결과로 반환합니다.
+          </p>
+          <div class="hero-actions engine-actions">
+            <a class="hero-primary" href="https://app.archdox.co.kr/signup">무료로 시작하기</a>
+            <a class="hero-secondary" href="/connect/">내 AI에 연결</a>
+          </div>
+        </div>
+
+        <div class="code-window" aria-label="ArchDox Engine example code">
+          <div class="code-titlebar">
+            <span class="window-dots" aria-hidden="true"></span>
+            <strong>review.ts</strong>
+            <span class="copy-mark" aria-hidden="true">□</span>
+          </div>
+          <pre><code><span class="dim">@archdox/engine</span>
+
+<span class="kw">const</span> review = <span class="kw">await</span> archdox.review.create({
+  documentType: <span class="str">"CONSTRUCTION_DAILY_LOG"</span>,
+  effectiveDate: <span class="str">"2026-06-04"</span>,
+  context: {
+    workType: <span class="str">"FOUNDATION_CONCRETE_PLACEMENT"</span>,
+    structureType: <span class="str">"REINFORCED_CONCRETE"</span>,
+    site: <span class="str">"초읍동 353-1"</span>
+  }
+})
+
+<span class="kw">const</span> result = <span class="kw">await</span> review.run({
+  checks: [<span class="str">"rules"</span>, <span class="str">"evidence"</span>, <span class="str">"wording"</span>],
+  output: <span class="str">"structured-findings"</span>
+})
+
+<span class="comment">// Every result is source-backed and audit-ready</span>
+console.log(result.findings[0])
+
+{
+  code: <span class="str">"PHOTO_EVIDENCE_MISSING"</span>,
+  severity: <span class="str">"WARN"</span>,
+  basis: <span class="str">"rule-set 2026.06"</span>,
+  action: <span class="str">"타설 전·중·후 사진을 첨부하세요."</span>
+}</code></pre>
+          <div class="code-tabs">
+            <span class="active">TYPESCRIPT</span>
+            <span>PYTHON</span>
+            <span>REST</span>
+            <span>MCP</span>
+            <span>JAVA</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="engine-section" id="use-cases">
+        <div class="engine-section-head">
+          <p class="engine-eyebrow">Why ArchDox</p>
+          <h2>일반 AI 호출과 믿을 만한 업무 엔진의 차이</h2>
+        </div>
+        <div class="engine-card-grid">
+          <article>
+            <span>01</span>
+            <h3>문서를 검토 컨텍스트로 변환</h3>
+            <p>공종, 구조, 현장 조건 같은 표현을 표준 코드와 업무 의미로 정규화합니다.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>기준일과 룰셋 고정</h3>
+            <p>어떤 날짜, 어떤 법령 버전, 어떤 룰셋으로 검토했는지 결과에 남깁니다.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>수정 가능한 결과</h3>
+            <p>어느 섹션을 무엇으로 보완해야 하는지 구체적인 액션으로 제공합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="engine-split" id="pricing">
+        <div>
+          <p class="engine-eyebrow">Product modes</p>
+          <h2>SaaS, API, MCP. 채널은 달라도 엔진은 하나입니다.</h2>
+          <p>
+            ArchDox SaaS는 내부 업무 데이터를 기반으로 검토하고, Engine API와 MCP는 외부 시스템과
+            AI Agent가 같은 엔진을 안전하게 호출하도록 제공합니다.
+          </p>
+        </div>
+        <div class="engine-mode-list">
+          <a href="https://app.archdox.co.kr/login">
+            <strong>ArchDox SaaS</strong>
+            <span>프로젝트, 현장, 리포트, 사진, 문서생성</span>
+          </a>
+          <a href="/developers/mcp/">
+            <strong>Engine API</strong>
+            <span>외부 시스템용 구조화 검토 API</span>
+          </a>
+          <a href="/connect/">
+            <strong>MCP Gateway</strong>
+            <span>Codex, Claude, Cursor, ChatGPT 연결</span>
+          </a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

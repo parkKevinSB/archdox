@@ -6,13 +6,14 @@ import { BrandLogo, InlineAlert } from "../../components/common";
 import type { OfficeInvitationPreview } from "../../types";
 
 type AuthScreenProps = {
+  initialMode?: "login" | "signup";
   invitationToken?: string | null;
   onAuthenticated: (auth: AppState, options?: { invitationAccepted?: boolean }) => void;
 };
 
-export function AuthScreen({ invitationToken, onAuthenticated }: AuthScreenProps) {
+export function AuthScreen({ initialMode = "login", invitationToken, onAuthenticated }: AuthScreenProps) {
   const isInvitationFlow = Boolean(invitationToken);
-  const [mode, setMode] = useState<"login" | "signup">(isInvitationFlow ? "signup" : "login");
+  const [mode, setMode] = useState<"login" | "signup">(isInvitationFlow ? "signup" : initialMode);
   const [signupAccountType, setSignupAccountType] = useState<"PERSONAL" | "OFFICE">(
     isInvitationFlow ? "OFFICE" : "PERSONAL"
   );
@@ -59,6 +60,13 @@ export function AuthScreen({ invitationToken, onAuthenticated }: AuthScreenProps
       cancelled = true;
     };
   }, [invitationToken]);
+
+  useEffect(() => {
+    if (isInvitationFlow) {
+      return;
+    }
+    setMode(initialMode);
+  }, [initialMode, isInvitationFlow]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

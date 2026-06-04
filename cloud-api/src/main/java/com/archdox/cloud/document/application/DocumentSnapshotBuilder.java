@@ -12,6 +12,7 @@ import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository
 import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
+import com.archdox.cloud.photo.domain.PhotoStatus;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.project.infra.ProjectRepository;
@@ -73,9 +74,10 @@ public class DocumentSnapshotBuilder {
         snapshot.put("project", projectSnapshot(report));
         snapshot.put("site", siteSnapshot(report));
         snapshot.put("documentType", documentTypeSnapshot(report));
-        snapshot.put("steps", stepSnapshot(report));
+        var steps = stepSnapshot(report);
+        snapshot.put("steps", steps);
         snapshot.put("targets", targetSnapshot(report));
-        var photos = photoSnapshot(report);
+        var photos = photoSnapshot(report, steps);
         var checklistAnswers = checklistAnswerSnapshot(report, photos);
         snapshot.put("checklistAnswers", checklistAnswers);
         snapshot.put("photos", photos);
@@ -252,11 +254,15 @@ public class DocumentSnapshotBuilder {
         return answers;
     }
 
-    private List<Map<String, Object>> photoSnapshot(InspectionReport report) {
-        var rawPhotos = photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id());
+    private List<Map<String, Object>> photoSnapshot(InspectionReport report, Map<String, Object> steps) {
+        var rawPhotos = photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(
+                report.officeId(),
+                report.id(),
+                PhotoStatus.DELETED);
         var checklistItemSnapshots = rawPhotos.stream().anyMatch(photo -> photo.checklistItemId() != null)
                 ? checklistService.itemSnapshotById(report)
                 : Map.<Long, Map<String, Object>>of();
+        var dailyPhotoContexts = dailyPhotoContexts(steps);
         var photos = new ArrayList<Map<String, Object>>();
         for (Photo photo : rawPhotos) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
@@ -264,6 +270,7 @@ public class DocumentSnapshotBuilder {
             var uploadedWorking = working.filter(asset -> asset.status() == PhotoAssetStatus.UPLOADED);
             var uploadedThumbnail = thumbnail.filter(asset -> asset.status() == PhotoAssetStatus.UPLOADED);
             var checklistItem = photo.checklistItemId() == null ? Map.<String, Object>of() : checklistItemSnapshots.getOrDefault(photo.checklistItemId(), Map.of());
+            var dailyContext = dailyPhotoContexts.getOrDefault(photo.id(), Map.of());
             var snapshot = new LinkedHashMap<String, Object>();
             snapshot.put("photoId", photo.id());
             snapshot.put("stepCode", photo.stepCode() == null ? "" : photo.stepCode());
@@ -271,7 +278,9 @@ public class DocumentSnapshotBuilder {
             snapshot.put("checklistItemCode", stringValue(checklistItem.get("itemCode")));
             snapshot.put("checklistItemLabel", stringValue(checklistItem.get("label")));
             snapshot.put("checklistLinked", photo.checklistItemId() != null);
-            snapshot.put("caption", checklistPhotoCaption(photo, checklistItem));
+            snapshot.put("dailyLinked", !dailyContext.isEmpty());
+            snapshot.putAll(dailyContext);
+            snapshot.put("caption", photoCaption(photo, checklistItem, dailyContext));
             snapshot.put("workingStorageRef", uploadedWorking.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
             snapshot.put("thumbnailStorageRef", uploadedThumbnail.map(com.archdox.cloud.photo.domain.PhotoAsset::storageRef).orElse(""));
             snapshot.put("workingReady", uploadedWorking.isPresent());
@@ -283,6 +292,41 @@ public class DocumentSnapshotBuilder {
             photos.add(snapshot);
         }
         return photos;
+    }
+
+    private Map<Long, Map<String, Object>> dailyPhotoContexts(Map<String, Object> steps) {
+        var contexts = new LinkedHashMap<Long, Map<String, Object>>();
+        var dailyLog = mapValue(steps.get("DAILY_LOG"));
+        var payload = mapValue(dailyLog.get("payload"));
+        var dailyItems = mapValue(payload.get("dailyItems"));
+        for (Object groupValue : listValue(dailyItems.get("groups"))) {
+            var group = mapValue(groupValue);
+            var tradeName = stringValue(group.get("tradeName"));
+            var processName = stringValue(group.get("processName"));
+            var floor = stringValue(group.get("floor"));
+            var groupLabel = joinNonBlank(tradeName, processName, floor);
+            for (Object entryValue : listValue(group.get("entries"))) {
+                var entry = mapValue(entryValue);
+                var itemName = stringValue(entry.get("inspectionItemName"));
+                var content = stringValue(entry.get("supervisionContent"));
+                for (Object photoIdValue : listValue(entry.get("photoIds"))) {
+                    var photoId = longValue(photoIdValue);
+                    if (photoId == null) {
+                        continue;
+                    }
+                    var context = new LinkedHashMap<String, Object>();
+                    context.put("dailyGroupLabel", groupLabel);
+                    context.put("tradeName", tradeName);
+                    context.put("processName", processName);
+                    context.put("floor", floor);
+                    context.put("inspectionItemName", itemName);
+                    context.put("supervisionContent", content);
+                    context.put("dailyCaption", joinCaption(groupLabel, itemName));
+                    contexts.put(photoId, context);
+                }
+            }
+        }
+        return contexts;
     }
 
     private Map<Long, List<Map<String, Object>>> photosByChecklistItemId(List<Map<String, Object>> photos) {
@@ -325,6 +369,34 @@ public class DocumentSnapshotBuilder {
         return "Photo " + photo.id();
     }
 
+    private String photoCaption(Photo photo, Map<String, Object> checklistItem, Map<String, Object> dailyContext) {
+        var dailyCaption = stringValue(dailyContext.get("dailyCaption"));
+        if (!dailyCaption.isBlank()) {
+            return dailyCaption;
+        }
+        return checklistPhotoCaption(photo, checklistItem);
+    }
+
+    private String joinCaption(String groupLabel, String itemName) {
+        if (groupLabel.isBlank()) {
+            return itemName;
+        }
+        if (itemName.isBlank()) {
+            return groupLabel;
+        }
+        return groupLabel + " - " + itemName;
+    }
+
+    private String joinNonBlank(String... values) {
+        var result = new ArrayList<String>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                result.add(value);
+            }
+        }
+        return String.join(" / ", result);
+    }
+
     private Long longValue(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -333,6 +405,19 @@ public class DocumentSnapshotBuilder {
             return Long.parseLong(text);
         }
         return null;
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        var result = new LinkedHashMap<String, Object>();
+        raw.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
+        return result;
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
     }
 
     private String stringValue(Object value) {

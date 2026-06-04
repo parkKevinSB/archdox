@@ -43,6 +43,7 @@ import com.archdox.cloud.document.infra.DocumentLocalObjectStore;
 import com.archdox.cloud.document.application.StandardTemplateFieldCatalog;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.shared.MembershipRole;
 import com.archdox.shared.MembershipStatus;
 import java.io.IOException;
@@ -63,6 +64,7 @@ public class ConfigurationRegistryService {
     private static final String DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     private final OfficeMembershipRepository membershipRepository;
+    private final PlatformAdminService platformAdminService;
     private final DocumentTemplateRepository templateRepository;
     private final DocumentTemplateRevisionRepository templateRevisionRepository;
     private final WorkflowDefinitionRepository workflowRepository;
@@ -77,6 +79,7 @@ public class ConfigurationRegistryService {
 
     public ConfigurationRegistryService(
             OfficeMembershipRepository membershipRepository,
+            PlatformAdminService platformAdminService,
             DocumentTemplateRepository templateRepository,
             DocumentTemplateRevisionRepository templateRevisionRepository,
             WorkflowDefinitionRepository workflowRepository,
@@ -90,6 +93,7 @@ public class ConfigurationRegistryService {
             StandardTemplateFieldCatalog templateFieldCatalog
     ) {
         this.membershipRepository = membershipRepository;
+        this.platformAdminService = platformAdminService;
         this.templateRepository = templateRepository;
         this.templateRevisionRepository = templateRevisionRepository;
         this.workflowRepository = workflowRepository;
@@ -513,6 +517,9 @@ public class ConfigurationRegistryService {
 
     private Long requireOfficeAdmin(UserPrincipal principal) {
         var officeId = OfficeContext.requireCurrentOfficeId();
+        if (platformAdminService.isPlatformAdmin(principal)) {
+            return officeId;
+        }
         var membership = membershipRepository.findByUserIdAndOfficeIdAndStatus(
                         principal.userId(),
                         officeId,

@@ -58,6 +58,14 @@ export function cancelPhotoUpload(token: string, officeId: number, photoId: numb
   });
 }
 
+export function deletePhoto(token: string, officeId: number, photoId: number) {
+  return request<void>(`/api/v1/photos/${photoId}`, {
+    token,
+    officeId,
+    method: "DELETE"
+  });
+}
+
 export async function uploadPhotoContent(
   token: string,
   officeId: number,

@@ -13,6 +13,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final String EXTERNAL_ENGINE_PREFIX = "/api/v1/engine/external/";
+
     private final JwtService jwtService;
 
     public JwtAuthenticationFilter(JwtService jwtService) {
@@ -20,8 +22,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getRequestURI().startsWith(EXTERNAL_ENGINE_PREFIX);
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        var existing = SecurityContextHolder.getContext().getAuthentication();
+        if (existing != null && existing.isAuthenticated()) {
+            chain.doFilter(request, response);
+            return;
+        }
         var authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {
             try {

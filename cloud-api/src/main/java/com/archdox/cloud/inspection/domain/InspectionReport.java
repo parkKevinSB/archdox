@@ -238,4 +238,8 @@ public class InspectionReport {
     public Long lastDocumentJobId() {
         return lastDocumentJobId;
     }
+
+    public Long requestedBy() {
+        return requestedBy;
+    }
 }

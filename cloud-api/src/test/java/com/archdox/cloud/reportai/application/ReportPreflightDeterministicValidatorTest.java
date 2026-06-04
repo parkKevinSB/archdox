@@ -9,11 +9,16 @@ import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.inspection.application.ReportSubmitValidationService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
+import com.archdox.cloud.inspection.domain.InspectionReportStep;
+import com.archdox.cloud.inspection.domain.PayloadStorageMode;
 import com.archdox.cloud.inspection.dto.ReportSubmitValidationIssueResponse;
 import com.archdox.cloud.inspection.dto.ReportSubmitValidationResponse;
+import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -22,6 +27,7 @@ class ReportPreflightDeterministicValidatorTest {
     void submitValidationBlockingIssueBlocksGeneration() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
         var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
         var report = report();
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.invalid(
                 List.of(new ReportSubmitValidationIssueResponse(
@@ -31,8 +37,9 @@ class ReportPreflightDeterministicValidatorTest {
                         "BASIC_INFO")),
                 List.of()));
         when(targetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(10L, 100L)).thenReturn(List.of());
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.empty());
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
@@ -40,28 +47,14 @@ class ReportPreflightDeterministicValidatorTest {
     }
 
     @Test
-    void targetMissingIsWarningOnly() {
+    void constructionReportDoesNotWarnWhenTargetIsMissing() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
         var targetRepository = mock(InspectionReportTargetRepository.class);
-        var report = report("PERIODIC_SAFETY");
-        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
-        when(targetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(10L, 100L)).thenReturn(List.of());
-
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository)
-                .validate(report);
-
-        assertFalse(result.blocksGeneration());
-        assertTrue(result.findings().stream().anyMatch(finding -> "REPORT_TARGET_NOT_SELECTED".equals(finding.code())));
-    }
-
-    @Test
-    void dailySupervisionDoesNotWarnWhenTargetIsMissing() {
-        var submitValidationService = mock(ReportSubmitValidationService.class);
-        var targetRepository = mock(InspectionReportTargetRepository.class);
-        var report = report("CONSTRUCTION_SUPERVISION_DAILY_LOG");
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_SUPERVISION_REPORT");
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
                 .validate(report);
 
         assertFalse(result.blocksGeneration());
@@ -70,23 +63,94 @@ class ReportPreflightDeterministicValidatorTest {
     }
 
     @Test
-    void demolitionSafetyChecklistRequiresTarget() {
+    void dailySupervisionDoesNotWarnWhenTargetIsMissing() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
         var targetRepository = mock(InspectionReportTargetRepository.class);
-        var report = report("DEMOLITION_SAFETY_CHECKLIST");
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
-        when(targetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(10L, 100L)).thenReturn(List.of());
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.empty());
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+                .validate(report);
+
+        assertFalse(result.blocksGeneration());
+        assertFalse(result.findings().stream().anyMatch(finding -> "REPORT_TARGET_NOT_SELECTED".equals(finding.code())));
+        verify(targetRepository, never()).findByOfficeIdAndReportIdOrderByRoleAscIdAsc(10L, 100L);
+    }
+
+    @Test
+    void dailySupervisionBlocksWhenStructuredItemsAreEmpty() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of())
+        ))));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
-        assertTrue(result.findings().stream().anyMatch(finding ->
-                "REPORT_TARGET_NOT_SELECTED".equals(finding.code()) && "HIGH".equals(finding.severity())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_REQUIRED".equals(finding.code())));
+    }
+
+    @Test
+    void dailySupervisionRequiresTradeProcessItemAndContent() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of(Map.of(
+                        "floor", "",
+                        "tradeName", "",
+                        "processName", "",
+                        "entries", List.of(Map.of(
+                                "inspectionItemName", "",
+                                "supervisionContent", "",
+                                "photoIds", List.of()
+                        ))
+                )))
+        ))));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+                .validate(report);
+
+        assertTrue(result.blocksGeneration());
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_FLOOR_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_TRADE_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_PROCESS_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_INSPECTION_ITEM_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_PHOTO_EVIDENCE_RECOMMENDED".equals(finding.code())));
+    }
+
+    @Test
+    void dailySupervisionAcceptsJsonStringDailyItemsPayload() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", """
+                        {"groups":[{"floor":"전층","tradeName":"철근콘크리트공사","processName":"기초","entries":[{"inspectionItemName":"철근 배근 상태","supervisionContent":"철근 배근 상태를 확인했습니다.","photoIds":[1]}]}]}
+                        """
+        ))));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+                .validate(report);
+
+        assertFalse(result.blocksGeneration());
+        assertFalse(result.findings().stream().anyMatch(finding -> finding.code().startsWith("DAILY_LOG_")));
     }
 
     private InspectionReport report() {
-        return report("CONSTRUCTION_SUPERVISION_DAILY_LOG");
+        return report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
     }
 
     private InspectionReport report(String reportType) {
@@ -102,5 +166,15 @@ class ReportPreflightDeterministicValidatorTest {
                 OffsetDateTime.now());
         ReflectionTestUtils.setField(report, "id", 100L);
         return report;
+    }
+
+    private InspectionReportStep step(InspectionReport report, Map<String, Object> payload) {
+        return new InspectionReportStep(
+                report,
+                "DAILY_LOG",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                payload,
+                20L,
+                OffsetDateTime.now());
     }
 }

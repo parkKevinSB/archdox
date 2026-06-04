@@ -1,4 +1,4 @@
-import { Camera, Plus, Trash2, X } from "lucide-react";
+import { Camera, Plus, Trash2, UploadCloud, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { usePhotoWorkspace } from "../../../photos/hooks/usePhotoWorkspace";
@@ -7,24 +7,22 @@ import { getSupervisionDomainCatalog } from "../../api";
 import type { SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
-type DailySupervisionItem = {
-  content: string;
+type DailySupervisionEntry = {
   id: string;
   inspectionItemCode?: string;
   inspectionItemName: string;
-  item: string;
-  itemCode?: string;
   photoIds: number[];
+  supervisionContent: string;
 };
 
 type DailySupervisionGroup = {
+  entries: DailySupervisionEntry[];
   floor: string;
   id: string;
-  items: DailySupervisionItem[];
-  process: string;
   processCode?: string;
-  trade: string;
+  processName: string;
   tradeCode?: string;
+  tradeName: string;
 };
 
 type DailyItemsPayload = {
@@ -42,9 +40,11 @@ export function DailySupervisionItemsStep({
   register,
   report,
   revision,
+  savedStep,
   token
 }: ReportStepComponentProps) {
   const [groups, setGroups] = useState<DailySupervisionGroup[]>([]);
+  const [deletingPhotoIds, setDeletingPhotoIds] = useState<Set<number>>(() => new Set());
   const workspace = usePhotoWorkspace({
     officeId,
     report,
@@ -60,9 +60,9 @@ export function DailySupervisionItemsStep({
   const floorOptions = catalog?.floorOptions ?? [];
   const processOptions = catalog?.processOptions ?? [];
 
-  const totalItems = useMemo(() => groups.reduce((sum, group) => sum + group.items.length, 0), [groups]);
+  const totalItems = useMemo(() => groups.reduce((sum, group) => sum + group.entries.length, 0), [groups]);
   const totalPhotos = useMemo(
-    () => groups.reduce((sum, group) => sum + group.items.reduce((itemSum, item) => itemSum + item.photoIds.length, 0), 0),
+    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entry.photoIds.length, 0), 0),
     [groups]
   );
 
@@ -71,60 +71,61 @@ export function DailySupervisionItemsStep({
   }, [register]);
 
   useEffect(() => {
-    const payload = parsePayload(form.getValues(DAILY_ITEMS_FIELD));
+    const payload = parsePayload(savedStep?.payload?.[DAILY_ITEMS_FIELD]);
     setGroups(payload.groups);
     form.setValue(DAILY_ITEMS_FIELD, JSON.stringify(payload), { shouldDirty: false });
-  }, [definition.code, form, report.id, revision]);
+  }, [definition.code, form, report.id, savedStep?.clientRevision, savedStep?.savedAt]);
 
-  function commit(nextGroups: DailySupervisionGroup[]) {
-    setGroups(nextGroups);
-    form.setValue(DAILY_ITEMS_FIELD, JSON.stringify({ groups: nextGroups }), {
-      shouldDirty: true,
-      shouldTouch: true,
-      shouldValidate: false
+  function updateGroups(updater: (current: DailySupervisionGroup[]) => DailySupervisionGroup[]) {
+    setGroups((current) => {
+      const nextGroups = updater(current);
+      form.setValue(DAILY_ITEMS_FIELD, JSON.stringify({ groups: nextGroups }), {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: false
+      });
+      return nextGroups;
     });
   }
 
   function addGroup() {
     const defaultTrade = trades[0] ?? null;
-    commit([
-      ...groups,
+    updateGroups((current) => [
+      ...current,
       {
+        entries: [emptyEntry()],
         floor: "",
         id: newId("group"),
-        items: [emptyItem()],
-        process: "",
-        trade: defaultTrade?.name ?? "",
-        tradeCode: defaultTrade?.code
+        processName: "",
+        tradeCode: defaultTrade?.code,
+        tradeName: defaultTrade?.name ?? ""
       }
     ]);
   }
 
   function updateGroup(groupId: string, patch: Partial<DailySupervisionGroup>) {
-    commit(groups.map((group) => (group.id === groupId ? { ...group, ...patch } : group)));
+    updateGroups((current) => current.map((group) => (group.id === groupId ? { ...group, ...patch } : group)));
   }
 
   function removeGroup(groupId: string) {
-    commit(groups.filter((group) => group.id !== groupId));
+    updateGroups((current) => current.filter((group) => group.id !== groupId));
   }
 
-  function addItem(groupId: string, catalogItem?: SupervisionCatalogItem) {
-    commit(groups.map((group) => {
+  function addEntry(groupId: string, catalogItem?: SupervisionCatalogItem) {
+    updateGroups((current) => current.map((group) => {
       if (group.id !== groupId) {
         return group;
       }
       return {
         ...group,
-        items: [
-          ...group.items,
+        entries: [
+          ...group.entries,
           {
-            content: "",
-            id: newId("item"),
+            id: newId("entry"),
             inspectionItemCode: catalogItem?.code,
             inspectionItemName: catalogItem?.name ?? "",
-            item: catalogItem?.name ?? "",
-            itemCode: catalogItem?.code,
-            photoIds: []
+            photoIds: [],
+            supervisionContent: ""
           }
         ]
       };
@@ -134,47 +135,98 @@ export function DailySupervisionItemsStep({
   function selectTrade(groupId: string, tradeCode: string) {
     const selected = trades.find((trade) => trade.code === tradeCode);
     updateGroup(groupId, {
-      process: "",
       processCode: undefined,
-      trade: selected?.name ?? "",
-      tradeCode: selected?.code
+      processName: "",
+      tradeCode: selected?.code,
+      tradeName: selected?.name ?? ""
     });
   }
 
-  function updateItem(groupId: string, itemId: string, patch: Partial<DailySupervisionItem>) {
-    commit(groups.map((group) => {
+  function updateEntry(groupId: string, entryId: string, patch: Partial<DailySupervisionEntry>) {
+    updateGroups((current) => current.map((group) => {
       if (group.id !== groupId) {
         return group;
       }
       return {
         ...group,
-        items: group.items.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
+        entries: group.entries.map((entry) => (entry.id === entryId ? { ...entry, ...patch } : entry))
       };
     }));
   }
 
-  function removeItem(groupId: string, itemId: string) {
-    commit(groups.map((group) => {
+  function removeEntry(groupId: string, entryId: string) {
+    updateGroups((current) => current.map((group) => {
       if (group.id !== groupId) {
         return group;
       }
-      return { ...group, items: group.items.filter((item) => item.id !== itemId) };
+      return { ...group, entries: group.entries.filter((entry) => entry.id !== entryId) };
     }));
   }
 
-  async function attachPhotos(groupId: string, itemId: string, event: ChangeEvent<HTMLInputElement>) {
+  function unlinkPhoto(photoId: number) {
+    updateGroups((current) => current.map((group) => ({
+      ...group,
+      entries: group.entries.map((entry) => ({
+        ...entry,
+        photoIds: entry.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
+      }))
+    })));
+  }
+
+  async function deleteLinkedPhoto(photoId: number) {
+    if (!canWriteReports || deletingPhotoIds.has(photoId)) {
+      return;
+    }
+    setDeletingPhotoIds((current) => new Set(current).add(photoId));
+    try {
+      await workspace.deletePhoto(photoId);
+      unlinkPhoto(photoId);
+    } finally {
+      setDeletingPhotoIds((current) => {
+        const next = new Set(current);
+        next.delete(photoId);
+        return next;
+      });
+    }
+  }
+
+  async function attachPhotos(groupId: string, entryId: string, event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
     event.target.value = "";
     if (!canWriteReports || files.length === 0) {
       return;
     }
-    const results = await workspace.uploadFiles(files, { stepCode: definition.code });
+    const group = groups.find((current) => current.id === groupId);
+    const entry = group?.entries.find((current) => current.id === entryId);
+    const captionParts = [
+      group?.tradeName || group?.tradeCode,
+      group?.processName || group?.processCode,
+      entry?.inspectionItemName || entry?.inspectionItemCode
+    ].filter(Boolean);
+    const results = await workspace.uploadFiles(files, {
+      caption: captionParts.join(" - ") || undefined,
+      inspectionItemCode: entry?.inspectionItemCode ?? null,
+      locationNote: group?.floor ? `${group.floor}` : null,
+      processCode: group?.processCode ?? null,
+      stepCode: definition.code,
+      tradeCode: group?.tradeCode ?? null
+    });
     const photoIds = results.map((result) => result.photo.id);
     if (photoIds.length > 0) {
-      const current = groups
-        .find((group) => group.id === groupId)
-        ?.items.find((item) => item.id === itemId)?.photoIds ?? [];
-      updateItem(groupId, itemId, { photoIds: uniqueNumbers([...current, ...photoIds]) });
+      updateGroups((currentGroups) => currentGroups.map((group) => {
+        if (group.id !== groupId) {
+          return group;
+        }
+        return {
+          ...group,
+          entries: group.entries.map((entry) => {
+            if (entry.id !== entryId) {
+              return entry;
+            }
+            return { ...entry, photoIds: uniqueNumbers([...entry.photoIds, ...photoIds]) };
+          })
+        };
+      }));
     }
   }
 
@@ -225,7 +277,7 @@ export function DailySupervisionItemsStep({
               <header className="daily-supervision-group-head">
                 <div>
                   <span>공종 그룹 {groupIndex + 1}</span>
-                  <strong>{group.trade || "공종 미선택"}</strong>
+                  <strong>{group.tradeName || "공종 미선택"}</strong>
                 </div>
                 <button
                   aria-label="공종 그룹 삭제"
@@ -265,9 +317,9 @@ export function DailySupervisionItemsStep({
                   ) : (
                     <input
                       disabled={!canWriteReports}
-                      onChange={(event) => updateGroup(group.id, { trade: event.target.value, tradeCode: undefined })}
+                      onChange={(event) => updateGroup(group.id, { tradeCode: undefined, tradeName: event.target.value })}
                       placeholder="예: 철근 콘크리트 공사"
-                      value={group.trade}
+                      value={group.tradeName}
                     />
                   )}
                 </label>
@@ -279,12 +331,12 @@ export function DailySupervisionItemsStep({
                     onChange={(event) => {
                       const selectedProcess = processGroupByName(group, trades, event.target.value);
                       updateGroup(group.id, {
-                        process: event.target.value,
-                        processCode: selectedProcess?.code
+                        processCode: selectedProcess?.code,
+                        processName: event.target.value
                       });
                     }}
                     placeholder="예: 기초, 지하층 바닥"
-                    value={group.process}
+                    value={group.processName}
                   />
                 </label>
               </div>
@@ -293,21 +345,21 @@ export function DailySupervisionItemsStep({
                 canWriteReports={canWriteReports}
                 group={group}
                 trades={trades}
-                onAdd={(itemName) => addItem(group.id, itemName)}
+                onAdd={(itemName) => addEntry(group.id, itemName)}
               />
 
               <div className="daily-supervision-items">
-                {group.items.length === 0 ? (
+                {group.entries.length === 0 ? (
                   <p className="daily-supervision-muted">검사항목을 추가하세요.</p>
-                ) : group.items.map((item, itemIndex) => (
-                  <div className="daily-supervision-item" key={item.id}>
+                ) : group.entries.map((entry, entryIndex) => (
+                  <div className="daily-supervision-item" key={entry.id}>
                     <div className="daily-supervision-item-head">
-                      <span>항목 {itemIndex + 1}</span>
+                      <span>항목 {entryIndex + 1}</span>
                       <button
                         aria-label="검사항목 삭제"
                         className="icon-button"
                         disabled={!canWriteReports}
-                        onClick={() => removeItem(group.id, item.id)}
+                        onClick={() => removeEntry(group.id, entry.id)}
                         type="button"
                       >
                         <X size={16} />
@@ -320,41 +372,37 @@ export function DailySupervisionItemsStep({
                         list={`daily-item-options-${group.id}`}
                         onChange={(event) => {
                           const catalogItem = itemByName(group, trades, event.target.value);
-                          updateItem(group.id, item.id, {
+                          updateEntry(group.id, entry.id, {
                             inspectionItemCode: catalogItem?.code,
-                            inspectionItemName: event.target.value,
-                            item: event.target.value,
-                            itemCode: catalogItem?.code
+                            inspectionItemName: event.target.value
                           });
                         }}
                         placeholder="예: 철근 개수·지름·피치"
-                        value={item.inspectionItemName || item.item}
+                        value={entry.inspectionItemName}
                       />
                     </label>
-                    {item.inspectionItemCode ? (
-                      <span className="daily-supervision-muted">검사항목 코드: {item.inspectionItemCode}</span>
+                    {entry.inspectionItemCode ? (
+                      <span className="daily-supervision-muted">검사항목 코드: {entry.inspectionItemCode}</span>
                     ) : null}
                     <label>
                       감리내용
                       <textarea
                         disabled={!canWriteReports}
-                        onChange={(event) => updateItem(group.id, item.id, { content: event.target.value })}
+                        onChange={(event) => updateEntry(group.id, entry.id, { supervisionContent: event.target.value })}
                         placeholder="검사항목에 대해 확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
-                        value={item.content}
+                        value={entry.supervisionContent}
                       />
                     </label>
                     <div className="daily-supervision-photo-row">
                       <div className="daily-supervision-photo-chips">
-                        {item.photoIds.length === 0 ? (
+                        {entry.photoIds.length === 0 ? (
                           <span className="daily-supervision-muted">연결 사진 없음</span>
-                        ) : item.photoIds.map((photoId) => (
+                        ) : entry.photoIds.map((photoId) => (
                           <button
                             className="daily-photo-chip"
-                            disabled={!canWriteReports}
+                            disabled={!canWriteReports || deletingPhotoIds.has(photoId)}
                             key={photoId}
-                            onClick={() => updateItem(group.id, item.id, {
-                              photoIds: item.photoIds.filter((current) => current !== photoId)
-                            })}
+                            onClick={() => void deleteLinkedPhoto(photoId)}
                             type="button"
                           >
                             Photo #{photoId}
@@ -364,12 +412,23 @@ export function DailySupervisionItemsStep({
                       </div>
                       <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
                         <Camera size={16} />
+                        사진 촬영
+                        <input
+                          accept="image/*"
+                          capture="environment"
+                          disabled={!canWriteReports}
+                          onChange={(event) => void attachPhotos(group.id, entry.id, event)}
+                          type="file"
+                        />
+                      </label>
+                      <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
+                        <UploadCloud size={16} />
                         사진 추가
                         <input
                           accept="image/*"
                           disabled={!canWriteReports}
                           multiple
-                          onChange={(event) => void attachPhotos(group.id, item.id, event)}
+                          onChange={(event) => void attachPhotos(group.id, entry.id, event)}
                           type="file"
                         />
                       </label>
@@ -475,12 +534,12 @@ function suggestedProcesses(
 
 function selectedTrade(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
   return trades.find((trade) => trade.code === group.tradeCode)
-    ?? trades.find((trade) => trade.name === group.trade)
+    ?? trades.find((trade) => trade.name === group.tradeName)
     ?? null;
 }
 
 function processGroupByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
-  return selectedProcessGroup({ ...group, process: name }, selectedTrade(group, trades));
+  return selectedProcessGroup({ ...group, processName: name }, selectedTrade(group, trades));
 }
 
 function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null) {
@@ -488,17 +547,16 @@ function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCa
     return null;
   }
   return trade.processGroups.find((processGroup) => processGroup.code === group.processCode)
-    ?? trade.processGroups.find((processGroup) => processGroup.name === group.process)
+    ?? trade.processGroups.find((processGroup) => processGroup.name === group.processName)
     ?? null;
 }
 
-function emptyItem(): DailySupervisionItem {
+function emptyEntry(): DailySupervisionEntry {
   return {
-    content: "",
-    id: newId("item"),
+    id: newId("entry"),
     inspectionItemName: "",
-    item: "",
-    photoIds: []
+    photoIds: [],
+    supervisionContent: ""
   };
 }
 
@@ -529,31 +587,27 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
   }
   const raw = value as Partial<DailySupervisionGroup>;
   return {
+    entries: Array.isArray(raw.entries) ? raw.entries.map((entry, entryIndex) => normalizeEntry(entry, entryIndex)).filter(Boolean) as DailySupervisionEntry[] : [],
     floor: text(raw.floor),
     id: text(raw.id) || newId(`group-${index}`),
-    items: Array.isArray(raw.items) ? raw.items.map((item, itemIndex) => normalizeItem(item, itemIndex)).filter(Boolean) as DailySupervisionItem[] : [],
-    process: text(raw.process),
     processCode: optionalText(raw.processCode),
-    trade: text(raw.trade),
-    tradeCode: optionalText(raw.tradeCode)
+    processName: text(raw.processName),
+    tradeCode: optionalText(raw.tradeCode),
+    tradeName: text(raw.tradeName)
   };
 }
 
-function normalizeItem(value: unknown, index: number): DailySupervisionItem | null {
+function normalizeEntry(value: unknown, index: number): DailySupervisionEntry | null {
   if (!value || typeof value !== "object") {
     return null;
   }
-  const raw = value as Partial<DailySupervisionItem>;
-  const inspectionItemName = text(raw.inspectionItemName) || text(raw.item);
-  const inspectionItemCode = optionalText(raw.inspectionItemCode) ?? optionalText(raw.itemCode);
+  const raw = value as Partial<DailySupervisionEntry>;
   return {
-    content: text(raw.content),
-    id: text(raw.id) || newId(`item-${index}`),
-    inspectionItemCode,
-    inspectionItemName,
-    item: text(raw.item) || inspectionItemName,
-    itemCode: optionalText(raw.itemCode) ?? inspectionItemCode,
-    photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : [])
+    id: text(raw.id) || newId(`entry-${index}`),
+    inspectionItemCode: optionalText(raw.inspectionItemCode),
+    inspectionItemName: text(raw.inspectionItemName),
+    photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : []),
+    supervisionContent: text(raw.supervisionContent)
   };
 }
 

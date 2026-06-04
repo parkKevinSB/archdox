@@ -89,10 +89,11 @@ report type
 -> document-engine renderer/exporter
 ```
 
-Initial Korean default document types include demolition safety checklist,
-demolition daily supervision log, demolition completion report, construction
-daily supervision log, and construction supervision report. These are reference
-packs, not hardcoded renderer branches.
+Current Korean default document types include construction daily supervision log
+and construction supervision report only. Demolition and other safety/facility
+document packs are deferred domain packs. They may be designed later as
+reference packs, but they must not be seeded into the active report-creation
+registry until that domain phase is explicitly opened.
 
 ## Format Boundary
 

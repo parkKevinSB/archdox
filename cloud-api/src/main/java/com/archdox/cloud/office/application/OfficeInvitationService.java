@@ -18,6 +18,7 @@ import com.archdox.cloud.office.infra.OfficeMembershipRepository;
 import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.shared.MembershipRole;
 import com.archdox.shared.MembershipStatus;
 import com.archdox.shared.OfficeType;
@@ -40,19 +41,22 @@ public class OfficeInvitationService {
     private final OfficeMembershipRepository membershipRepository;
     private final OfficeInvitationRepository invitationRepository;
     private final OperationEventService operationEventService;
+    private final PlatformAdminService platformAdminService;
 
     public OfficeInvitationService(
             UserAccountRepository userRepository,
             OfficeRepository officeRepository,
             OfficeMembershipRepository membershipRepository,
             OfficeInvitationRepository invitationRepository,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            PlatformAdminService platformAdminService
     ) {
         this.userRepository = userRepository;
         this.officeRepository = officeRepository;
         this.membershipRepository = membershipRepository;
         this.invitationRepository = invitationRepository;
         this.operationEventService = operationEventService;
+        this.platformAdminService = platformAdminService;
     }
 
     @Transactional(readOnly = true)
@@ -86,7 +90,7 @@ public class OfficeInvitationService {
             CreateOfficeInvitationRequest request
     ) {
         var actorMembership = requireOfficeManager(actorUserId, officeId);
-        requireOfficeWorkspace(actorMembership);
+        requireOfficeWorkspace(officeId);
         requireOwnerIfOwnerRole(actorMembership, request.role());
         var email = normalizeEmail(request.email());
         var now = OffsetDateTime.now();
@@ -228,6 +232,9 @@ public class OfficeInvitationService {
     }
 
     private OfficeMembership requireOfficeManager(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return null;
+        }
         var membership = membershipRepository.findByUserIdAndOfficeIdAndStatus(
                         userId,
                         officeId,
@@ -245,7 +252,18 @@ public class OfficeInvitationService {
         }
     }
 
+    private void requireOfficeWorkspace(Long officeId) {
+        var office = officeRepository.findById(officeId)
+                .orElseThrow(() -> new NotFoundException("Office not found"));
+        if (office.type() != OfficeType.OFFICE) {
+            throw new ForbiddenException("Personal workspace cannot create office invitations");
+        }
+    }
+
     private void requireOwnerIfOwnerRole(OfficeMembership actorMembership, MembershipRole role) {
+        if (actorMembership == null) {
+            return;
+        }
         if (role == MembershipRole.OWNER && actorMembership.role() != MembershipRole.OWNER) {
             throw new ForbiddenException("Only an owner can assign owner role");
         }

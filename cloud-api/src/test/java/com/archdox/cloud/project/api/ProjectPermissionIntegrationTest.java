@@ -2,6 +2,7 @@ package com.archdox.cloud.project.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,8 +82,34 @@ class ProjectPermissionIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
-                                  "title": "Member writable report"
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                  "title": "Member blocked before assignment"
+                                }
+                                """.formatted(ownerProjectId)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/v1/projects/{projectId}/assignments", ownerProjectId)
+                        .header("Authorization", bearer(owner.accessToken()))
+                        .header("X-Office-Id", officeId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": %d,
+                                  "role": "REPORT_WRITER"
+                                }
+                                """.formatted(member.userId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("REPORT_WRITER"));
+
+        mockMvc.perform(post("/api/v1/inspection-reports")
+                        .header("Authorization", bearer(member.accessToken()))
+                        .header("X-Office-Id", officeId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                  "title": "Member writable after assignment"
                                 }
                                 """.formatted(ownerProjectId)))
                 .andExpect(status().isCreated());
@@ -94,7 +121,7 @@ class ProjectPermissionIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                                   "title": "Viewer blocked report"
                                 }
                                 """.formatted(ownerProjectId)))

@@ -3,7 +3,8 @@ import {
   InlineAlert,
   InlineNotice,
   Panel,
-  StatusBadge
+  StatusBadge,
+  reportTypeLabel
 } from "../../../components/common";
 import type {
   InspectionReport,
@@ -88,7 +89,7 @@ export function ReportWizard({
         <div className="context-strip">
           <span>프로젝트: {project?.name ?? `project #${report.projectId}`}</span>
           <span>현장: {site?.name ?? (report.siteId ? `site #${report.siteId}` : "미지정")}</span>
-          <span>유형: {report.reportType}</span>
+          <span>유형: {reportTypeLabel(report.reportType)}</span>
           <span>흐름: {workflowDefinition?.title ?? "기본 작성 흐름"}</span>
         </div>
 

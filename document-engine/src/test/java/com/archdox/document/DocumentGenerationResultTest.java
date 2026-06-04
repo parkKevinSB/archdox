@@ -8,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -263,6 +264,90 @@ class DocumentGenerationResultTest {
         assertTrue(documentXml.contains("archdox-signature-1.png"));
         assertTrue(relsXml.contains("media/archdox-signature-1.png"));
         assertNotNull(zipEntryBytes(docx, "word/media/archdox-signature-1.png"));
+    }
+
+    @Test
+    void officialDailyLogOverlaysSignatureOnSignatureMark() throws Exception {
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> BundledDocumentTemplates.read(spec.storageRef()),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-official-signature-1",
+                "office-1",
+                "report-official-signature-1",
+                new TemplateSpec(
+                        "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+                        1,
+                        "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
+                        "{}",
+                        "{}",
+                        null,
+                        true),
+                Map.of(
+                        "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                        "templateFields", Map.of(
+                                "serialNo", "DL-1",
+                                "constructionName", "Site A",
+                                "chiefSupervisorName", "Kim Tester"),
+                        "signature", signaturePayload()),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var docx = result.artifacts().get(0).content();
+        var documentXml = documentXml(docx);
+        var relsXml = zipEntry(docx, "word/_rels/document.xml.rels");
+        assertTrue(documentXml.contains("(서명 또는 인)"));
+        assertTrue(documentXml.contains("<wp:anchor"));
+        assertTrue(documentXml.contains("ArchDox Signature"));
+        assertTrue(documentXml.contains("archdox-signature-1.png"));
+        assertTrue(relsXml.contains("media/archdox-signature-1.png"));
+        assertNotNull(zipEntryBytes(docx, "word/media/archdox-signature-1.png"));
+    }
+
+    @Test
+    void officialDailyLogAppliesPersonalSignatureToChiefAndAssistantSlots() throws Exception {
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> BundledDocumentTemplates.read(spec.storageRef()),
+                new SimpleDocumentEngine());
+        var signature = new LinkedHashMap<>(signaturePayload());
+        signature.put("signatureSlots", List.of("CHIEF_SUPERVISOR", "ARCHITECT_ASSISTANT", "WRITER"));
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-official-personal-signature-1",
+                "office-personal-1",
+                "report-official-personal-signature-1",
+                new TemplateSpec(
+                        "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+                        1,
+                        "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
+                        "{}",
+                        "{}",
+                        null,
+                        true),
+                Map.of(
+                        "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                        "templateFields", Map.of(
+                                "serialNo", "DL-1",
+                                "constructionName", "Site A",
+                                "chiefSupervisorName", "Kim Tester",
+                                "architectAssistantName", "Kim Tester"),
+                        "signature", signature),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var docx = result.artifacts().get(0).content();
+        var documentXml = documentXml(docx);
+        var relsXml = zipEntry(docx, "word/_rels/document.xml.rels");
+        assertTrue(countOccurrences(documentXml, "<wp:anchor") >= 2);
+        assertTrue(documentXml.contains("archdox-signature-1.png"));
+        assertTrue(documentXml.contains("archdox-signature-2.png"));
+        assertTrue(relsXml.contains("media/archdox-signature-1.png"));
+        assertTrue(relsXml.contains("media/archdox-signature-2.png"));
+        assertNotNull(zipEntryBytes(docx, "word/media/archdox-signature-1.png"));
+        assertNotNull(zipEntryBytes(docx, "word/media/archdox-signature-2.png"));
     }
 
     @Test
@@ -766,6 +851,16 @@ class DocumentGenerationResultTest {
     private String zipEntry(byte[] docx, String name) throws Exception {
         var bytes = zipEntryBytes(docx, name);
         return bytes == null ? "" : new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private int countOccurrences(String value, String needle) {
+        var count = 0;
+        var index = 0;
+        while ((index = value.indexOf(needle, index)) >= 0) {
+            count++;
+            index += needle.length();
+        }
+        return count;
     }
 
     private void parseXml(String xml) throws Exception {

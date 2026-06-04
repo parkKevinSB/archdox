@@ -59,7 +59,7 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(jsonPath("$.blockingIssues", hasSize(3)))
                 .andExpect(jsonPath("$.blockingIssues[*].code", hasItems(
                         "MISSING_STEP_BASIC_INFO",
-                        "MISSING_STEP_CHECKLIST",
+                        "MISSING_STEP_DAILY_LOG",
                         "MISSING_WORKING_PHOTO")));
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -69,11 +69,11 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(jsonPath("$.valid").value(false))
                 .andExpect(jsonPath("$.blockingIssues[*].code", hasItems(
                         "MISSING_STEP_BASIC_INFO",
-                        "MISSING_STEP_CHECKLIST",
+                        "MISSING_STEP_DAILY_LOG",
                         "MISSING_WORKING_PHOTO")));
 
         saveBasicInfoStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
@@ -96,7 +96,7 @@ class ReportSubmitValidationIntegrationTest {
         var projectId = createProject(user);
         var reportId = createReport(user, projectId);
         saveBasicInfoStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
@@ -151,9 +151,9 @@ class ReportSubmitValidationIntegrationTest {
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.source").value("BUILT_IN_DEFAULT"))
-                .andExpect(jsonPath("$.checklistSchemaCode").value("DAILY_SUPERVISION_DEFAULT"))
-                .andExpect(jsonPath("$.steps[*].code", hasItems("BASIC_INFO", "CHECKLIST", "PHOTOS")));
+                .andExpect(jsonPath("$.source").value("DOCUMENT_TYPE_DEFAULT"))
+                .andExpect(jsonPath("$.checklistSchemaCode").value("CONSTRUCTION_DAILY_SUPERVISION_LOG_DEFAULT"))
+                .andExpect(jsonPath("$.steps[*].code", hasItems("BASIC_INFO", "DAILY_LOG", "PHOTOS", "REMARKS")));
 
         var definitionId = createWorkflowDefinition(user);
         var revisionId = createWorkflowRevision(user, definitionId);
@@ -205,7 +205,7 @@ class ReportSubmitValidationIntegrationTest {
         var projectId = createProject(user);
         var reportId = createReport(user, projectId);
         saveBasicInfoStep(user, reportId);
-        saveChecklistStep(user, reportId);
+        saveDailyLogStep(user, reportId);
         uploadWorkingPhoto(user, projectId, reportId, "photo-one");
 
         var ruleSetId = createRuleSet(user);
@@ -269,6 +269,7 @@ class ReportSubmitValidationIntegrationTest {
     }
 
     private long createReport(TestUser user, long projectId) throws Exception {
+        var siteId = createSite(user, projectId);
         var result = mockMvc.perform(post("/api/v1/inspection-reports")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
@@ -276,10 +277,29 @@ class ReportSubmitValidationIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
+                                  "siteId": %d,
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                                   "title": "Validation report"
                                 }
-                                """.formatted(projectId)))
+                                """.formatted(projectId, siteId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createSite(TestUser user, long projectId) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/projects/{projectId}/sites", projectId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "siteCode": "SITE-VALIDATION",
+                                  "name": "Validation Site",
+                                  "address": "Seoul",
+                                  "siteType": "BUILDING"
+                                }
+                                """))
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result.getResponse().getContentAsString());
@@ -294,7 +314,7 @@ class ReportSubmitValidationIntegrationTest {
                                 {
                                   "code": "custom-daily-flow",
                                   "name": "Custom Daily Flow",
-                                  "reportType": "daily_supervision"
+                                  "reportType": "construction_daily_supervision_log"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -344,7 +364,7 @@ class ReportSubmitValidationIntegrationTest {
     }
 
     private void assignWorkflowOverride(TestUser user, long revisionId) throws Exception {
-        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "construction_daily_supervision_log")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -365,7 +385,7 @@ class ReportSubmitValidationIntegrationTest {
                                 {
                                   "code": "daily-photo-rules",
                                   "name": "Daily Photo Rules",
-                                  "reportType": "daily_supervision"
+                                  "reportType": "construction_daily_supervision_log"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -398,7 +418,7 @@ class ReportSubmitValidationIntegrationTest {
     }
 
     private void assignRuleSetOverride(TestUser user, long revisionId) throws Exception {
-        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "construction_daily_supervision_log")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -419,6 +439,7 @@ class ReportSubmitValidationIntegrationTest {
                                 {
                                   "payload": {
                                     "inspectionDate": "2026-05-23",
+                                    "chiefSupervisorName": "Chief Supervisor",
                                     "inspectorName": "Submit Validation",
                                     "weather": "Clear",
                                     "location": "Site A"
@@ -428,16 +449,33 @@ class ReportSubmitValidationIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private void saveChecklistStep(TestUser user, long reportId) throws Exception {
-        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "CHECKLIST")
+    private void saveDailyLogStep(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "DAILY_LOG")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "payload": {
-                                    "checklistSummary": "Checked",
-                                    "issueCount": 0
+                                    "dailyItems": {
+                                      "groups": [
+                                        {
+                                          "tradeCode": "REINFORCED_CONCRETE",
+                                          "tradeName": "Reinforced concrete",
+                                          "processCode": "REBAR_ASSEMBLY",
+                                          "processName": "Rebar assembly",
+                                          "floor": "1F",
+                                          "entries": [
+                                            {
+                                              "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                              "inspectionItemName": "Rebar count and pitch",
+                                              "supervisionContent": "Checked rebar spacing.",
+                                              "photoIds": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
                                   }
                                 }
                                 """))

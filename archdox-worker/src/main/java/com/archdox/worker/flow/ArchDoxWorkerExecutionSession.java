@@ -2,6 +2,7 @@ package com.archdox.worker.flow;
 
 import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
 import com.archdox.worker.domain.ArchDoxWorkerAction;
+import com.archdox.worker.domain.ArchDoxWorkerActionDefinition;
 import com.archdox.worker.domain.ArchDoxWorkerActionResult;
 import com.archdox.worker.domain.ArchDoxWorkerPolicyDecision;
 import com.archdox.worker.domain.ArchDoxWorkerRequest;
@@ -10,6 +11,7 @@ import java.util.Objects;
 public final class ArchDoxWorkerExecutionSession {
     private final ArchDoxWorkerRequest request;
     private final ArchDoxWorkerAction action;
+    private ArchDoxWorkerActionDefinition definition;
     private ArchDoxWorkerActionExecutor executor;
     private ArchDoxWorkerPolicyDecision policyDecision;
     private ArchDoxWorkerActionResult result;
@@ -25,6 +27,14 @@ public final class ArchDoxWorkerExecutionSession {
 
     public ArchDoxWorkerAction action() {
         return action;
+    }
+
+    public ArchDoxWorkerActionDefinition definition() {
+        return definition;
+    }
+
+    public void definition(ArchDoxWorkerActionDefinition definition) {
+        this.definition = definition;
     }
 
     public ArchDoxWorkerActionExecutor executor() {

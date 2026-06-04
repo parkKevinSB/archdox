@@ -6,6 +6,7 @@ import com.archdox.cloud.account.infra.AuthRefreshTokenRepository;
 import com.archdox.cloud.account.infra.UserAccountRepository;
 import com.archdox.cloud.auth.dto.AuthTokenResponse;
 import com.archdox.cloud.auth.dto.MeResponse;
+import com.archdox.cloud.auth.dto.OfficePermissionSummaryResponse;
 import com.archdox.cloud.auth.dto.OfficeSummaryResponse;
 import com.archdox.cloud.auth.dto.SignupAccountType;
 import com.archdox.cloud.auth.dto.SignupRequest;
@@ -182,9 +183,28 @@ public class AuthService {
                         membership.office().displayName(),
                         membership.office().type(),
                         membership.office().planCode(),
-                        membership.role()))
+                        membership.role(),
+                        officePermissions(membership)))
                 .toList();
         return new MeResponse(user.id(), user.email(), user.name(), offices);
+    }
+
+    private OfficePermissionSummaryResponse officePermissions(OfficeMembership membership) {
+        var personalOwner = membership.office().type() == OfficeType.PERSONAL && membership.role() == MembershipRole.OWNER;
+        var officeAdmin = membership.office().type() != OfficeType.PERSONAL
+                && (membership.role() == MembershipRole.OWNER || membership.role() == MembershipRole.ADMIN);
+        var broadWorkPermission = personalOwner || officeAdmin;
+        return new OfficePermissionSummaryResponse(
+                officeAdmin,
+                broadWorkPermission,
+                officeAdmin,
+                broadWorkPermission,
+                broadWorkPermission,
+                broadWorkPermission,
+                broadWorkPermission,
+                broadWorkPermission,
+                broadWorkPermission,
+                officeAdmin);
     }
 
     private AuthTokenResponse issueTokens(UserAccount user, OffsetDateTime now) {

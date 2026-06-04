@@ -117,7 +117,7 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
             var siteId = createSite(user, projectId);
             var reportId = createReport(user, projectId, siteId);
             saveBasicInfoStep(user, reportId);
-            saveChecklistStep(user, reportId);
+            saveDailyLogStep(user, reportId);
             uploadWorkingPhoto(user, projectId, reportId);
             submitReport(user, reportId);
             passPreflight(user, reportId);
@@ -379,7 +379,7 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
                                 {
                                   "projectId": %d,
                                   "siteId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                                   "title": "Agent render report"
                                 }
                                 """.formatted(projectId, siteId)))
@@ -398,6 +398,7 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
                                   "payload": {
                                     "inspectionDate": "2026-05-23",
                                     "inspectorName": "Agent Render",
+                                    "chiefSupervisorName": "Agent Render",
                                     "weather": "Clear",
                                     "location": "Site A"
                                   }
@@ -406,16 +407,33 @@ class ArchDoxAgentDocumentRenderConnectionIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    private void saveChecklistStep(TestUser user, long reportId) throws Exception {
-        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "CHECKLIST")
+    private void saveDailyLogStep(TestUser user, long reportId) throws Exception {
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "DAILY_LOG")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "payload": {
-                                    "checklistSummary": "Checked",
-                                    "issueCount": 0
+                                    "dailyItems": {
+                                      "groups": [
+                                        {
+                                          "tradeCode": "REINFORCED_CONCRETE",
+                                          "tradeName": "Reinforced concrete",
+                                          "processCode": "REBAR_ASSEMBLY",
+                                          "processName": "Rebar assembly",
+                                          "floor": "1F",
+                                          "entries": [
+                                            {
+                                              "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                              "inspectionItemName": "Rebar count and pitch",
+                                              "supervisionContent": "Checked rebar spacing",
+                                              "photoIds": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
                                   }
                                 }
                                 """))

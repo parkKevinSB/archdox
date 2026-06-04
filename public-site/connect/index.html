@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ArchDox Agent Connect는 고객의 AI Agent가 ArchDox Engine을 안전하게 호출하도록 연결하는 온보딩 흐름입니다."
+    />
+    <title>내 AI에 연결 | ArchDox</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="ArchDox home">
+        <span class="brand-mark">AD</span>
+        <span>archdoX</span>
+      </a>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="/#platform">Platform</a>
+        <a href="/connect/" aria-current="page">AI 연결</a>
+        <a href="/developers/mcp/">MCP</a>
+        <a href="/legal-updates/">법령 업데이트</a>
+        <a class="nav-login" href="https://app.archdox.co.kr/login">로그인</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-hero connect-hero">
+        <p class="eyebrow">Agent Connect</p>
+        <h1>사용 중인 AI에서 ArchDox 검토 엔진을 호출하세요.</h1>
+        <p>
+          고객은 ArchDox에 가입한 뒤 자신이 쓰는 Agent를 선택하고, 허용할 도구와 범위를 승인합니다.
+          그러면 Agent는 감리일지 검토, 법령 변경 확인, 체크리스트 보강 같은 작업을 ArchDox Engine에 요청할 수 있습니다.
+        </p>
+        <div class="hero-actions">
+          <a class="primary-action" href="https://app.archdox.co.kr/signup">ArchDox 가입</a>
+          <a class="secondary-action" href="/developers/mcp/">MCP 문서 보기</a>
+        </div>
+      </section>
+
+      <section class="section-band light-band">
+        <div class="section-head">
+          <p class="eyebrow">Choose your agent</p>
+          <h2>연결 방식은 다르지만, 모두 같은 ArchDox Engine을 사용합니다.</h2>
+        </div>
+        <div class="connect-agent-grid">
+          <article>
+            <span>개발 검증</span>
+            <h3>Codex</h3>
+            <p>외부 MCP/Engine API를 먼저 검증하기 좋은 채널입니다. API 계약, 입력 스키마, 결과 형식을 빠르게 확인합니다.</p>
+            <a href="/developers/mcp/">설정 보기</a>
+          </article>
+          <article>
+            <span>문서 대화</span>
+            <h3>ChatGPT</h3>
+            <p>사용자가 자연어로 “이 감리일지 검토해줘”라고 요청하면 ArchDox 검토 결과를 설명하는 흐름을 목표로 합니다.</p>
+            <button disabled type="button">준비 중</button>
+          </article>
+          <article>
+            <span>검토 보조</span>
+            <h3>Claude</h3>
+            <p>긴 문서 설명, 보완 질의, 검토 결과 해석에 적합한 연결 후보입니다. MCP tool pack으로 제공할 예정입니다.</p>
+            <button disabled type="button">준비 중</button>
+          </article>
+          <article>
+            <span>개발 IDE</span>
+            <h3>Cursor</h3>
+            <p>사내 시스템이나 문서 자동화 코드에서 ArchDox Engine API를 호출하는 개발 테스트 경로로 사용할 수 있습니다.</p>
+            <button disabled type="button">준비 중</button>
+          </article>
+          <article>
+            <span>사내 시스템</span>
+            <h3>Custom Agent</h3>
+            <p>고객의 내부 AI, 업무 시스템, 문서 자동화 서버가 직접 Engine API를 호출하는 방식입니다.</p>
+            <a href="/developers/mcp/">API 구조 보기</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="split-section">
+        <div>
+          <p class="eyebrow">How it works</p>
+          <h2>Agent가 직접 DB를 보는 것이 아니라, 승인된 도구만 호출합니다.</h2>
+          <p>
+            ArchDox는 Agent에게 내부 DB, provider API key, 원본 저장소 접근권을 주지 않습니다.
+            Agent는 등록된 tool/action만 요청하고, ArchDox가 인증, 권한, quota, 정책을 확인한 뒤 Engine Boundary를 실행합니다.
+          </p>
+        </div>
+        <div class="process-list">
+          <article>
+            <span>1</span>
+            <div>
+              <h3>가입 또는 로그인</h3>
+              <p>개인 또는 사무소 계정으로 ArchDox Engine 사용 권한을 확인합니다.</p>
+            </div>
+          </article>
+          <article>
+            <span>2</span>
+            <div>
+              <h3>Agent 선택</h3>
+              <p>ChatGPT, Claude, Cursor, Codex, Custom Agent 중 연결할 채널을 선택합니다.</p>
+            </div>
+          </article>
+          <article>
+            <span>3</span>
+            <div>
+              <h3>도구 범위 승인</h3>
+              <p>감리일지 검토, 법령 변경 조회, 체크리스트 생성 등 허용할 tool pack을 승인합니다.</p>
+            </div>
+          </article>
+          <article>
+            <span>4</span>
+            <div>
+              <h3>검토 실행</h3>
+              <p>Agent 요청은 ArchDox Engine API/MCP Gateway를 통해 구조화된 finding과 action으로 반환됩니다.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-head">
+          <p class="eyebrow">MVP status</p>
+          <h2>현재는 연결 UX와 문서/API 경계를 준비하는 단계입니다.</h2>
+        </div>
+        <div class="tool-grid">
+          <article>
+            <h3>현재 가능</h3>
+            <p>ArchDox SaaS 내부에서 구조화된 리포트 검토, AI provider 테스트, MCP/Engine 문서 확인</p>
+          </article>
+          <article>
+            <h3>다음 단계</h3>
+            <p>외부 Engine API key, tool pack scope, quota, usage metering, Agent Connect 승인 화면</p>
+          </article>
+          <article>
+            <h3>보안 원칙</h3>
+            <p>provider key는 Cloud API에만 보관하고, Agent에는 승인된 도구와 제한된 호출 경로만 제공합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="cta-band">
+        <div>
+          <p class="eyebrow">Start here</p>
+          <h2>먼저 ArchDox 계정을 만들고 Engine 연결 준비를 시작하세요.</h2>
+          <p>실제 MCP 연결이 열리기 전에도 SaaS 내부 검토 흐름과 Engine API 구조를 먼저 확인할 수 있습니다.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="primary-action" href="https://app.archdox.co.kr/signup">무료 시작</a>
+          <a class="secondary-action" href="https://app.archdox.co.kr/login">로그인</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>archdoX</span>
+      <p>Agent는 제안하고, ArchDox는 권한·정책·근거를 통제합니다.</p>
+    </footer>
+  </body>
+</html>

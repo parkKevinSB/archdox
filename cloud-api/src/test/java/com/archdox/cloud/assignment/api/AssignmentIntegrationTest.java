@@ -57,7 +57,7 @@ class AssignmentIntegrationTest {
         var projectId = createProject(owner.accessToken(), officeId, "Assigned Project");
 
         createReport(otherMember.accessToken(), officeId, projectId, "Before assignments")
-                .andExpect(status().isCreated());
+                .andExpect(status().isForbidden());
 
         upsertProjectAssignment(owner, officeId, projectId, writer.userId(), "REPORT_WRITER")
                 .andExpect(status().isOk())
@@ -226,7 +226,7 @@ class AssignmentIntegrationTest {
         var body = """
                 {
                   "projectId": %d,
-                  "reportType": "DAILY_SUPERVISION",
+                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                   "title": "%s"
                 }
                 """.formatted(projectId, title);

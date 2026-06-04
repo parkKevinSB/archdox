@@ -32,7 +32,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
     @Test
     void executes_registered_action_when_policy_allows() {
         var executions = new AtomicInteger();
-        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_DOCUMENT_QA, context -> {
+        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW, context -> {
             executions.incrementAndGet();
             return ArchDoxWorkerActionResult.succeeded(Map.of("findingCount", 0));
         });
@@ -41,7 +41,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
                 new ArchDoxWorkerActionRegistry(List.of(executor)),
                 ArchDoxWorkerPolicyGate.allowAll(),
                 sink
-        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_DOCUMENT_QA));
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
         var worker = attachedWorker();
 
         worker.submit(flow);
@@ -58,7 +58,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
     }
 
     @Test
-    void rejects_unknown_action_before_policy_gate() {
+    void rejects_action_without_registered_executor_before_policy_gate() {
         var sink = new RecordingTraceSink();
         var policyCalls = new AtomicInteger();
         var flow = new ArchDoxWorkerExecutionFlowFactory(
@@ -68,7 +68,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
                     return ArchDoxWorkerPolicyDecision.allow();
                 },
                 sink
-        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_LEGAL_REVIEW));
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.CREATE_REPORT));
         var worker = attachedWorker();
 
         worker.submit(flow);
@@ -85,7 +85,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
     @Test
     void policy_denial_prevents_execution() {
         var executions = new AtomicInteger();
-        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_DOCUMENT_QA, context -> {
+        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW, context -> {
             executions.incrementAndGet();
             return ArchDoxWorkerActionResult.succeeded(Map.of());
         });
@@ -94,7 +94,7 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
                 new ArchDoxWorkerActionRegistry(List.of(executor)),
                 (request, action) -> ArchDoxWorkerPolicyDecision.deny("DENIED", "Denied by test policy"),
                 sink
-        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_DOCUMENT_QA));
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
         var worker = attachedWorker();
 
         worker.submit(flow);

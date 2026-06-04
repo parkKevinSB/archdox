@@ -49,11 +49,12 @@ import {
   StatusBadge,
   ViewHeader
 } from "./components/common";
-import { canManageProjects, canWriteReports } from "./domain/permissions";
+import { canManageOfficeAssignments, canManageProjects, canManageSites, canWriteReports } from "./domain/permissions";
 import { ReportAssignmentPanel } from "./features/assignments/AssignmentPanels";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ReportChecklistPanel } from "./features/checklists/components/ReportChecklistPanel";
 import { DocumentWorkspace } from "./features/documents/components/DocumentWorkspace";
+import { LegalUpdatesView } from "./features/legal/components/LegalUpdatesView";
 import { PhotoWorkspace } from "./features/photos/components/PhotoWorkspace";
 import { getDocumentTypes } from "./features/reports/api";
 import { ReportList } from "./features/reports/components/ReportList";
@@ -128,21 +129,17 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof ClipboardList 
   { key: "reports", label: "리포트", icon: FileText },
   { key: "jobs", label: "문서", icon: UploadCloud },
   { key: "photos", label: "사진", icon: Camera },
+  { key: "legalUpdates", label: "법령 변경", icon: Bell },
   { key: "workChat", label: "작업 채팅", icon: MessageSquare },
   { key: "insightChat", label: "분석 채팅", icon: BarChart3 }
 ];
 
 const bottomNavItems = navItems.filter((item) =>
-  ["projects", "sites", "reports", "jobs", "photos", "workChat", "insightChat"].includes(item.key)
+  ["projects", "sites", "reports", "jobs", "photos"].includes(item.key)
 );
 
 const projectBusinessTypeOptions: CodeOption[] = [
-  { value: "CONSTRUCTION_SUPERVISION", label: "건축 감리" },
-  { value: "BUILDING_SAFETY_INSPECTION", label: "건축물 안전점검" },
-  { value: "FACILITY_INSPECTION", label: "시설물 점검" },
-  { value: "ASBESTOS_SUPERVISION", label: "석면 감리" },
-  { value: "MAINTENANCE_INSPECTION", label: "유지관리 점검" },
-  { value: "OTHER", label: "기타" }
+  { value: "CONSTRUCTION_SUPERVISION", label: "공사감리" }
 ];
 
 const siteTypeOptions: CodeOption[] = [
@@ -190,6 +187,7 @@ export default function App() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatLauncherOpen, setChatLauncherOpen] = useState(false);
   const lastWorkerChatSyncKeyRef = useRef("");
 
   const selectedOffice = useMemo(
@@ -207,6 +205,9 @@ export default function App() {
     () => workspace.projects.find((project) => project.id === selectedProjectId) ?? null,
     [workspace.projects, selectedProjectId]
   );
+  const canManageSelectedProjectStructure = selectedProject?.structureManageAllowed ?? canManageSites(selectedOffice);
+  const canCreateReportInSelectedProject = selectedProject?.reportCreateAllowed ?? canWriteSelectedOfficeReports;
+  const canManageSelectedOfficeAssignments = canManageOfficeAssignments(selectedOffice);
   const selectedSite = useMemo(
     () =>
       selectedSiteId
@@ -230,12 +231,18 @@ export default function App() {
   }
 
   function handlePrimaryNavigation(view: ViewKey) {
+    setChatLauncherOpen(false);
     if (view === "reports") {
       setSelectedReportId(null);
     } else if (view === "projects" || view === "sites") {
       setSelectedReportId(null);
     }
     navigateToView(view);
+  }
+
+  function handleChatNavigation(view: Extract<ViewKey, "workChat" | "insightChat">) {
+    setChatLauncherOpen(false);
+    handlePrimaryNavigation(view);
   }
 
   useEffect(() => {
@@ -803,6 +810,7 @@ export default function App() {
   if (!auth) {
     return (
       <AuthScreen
+        initialMode={location.pathname.startsWith("/signup") ? "signup" : "login"}
         onAuthenticated={(nextAuth) => {
           handleAuthenticated(nextAuth);
           navigate(viewPaths.projects, { replace: true });
@@ -857,6 +865,46 @@ export default function App() {
               <Bell size={18} />
             </button>
             <button
+              className={activeView === "legalUpdates" ? "topbar-legal-button active" : "topbar-legal-button"}
+              onClick={() => navigateToView("legalUpdates")}
+              type="button"
+              aria-label="법령 변경사항"
+              title="법령 변경사항"
+            >
+              <FileText size={18} />
+            </button>
+            <div className="topbar-chat-control">
+              {chatLauncherOpen ? (
+                <div className="topbar-chat-menu" role="menu" aria-label="채팅 선택">
+                  <button
+                    className={activeView === "workChat" ? "active" : ""}
+                    onClick={() => handleChatNavigation("workChat")}
+                    type="button"
+                  >
+                    <MessageSquare size={17} />
+                    <span>작업 채팅</span>
+                  </button>
+                  <button
+                    className={activeView === "insightChat" ? "active" : ""}
+                    onClick={() => handleChatNavigation("insightChat")}
+                    type="button"
+                  >
+                    <BarChart3 size={17} />
+                    <span>분석 채팅</span>
+                  </button>
+                </div>
+              ) : null}
+              <button
+                aria-expanded={chatLauncherOpen}
+                aria-label="채팅 열기"
+                className={activeView === "workChat" || activeView === "insightChat" ? "topbar-chat-button active" : "topbar-chat-button"}
+                onClick={() => setChatLauncherOpen((open) => !open)}
+                type="button"
+              >
+                <MessageSquare size={18} />
+              </button>
+            </div>
+            <button
               className="avatar-button"
               onClick={() => navigateToView("more")}
               type="button"
@@ -898,7 +946,7 @@ export default function App() {
               selectedProject={selectedProject}
               selectedSiteId={selectedSiteId}
               sites={workspace.sites}
-              canManageSites={canManageSelectedOffice}
+              canManageSites={canManageSelectedProjectStructure}
               onCreateSite={handleCreateSite}
               onDeleteSite={handleDeleteSite}
               onBackToProjects={() => navigateToView("projects")}
@@ -919,8 +967,8 @@ export default function App() {
               sites={workspace.sites}
               targets={workspace.targets}
               token={auth.accessToken}
-              canManageAssignments={canManageSelectedOffice}
-              canWriteReports={canWriteSelectedOfficeReports}
+              canManageAssignments={canManageSelectedOfficeAssignments}
+              canWriteReports={canCreateReportInSelectedProject}
               officeMembers={officeMembers}
               onCreateReport={handleCreateReport}
               onDeleteReport={handleDeleteReport}
@@ -944,6 +992,8 @@ export default function App() {
           )}
           {activeView === "jobs" && (
             <DocumentWorkspace
+              currentOffice={selectedOffice}
+              currentUser={auth.user}
               officeId={selectedOfficeId}
               projects={workspace.projects}
               reports={workspace.reports}
@@ -951,6 +1001,7 @@ export default function App() {
               onRefreshWorkspace={() => loadWorkspace()}
             />
           )}
+          {activeView === "legalUpdates" && <LegalUpdatesView token={auth.accessToken} />}
           {activeView === "workChat" && (
             <ProjectWorkerChat
               officeId={selectedOfficeId}
@@ -962,9 +1013,47 @@ export default function App() {
             />
           )}
           {activeView === "insightChat" && <InsightChatView office={selectedOffice} />}
-          {activeView === "more" && <MoreView user={auth.user} onLogout={logout} />}
+          {activeView === "more" && (
+            <MoreView
+              user={auth.user}
+              onLogout={logout}
+              onOpenLegalUpdates={() => navigateToView("legalUpdates")}
+            />
+          )}
         </main>
       </section>
+
+      <div className={chatLauncherOpen ? "mobile-chat-launcher open" : "mobile-chat-launcher"}>
+        {chatLauncherOpen ? (
+          <div className="mobile-chat-menu" role="menu" aria-label="채팅 선택">
+            <button
+              className={activeView === "workChat" ? "active" : ""}
+              onClick={() => handleChatNavigation("workChat")}
+              type="button"
+            >
+              <MessageSquare size={17} />
+              <span>작업 채팅</span>
+            </button>
+            <button
+              className={activeView === "insightChat" ? "active" : ""}
+              onClick={() => handleChatNavigation("insightChat")}
+              type="button"
+            >
+              <BarChart3 size={17} />
+              <span>분석 채팅</span>
+            </button>
+          </div>
+        ) : null}
+        <button
+          aria-expanded={chatLauncherOpen}
+          aria-label="채팅 열기"
+          className={activeView === "workChat" || activeView === "insightChat" ? "mobile-chat-fab active" : "mobile-chat-fab"}
+          onClick={() => setChatLauncherOpen((open) => !open)}
+          type="button"
+        >
+          <MessageSquare size={21} />
+        </button>
+      </div>
 
       <nav className="bottom-nav" aria-label="모바일 메뉴">
         {bottomNavItems.map((item) => {
@@ -1488,7 +1577,15 @@ function InsightChatView({ office }: { office: Office | null }) {
   );
 }
 
-function MoreView({ user, onLogout }: { user: MeResponse; onLogout: () => void }) {
+function MoreView({
+  user,
+  onLogout,
+  onOpenLegalUpdates
+}: {
+  user: MeResponse;
+  onLogout: () => void;
+  onOpenLegalUpdates: () => void;
+}) {
   return (
     <div className="view-stack">
       <ViewHeader title="프로필" text="계정 정보와 기본 설정을 확인합니다." />
@@ -1511,6 +1608,18 @@ function MoreView({ user, onLogout }: { user: MeResponse; onLogout: () => void }
             <span>오프라인 저장과 업로드 큐는 다음 단계에서 연결합니다.</span>
           </div>
           <Settings size={20} />
+        </div>
+      </Panel>
+      <Panel title="플랫폼 정보">
+        <div className="settings-list">
+          <div>
+            <strong>법령 변경사항</strong>
+            <span>최근 법령 변경과 업무 영향 요약을 확인합니다.</span>
+          </div>
+          <button className="secondary-button" onClick={onOpenLegalUpdates} type="button">
+            <Bell size={17} />
+            열기
+          </button>
         </div>
       </Panel>
     </div>
@@ -1746,7 +1855,7 @@ function ProjectForm({ busy, onSubmit }: { busy: boolean; onSubmit: (values: Pro
         프로젝트명
         <input
           onChange={(event) => setValues({ ...values, name: event.target.value })}
-          placeholder="예: 2026 상반기 안전점검"
+          placeholder="예: 2026 상반기 공사감리"
           required
           value={values.name}
         />

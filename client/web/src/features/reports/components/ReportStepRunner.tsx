@@ -97,6 +97,8 @@ export function ReportStepRunner({
           report={report}
           renderChecklistPanel={renderChecklistPanel}
           revision={savedSteps[activeDefinition.code]?.clientRevision}
+          savedStep={savedSteps[activeDefinition.code]}
+          savedSteps={savedSteps}
           token={token}
         />
 

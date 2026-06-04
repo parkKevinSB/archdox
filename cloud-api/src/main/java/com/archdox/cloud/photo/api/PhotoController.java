@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -99,6 +100,12 @@ public class PhotoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelUpload(@PathVariable Long photoId) {
         photoService.cancelPendingUpload(photoId);
+    }
+
+    @DeleteMapping("/{photoId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long photoId, Authentication authentication) {
+        photoService.delete(photoId, (UserPrincipal) authentication.getPrincipal());
     }
 
     @PostMapping("/{photoId}/agent-pickup-complete")

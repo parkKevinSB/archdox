@@ -14,7 +14,7 @@ class StandardTemplateFieldResolverTest {
         var fields = resolver.resolve(Map.of(
                 "report", Map.of(
                         "reportNo", "R-001",
-                        "reportType", "DAILY_SUPERVISION",
+                        "reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                         "title", "Daily log"),
                 "project", Map.of(
                         "name", "Document Tower",
@@ -31,10 +31,18 @@ class StandardTemplateFieldResolverTest {
                                 "inspectorName", "Kim",
                                 "supervisorName", "Lee")),
                         "DAILY_LOG", Map.of("payload", Map.of(
-                                "constructionTrade", "Concrete",
-                                "detailedProcess", "Slab",
-                                "floor", "3F",
-                                "supervisionContent", "Checked rebar",
+                                "dailyItems", Map.of(
+                                        "groups", List.of(Map.of(
+                                                "tradeCode", "REINFORCED_CONCRETE",
+                                                "tradeName", "Concrete",
+                                                "processCode", "REBAR_ASSEMBLY",
+                                                "processName", "Slab",
+                                                "floor", "3F",
+                                                "entries", List.of(Map.of(
+                                                        "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                        "inspectionItemName", "Rebar count and pitch",
+                                                        "supervisionContent", "Checked rebar",
+                                                        "photoIds", List.of()))))),
                                 "specialNotes", "No special issue",
                                 "issueAndAction", "None"))),
                 "checklistAnswers", List.of()));
@@ -52,59 +60,42 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Lee", fields.get("supervisorName"));
         assertEquals("Kim", fields.get("inspectorName"));
         assertEquals("Concrete", fields.get("constructionTrade"));
+        assertEquals("Slab", fields.get("detailedProcess"));
+        assertEquals("3F", fields.get("floor"));
+        assertEquals("Rebar count and pitch", fields.get("inspectionItem"));
         assertEquals("Checked rebar", fields.get("supervisionContent"));
         assertEquals("None", fields.get("issueAndAction"));
         assertEquals("None", fields.get("correctionResults"));
     }
 
     @Test
-    void resolvesDemolitionSafetyCheckFields() {
+    void resolvesConstructionSupervisionReportFields() {
         var fields = resolver.resolve(Map.of(
-                "report", Map.of("reportType", "DEMOLITION_SAFETY_CHECK", "title", ""),
-                "project", Map.of("name", "Demolition Project"),
-                "site", Map.of("name", "Old Wing", "address", "Busan"),
-                "steps", Map.of(
-                        "DEMOLITION_SAFETY_CHECK", Map.of("payload", Map.of(
-                                "inspectionDate", "2026-05-22",
-                                "location", "Roof",
-                                "stage", "Roof demolition",
-                                "demolitionWorkerName", "Park",
-                                "inspectionCriteria", "Jack support spacing",
-                                "inspectionResult", "Pass",
-                                "correctiveAction", "Tighten supports")))));
-
-        assertEquals("\uD574\uCCB4\uACF5\uC0AC \uC548\uC804\uC810\uAC80\uD45C", fields.get("documentTitle"));
-        assertEquals("2026-05-22", fields.get("safetyInspectionDate"));
-        assertEquals("Roof", fields.get("inspectionLocation"));
-        assertEquals("Roof demolition", fields.get("demolitionWorkStage"));
-        assertEquals("Park", fields.get("demolitionWorkerName"));
-        assertEquals("Jack support spacing", fields.get("inspectionCriteria"));
-        assertEquals("Pass", fields.get("inspectionResult"));
-        assertEquals("Tighten supports", fields.get("correctiveAction"));
-    }
-
-    @Test
-    void resolvesCompletionAndTemplateAliasFields() {
-        var fields = resolver.resolve(Map.of(
-                "report", Map.of("reportType", "DEMOLITION_COMPLETION_REPORT", "title", ""),
-                "project", Map.of("name", "Demolition Project"),
+                "report", Map.of("reportType", "CONSTRUCTION_SUPERVISION_REPORT", "title", ""),
+                "project", Map.of("name", "Construction Project"),
+                "site", Map.of("name", "Main Site", "address", "Busan"),
                 "steps", Map.of(
                         "BASIC_INFO", Map.of("payload", Map.of(
-                                "architectAssistantName", "Park Architect",
-                                "supervisorOfficeName", "Arch Office",
-                                "contractorName", "Builder Co.",
-                                "serviceName", "Completion service",
-                                "reportDate", "2026-05-24")),
+                                "permitNumber", "2026-ARCH-01",
+                                "permitDate", "2026-05-01",
+                                "lotNumber", "353-1",
+                                "supervisionStartDate", "2026-05-02",
+                                "supervisionEndDate", "2026-06-02",
+                                "supervisorName", "Lee")),
                         "REMARKS", Map.of("payload", Map.of(
                                 "relationEngineerOpinion", "Reviewed",
-                                "comprehensiveOpinion", "Acceptable")))));
+                                "comprehensiveOpinion", "Acceptable",
+                                "specialNotes", "No special issue")))));
 
-        assertEquals("Park Architect", fields.get("assistantArchitectName"));
-        assertEquals("Arch Office", fields.get("supervisorOfficeName"));
-        assertEquals("Builder Co.", fields.get("contractorName"));
-        assertEquals("Completion service", fields.get("serviceName"));
-        assertEquals("2026-05-24", fields.get("reportDate"));
+        assertEquals("\uAC10\uB9AC\uBCF4\uACE0\uC11C", fields.get("documentTitle"));
+        assertEquals("2026-ARCH-01", fields.get("permitNumber"));
+        assertEquals("2026-05-01", fields.get("permitDate"));
+        assertEquals("353-1", fields.get("lotNumber"));
+        assertEquals("2026-05-02", fields.get("supervisionStartDate"));
+        assertEquals("2026-06-02", fields.get("supervisionEndDate"));
+        assertEquals("Lee", fields.get("supervisorName"));
         assertEquals("Reviewed", fields.get("relationEngineerOpinion"));
         assertEquals("Acceptable", fields.get("comprehensiveOpinion"));
+        assertEquals("No special issue", fields.get("specialNotes"));
     }
 }

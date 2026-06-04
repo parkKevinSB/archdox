@@ -24,6 +24,9 @@ public class Photo {
     @Column(name = "project_id")
     private Long projectId;
 
+    @Column(name = "site_id")
+    private Long siteId;
+
     @Column(name = "report_id")
     private Long reportId;
 
@@ -32,6 +35,27 @@ public class Photo {
 
     @Column(name = "checklist_item_id")
     private Long checklistItemId;
+
+    @Column(name = "site_supervision_entry_id")
+    private Long siteSupervisionEntryId;
+
+    @Column(name = "trade_code")
+    private String tradeCode;
+
+    @Column(name = "process_code")
+    private String processCode;
+
+    @Column(name = "inspection_item_code")
+    private String inspectionItemCode;
+
+    @Column(name = "caption")
+    private String caption;
+
+    @Column(name = "location_note")
+    private String locationNote;
+
+    @Column(name = "drawing_ref")
+    private String drawingRef;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "capture_kind", nullable = false)
@@ -127,11 +151,76 @@ public class Photo {
             BigDecimal gpsLng,
             OffsetDateTime now
     ) {
+        this(
+                officeId,
+                projectId,
+                null,
+                reportId,
+                stepCode,
+                checklistItemId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                captureKind,
+                mimeType,
+                bytes,
+                hashSha256,
+                storageKind,
+                storageRef,
+                thumbnailStorageRef,
+                uploadTarget,
+                requestedBy,
+                takenAt,
+                gpsLat,
+                gpsLng,
+                now);
+    }
+
+    public Photo(
+            Long officeId,
+            Long projectId,
+            Long siteId,
+            Long reportId,
+            String stepCode,
+            Long checklistItemId,
+            Long siteSupervisionEntryId,
+            String tradeCode,
+            String processCode,
+            String inspectionItemCode,
+            String caption,
+            String locationNote,
+            String drawingRef,
+            PhotoCaptureKind captureKind,
+            String mimeType,
+            Long bytes,
+            String hashSha256,
+            PhotoStorageKind storageKind,
+            String storageRef,
+            String thumbnailStorageRef,
+            PhotoUploadTarget uploadTarget,
+            Long requestedBy,
+            OffsetDateTime takenAt,
+            BigDecimal gpsLat,
+            BigDecimal gpsLng,
+            OffsetDateTime now
+    ) {
         this.officeId = officeId;
         this.projectId = projectId;
+        this.siteId = siteId;
         this.reportId = reportId;
         this.stepCode = stepCode;
         this.checklistItemId = checklistItemId;
+        this.siteSupervisionEntryId = siteSupervisionEntryId;
+        this.tradeCode = tradeCode;
+        this.processCode = processCode;
+        this.inspectionItemCode = inspectionItemCode;
+        this.caption = caption;
+        this.locationNote = locationNote;
+        this.drawingRef = drawingRef;
         this.captureKind = captureKind;
         this.status = PhotoStatus.PENDING_UPLOAD;
         this.mimeType = mimeType;
@@ -200,6 +289,10 @@ public class Photo {
         return projectId;
     }
 
+    public Long siteId() {
+        return siteId;
+    }
+
     public Long reportId() {
         return reportId;
     }
@@ -210,6 +303,34 @@ public class Photo {
 
     public Long checklistItemId() {
         return checklistItemId;
+    }
+
+    public Long siteSupervisionEntryId() {
+        return siteSupervisionEntryId;
+    }
+
+    public String tradeCode() {
+        return tradeCode;
+    }
+
+    public String processCode() {
+        return processCode;
+    }
+
+    public String inspectionItemCode() {
+        return inspectionItemCode;
+    }
+
+    public String caption() {
+        return caption;
+    }
+
+    public String locationNote() {
+        return locationNote;
+    }
+
+    public String drawingRef() {
+        return drawingRef;
     }
 
     public PhotoCaptureKind captureKind() {

@@ -89,7 +89,7 @@ class DocumentDeterministicReviewValidatorTest {
                 20L,
                 30L,
                 "R-001",
-                "CONSTRUCTION_SUPERVISION_DAILY_LOG",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                 "공사감리일지",
                 40L,
                 50L,
@@ -115,8 +115,8 @@ class DocumentDeterministicReviewValidatorTest {
 
     private Map<String, Object> validSnapshot(List<Map<String, Object>> photos) {
         return Map.of(
-                "report", Map.of("id", 100L, "reportType", "CONSTRUCTION_SUPERVISION_DAILY_LOG"),
-                "configuration", Map.of("reportType", "CONSTRUCTION_SUPERVISION_DAILY_LOG"),
+                "report", Map.of("id", 100L, "reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                "configuration", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
                 "templateFields", Map.of("projectName", "테스트 현장"),
                 "layoutSections", List.of(Map.of("title", "기본 정보")),
                 "photos", photos);

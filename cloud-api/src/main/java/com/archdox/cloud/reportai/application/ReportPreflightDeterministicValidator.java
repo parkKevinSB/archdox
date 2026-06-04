@@ -1,25 +1,35 @@
 package com.archdox.cloud.reportai.application;
 
+import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.application.ReportSubmitValidationService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStatus;
+import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ReportPreflightDeterministicValidator {
     private final ReportSubmitValidationService submitValidationService;
     private final InspectionReportTargetRepository targetRepository;
+    private final InspectionReportStepRepository stepRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ReportPreflightDeterministicValidator(
             ReportSubmitValidationService submitValidationService,
-            InspectionReportTargetRepository targetRepository
+            InspectionReportTargetRepository targetRepository,
+            InspectionReportStepRepository stepRepository
     ) {
         this.submitValidationService = submitValidationService;
         this.targetRepository = targetRepository;
+        this.stepRepository = stepRepository;
     }
 
     public ReportPreflightValidationResult validate(InspectionReport report) {
@@ -47,6 +57,7 @@ public class ReportPreflightDeterministicValidator {
                     Map.of("resourceType", warning.resourceType())));
         }
         validateTargetPresence(report, findings);
+        validateConstructionDailyLog(report, findings);
         return new ReportPreflightValidationResult(findings);
     }
 
@@ -96,27 +107,208 @@ public class ReportPreflightDeterministicValidator {
 
     private static TargetPolicy targetPolicy(String reportType) {
         return switch (normalizeReportType(reportType)) {
-            case "DAILY_SUPERVISION",
-                 "CONSTRUCTION_DAILY_LOG",
-                 "CONSTRUCTION_DAILY_SUPERVISION_LOG",
-                 "CONSTRUCTION_SUPERVISION_DAILY_LOG" ->
+            case "CONSTRUCTION_DAILY_SUPERVISION_LOG" ->
                     new TargetPolicy(TargetRequirementMode.NONE, "NONE", "");
-            case "DEMOLITION_SAFETY_CHECK",
-                 "DEMOLITION_SAFETY_CHECKLIST" ->
-                    new TargetPolicy(
-                            TargetRequirementMode.REQUIRED,
-                            "HIGH",
-                            "해체공사 안전점검표는 해체 대상 구조물 또는 점검 대상을 연결해야 합니다.");
-            case "PERIODIC_SAFETY",
-                 "BUILDING_SAFETY_INSPECTION",
-                 "SAFETY_INSPECTION_REPORT" ->
-                    new TargetPolicy(
-                            TargetRequirementMode.RECOMMENDED,
-                            "LOW",
-                            "안전점검 문서는 건축물 또는 대상 시설을 연결하는 것을 권장합니다.");
             default ->
                     new TargetPolicy(TargetRequirementMode.NONE, "NONE", "");
         };
+    }
+
+    private void validateConstructionDailyLog(InspectionReport report, ArrayList<ReportPreflightFinding> findings) {
+        if (!"CONSTRUCTION_DAILY_SUPERVISION_LOG".equals(normalizeReportType(report.reportType()))) {
+            return;
+        }
+        var step = stepRepository.findByReportIdAndStepCode(report.id(), "DAILY_LOG");
+        if (step.isEmpty()) {
+            return;
+        }
+        var dailyItems = dailyItems(step.get());
+        if (dailyItems.isEmpty()) {
+            findings.add(finding(
+                    "DAILY_LOG_ITEMS_INVALID",
+                    "HIGH",
+                    "steps.DAILY_LOG.payload.dailyItems",
+                    "공사감리일지의 공종별 검사항목 데이터 형식을 읽을 수 없습니다.",
+                    "dailyItems is missing or invalid",
+                    Map.of("reportType", normalizeReportType(report.reportType()))));
+            return;
+        }
+        var groups = listValue(dailyItems.get().get("groups"));
+        if (groups.isEmpty()) {
+            findings.add(finding(
+                    "DAILY_LOG_GROUP_REQUIRED",
+                    "HIGH",
+                    "steps.DAILY_LOG.payload.dailyItems.groups",
+                    "공사감리일지는 최소 1개 이상의 공종/세부공정 항목이 필요합니다.",
+                    "dailyItems.groups is empty",
+                    Map.of("reportType", normalizeReportType(report.reportType()))));
+            return;
+        }
+
+        for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
+            var group = mapValue(groups.get(groupIndex));
+            var groupNo = groupIndex + 1;
+            requireText(group, "floor", "DAILY_LOG_GROUP_FLOOR_REQUIRED", "HIGH",
+                    "층/구역을 입력해야 공사감리일지의 공종 및 세부공정 칸을 완성할 수 있습니다.",
+                    "groups[" + groupIndex + "].floor", groupNo, null, findings);
+            if (isBlank(stringValue(group.get("tradeName"))) && isBlank(stringValue(group.get("tradeCode")))) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_GROUP_TRADE_REQUIRED",
+                        "HIGH",
+                        "공종을 선택하거나 입력해야 합니다.",
+                        "groups[" + groupIndex + "].tradeName",
+                        groupNo,
+                        null));
+            }
+            if (isBlank(stringValue(group.get("processName"))) && isBlank(stringValue(group.get("processCode")))) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_GROUP_PROCESS_REQUIRED",
+                        "HIGH",
+                        "세부공정을 입력해야 합니다.",
+                        "groups[" + groupIndex + "].processName",
+                        groupNo,
+                        null));
+            }
+
+            var entries = listValue(group.get("entries"));
+            if (entries.isEmpty()) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_ENTRY_REQUIRED",
+                        "HIGH",
+                        "공종/세부공정마다 최소 1개 이상의 검사항목이 필요합니다.",
+                        "groups[" + groupIndex + "].entries",
+                        groupNo,
+                        null));
+                continue;
+            }
+
+            for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++) {
+                var entry = mapValue(entries.get(entryIndex));
+                var entryNo = entryIndex + 1;
+                if (isBlank(stringValue(entry.get("inspectionItemName"))) && isBlank(stringValue(entry.get("inspectionItemCode")))) {
+                    findings.add(dailyFinding(
+                            "DAILY_LOG_INSPECTION_ITEM_REQUIRED",
+                            "HIGH",
+                            "검사항목을 선택하거나 입력해야 합니다.",
+                            "groups[" + groupIndex + "].entries[" + entryIndex + "].inspectionItemName",
+                            groupNo,
+                            entryNo));
+                }
+                requireText(entry, "supervisionContent", "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED", "HIGH",
+                        "감리내용을 입력해야 문서 생성 시 감리내용 칸이 비지 않습니다.",
+                        "groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent",
+                        groupNo,
+                        entryNo,
+                        findings);
+                if (listValue(entry.get("photoIds")).isEmpty()) {
+                    findings.add(dailyFinding(
+                            "DAILY_LOG_PHOTO_EVIDENCE_RECOMMENDED",
+                            "LOW",
+                            "검사항목에 연결된 사진이 없습니다. 현장 확인 근거가 필요한 항목이면 사진을 연결하세요.",
+                            "groups[" + groupIndex + "].entries[" + entryIndex + "].photoIds",
+                            groupNo,
+                            entryNo));
+                }
+            }
+        }
+    }
+
+    private Optional<Map<String, Object>> dailyItems(InspectionReportStep step) {
+        var payload = step.payloadJson();
+        if (payload == null) {
+            return Optional.empty();
+        }
+        return normalizedMap(payload.get("dailyItems"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<Map<String, Object>> normalizedMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return Optional.of((Map<String, Object>) map);
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Optional.of(objectMapper.readValue(text, new TypeReference<Map<String, Object>>() {
+                }));
+            } catch (Exception ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private void requireText(
+            Map<String, Object> payload,
+            String key,
+            String code,
+            String severity,
+            String message,
+            String location,
+            int groupNo,
+            Integer entryNo,
+            ArrayList<ReportPreflightFinding> findings
+    ) {
+        if (isBlank(stringValue(payload.get(key)))) {
+            findings.add(dailyFinding(code, severity, message, location, groupNo, entryNo));
+        }
+    }
+
+    private ReportPreflightFinding dailyFinding(
+            String code,
+            String severity,
+            String message,
+            String location,
+            int groupNo,
+            Integer entryNo
+    ) {
+        var attributes = new java.util.LinkedHashMap<String, String>();
+        attributes.put("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        attributes.put("groupNo", String.valueOf(groupNo));
+        if (entryNo != null) {
+            attributes.put("entryNo", String.valueOf(entryNo));
+        }
+        return finding(
+                code,
+                severity,
+                "steps.DAILY_LOG.payload.dailyItems." + location,
+                message,
+                "groupNo=" + groupNo + (entryNo == null ? "" : ", entryNo=" + entryNo),
+                attributes);
+    }
+
+    private ReportPreflightFinding finding(
+            String code,
+            String severity,
+            String location,
+            String message,
+            String evidence,
+            Map<String, String> attributes
+    ) {
+        return new ReportPreflightFinding(
+                "DETERMINISTIC",
+                code,
+                severity,
+                location,
+                message,
+                evidence,
+                attributes);
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static String normalizeReportType(String reportType) {

@@ -108,7 +108,7 @@ class ReportPreflightHarnessFactoryTest {
         return new ReportPreflightInput(
                 "1",
                 "20",
-                "CONSTRUCTION_SUPERVISION_DAILY_LOG",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                 "Daily report",
                 "READY_TO_GENERATE",
                 3,

@@ -1,5 +1,7 @@
 package com.archdox.cloud.documenttype.api;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,17 +58,69 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         var documentTypeList = objectMapper.readTree(documentTypes.getResponse().getContentAsString());
-        assertTrue(hasCode(documentTypeList, "DEMOLITION_SAFETY_CHECKLIST"));
+        assertEquals(2, documentTypeList.size());
+        assertTrue(hasCode(documentTypeList, "CONSTRUCTION_DAILY_SUPERVISION_LOG"));
         assertTrue(hasCode(documentTypeList, "CONSTRUCTION_SUPERVISION_REPORT"));
+        assertFalse(hasCode(documentTypeList, "DEMOLITION_SAFETY_CHECKLIST"));
+        assertFalse(hasCode(documentTypeList, "DAILY_SUPERVISION"));
+        assertFalse(hasCode(documentTypeList, "PERIODIC_SAFETY"));
+        assertFalse(hasCode(documentTypeList, "FACILITY_CHECK"));
+        assertEquals(2L, tableCount("document_type_definitions"));
+        assertEquals(2L, tableCount("checklist_schemas"));
+        assertEquals(0L, deferredDocumentTypeCount());
 
-        mockMvc.perform(get("/api/v1/document-types/{code}", "DEMOLITION_SAFETY_CHECKLIST")
+        jdbcTemplate.update("""
+                insert into document_type_definitions (
+                    office_id, code, report_type, name, description, category,
+                    default_template_code, default_template_storage_ref,
+                    checklist_schema_code, default_output_format, workflow_json,
+                    output_layout_json, active, display_order, created_at, updated_at
+                )
+                values (?, 'DAILY_SUPERVISION', 'DAILY_SUPERVISION', 'Legacy daily report',
+                    'Legacy row that should not be exposed.', 'CONSTRUCTION_SUPERVISION',
+                    null, null, null, 'DOCX', '{}'::jsonb, '{}'::jsonb, true, 999, now(), now())
+                """, user.officeId());
+        jdbcTemplate.update("""
+                insert into document_type_definitions (
+                    office_id, code, report_type, name, description, category,
+                    default_template_code, default_template_storage_ref,
+                    checklist_schema_code, default_output_format, workflow_json,
+                    output_layout_json, active, display_order, created_at, updated_at
+                )
+                values (?, 'CONSTRUCTION_DAILY_SUPERVISION_LOG', 'CONSTRUCTION_DAILY_SUPERVISION_LOG', '감리일지 legacy',
+                    'Office-specific document type rows must not override the MVP canonical document type.', 'CONSTRUCTION_SUPERVISION',
+                    null, null, null, 'DOCX', '{}'::jsonb, '{}'::jsonb, true, 998, now(), now())
+                """, user.officeId());
+
+        var afterOfficeLegacyInsert = mockMvc.perform(get("/api/v1/document-types")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("DEMOLITION_SAFETY_CHECKLIST"))
-                .andExpect(jsonPath("$.checklistSchemaCode").value("DEMOLITION_SAFETY_CHECKLIST_DEFAULT"))
+                .andReturn();
+        var afterOfficeLegacyList = objectMapper.readTree(afterOfficeLegacyInsert.getResponse().getContentAsString());
+        assertEquals(2, afterOfficeLegacyList.size());
+        assertFalse(hasCode(afterOfficeLegacyList, "DAILY_SUPERVISION"));
+        assertFalse(hasName(afterOfficeLegacyList, "감리일지 legacy"));
+
+        mockMvc.perform(get("/api/v1/document-types/{code}", "CONSTRUCTION_SUPERVISION_REPORT")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("CONSTRUCTION_SUPERVISION_REPORT"))
+                .andExpect(jsonPath("$.checklistSchemaCode").value("CONSTRUCTION_SUPERVISION_REPORT_DEFAULT"))
                 .andExpect(jsonPath("$.defaultTemplateStorageRef")
-                        .value("templates/korean/korean-demolition-safety-checklist-appendix-1.docx"));
+                        .value("templates/korean/korean-construction-supervision-report-appendix-1.docx"));
+
+        mockMvc.perform(get("/api/v1/document-types/{code}", "CONSTRUCTION_DAILY_SUPERVISION_LOG")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("공사감리일지"));
+
+        mockMvc.perform(get("/api/v1/document-types/{code}", "DAILY_SUPERVISION")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isNotFound());
 
         var reportId = createReport(user, projectId);
 
@@ -75,30 +129,19 @@ class DocumentTypeRegistryIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source").value("DOCUMENT_TYPE_DEFAULT"))
-                .andExpect(jsonPath("$.flowId").value("demolition-safety-checklist-writing"))
-                .andExpect(jsonPath("$.checklistSchemaCode").value("DEMOLITION_SAFETY_CHECKLIST_DEFAULT"))
+                .andExpect(jsonPath("$.flowId").value("construction-supervision-report-writing"))
+                .andExpect(jsonPath("$.checklistSchemaCode").value("CONSTRUCTION_SUPERVISION_REPORT_DEFAULT"))
                 .andExpect(jsonPath("$.steps[0].code").value("BASIC_INFO"))
-                .andExpect(jsonPath("$.steps[1].code").value("DEMOLITION_SAFETY_CHECK"))
-                .andExpect(jsonPath("$.steps[1].fields[0].key").value("inspectionCriteria"))
-                .andExpect(jsonPath("$.steps[2].code").value("CHECKLIST"))
-                .andExpect(jsonPath("$.steps[3].code").value("PHOTOS"))
-                .andExpect(jsonPath("$.steps[4].code").value("ISSUES"));
+                .andExpect(jsonPath("$.steps[1].code").value("REPORT_OPINION"))
+                .andExpect(jsonPath("$.steps[2].code").value("REMARKS"))
+                .andExpect(jsonPath("$.steps[3].code").value("PHOTOS"));
 
         mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/checklist", reportId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.schema.code").value("DEMOLITION_SAFETY_CHECKLIST_DEFAULT"))
-                .andExpect(jsonPath("$.schema.items[0].itemCode").value("DEMOLITION_SEQUENCE"));
-
-        var demolitionSafetyWorkflow = documentTypeJson("DEMOLITION_SAFETY_CHECKLIST", "workflow_json");
-        assertTrue(hasStepField(demolitionSafetyWorkflow, "DEMOLITION_SAFETY_CHECK", "correctiveAction"));
-        assertTrue(hasStepField(demolitionSafetyWorkflow, "ISSUES", "issueAndAction"));
-
-        var demolitionSafetyLayout = documentTypeJson("DEMOLITION_SAFETY_CHECKLIST", "output_layout_json");
-        assertTrue(hasSection(demolitionSafetyLayout, "safetyChecklistSection", "CHECKLIST_TABLE"));
-        assertTrue(hasSection(demolitionSafetyLayout, "checklistPhotoSection", "CHECKLIST_PHOTO_TABLE"));
-        assertTrue(hasSection(demolitionSafetyLayout, "photoSection", "PHOTO_TABLE"));
+                .andExpect(jsonPath("$.schema.code").value("CONSTRUCTION_SUPERVISION_REPORT_DEFAULT"))
+                .andExpect(jsonPath("$.schema.items[0].itemCode").value("FIELD_INVESTIGATION"));
 
         var constructionDailyWorkflow = documentTypeJson("CONSTRUCTION_DAILY_SUPERVISION_LOG", "workflow_json");
         assertTrue(hasStepType(constructionDailyWorkflow, "DAILY_LOG", "DAILY_SUPERVISION_ITEMS"));
@@ -127,11 +170,44 @@ class DocumentTypeRegistryIntegrationTest {
         var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");
         assertTrue(hasSection(constructionReportLayout, "reportOpinionSection", "CHECKLIST_TABLE"));
         assertTrue(hasSection(constructionReportLayout, "photoSection", "PHOTO_TABLE"));
+
+        mockMvc.perform(post("/api/v1/inspection-reports")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "reportType": "DAILY_SUPERVISION",
+                                  "title": "Legacy daily report"
+                                }
+                                """.formatted(projectId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DOCUMENT_TYPE_NOT_SUPPORTED"));
+
+        mockMvc.perform(post("/api/v1/inspection-reports")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "reportType": "DEMOLITION_SAFETY_CHECKLIST",
+                                  "title": "Deferred demolition report"
+                                }
+                                """.formatted(projectId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DOCUMENT_TYPE_NOT_SUPPORTED"));
     }
 
     private boolean hasCode(JsonNode list, String code) {
         return StreamSupport.stream(list.spliterator(), false)
                 .anyMatch(item -> code.equals(item.get("code").asText()));
+    }
+
+    private boolean hasName(JsonNode list, String name) {
+        return StreamSupport.stream(list.spliterator(), false)
+                .anyMatch(item -> name.equals(item.get("name").asText()));
     }
 
     private JsonNode documentTypeJson(String code, String column) throws Exception {
@@ -140,6 +216,20 @@ class DocumentTypeRegistryIntegrationTest {
                 String.class,
                 code);
         return objectMapper.readTree(json);
+    }
+
+    private long tableCount(String tableName) {
+        return jdbcTemplate.queryForObject("select count(*) from " + tableName, Long.class);
+    }
+
+    private long deferredDocumentTypeCount() {
+        return jdbcTemplate.queryForObject("""
+                select count(*)
+                from document_type_definitions
+                where code not in ('CONSTRUCTION_DAILY_SUPERVISION_LOG', 'CONSTRUCTION_SUPERVISION_REPORT')
+                   or report_type not in ('CONSTRUCTION_DAILY_SUPERVISION_LOG', 'CONSTRUCTION_SUPERVISION_REPORT')
+                   or category <> 'CONSTRUCTION_SUPERVISION'
+                """, Long.class);
     }
 
     private boolean hasStepField(JsonNode workflow, String stepCode, String fieldKey) {
@@ -192,7 +282,7 @@ class DocumentTypeRegistryIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name": "Demolition Project",
+                                  "name": "Construction Project",
                                   "buildingType": "CONSTRUCTION_SUPERVISION"
                                 }
                                 """))
@@ -209,12 +299,12 @@ class DocumentTypeRegistryIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
-                                  "reportType": "demolition_safety_checklist"
+                                  "reportType": "construction_supervision_report"
                                 }
                                 """.formatted(projectId)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.reportType").value("DEMOLITION_SAFETY_CHECKLIST"))
-                .andExpect(jsonPath("$.title").value("\uD574\uCCB4\uACF5\uC0AC \uC548\uC804\uC810\uAC80\uD45C"))
+                .andExpect(jsonPath("$.reportType").value("CONSTRUCTION_SUPERVISION_REPORT"))
+                .andExpect(jsonPath("$.title").value("\uAC10\uB9AC\uBCF4\uACE0\uC11C"))
                 .andReturn();
         return readId(result.getResponse().getContentAsString());
     }

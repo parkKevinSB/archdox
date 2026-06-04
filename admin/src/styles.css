@@ -1177,6 +1177,8 @@ button {
 .revision-form,
 .override-form,
 .member-form,
+.project-form,
+.project-assignment-form,
 .ai-policy-form {
   display: grid;
   gap: 12px;
@@ -1206,16 +1208,165 @@ button {
   align-items: end;
 }
 
+.project-management-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 16px;
+}
+
+.project-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  padding-top: 4px;
+}
+
+.project-form > label:first-child,
+.project-form .project-action-row {
+  grid-column: 1 / -1;
+}
+
+.project-assignment-form {
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.5fr) auto;
+  align-items: end;
+}
+
+.date-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assignment-rule-note {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.assignment-rule-note strong {
+  color: #172322;
+  font-size: 13px;
+}
+
+.assignment-rule-note span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .ai-policy-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   padding: 16px;
 }
 
+.engine-key-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.72fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.engine-key-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+
+.engine-key-form label {
+  display: grid;
+  gap: 6px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.engine-key-form input,
+.engine-key-form select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  outline: 0;
+  color: #1f2c2b;
+  background: #ffffff;
+}
+
+.engine-key-form input:focus,
+.engine-key-form select:focus {
+  border-color: #2a7f70;
+  box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.engine-key-form .toggle-row {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #d8e1df;
+  border-radius: 6px;
+  background: #fbfcfc;
+}
+
+.engine-key-form .toggle-row input {
+  width: auto;
+  min-height: auto;
+}
+
+.issued-key-card {
+  display: grid;
+  gap: 12px;
+  margin: 0 16px 16px;
+  padding: 14px;
+  border: 1px solid #d4b25c;
+  border-radius: 8px;
+  background: #fff8e5;
+}
+
+.issued-key-card strong {
+  display: block;
+  color: #162523;
+  font-size: 14px;
+}
+
+.issued-key-card span {
+  display: block;
+  margin-top: 4px;
+  color: #665326;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.issued-key-card code {
+  display: block;
+  overflow-x: auto;
+  padding: 10px;
+  border-radius: 7px;
+  color: #e8f2f0;
+  background: #0f1f1d;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .config-form label,
 .revision-form label,
 .override-form label,
 .member-form label,
+.project-form label,
+.project-assignment-form label,
 .ai-policy-form label {
   display: grid;
   gap: 6px;
@@ -1230,6 +1381,9 @@ button {
 .override-form select,
 .member-form input,
 .member-form select,
+.project-form input,
+.project-form select,
+.project-assignment-form select,
 .ai-policy-form input,
 .ai-policy-form select,
 .inline-select {
@@ -1259,6 +1413,9 @@ button {
 .override-form select:focus,
 .member-form input:focus,
 .member-form select:focus,
+.project-form input:focus,
+.project-form select:focus,
+.project-assignment-form select:focus,
 .ai-policy-form input:focus,
 .ai-policy-form select:focus,
 .inline-select:focus {
@@ -1993,6 +2150,8 @@ tbody tr:hover {
 
   .config-grid,
   .member-grid,
+  .engine-key-grid,
+  .project-management-grid,
   .revision-grid,
   .template-preset-list,
   .template-field-grid {
@@ -2000,9 +2159,12 @@ tbody tr:hover {
   }
 
   .config-form,
+  .engine-key-form,
   .revision-form,
   .override-form,
-  .member-form {
+  .member-form,
+  .project-form,
+  .project-assignment-form {
     grid-template-columns: 1fr;
   }
 }
@@ -2135,6 +2297,7 @@ tbody tr:hover {
   }
 
   .ops-detail-grid,
+  .date-pair,
   .ai-observation-meta-grid,
   .ai-status-summary,
   .ai-observer-guide-list,

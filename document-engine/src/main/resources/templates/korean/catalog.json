@@ -4,6 +4,8 @@
   "templates": [
     {
       "templateCode": "KOREAN_CONSTRUCTION_SUPERVISION_REPORT_APPENDIX_1",
+      "status": "ACTIVE",
+      "businessScope": "CONSTRUCTION_SUPERVISION",
       "storageRef": "templates/korean/korean-construction-supervision-report-appendix-1.docx",
       "title": "Construction supervision report appendix 1",
       "outputFormat": "DOCX",
@@ -17,6 +19,8 @@
     },
     {
       "templateCode": "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+      "status": "ACTIVE",
+      "businessScope": "CONSTRUCTION_SUPERVISION",
       "storageRef": "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
       "title": "Construction daily supervision log appendix 2",
       "outputFormat": "DOCX",
@@ -33,6 +37,8 @@
     },
     {
       "templateCode": "KOREAN_DEMOLITION_SAFETY_CHECKLIST_APPENDIX_1",
+      "status": "DEFERRED",
+      "businessScope": "DEMOLITION_SUPERVISION",
       "storageRef": "templates/korean/korean-demolition-safety-checklist-appendix-1.docx",
       "title": "Demolition safety checklist appendix 1",
       "outputFormat": "DOCX",
@@ -45,6 +51,8 @@
     },
     {
       "templateCode": "KOREAN_DEMOLITION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+      "status": "DEFERRED",
+      "businessScope": "DEMOLITION_SUPERVISION",
       "storageRef": "templates/korean/korean-demolition-daily-supervision-log-appendix-2.docx",
       "title": "Demolition daily supervision log appendix 2",
       "outputFormat": "DOCX",
@@ -57,6 +65,8 @@
     },
     {
       "templateCode": "KOREAN_DEMOLITION_COMPLETION_REPORT_APPENDIX_3",
+      "status": "DEFERRED",
+      "businessScope": "DEMOLITION_SUPERVISION",
       "storageRef": "templates/korean/korean-demolition-completion-report-appendix-3.docx",
       "title": "Demolition completion report appendix 3",
       "outputFormat": "DOCX",

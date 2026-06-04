@@ -1,14 +1,11 @@
 package com.archdox.cloud.document.api;
 
+import com.archdox.cloud.document.application.DocumentGenerationRequestService;
 import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.document.dto.CreateDocumentJobRequest;
 import com.archdox.cloud.document.dto.DocumentJobResponse;
-import com.archdox.cloud.document.event.DocumentGenerationRequested;
-import com.archdox.cloud.document.flow.DocumentGenerationFlowFactory;
-import com.archdox.cloud.document.flow.DocumentGenerationWorker;
 import com.archdox.cloud.global.security.UserPrincipal;
 import jakarta.validation.Valid;
-import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -24,17 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class DocumentJobController {
     private final DocumentJobService documentJobService;
-    private final DocumentGenerationFlowFactory flowFactory;
-    private final DocumentGenerationWorker worker;
+    private final DocumentGenerationRequestService requestService;
 
     public DocumentJobController(
             DocumentJobService documentJobService,
-            DocumentGenerationFlowFactory flowFactory,
-            DocumentGenerationWorker worker
+            DocumentGenerationRequestService requestService
     ) {
         this.documentJobService = documentJobService;
-        this.flowFactory = flowFactory;
-        this.worker = worker;
+        this.requestService = requestService;
     }
 
     @PostMapping("/inspection-reports/{reportId}/document-jobs")
@@ -44,14 +38,7 @@ public class DocumentJobController {
             @Valid @RequestBody CreateDocumentJobRequest request,
             Authentication authentication
     ) {
-        var response = documentJobService.create(reportId, request, (UserPrincipal) authentication.getPrincipal());
-        worker.submit(flowFactory.create(new DocumentGenerationRequested(
-                response.officeId(),
-                response.reportId(),
-                response.id(),
-                response.workerType(),
-                OffsetDateTime.now())));
-        return response;
+        return requestService.request(reportId, request, (UserPrincipal) authentication.getPrincipal());
     }
 
     @GetMapping("/inspection-reports/{reportId}/document-jobs")

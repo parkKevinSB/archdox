@@ -21,6 +21,7 @@ import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.officeops.dto.AgentCommandOpsResponse;
 import com.archdox.cloud.officeops.dto.AgentOpsResponse;
 import com.archdox.cloud.officeops.dto.AgentSessionOpsResponse;
@@ -64,6 +65,7 @@ public class OfficeOpsReadService {
             ArchDoxAgentCommandStatus.EXPIRED);
 
     private final OfficeMembershipRepository membershipRepository;
+    private final PlatformAdminService platformAdminService;
     private final ArchDoxAgentRepository agentRepository;
     private final ArchDoxAgentSessionRepository sessionRepository;
     private final ArchDoxAgentCommandRepository commandRepository;
@@ -75,6 +77,7 @@ public class OfficeOpsReadService {
 
     public OfficeOpsReadService(
             OfficeMembershipRepository membershipRepository,
+            PlatformAdminService platformAdminService,
             ArchDoxAgentRepository agentRepository,
             ArchDoxAgentSessionRepository sessionRepository,
             ArchDoxAgentCommandRepository commandRepository,
@@ -85,6 +88,7 @@ public class OfficeOpsReadService {
             DocumentDeliveryRequestRepository deliveryRepository
     ) {
         this.membershipRepository = membershipRepository;
+        this.platformAdminService = platformAdminService;
         this.agentRepository = agentRepository;
         this.sessionRepository = sessionRepository;
         this.commandRepository = commandRepository;
@@ -213,6 +217,9 @@ public class OfficeOpsReadService {
 
     private Long requireOfficeAdmin(UserPrincipal principal) {
         var officeId = OfficeContext.requireCurrentOfficeId();
+        if (platformAdminService.isPlatformAdmin(principal)) {
+            return officeId;
+        }
         var membership = membershipRepository.findByUserIdAndOfficeIdAndStatus(
                         principal.userId(),
                         officeId,
@@ -325,9 +332,17 @@ public class OfficeOpsReadService {
                 photo.id(),
                 photo.officeId(),
                 photo.projectId(),
+                photo.siteId(),
                 photo.reportId(),
                 photo.stepCode(),
                 photo.checklistItemId(),
+                photo.siteSupervisionEntryId(),
+                photo.tradeCode(),
+                photo.processCode(),
+                photo.inspectionItemCode(),
+                photo.caption(),
+                photo.locationNote(),
+                photo.drawingRef(),
                 photo.captureKind(),
                 photo.status(),
                 photo.mimeType(),

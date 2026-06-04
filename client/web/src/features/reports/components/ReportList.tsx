@@ -1,5 +1,5 @@
 import { FileText, Trash2 } from "lucide-react";
-import { EmptyState, StatusBadge } from "../../../components/common";
+import { EmptyState, StatusBadge, reportTypeLabel } from "../../../components/common";
 import type { InspectionReport, Project, Site } from "../types";
 
 type ReportListProps = {
@@ -42,7 +42,7 @@ export function ReportList({
             <div>
               <strong>{report.title || report.reportNo}</strong>
               <span>
-                {locationLabel} · {report.reportType}
+                {locationLabel} · {reportTypeLabel(report.reportType)}
               </span>
               <span className="revision-summary">
                 작성 v{report.contentRevision} · 제출 v{report.submittedRevision ?? "-"} · 생성 v{report.generatedRevision ?? "-"}

@@ -1,5 +1,10 @@
 package com.archdox.cloud.document.application;
 
+import com.archdox.cloud.assignment.domain.AssignmentStatus;
+import com.archdox.cloud.assignment.domain.ProjectAssignmentRole;
+import com.archdox.cloud.assignment.domain.ReportAssignmentRole;
+import com.archdox.cloud.assignment.infra.ProjectAssignmentRepository;
+import com.archdox.cloud.assignment.infra.ReportAssignmentRepository;
 import com.archdox.cloud.document.domain.DocumentArtifact;
 import com.archdox.cloud.document.domain.DocumentArtifactStorageKind;
 import com.archdox.cloud.document.domain.DocumentArtifactType;
@@ -26,11 +31,13 @@ import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
+import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
+import com.archdox.cloud.photo.domain.PhotoStatus;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.document.BundledDocumentTemplates;
@@ -45,6 +52,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +61,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.archdox.shared.MembershipRole;
+import com.archdox.shared.OfficeType;
 
 @Service
 public class DocumentJobService {
@@ -71,6 +81,9 @@ public class DocumentJobService {
     private final DocumentArtifactRepository documentArtifactRepository;
     private final DocumentLocalObjectStore objectStore;
     private final OfficePermissionService permissionService;
+    private final OfficeRepository officeRepository;
+    private final ProjectAssignmentRepository projectAssignmentRepository;
+    private final ReportAssignmentRepository reportAssignmentRepository;
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final ConfigurationRegistryService configurationRegistryService;
@@ -89,6 +102,9 @@ public class DocumentJobService {
             DocumentArtifactRepository documentArtifactRepository,
             DocumentLocalObjectStore objectStore,
             OfficePermissionService permissionService,
+            OfficeRepository officeRepository,
+            ProjectAssignmentRepository projectAssignmentRepository,
+            ReportAssignmentRepository reportAssignmentRepository,
             EventBus eventBus,
             OperationEventService operationEventService,
             ConfigurationRegistryService configurationRegistryService,
@@ -106,6 +122,9 @@ public class DocumentJobService {
         this.documentArtifactRepository = documentArtifactRepository;
         this.objectStore = objectStore;
         this.permissionService = permissionService;
+        this.officeRepository = officeRepository;
+        this.projectAssignmentRepository = projectAssignmentRepository;
+        this.reportAssignmentRepository = reportAssignmentRepository;
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.configurationRegistryService = configurationRegistryService;
@@ -130,7 +149,7 @@ public class DocumentJobService {
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
         var snapshot = new LinkedHashMap<>(snapshotBuilder.build(report, configuration));
-        var signatureApplied = applySignature(snapshot, createRequest.signature(), principal, now);
+        var signatureApplied = applySignature(snapshot, createRequest.signature(), principal, now, officeId, report);
         var reportRevision = report.generationRevision();
         var job = documentJobRepository.saveAndFlush(new DocumentJob(
                 officeId,
@@ -267,7 +286,9 @@ public class DocumentJobService {
             Map<String, Object> snapshot,
             CreateDocumentJobRequest.DocumentSignatureRequest request,
             UserPrincipal principal,
-            OffsetDateTime signedAt
+            OffsetDateTime signedAt,
+            Long officeId,
+            InspectionReport report
     ) {
         if (request == null) {
             return false;
@@ -295,6 +316,7 @@ public class DocumentJobService {
         signature.put("signedAt", signedAt.toString());
         signature.put("imageMimeType", imageMimeType);
         signature.put("imageDataUrl", imageDataUrl);
+        signature.put("signatureSlots", resolveSignatureSlots(officeId, report, principal.userId(), request.signedByRole()));
         snapshot.put("signature", signature);
 
         var templateFields = mutableMap(snapshot.get("templateFields"));
@@ -306,6 +328,80 @@ public class DocumentJobService {
         templateFields.put("signatureSignedAt", signedAt.toString());
         snapshot.put("templateFields", templateFields);
         return true;
+    }
+
+    private List<String> resolveSignatureSlots(
+            Long officeId,
+            InspectionReport report,
+            Long userId,
+            String requestedRole
+    ) {
+        var office = officeRepository.findById(officeId)
+                .orElseThrow(() -> new NotFoundException("Office not found"));
+        if (office.type() == OfficeType.PERSONAL) {
+            return List.of("CHIEF_SUPERVISOR", "ARCHITECT_ASSISTANT", "WRITER", "REVIEWER");
+        }
+
+        var slots = new LinkedHashSet<String>();
+        reportAssignmentRepository.findByOfficeIdAndReportIdAndUserId(officeId, report.id(), userId)
+                .filter(assignment -> assignment.status() == AssignmentStatus.ACTIVE)
+                .ifPresent(assignment -> addReportAssignmentSlots(slots, assignment.role()));
+        projectAssignmentRepository.findByOfficeIdAndProjectIdAndUserId(officeId, report.projectId(), userId)
+                .filter(assignment -> assignment.status() == AssignmentStatus.ACTIVE)
+                .ifPresent(assignment -> addProjectAssignmentSlots(slots, assignment.role()));
+
+        if (slots.isEmpty()) {
+            var membership = permissionService.requireActiveMembership(userId, officeId);
+            if (membership.role() == MembershipRole.OWNER || membership.role() == MembershipRole.ADMIN) {
+                slots.add("CHIEF_SUPERVISOR");
+            }
+        }
+        if (slots.isEmpty()) {
+            addRequestedRoleSlots(slots, requestedRole);
+        }
+        if (slots.isEmpty()) {
+            slots.add("WRITER");
+        }
+        return List.copyOf(slots);
+    }
+
+    private void addReportAssignmentSlots(LinkedHashSet<String> slots, ReportAssignmentRole role) {
+        if (role == ReportAssignmentRole.WRITER) {
+            slots.add("ARCHITECT_ASSISTANT");
+            slots.add("WRITER");
+        } else if (role == ReportAssignmentRole.REVIEWER) {
+            slots.add("REVIEWER");
+        }
+    }
+
+    private void addProjectAssignmentSlots(LinkedHashSet<String> slots, ProjectAssignmentRole role) {
+        if (role == ProjectAssignmentRole.MANAGER) {
+            slots.add("CHIEF_SUPERVISOR");
+        } else if (role == ProjectAssignmentRole.REPORT_WRITER) {
+            slots.add("ARCHITECT_ASSISTANT");
+            slots.add("WRITER");
+        }
+    }
+
+    private void addRequestedRoleSlots(LinkedHashSet<String> slots, String requestedRole) {
+        var role = normalizeText(requestedRole);
+        var normalized = role.toUpperCase();
+        if (normalized.contains("CHIEF")
+                || normalized.contains("MANAGER")
+                || role.contains("총괄")
+                || role.contains("책임")) {
+            slots.add("CHIEF_SUPERVISOR");
+        }
+        if (normalized.contains("ASSISTANT")
+                || normalized.contains("WRITER")
+                || role.contains("건축사보")
+                || role.contains("감리사보")) {
+            slots.add("ARCHITECT_ASSISTANT");
+            slots.add("WRITER");
+        }
+        if (normalized.contains("REVIEWER") || role.contains("검토")) {
+            slots.add("REVIEWER");
+        }
     }
 
     private String validateSignatureImageDataUrl(String dataUrl, String requestedMimeType) {
@@ -670,7 +766,10 @@ public class DocumentJobService {
             return photos;
         }
         var photos = new ArrayList<com.archdox.document.PhotoAsset>();
-        for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
+        for (Photo photo : photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(
+                report.officeId(),
+                report.id(),
+                PhotoStatus.DELETED)) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
             if (working.isEmpty() || working.get().status() != PhotoAssetStatus.UPLOADED) {
                 continue;
@@ -689,7 +788,10 @@ public class DocumentJobService {
 
     private void requirePhotoAssetsReadyForGeneration(InspectionReport report) {
         var pendingPhotoIds = new ArrayList<Long>();
-        for (Photo photo : photoRepository.findByOfficeIdAndReportIdOrderByIdDesc(report.officeId(), report.id())) {
+        for (Photo photo : photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(
+                report.officeId(),
+                report.id(),
+                PhotoStatus.DELETED)) {
             var working = photoAssetRepository.findByPhotoIdAndAssetType(photo.id(), PhotoAssetType.WORKING);
             if (working.isEmpty() || working.get().status() != PhotoAssetStatus.UPLOADED) {
                 pendingPhotoIds.add(photo.id());

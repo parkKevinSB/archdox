@@ -107,8 +107,18 @@ Cloud DB stores metadata and logical references:
 - `photo_id`
 - `office_id`
 - `project_id`
+- `site_id`
 - `report_id`
 - `step_code`
+- `checklist_item_id`
+- `site_supervision_entry_id` as a weak supervision ledger/projection link
+- `trade_code` / `process_code` / `inspection_item_code`
+- `caption`
+- `location_note`
+- `drawing_ref` as a future drawing/floor-plan logical reference
+- future related issue / finding / corrective-action reference
+- future drawing/floor-plan marker/coordinate, when attached
+- report/document inclusion status, when selected for output
 - `hash_sha256`
 - `mime_type`
 - `bytes`
@@ -134,6 +144,11 @@ offices/10/reports/1000/photos/abc/working.jpg
 ```
 
 The ArchDox Agent maps the logical key to its configured local path.
+
+This is important for future MCP/AI-agent use. A user's local AI agent may ask
+ArchDox to organize photos, documents, and reports, but ArchDox should expose
+scoped evidence context and logical file references. Raw NAS/PC paths remain
+inside the ArchDox Agent or user-controlled storage configuration.
 
 ## Upload Targets
 

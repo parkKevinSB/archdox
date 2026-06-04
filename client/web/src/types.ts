@@ -10,6 +10,20 @@ export type Office = {
   type: string;
   planCode: string;
   role: MembershipRole;
+  permissions?: OfficePermissions;
+};
+
+export type OfficePermissions = {
+  manageOfficeMembers: boolean;
+  manageProjects: boolean;
+  manageProjectAssignments: boolean;
+  manageSites: boolean;
+  createReports: boolean;
+  writeReports: boolean;
+  deleteReports: boolean;
+  generateDocuments: boolean;
+  uploadPhotos: boolean;
+  accessOfficeAdmin: boolean;
 };
 
 export type MeResponse = {
@@ -35,6 +49,9 @@ export type Project = {
   startDate?: string | null;
   endDate?: string | null;
   status: string;
+  manageAllowed?: boolean;
+  structureManageAllowed?: boolean;
+  reportCreateAllowed?: boolean;
 };
 
 export type Site = {

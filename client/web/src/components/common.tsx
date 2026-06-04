@@ -109,7 +109,7 @@ export function FullScreenCenter({ children }: { children: ReactNode }) {
 }
 
 function statusTone(status: string) {
-  if (["ACTIVE", "GENERATED", "COMPLETED", "READY_TO_GENERATE", "STEP_SAVED", "UPLOADED", "PICKED_UP", "NOT_REQUIRED", "PASSED"].includes(status)) {
+  if (["ACTIVE", "GENERATED", "COMPLETED", "READY_TO_GENERATE", "STEP_SAVED", "UPLOADED", "PICKED_UP", "NOT_REQUIRED", "PASSED", "PUBLISHED"].includes(status)) {
     return "green";
   }
   if (["DRAFT", "REQUESTED", "GENERATING", "GENERATION_REQUESTED", "PENDING", "PENDING_UPLOAD", "RUNNING", "STALE", "NEEDS_ATTENTION"].includes(status)) {
@@ -147,6 +147,7 @@ export function statusLabel(status: string) {
     PENDING: "대기 중",
     PENDING_UPLOAD: "업로드 대기",
     PICKED_UP: "수거 완료",
+    PUBLISHED: "게시됨",
     QUEUED: "대기 중",
     READY_TO_GENERATE: "문서 생성 가능",
     RENDERING: "문서 렌더링 중",
@@ -162,4 +163,14 @@ export function statusLabel(status: string) {
     WAITING_FOR_AGENT: "Agent 응답 대기"
   };
   return labels[status] ?? status;
+}
+
+export function reportTypeLabel(reportType: string) {
+  const labels: Record<string, string> = {
+    CONSTRUCTION_DAILY_LOG: "공사감리일지",
+    CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
+    CONSTRUCTION_SUPERVISION_REPORT: "감리보고서",
+    DAILY_SUPERVISION: "공사감리일지"
+  };
+  return labels[reportType] ?? reportType;
 }

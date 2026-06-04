@@ -35,6 +35,8 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     private static final String DEFAULT_HEADER_FILL = "F3F4F6";
     private static final String DEFAULT_TITLE_FILL = "EEF2F7";
     private static final int OFFICIAL_PAGE_WIDTH = 10460;
+    private static final long SIGNATURE_WIDTH_EMU = 1_120_000L;
+    private static final long SIGNATURE_HEIGHT_EMU = 420_000L;
 
     private final TemplateContentResolver templateContentResolver;
     private final PhotoContentResolver photoContentResolver;
@@ -295,11 +297,10 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 + binding(context, "weather");
         var supervisorCell = new ArrayList<String>();
         supervisorCell.add(officialParagraph("총괄감리책임자    " + binding(context, "chiefSupervisorName", "supervisorName", "inspectorName"), false, 20, "left"));
-        signatureImageParagraph(context).ifPresent(supervisorCell::add);
-        supervisorCell.add(officialParagraph("(서명 또는 인)", false, 18, "right"));
+        supervisorCell.add(officialSignatureMarkParagraph(context, "CHIEF_SUPERVISOR", true));
         var assistantCell = List.of(
                 officialParagraph("건축사보    " + binding(context, "architectAssistantName", "assistantArchitectName", "assistantSupervisorName"), false, 20, "left"),
-                officialParagraph("(서명 또는 인)", false, 18, "right"));
+                officialSignatureMarkParagraph(context, "ARCHITECT_ASSISTANT", false));
         var rows = new StringBuilder();
         rows.append(officialRow(List.of(
                 officialCell(List.of(officialParagraph("일련번호    " + serialNo, false, 18, "left")), String.valueOf(OFFICIAL_PAGE_WIDTH), 4)),
@@ -418,18 +419,16 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         for (Object groupValue : groups) {
             var group = mapValue(groupValue);
             var groupLabel = officialGroupLabel(group);
-            var items = listValue(group.get("items"));
-            if (items.isEmpty() && !groupLabel.isBlank()) {
+            var entries = listValue(group.get("entries"));
+            if (entries.isEmpty() && !groupLabel.isBlank()) {
                 rows.add(new OfficialSupervisionRow(groupLabel, "", ""));
                 continue;
             }
             var firstRowInGroup = true;
-            for (Object itemValue : items) {
-                var item = mapValue(itemValue);
-                var focus = firstNonBlank(
-                        valueOrBlank(item.get("inspectionItemName")).trim(),
-                        valueOrBlank(item.get("item")).trim());
-                var content = valueOrBlank(item.get("content")).trim();
+            for (Object entryValue : entries) {
+                var entry = mapValue(entryValue);
+                var focus = valueOrBlank(entry.get("inspectionItemName")).trim();
+                var content = valueOrBlank(entry.get("supervisionContent")).trim();
                 if (groupLabel.isBlank() && focus.isBlank() && content.isBlank()) {
                     continue;
                 }
@@ -441,9 +440,9 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String officialGroupLabel(Map<String, Object> group) {
-        var trade = valueOrBlank(group.get("trade")).trim();
+        var trade = valueOrBlank(group.get("tradeName")).trim();
         var process = joinedNonBlank(
-                valueOrBlank(group.get("process")).trim(),
+                valueOrBlank(group.get("processName")).trim(),
                 valueOrBlank(group.get("floor")).trim());
         if (trade.isBlank()) {
             return process.isBlank() ? "" : "(" + process + ")";
@@ -918,8 +917,76 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         if (content.isEmpty()) {
             return Optional.empty();
         }
-        var image = context.addImage("archdox-signature", content.get(), PhotoLayoutSize.THUMBNAIL);
+        var image = context.addImage("archdox-signature", content.get(), SIGNATURE_WIDTH_EMU, SIGNATURE_HEIGHT_EMU);
         return Optional.of("<w:p><w:r>" + drawingXml(image) + "</w:r></w:p>");
+    }
+
+    private String officialSignatureMarkParagraph(
+            DocxRenderContext context,
+            String signatureSlot,
+            boolean renderWhenSlotUnspecified
+    ) throws IOException {
+        var text = "(서명 또는 인)";
+        var content = signatureImageContent(context.request());
+        var signatureDrawing = "";
+        if (content.isPresent() && shouldRenderSignatureSlot(context, signatureSlot, renderWhenSlotUnspecified)) {
+            var image = context.addImage("archdox-signature", content.get(), SIGNATURE_WIDTH_EMU, SIGNATURE_HEIGHT_EMU);
+            signatureDrawing = signatureAnchorDrawingXml(image);
+        }
+        return """
+                <w:p>
+                  <w:pPr>
+                    <w:jc w:val="right"/>
+                    <w:spacing w:before="0" w:after="0"/>
+                  </w:pPr>
+                  <w:r><w:t>%s</w:t></w:r>
+                  %s
+                </w:p>
+                """.formatted(escapeXml(text), signatureDrawing.isBlank() ? "" : "<w:r>" + signatureDrawing + "</w:r>");
+    }
+
+    private boolean shouldRenderSignatureSlot(
+            DocxRenderContext context,
+            String signatureSlot,
+            boolean renderWhenSlotUnspecified
+    ) {
+        var signature = mapValue(context.request().payload().get("signature"));
+        var slots = listValue(signature.get("signatureSlots"));
+        if (slots.isEmpty()) {
+            return renderWhenSlotUnspecified;
+        }
+        for (var slot : slots) {
+            if (signatureSlotMatches(slot, signatureSlot)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean signatureSlotMatches(Object actualSlot, String expectedSlot) {
+        var actual = valueOrBlank(actualSlot).trim();
+        var expected = normalizeCode(expectedSlot);
+        var code = normalizeCode(actual);
+        if (code.equals("ALL") || code.equals(expected)) {
+            return true;
+        }
+        if ("CHIEF_SUPERVISOR".equals(expected)) {
+            return code.equals("TOTAL_SUPERVISOR")
+                    || code.equals("SUPERVISOR")
+                    || code.equals("PROJECT_MANAGER")
+                    || code.equals("MANAGER")
+                    || actual.contains("총괄")
+                    || actual.contains("책임");
+        }
+        if ("ARCHITECT_ASSISTANT".equals(expected)) {
+            return code.equals("ASSISTANT_SUPERVISOR")
+                    || code.equals("ASSISTANT_ARCHITECT")
+                    || code.equals("REPORT_WRITER")
+                    || code.equals("WRITER")
+                    || actual.contains("건축사보")
+                    || actual.contains("감리사보");
+        }
+        return false;
     }
 
     private Optional<ResolvedPhotoContent> signatureImageContent(DocumentGenerationRequest request) {
@@ -1494,6 +1561,61 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 image.heightEmu());
     }
 
+    private String signatureAnchorDrawingXml(DocxImage image) {
+        return """
+                <w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                           xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <wp:anchor distT="0" distB="0" distL="0" distR="0"
+                             simplePos="0" relativeHeight="251659264"
+                             behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">
+                    <wp:simplePos x="0" y="0"/>
+                    <wp:positionH relativeFrom="column">
+                      <wp:align>right</wp:align>
+                    </wp:positionH>
+                    <wp:positionV relativeFrom="paragraph">
+                      <wp:posOffset>-330000</wp:posOffset>
+                    </wp:positionV>
+                    <wp:extent cx="%d" cy="%d"/>
+                    <wp:effectExtent l="0" t="0" r="0" b="0"/>
+                    <wp:wrapNone/>
+                    <wp:docPr id="%d" name="ArchDox Signature %d"/>
+                    <wp:cNvGraphicFramePr>
+                      <a:graphicFrameLocks noChangeAspect="1"/>
+                    </wp:cNvGraphicFramePr>
+                    <a:graphic>
+                      <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:pic>
+                          <pic:nvPicPr>
+                            <pic:cNvPr id="%d" name="%s"/>
+                            <pic:cNvPicPr/>
+                          </pic:nvPicPr>
+                          <pic:blipFill>
+                            <a:blip r:embed="%s"/>
+                            <a:stretch><a:fillRect/></a:stretch>
+                          </pic:blipFill>
+                          <pic:spPr>
+                            <a:xfrm><a:off x="0" y="0"/><a:ext cx="%d" cy="%d"/></a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                          </pic:spPr>
+                        </pic:pic>
+                      </a:graphicData>
+                    </a:graphic>
+                  </wp:anchor>
+                </w:drawing>
+                """.formatted(
+                image.widthEmu(),
+                image.heightEmu(),
+                image.docPrId(),
+                image.docPrId(),
+                image.docPrId(),
+                escapeXml(image.fileName()),
+                image.relationshipId(),
+                image.widthEmu(),
+                image.heightEmu());
+    }
+
     private String updateDocumentRelationships(byte[] existing, List<DocxRelationship> relationships) {
         var xml = existing == null || existing.length == 0
                 ? """
@@ -1968,11 +2090,26 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             return addImage(fileNamePrefix, fileNamePrefix, content, imageSize);
         }
 
+        private DocxImage addImage(String fileNamePrefix, ResolvedPhotoContent content, long widthEmu, long heightEmu) {
+            return addImage(fileNamePrefix, fileNamePrefix, content, widthEmu, heightEmu);
+        }
+
         private DocxImage addImage(
                 String fileNamePrefix,
                 String storageRef,
                 ResolvedPhotoContent content,
                 PhotoLayoutSize imageSize
+        ) {
+            var size = imageSize(imageSize);
+            return addImage(fileNamePrefix, storageRef, content, size[0], size[1]);
+        }
+
+        private DocxImage addImage(
+                String fileNamePrefix,
+                String storageRef,
+                ResolvedPhotoContent content,
+                long widthEmu,
+                long heightEmu
         ) {
             imageCounter++;
             var extension = imageExtension(content, storageRef);
@@ -1988,8 +2125,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             relationships.add(new DocxRelationship(relationshipId, "media/" + fileName));
             contentTypeDefaults.putIfAbsent(extension, imageContentType(extension, content));
             media.add(new DocxMedia(path, content.content()));
-            var size = imageSize(imageSize);
-            return new DocxImage(relationshipId, fileName, imageCounter, size[0], size[1]);
+            return new DocxImage(relationshipId, fileName, imageCounter, widthEmu, heightEmu);
         }
     }
 

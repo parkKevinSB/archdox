@@ -1,52 +1,76 @@
 # Korean Default DOCX Templates
 
-이 디렉터리는 ArchDox document-engine에 기본 포함되는 한국 감리/해체감리 DOCX 템플릿을 보관한다.
+이 디렉터리는 ArchDox `document-engine`에 기본 포함되는 한국 문서
+템플릿을 보관한다.
 
-이 파일들은 `document-engine/build/archdox-smoke`에 생성되는 테스트 산출물이 아니다. PDF 참고 양식을 바탕으로 만든 편집 가능한 기본 템플릿이며, 실제 운영에서는 사무소별 템플릿 업로드/리비전/게시 기능으로 교체하거나 오버라이드할 수 있다.
+## Active MVP Scope
 
-## Template Policy
+현재 ArchDox의 활성 MVP 업무 범위는 **공사감리**다.
 
-- 데이터 원본은 PDF/DOCX 자체가 아니라 `report snapshot + template config + output layout`이다.
-- DOCX는 기본 편집 포맷이며, PDF/HWP/HWPX/HTML은 출력 아티팩트다.
-- LibreOffice는 DOCX 작성 엔진이 아니다. DOCX를 PDF로 변환하거나 렌더링 검증에 사용하는 외부 도구다.
-- PDF 산출물이 필요한 실행 위치에는 LibreOffice headless 도구가 있어야 한다. 기본 구조에서는 API 서버가 아니라 `archdox-agent` 또는 별도 cloud document agent Docker 이미지에 포함한다.
-- 템플릿 안에는 `${fieldName}` 단순 필드와 `${sectionName}` 리치 섹션 플레이스홀더를 둔다.
-- 리치 섹션은 `layoutSections` 설정으로 사진표, 체크리스트표, 사진 설명 같은 반복 구조를 바인딩한다.
+활성 기본 템플릿은 다음 두 가지다.
 
-## Official Forms
-
-ArchDox의 기본 번들 템플릿은 공식 제출용 서식을 정본으로 관리한다.
-
-1. `OFFICIAL_SUBMISSION`
-   - 공공기관 제출 양식에 가깝게 맞춘 기본 번들 서식이다.
-   - 사무소가 그대로 쓰거나 복사해서 오버라이드할 수 있다.
-   - 법정/공공기관 양식에 가까운 구조를 유지하는 것이 우선이다.
-
-사무소 내부용 문서는 별도 기본 프리셋으로 제공하지 않는다. 필요한 경우
-공식 제출용 템플릿을 복사해 사무소별 템플릿 리비전으로 오버라이드한다.
-
-## Construction Daily Log Special Case
-
-`korean-construction-daily-supervision-log-appendix-2.docx` 기본 번들 서식은 ArchDox 공사감리일지의 공식 정본이다. document-engine의 공식 공사감리일지 렌더러가 우선 적용되며, 일련번호, 총괄감리책임자/건축사보 서명란, 공사명/일자, `공종 및 세부공정 / 감리 항목 / 감리내용` 표, 특기사항, 지적사항 및 처리결과, 사진 및 설명, 작성방법 블록을 별지 제2호서식 기준에 가깝게 생성한다.
-
-이 공식 렌더러는 기본 번들 `storageRef`에만 적용한다. 공사감리일지는 별도 내부용 기본 프리셋을 두지 않는다. 사무소별 변형이 필요하면 공식본을 복사한 템플릿 리비전을 업로드/게시해 오버라이드한다.
-
-장기적으로는 공식 렌더러의 범위를 줄이고, 반복 표/사진 섹션 같은 필요한 부분만 리치 섹션 헬퍼로 남기는 방향을 선호한다. 그래야 문서 모양 변경이 코드 수정이 아니라 템플릿/설정 변경으로 처리된다.
-
-## Bundled Files
-
-- `korean-construction-supervision-report-appendix-1.docx`
 - `korean-construction-daily-supervision-log-appendix-2.docx`
+- `korean-construction-supervision-report-appendix-1.docx`
+
+Cloud API의 문서유형 등록, 리포트 생성, 템플릿 필드 카탈로그, AI 검토
+가이드, 사용자 UI는 위 공사감리 업무 범위만 노출해야 한다.
+
+## Deferred / Archived Templates
+
+다음 해체감리 템플릿은 참고 자료와 향후 별도 업무 페이즈를 위한 보관
+자산이다.
+
 - `korean-demolition-safety-checklist-appendix-1.docx`
 - `korean-demolition-daily-supervision-log-appendix-2.docx`
 - `korean-demolition-completion-report-appendix-3.docx`
 
+이 파일들은 삭제하지 않는다. 다만 공사감리 안정화 전까지 Cloud API,
+사용자 UI, 템플릿 필드 카탈로그, 문서유형 목록에서 노출하거나 기본
+선택지로 사용하지 않는다.
+
+해체감리는 공사감리와 다른 업무 도메인이다. 해체감리 문서유형,
+체크리스트, 작성 흐름, 검증 정책을 열려면 별도 phase에서 도메인
+카탈로그와 workflow를 분리해서 구현한다.
+
+## Template Policy
+
+- 데이터 원본은 DOCX/PDF 파일 자체가 아니라
+  `report snapshot + template config + output layout`이다.
+- DOCX는 기본 편집 포맷이며, PDF/HWP/HWPX/HTML은 출력 아티팩트다.
+- LibreOffice는 DOCX 작성 엔진이 아니라 DOCX를 PDF로 변환하거나 렌더링
+  검증에 사용하는 외부 도구다.
+- 공식 공사감리일지는 별지 제2호서식에 가까운 bundled renderer를 우선
+  사용한다.
+- 사무소별 양식 변경은 공식본을 복사한 template revision 또는 별도
+  office override로 처리한다.
+
+## Construction Daily Log Special Case
+
+`korean-construction-daily-supervision-log-appendix-2.docx` 기본 번들
+서식은 ArchDox 공사감리일지 공식 표준이다.
+
+문서 엔진은 다음 구조를 기준으로 렌더링한다.
+
+- 일련번호
+- 총괄감리책임자 / 건축사보 서명란
+- 공사명, 일자, 요일, 날씨
+- `공종 및 세부공정 / 감리 항목 / 감리내용`
+- 특기사항
+- 지적사항 및 처리결과
+- 사진 및 설명
+- 작성방법
+
+문서 레이아웃은 나중에 개정될 수 있다. 따라서 구조화된 감리 데이터는
+문서 레이아웃에 종속시키지 않고, 각 문서 생성 시점의 template/layout
+revision과 함께 artifact history에 남긴다.
+
 ## Regeneration
 
-템플릿 구조를 수정할 때는 아래 스크립트를 실행해 DOCX 자산을 다시 만든다.
+템플릿 구조를 수정할 때는 아래 스크립트로 DOCX 자산을 다시 만들 수 있다.
 
 ```powershell
 python scripts/document_templates/generate_korean_default_templates.py
 ```
 
-생성 후에는 document-engine 테스트를 실행해 모든 기본 템플릿에서 미치환 `${...}`가 남지 않는지 확인한다.
+생성 후에는 document-engine 테스트를 실행해 기본 템플릿에 미치환
+`${...}` 값이 남지 않는지 확인한다.

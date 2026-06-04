@@ -49,9 +49,9 @@ class ConfigurationRegistryIntegrationTest {
         var result = mockMvc.perform(get("/api/v1/config/document-template-fields")
                         .header("Authorization", bearer(alpha.accessToken()))
                         .header("X-Office-Id", alpha.officeId())
-                        .param("reportType", "daily_supervision"))
+                        .param("reportType", "construction_daily_supervision_log"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reportType").value("DAILY_SUPERVISION"))
+                .andExpect(jsonPath("$.reportType").value("CONSTRUCTION_DAILY_SUPERVISION_LOG"))
                 .andExpect(jsonPath("$.fields").isArray())
                 .andExpect(jsonPath("$.presets").isArray())
                 .andReturn();
@@ -77,7 +77,7 @@ class ConfigurationRegistryIntegrationTest {
                 "/api/v1/config/document-templates",
                 "daily-template",
                 "Daily Template",
-                "daily_supervision");
+                "construction_daily_supervision_log");
         var templateRevisionId = createTemplateRevision(alpha, templateId);
         publish(alpha, "/api/v1/config/document-template-revisions/" + templateRevisionId + "/publish");
 
@@ -86,7 +86,7 @@ class ConfigurationRegistryIntegrationTest {
                 "/api/v1/config/workflow-definitions",
                 "daily-flow",
                 "Daily Flow",
-                "daily_supervision");
+                "construction_daily_supervision_log");
         var workflowRevisionId = createJsonRevision(
                 alpha,
                 "/api/v1/config/workflow-definitions/" + workflowId + "/revisions",
@@ -104,7 +104,7 @@ class ConfigurationRegistryIntegrationTest {
                 "/api/v1/config/rule-sets",
                 "daily-rules",
                 "Daily Rules",
-                "daily_supervision");
+                "construction_daily_supervision_log");
         var ruleSetRevisionId = createJsonRevision(
                 alpha,
                 "/api/v1/config/rule-sets/" + ruleSetId + "/revisions",
@@ -122,7 +122,7 @@ class ConfigurationRegistryIntegrationTest {
                 "/api/v1/config/output-layouts",
                 "daily-layout",
                 "Daily Layout",
-                "daily_supervision");
+                "construction_daily_supervision_log");
         var layoutRevisionId = createJsonRevision(
                 alpha,
                 "/api/v1/config/output-layouts/" + layoutId + "/revisions",
@@ -148,13 +148,13 @@ class ConfigurationRegistryIntegrationTest {
                   "outputLayoutRevisionId": %d
                 }
                 """.formatted(templateRevisionId, workflowRevisionId, ruleSetRevisionId, layoutRevisionId);
-        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "construction_daily_supervision_log")
                         .header("Authorization", bearer(alpha.accessToken()))
                         .header("X-Office-Id", alpha.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(overrideBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reportType").value("DAILY_SUPERVISION"))
+                .andExpect(jsonPath("$.reportType").value("CONSTRUCTION_DAILY_SUPERVISION_LOG"))
                 .andExpect(jsonPath("$.template.revisionId").value(templateRevisionId))
                 .andExpect(jsonPath("$.workflow.revisionId").value(workflowRevisionId))
                 .andExpect(jsonPath("$.ruleSet.revisionId").value(ruleSetRevisionId))
@@ -163,7 +163,7 @@ class ConfigurationRegistryIntegrationTest {
         mockMvc.perform(get("/api/v1/config/resolve")
                         .header("Authorization", bearer(alpha.accessToken()))
                         .header("X-Office-Id", alpha.officeId())
-                        .param("reportType", "daily_supervision"))
+                        .param("reportType", "construction_daily_supervision_log"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.template.source").value("OFFICE_OVERRIDE"))
                 .andExpect(jsonPath("$.template.revisionId").value(templateRevisionId))
@@ -171,7 +171,7 @@ class ConfigurationRegistryIntegrationTest {
                 .andExpect(jsonPath("$.ruleSet.source").value("OFFICE_OVERRIDE"))
                 .andExpect(jsonPath("$.outputLayout.source").value("OFFICE_OVERRIDE"));
 
-        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "daily_supervision")
+        mockMvc.perform(put("/api/v1/config/office-overrides/{reportType}", "construction_daily_supervision_log")
                         .header("Authorization", bearer(bravo.accessToken()))
                         .header("X-Office-Id", bravo.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -194,7 +194,7 @@ class ConfigurationRegistryIntegrationTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value(code.toUpperCase(java.util.Locale.ROOT)))
-                .andExpect(jsonPath("$.reportType").value("DAILY_SUPERVISION"))
+                .andExpect(jsonPath("$.reportType").value("CONSTRUCTION_DAILY_SUPERVISION_LOG"))
                 .andReturn();
         return readId(result.getResponse().getContentAsString());
     }

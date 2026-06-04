@@ -77,6 +77,22 @@ public class Project {
         this.updatedAt = now;
     }
 
+    public void updateDetails(
+            String name,
+            String address,
+            String buildingType,
+            LocalDate startDate,
+            LocalDate endDate,
+            OffsetDateTime now
+    ) {
+        this.name = name;
+        this.address = address;
+        this.buildingType = buildingType;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.updatedAt = now;
+    }
+
     public Long id() {
         return id;
     }

@@ -31,6 +31,14 @@ public interface DocumentTypeDefinitionRepository extends JpaRepository<Document
     @Query("""
             select definition from DocumentTypeDefinition definition
             where definition.active = true
+              and definition.officeId is null
+            order by definition.displayOrder asc, definition.id asc
+            """)
+    List<DocumentTypeDefinition> findSystemVisible();
+
+    @Query("""
+            select definition from DocumentTypeDefinition definition
+            where definition.active = true
               and (definition.officeId is null or definition.officeId = :officeId)
               and (
                     upper(definition.code) = :normalizedCode
@@ -43,6 +51,20 @@ public interface DocumentTypeDefinitionRepository extends JpaRepository<Document
             """)
     List<DocumentTypeDefinition> findResolutionCandidates(
             @Param("officeId") Long officeId,
+            @Param("normalizedCode") String normalizedCode
+    );
+
+    @Query("""
+            select definition from DocumentTypeDefinition definition
+            where definition.active = true
+              and definition.officeId is null
+              and (
+                    upper(definition.code) = :normalizedCode
+                 or upper(definition.reportType) = :normalizedCode
+              )
+            order by definition.displayOrder asc, definition.id asc
+            """)
+    List<DocumentTypeDefinition> findSystemResolutionCandidates(
             @Param("normalizedCode") String normalizedCode
     );
 

@@ -21,6 +21,8 @@ import com.archdox.cloud.project.application.ProjectService;
 import com.archdox.cloud.site.application.SiteService;
 import com.archdox.cloud.supervisionledger.application.SiteSupervisionLedgerService;
 import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -181,6 +183,19 @@ public class InspectionReportService {
         deletionService.deleteReport(report.officeId(), report.id());
     }
 
+    @Transactional
+    public void removePhotoReference(Long reportId, Long photoId, Long userId, OffsetDateTime now) {
+        var report = requireReport(reportId);
+        stepRepository.findByReportIdAndStepCode(report.id(), "DAILY_LOG")
+                .ifPresent(step -> {
+                    var removal = removePhotoIdFromDailyLogPayload(step.payloadJson(), photoId);
+                    if (removal.changed()) {
+                        step.update(removal.payload(), userId, now);
+                        supervisionLedgerService.syncReportDailyLog(report, userId, now);
+                    }
+                });
+    }
+
     public InspectionReport requireReport(Long reportId) {
         var officeId = OfficeContext.requireCurrentOfficeId();
         return reportRepository.findByIdAndOfficeId(reportId, officeId)
@@ -287,5 +302,87 @@ public class InspectionReportService {
     private String defaultTitle(String title, String fallback) {
         var trimmed = trimToNull(title);
         return trimmed == null ? fallback : trimmed;
+    }
+
+    private DailyLogPhotoRemoval removePhotoIdFromDailyLogPayload(Map<String, Object> payload, Long photoId) {
+        if (payload == null || payload.isEmpty()) {
+            return new DailyLogPhotoRemoval(Map.of(), false);
+        }
+        var nextPayload = new LinkedHashMap<>(payload);
+        var dailyItems = mapValue(nextPayload.get("dailyItems"));
+        if (dailyItems.isEmpty()) {
+            return new DailyLogPhotoRemoval(nextPayload, false);
+        }
+        var nextDailyItems = new LinkedHashMap<>(dailyItems);
+        var groups = listValue(nextDailyItems.get("groups"));
+        var changed = false;
+        var nextGroups = new ArrayList<Object>();
+        for (Object groupValue : groups) {
+            var group = mapValue(groupValue);
+            if (group.isEmpty()) {
+                nextGroups.add(groupValue);
+                continue;
+            }
+            var nextGroup = new LinkedHashMap<>(group);
+            var entries = listValue(nextGroup.get("entries"));
+            var nextEntries = new ArrayList<Object>();
+            for (Object entryValue : entries) {
+                var entry = mapValue(entryValue);
+                if (entry.isEmpty()) {
+                    nextEntries.add(entryValue);
+                    continue;
+                }
+                var nextEntry = new LinkedHashMap<>(entry);
+                var photoIds = listValue(nextEntry.get("photoIds"));
+                var nextPhotoIds = new ArrayList<Object>();
+                for (Object rawPhotoId : photoIds) {
+                    var currentPhotoId = longValue(rawPhotoId);
+                    if (currentPhotoId != null && currentPhotoId.equals(photoId)) {
+                        changed = true;
+                        continue;
+                    }
+                    nextPhotoIds.add(rawPhotoId);
+                }
+                nextEntry.put("photoIds", nextPhotoIds);
+                nextEntries.add(nextEntry);
+            }
+            nextGroup.put("entries", nextEntries);
+            nextGroups.add(nextGroup);
+        }
+        if (changed) {
+            nextDailyItems.put("groups", nextGroups);
+            nextPayload.put("dailyItems", nextDailyItems);
+        }
+        return new DailyLogPhotoRemoval(nextPayload, changed);
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        var result = new LinkedHashMap<String, Object>();
+        raw.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
+        return result;
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private record DailyLogPhotoRemoval(Map<String, Object> payload, boolean changed) {
     }
 }

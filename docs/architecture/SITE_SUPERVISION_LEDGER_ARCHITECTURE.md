@@ -48,6 +48,9 @@ The relationship is:
 ```text
 DAILY_LOG step save
 -> parse dailyItems
+-> require report.siteId
+-> validate trade/process/inspection item codes against the active construction
+   supervision catalog
 -> replace draft ledger entries for report/revision/step
 -> keep source_report_id, source_report_revision, source_step_code
 
@@ -59,6 +62,19 @@ This preserves both:
 
 - document authoring history
 - reusable site-level supervision facts
+
+Current implementation rule:
+
+- DAILY_LOG ledger projection is site-bound. If a construction daily log has no
+  `siteId`, ArchDox blocks the ledger projection instead of silently skipping
+  it.
+- Submit validation also surfaces missing site context for workflows that use
+  DAILY_LOG.
+- `trade_name`, `process_name`, and `inspection_item_name` are normalized from
+  the official catalog at projection time. Client payload names are readability
+  hints only.
+- `catalog_code` and `catalog_version` are written from the catalog service,
+  not from hardcoded ledger constants.
 
 ## Current Table
 
@@ -75,7 +91,6 @@ Important columns:
 - `floor_area`
 - `trade_code`, `trade_name`
 - `process_code`, `process_name`
-- `item_code`, `item_name`
 - `inspection_item_code`, `inspection_item_name`
 - `supervision_content`
 - `result_status`
@@ -135,21 +150,32 @@ The current daily log step payload stores:
 ```text
 groups[]
 -> floor
--> tradeCode / trade
--> processCode / process
--> items[]
+-> tradeCode / tradeName
+-> processCode / processName
+-> entries[]
    -> inspectionItemCode / inspectionItemName
-   -> itemCode / item
-   -> content
+   -> supervisionContent
    -> photoIds
 ```
 
 This maps directly to ledger entries.
 
 `inspectionItemCode` and `inspectionItemName` are the domain-facing names.
-They represent the official checklist's `검사항목`. `itemCode` and `item` are
-kept as compatibility aliases because earlier payloads and renderers already use
-them. New UI and APIs should prefer `inspectionItem*`.
+They represent the official checklist's `검사항목`.
+
+The pre-production cleanup intentionally removed the old generic aliases:
+
+- `items`
+- `trade`
+- `process`
+- `itemCode`
+- `item`
+- `content`
+
+ArchDox has not started real office production migration yet, so preserving
+confusing aliases would make the domain harder to understand. If a future real
+production schema must be changed, it should be versioned and migrated instead
+of silently accepting multiple payload shapes forever.
 
 The distinction is important:
 
@@ -172,6 +198,10 @@ so multiple documents can be generated from the same supervision source data.
 
 The next natural upgrades are:
 
+0. Move ledger projection from direct service invocation toward a Bloom-backed
+   domain event projection once more projections depend on report step saves.
+   The current inline projection is acceptable for the MVP because it keeps the
+   report draft and ledger rows transactionally aligned.
 1. Add ledger selection APIs for checklist/report generation:
    - by date range
    - by trade/process/item

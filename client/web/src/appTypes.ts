@@ -6,4 +6,14 @@ export type AppState = {
   user: MeResponse;
 };
 
-export type ViewKey = "home" | "projects" | "sites" | "reports" | "photos" | "jobs" | "workChat" | "insightChat" | "more";
+export type ViewKey =
+  | "home"
+  | "projects"
+  | "sites"
+  | "reports"
+  | "photos"
+  | "jobs"
+  | "legalUpdates"
+  | "workChat"
+  | "insightChat"
+  | "more";

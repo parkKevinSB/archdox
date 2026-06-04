@@ -27,6 +27,20 @@ public class ResolveArchDoxWorkerActionStep extends Step {
 
     @Override
     protected StepResult onTick(StepContext ctx) {
+        var definition = registry.definition(session.action().actionType());
+        if (definition.isEmpty()) {
+            session.result(ArchDoxWorkerActionResult.rejected(
+                    "WORKER_ACTION_NOT_DEFINED",
+                    "Worker action definition is missing"));
+            traceSink.record(ArchDoxWorkerTraceEvent.of(
+                    ArchDoxWorkerTraceEventType.ACTION_UNKNOWN,
+                    session.request(),
+                    session.action(),
+                    "WORKER_ACTION_NOT_DEFINED",
+                    "Worker action definition is missing"));
+            return StepResult.goTo("record-worker-result");
+        }
+        session.definition(definition.get());
         var executor = registry.resolve(session.action().actionType());
         if (executor.isEmpty()) {
             session.result(ArchDoxWorkerActionResult.rejected(

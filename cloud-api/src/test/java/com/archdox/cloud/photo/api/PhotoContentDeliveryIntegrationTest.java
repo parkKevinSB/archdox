@@ -237,7 +237,7 @@ class PhotoContentDeliveryIntegrationTest {
                         .content("""
                                 {
                                   "projectId": %d,
-                                  "reportType": "DAILY_SUPERVISION",
+                                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                                   "title": "Photo preview report"
                                 }
                                 """.formatted(projectId)))

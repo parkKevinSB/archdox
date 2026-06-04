@@ -663,18 +663,22 @@ Examples:
 
 UI should use permission helpers for visibility/disabled states, while Cloud API
 remains the source of truth and must enforce the same rules server-side.
+The UI must prefer effective permission fields returned by the API over local
+role inference.
 
 Current MVP helpers:
 
-- `canManageProjects(office)`: personal `OWNER`, or office `OWNER`/`ADMIN`.
-  Used for project creation and assignment-management controls. Project
-  `MANAGER` assignments are project-specific and must be checked with loaded
-  assignment data before enabling site/target management for non-admin members.
-- `canWriteReports(office)`: personal `OWNER`, or office
-  `OWNER`/`ADMIN`/`MEMBER`. Used for report start, report step save,
-  checklist answer save, report-target attachment, and submit controls. This is
-  only the office-level baseline; project/report assignments can narrow access
-  once assignment lists exist.
+- `canManageProjects(office)`: uses `office.permissions.manageProjects` when
+  present. Used for project creation/deletion controls.
+- `canManageSites(office)`: uses `office.permissions.manageSites` when present.
+  For a selected project, prefer `project.structureManageAllowed` because
+  project `MANAGER` assignments are project-specific.
+- `canWriteReports(office)`: uses `office.permissions.writeReports` when
+  present. For a selected project, prefer `project.reportCreateAllowed`; for an
+  existing report, prefer `report.writeAllowed`.
+- `canManageOfficeAssignments(office)`: uses
+  `office.permissions.manageProjectAssignments` when present and controls
+  project/report assignment UI.
 
 Rule: do not inline these role checks in every component. Add/adjust a domain
 helper first, then consume it from screens.

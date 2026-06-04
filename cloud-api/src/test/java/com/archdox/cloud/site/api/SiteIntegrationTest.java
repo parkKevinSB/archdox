@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -75,8 +78,8 @@ class SiteIntegrationTest {
                 {
                   "projectId": %d,
                   "siteId": %d,
-                  "reportType": "PERIODIC_SAFETY",
-                  "title": "Quarterly Safety Check"
+                  "reportType": "CONSTRUCTION_SUPERVISION_REPORT",
+                  "title": "Construction supervision report"
                 }
                 """.formatted(projectId, siteId);
 
@@ -88,7 +91,7 @@ class SiteIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.projectId").value(projectId))
                 .andExpect(jsonPath("$.siteId").value(siteId))
-                .andExpect(jsonPath("$.reportType").value("PERIODIC_SAFETY"));
+                .andExpect(jsonPath("$.reportType").value("CONSTRUCTION_SUPERVISION_REPORT"));
     }
 
     @Test
@@ -148,24 +151,22 @@ class SiteIntegrationTest {
                                           "id": "group-1",
                                           "floor": "1F",
                                           "tradeCode": "REINFORCED_CONCRETE",
-                                          "trade": "Reinforced concrete",
+                                          "tradeName": "Reinforced concrete",
                                           "processCode": "REBAR_ASSEMBLY",
-                                          "process": "Rebar assembly",
-                                          "items": [
+                                          "processName": "Rebar assembly",
+                                          "entries": [
                                               {
-                                                "id": "item-1",
-                                                "itemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                                "item": "Rebar count and pitch",
+                                                "id": "entry-1",
                                                 "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
                                                 "inspectionItemName": "Rebar count and pitch",
-                                                "content": "Checked rebar spacing and count.",
+                                                "supervisionContent": "Checked rebar spacing and count.",
                                                 "photoIds": [10, 11]
                                               },
                                             {
-                                              "id": "item-2",
-                                              "itemCode": "RC_REBAR_ANCHORAGE",
-                                              "item": "Anchorage length",
-                                              "content": "Anchorage length reviewed.",
+                                              "id": "entry-2",
+                                              "inspectionItemCode": "RC_REBAR_ANCHORAGE",
+                                              "inspectionItemName": "Anchorage length",
+                                              "supervisionContent": "Anchorage length reviewed.",
                                               "photoIds": []
                                             }
                                           ]
@@ -188,7 +189,8 @@ class SiteIntegrationTest {
                   .andExpect(jsonPath("$[0].tradeCode").value("REINFORCED_CONCRETE"))
                   .andExpect(jsonPath("$[0].processCode").value("REBAR_ASSEMBLY"))
                   .andExpect(jsonPath("$[*].inspectionItemCode", hasItem("RC_REBAR_COUNT_DIAMETER_PITCH")))
-                  .andExpect(jsonPath("$[*].inspectionItemName", hasItem("Rebar count and pitch")))
+                  .andExpect(jsonPath("$[0].catalogCode").value("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24"))
+                  .andExpect(jsonPath("$[0].catalogVersion").value(2))
                   .andExpect(jsonPath("$[0].sourceReportId").value(reportId))
                   .andExpect(jsonPath("$[0].sourceReportRevision").value(1));
 
@@ -200,6 +202,8 @@ class SiteIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].entryDate").value("2026-06-03"));
+
+        uploadWorkingPhoto(user, projectId, reportId);
 
         mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
                         .header("Authorization", bearer(user.accessToken()))
@@ -324,7 +328,7 @@ class SiteIntegrationTest {
                 {
                   "projectId": %d,
                   "siteId": %d,
-                  "reportType": "DAILY_SUPERVISION",
+                  "reportType": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                   "title": "Daily report"
                 }
                 """.formatted(projectId, siteId);
@@ -354,6 +358,51 @@ class SiteIntegrationTest {
                         .header("X-Office-Id", user.officeId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isOk());
+    }
+
+    private void uploadWorkingPhoto(TestUser user, long projectId, long reportId) throws Exception {
+        var bytes = "site-ledger-working-photo".getBytes(StandardCharsets.UTF_8);
+        var hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        var intentResult = mockMvc.perform(post("/api/v1/photos/intent")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "reportId": %d,
+                                  "stepCode": "PHOTOS",
+                                  "captureKind": "UPLOAD",
+                                  "mime": "image/png",
+                                  "bytes": %d,
+                                  "hash": "%s",
+                                  "width": 640,
+                                  "height": 480,
+                                  "wantsOriginal": false
+                                }
+                                """.formatted(projectId, reportId, bytes.length, hash)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        var photoId = objectMapper.readTree(intentResult.getResponse().getContentAsString()).get("photoId").asLong();
+        mockMvc.perform(put("/api/v1/photos/{photoId}/content/{kind}", photoId, "WORKING")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.IMAGE_PNG)
+                        .content(bytes))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/photos/{photoId}/confirm", photoId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "hash": "%s",
+                                  "bytes": %d,
+                                  "width": 640,
+                                  "height": 480
+                                }
+                                """.formatted(hash, bytes.length)))
                 .andExpect(status().isOk());
     }
 

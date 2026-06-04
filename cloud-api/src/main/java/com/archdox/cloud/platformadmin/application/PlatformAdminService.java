@@ -28,6 +28,16 @@ public class PlatformAdminService {
     }
 
     @Transactional(readOnly = true)
+    public boolean isPlatformAdmin(UserPrincipal principal) {
+        return principal != null && isPlatformAdmin(principal.userId());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isPlatformAdmin(Long userId) {
+        return userId != null && repository.findByUserIdAndStatus(userId, PlatformAdminStatus.ACTIVE).isPresent();
+    }
+
+    @Transactional(readOnly = true)
     public PlatformAdmin requirePlatformAdmin(UserPrincipal principal, PlatformAdminRole... allowedRoles) {
         if (principal == null) {
             throw forbidden();

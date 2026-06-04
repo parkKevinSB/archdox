@@ -65,7 +65,7 @@ class DocxTemplateSmokeTest {
                 "job-smoke-1",
                 "office-smoke",
                 "report-smoke-1",
-                new TemplateSpec("DAILY_SUPERVISION", 2, "templates/smoke-inspection.docx", "{}", "{}"),
+                new TemplateSpec("CONSTRUCTION_DAILY_SUPERVISION_LOG", 2, "templates/smoke-inspection.docx", "{}", "{}"),
                 Map.of(
                         "templateFields", Map.of(
                                 "projectName", "Project Alpha",
@@ -156,7 +156,7 @@ class DocxTemplateSmokeTest {
                 "job-hwp-derived-1",
                 "office-smoke",
                 "report-hwp-derived-1",
-                new TemplateSpec("CONSTRUCTION_SUPERVISION_DAILY_LOG", 1, "templates/hwp-derived-daily-log.docx", "{}", "{}"),
+                new TemplateSpec("CONSTRUCTION_DAILY_SUPERVISION_LOG", 1, "templates/hwp-derived-daily-log.docx", "{}", "{}"),
                 Map.of(
                         "templateFields", Map.of(
                                 "serialNo", "DL-2026-0523-001",
@@ -250,32 +250,32 @@ class DocxTemplateSmokeTest {
                                         "payload", Map.of(
                                                 "dailyItems", Map.of(
                                                         "groups", List.of(
-                                                                Map.of(
-                                                                        "tradeCode", "REINFORCED_CONCRETE",
-                                                                        "trade", "철근 콘크리트 공사",
-                                                                        "process", "기초, 지하층 바닥",
-                                                                        "floor", "기초층",
-                                                                        "items", List.of(
-                                                                                Map.of(
-                                                                                        "itemCode", "REBAR_ASSEMBLY",
-                                                                                        "item", "철근 조립, 배근",
-                                                                                        "content", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
-                                                                                        "photoIds", List.of(1, 2)),
-                                                                                Map.of(
-                                                                                        "itemCode", "REBAR_CERTIFICATE",
-                                                                                        "item", "철근 규격 증명서",
-                                                                                        "content", "KS마크 또는 시험성적증명서 확인",
-                                                                                        "photoIds", List.of()))),
-                                                                Map.of(
-                                                                        "tradeCode", "TEMPORARY_WORKS",
-                                                                        "trade", "가설공사",
-                                                                        "process", "3층",
-                                                                        "floor", "3층",
-                                                                        "items", List.of(Map.of(
-                                                                                "itemCode", "SETTING_OUT",
-                                                                                "item", "줄쳐보기",
-                                                                                "content", "대지경계 및 기준선 확인",
-                                                                                "photoIds", List.of()))))))))),
+                                                                    Map.of(
+                                                                            "tradeCode", "REINFORCED_CONCRETE",
+                                                                            "tradeName", "철근 콘크리트 공사",
+                                                                            "processName", "기초, 지하층 바닥",
+                                                                            "floor", "기초층",
+                                                                            "entries", List.of(
+                                                                                    Map.of(
+                                                                                            "inspectionItemCode", "REBAR_ASSEMBLY",
+                                                                                            "inspectionItemName", "철근 조립, 배근",
+                                                                                            "supervisionContent", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                            "photoIds", List.of(1, 2)),
+                                                                                    Map.of(
+                                                                                            "inspectionItemCode", "REBAR_CERTIFICATE",
+                                                                                            "inspectionItemName", "철근 규격 증명서",
+                                                                                            "supervisionContent", "KS마크 또는 시험성적증명서 확인",
+                                                                                            "photoIds", List.of()))),
+                                                                    Map.of(
+                                                                            "tradeCode", "TEMPORARY_WORKS",
+                                                                            "tradeName", "가설공사",
+                                                                            "processName", "3층",
+                                                                            "floor", "3층",
+                                                                            "entries", List.of(Map.of(
+                                                                                    "inspectionItemCode", "SETTING_OUT",
+                                                                                    "inspectionItemName", "줄쳐보기",
+                                                                                    "supervisionContent", "대지경계 및 기준선 확인",
+                                                                                    "photoIds", List.of()))))))))),
                 List.of(),
                 OutputFormat.DOCX));
 

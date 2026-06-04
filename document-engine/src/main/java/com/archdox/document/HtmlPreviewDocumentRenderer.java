@@ -54,6 +54,7 @@ public class HtmlPreviewDocumentRenderer {
                 .append("<p class=\"muted\">").append(escapeHtml(OffsetDateTime.now().toString())).append("</p>")
                 .append("</section>");
         body.append(templateFieldsSection(request));
+        body.append(dailySupervisionSection(request));
         body.append(layoutSections(request));
         body.append(defaultPhotoSection(request));
         body.append(defaultChecklistSection(request));
@@ -416,6 +417,66 @@ public class HtmlPreviewDocumentRenderer {
         return rendered.toString();
     }
 
+    private String dailySupervisionSection(DocumentGenerationRequest request) {
+        var dailyItems = mapValue(readPath(request.payload(), "steps.DAILY_LOG.payload.dailyItems").orElse(null));
+        var groups = listValue(dailyItems.get("groups"));
+        if (groups.isEmpty()) {
+            return "";
+        }
+        var rows = new StringBuilder();
+        rows.append("<thead><tr>")
+                .append("<th>공종 및 세부공정</th>")
+                .append("<th>감리 항목</th>")
+                .append("<th>감리내용</th>")
+                .append("<th>사진</th>")
+                .append("</tr></thead><tbody>");
+        var renderedAny = false;
+        for (var rawGroup : groups) {
+            var group = mapValue(rawGroup);
+            var groupLabel = joinNonBlank(
+                    valueOrBlank(group.get("tradeName")),
+                    valueOrBlank(group.get("processName")),
+                    valueOrBlank(group.get("floor")));
+            var entries = listValue(group.get("entries"));
+            if (entries.isEmpty()) {
+                rows.append("<tr><td>")
+                        .append(escapeHtml(groupLabel))
+                        .append("</td><td></td><td></td><td></td></tr>");
+                renderedAny = true;
+                continue;
+            }
+            for (var rawEntry : entries) {
+                var entry = mapValue(rawEntry);
+                var itemName = valueOrBlank(entry.get("inspectionItemName"));
+                var content = valueOrBlank(entry.get("supervisionContent"));
+                var photoIds = joinValues(listValue(entry.get("photoIds")));
+                if (groupLabel.isBlank() && itemName.isBlank() && content.isBlank() && photoIds.isBlank()) {
+                    continue;
+                }
+                rows.append("<tr><td>")
+                        .append(escapeHtml(groupLabel))
+                        .append("</td><td>")
+                        .append(escapeHtml(itemName))
+                        .append("</td><td>")
+                        .append(escapeHtml(content))
+                        .append("</td><td>")
+                        .append(escapeHtml(photoIds))
+                        .append("</td></tr>");
+                renderedAny = true;
+            }
+        }
+        rows.append("</tbody>");
+        if (!renderedAny) {
+            return "";
+        }
+        return """
+                <section>
+                  <h2>공종별 검사항목</h2>
+                  <table>%s</table>
+                </section>
+                """.formatted(rows);
+    }
+
     private String defaultPhotoSection(DocumentGenerationRequest request) {
         if (!mapValue(request.payload().get("layoutSections")).isEmpty()) {
             return "";
@@ -746,6 +807,27 @@ public class HtmlPreviewDocumentRenderer {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private String joinNonBlank(String... values) {
+        var result = new ArrayList<String>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                result.add(value.trim());
+            }
+        }
+        return String.join(" / ", result);
+    }
+
+    private String joinValues(List<?> values) {
+        var result = new ArrayList<String>();
+        for (Object value : values) {
+            var text = valueOrBlank(value).trim();
+            if (!text.isBlank()) {
+                result.add(text);
+            }
+        }
+        return String.join(", ", result);
     }
 
     private String valueOrBlank(Object value) {

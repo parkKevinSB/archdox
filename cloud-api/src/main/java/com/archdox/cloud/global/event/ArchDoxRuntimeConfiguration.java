@@ -4,6 +4,7 @@ import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthPropertie
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentDeliveryProperties;
 import com.archdox.cloud.documentai.application.DocumentAiReviewProperties;
+import com.archdox.cloud.legal.application.LegalSyncProperties;
 import com.archdox.cloud.photo.application.PhotoDerivativeProperties;
 import com.archdox.cloud.photo.application.PhotoPickupProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
@@ -34,6 +35,7 @@ public class ArchDoxRuntimeConfiguration {
     public static final String PLATFORM_OPS_AI_WORKER = "platform-ops-ai";
     public static final String ARCHDOX_WORKER_SERVICE_WORKER = "archdox-worker";
     public static final String ARCHDOX_WORKER_PLANNER_AI_WORKER = "archdox-worker-planner-ai";
+    public static final String LEGAL_SYNC_WORKER = "legal-sync";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -50,7 +52,8 @@ public class ArchDoxRuntimeConfiguration {
             DocumentAiReviewProperties documentAiReviewProperties,
             ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties,
             PlatformOpsDetectionProperties platformOpsDetectionProperties,
-            ArchDoxWorkerRuntimeProperties archDoxWorkerRuntimeProperties
+            ArchDoxWorkerRuntimeProperties archDoxWorkerRuntimeProperties,
+            LegalSyncProperties legalSyncProperties
     ) {
         return Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
@@ -92,6 +95,9 @@ public class ArchDoxRuntimeConfiguration {
                         .build())
                 .worker(Worker.builder(ARCHDOX_WORKER_PLANNER_AI_WORKER)
                         .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(LEGAL_SYNC_WORKER)
+                        .intervalMillis(legalSyncProperties.safeWorkerIntervalMs())
                         .build())
                 .build();
     }

@@ -58,7 +58,7 @@ public class AssignmentService {
     @Transactional(readOnly = true)
     public java.util.List<ProjectAssignmentResponse> listProjectAssignments(Long projectId, UserPrincipal principal) {
         var project = projectService.requireProject(projectId);
-        permissionService.requireActiveMembership(principal.userId(), project.officeId());
+        permissionService.requireOfficeAccess(principal.userId(), project.officeId());
         var membershipsByUserId = activeMembershipsByUserId(project.officeId());
         return projectAssignmentRepository
                 .findByOfficeIdAndProjectIdAndStatusOrderByAssignedAtDesc(
@@ -133,7 +133,7 @@ public class AssignmentService {
     @Transactional(readOnly = true)
     public java.util.List<ReportAssignmentResponse> listReportAssignments(Long reportId, UserPrincipal principal) {
         var report = reportService.requireReport(reportId);
-        permissionService.requireActiveMembership(principal.userId(), report.officeId());
+        permissionService.requireOfficeAccess(principal.userId(), report.officeId());
         var membershipsByUserId = activeMembershipsByUserId(report.officeId());
         return reportAssignmentRepository
                 .findByOfficeIdAndReportIdAndStatusOrderByAssignedAtDesc(

@@ -6,10 +6,12 @@ import {
   InlineAlert,
   Panel,
   StatusBadge,
+  reportTypeLabel,
   statusLabel,
   ViewHeader
 } from "../../../components/common";
 import { useDocumentWorkspace } from "../hooks/useDocumentWorkspace";
+import type { MeResponse, Office } from "../../../types";
 import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
@@ -24,6 +26,8 @@ import type {
 } from "../types";
 
 type DocumentWorkspaceProps = {
+  currentOffice: Office | null;
+  currentUser: MeResponse;
   officeId: number | null;
   onRefreshWorkspace: () => Promise<void>;
   projects: Project[];
@@ -32,6 +36,8 @@ type DocumentWorkspaceProps = {
 };
 
 export function DocumentWorkspace({
+  currentOffice,
+  currentUser,
   officeId,
   onRefreshWorkspace,
   projects,
@@ -148,6 +154,8 @@ export function DocumentWorkspace({
       ) : null}
       {signatureRequest ? (
         <DocumentSignatureDialog
+          currentOffice={currentOffice}
+          currentUser={currentUser}
           error={signatureError}
           outputFormat={signatureRequest.outputFormat}
           report={signatureRequest.report}
@@ -372,6 +380,8 @@ function DocumentReportCard({
 }
 
 function DocumentSignatureDialog({
+  currentOffice,
+  currentUser,
   error,
   outputFormat,
   report,
@@ -380,6 +390,8 @@ function DocumentSignatureDialog({
   onSkip,
   onSubmit
 }: {
+  currentOffice: Office | null;
+  currentUser: MeResponse;
   error: string | null;
   outputFormat: DocumentOutputFormat;
   report: InspectionReport;
@@ -392,8 +404,13 @@ function DocumentSignatureDialog({
   const drawingRef = useRef(false);
   const [empty, setEmpty] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [name, setName] = useState(() => localStorage.getItem("archdox.signature.name") ?? "");
-  const [role, setRole] = useState(() => localStorage.getItem("archdox.signature.role") ?? "작성자");
+  const [name, setName] = useState(() => localStorage.getItem("archdox.signature.name") ?? defaultSignatureName(currentUser));
+  const [role, setRole] = useState(() => {
+    if (currentOffice?.type === "PERSONAL") {
+      return defaultSignatureRole(report, currentOffice);
+    }
+    return localStorage.getItem("archdox.signature.role") ?? defaultSignatureRole(report, currentOffice);
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -484,7 +501,7 @@ function DocumentSignatureDialog({
     await onSubmit({
       signedByName: trimmedName,
       signedByRole: role.trim() || null,
-      signatureImageDataUrl: canvasRef.current.toDataURL("image/png"),
+      signatureImageDataUrl: signatureDataUrl(canvasRef.current),
       signatureImageMimeType: "image/png"
     });
   };
@@ -549,6 +566,64 @@ function DocumentSignatureDialog({
       </section>
     </div>
   );
+}
+
+function signatureDataUrl(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return canvas.toDataURL("image/png");
+  }
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = image.data;
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = 0;
+  let maxY = 0;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
+      if (alpha > 0) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  if (minX > maxX || minY > maxY) {
+    return canvas.toDataURL("image/png");
+  }
+  const padding = Math.max(16, Math.round(Math.min(canvas.width, canvas.height) * 0.05));
+  const cropX = Math.max(0, minX - padding);
+  const cropY = Math.max(0, minY - padding);
+  const cropWidth = Math.min(canvas.width - cropX, maxX - minX + 1 + padding * 2);
+  const cropHeight = Math.min(canvas.height - cropY, maxY - minY + 1 + padding * 2);
+  const cropped = document.createElement("canvas");
+  cropped.width = cropWidth;
+  cropped.height = cropHeight;
+  const croppedContext = cropped.getContext("2d");
+  if (!croppedContext) {
+    return canvas.toDataURL("image/png");
+  }
+  croppedContext.drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+  return cropped.toDataURL("image/png");
+}
+
+function defaultSignatureName(user: MeResponse) {
+  return (user.name || user.email || "").trim();
+}
+
+function defaultSignatureRole(report: InspectionReport, office: Office | null) {
+  if (office?.type === "PERSONAL") {
+    if (report.reportType === "CONSTRUCTION_DAILY_SUPERVISION_LOG") {
+      return "총괄감리책임자/건축사보";
+    }
+    return "작성자";
+  }
+  if (report.reportType === "CONSTRUCTION_DAILY_SUPERVISION_LOG") {
+    return "배정 역할 기준";
+  }
+  return "작성자";
 }
 
 function PreflightReviewPanel({
@@ -1285,25 +1360,6 @@ function reportStatusLabel(status: string) {
     return "전달 완료";
   }
   return status;
-}
-
-function reportTypeLabel(reportType: string) {
-  if (reportType === "CONSTRUCTION_DAILY_SUPERVISION_LOG" || reportType === "DAILY_SUPERVISION") {
-    return "공사감리일지";
-  }
-  if (reportType === "CONSTRUCTION_SUPERVISION_DAILY_LOG") {
-    return "공사감리일지";
-  }
-  if (reportType === "CONSTRUCTION_SUPERVISION_REPORT") {
-    return "감리보고서";
-  }
-  if (reportType === "DEMOLITION_SAFETY_CHECKLIST") {
-    return "해체공사 안전점검표";
-  }
-  if (reportType === "SAFETY_INSPECTION_REPORT") {
-    return "안전점검 보고서";
-  }
-  return reportType;
 }
 
 function documentAction(report: InspectionReport, latestJob: DocumentJobResponse | null, active: boolean) {

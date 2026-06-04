@@ -16,6 +16,7 @@ import com.archdox.cloud.office.infra.OfficeMembershipRepository;
 import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.shared.MembershipRole;
 import com.archdox.shared.MembershipStatus;
 import com.archdox.shared.OfficeType;
@@ -32,17 +33,20 @@ public class OfficeManagementService {
     private final OfficeRepository officeRepository;
     private final OfficeMembershipRepository membershipRepository;
     private final OperationEventService operationEventService;
+    private final PlatformAdminService platformAdminService;
 
     public OfficeManagementService(
             UserAccountRepository userRepository,
             OfficeRepository officeRepository,
             OfficeMembershipRepository membershipRepository,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            PlatformAdminService platformAdminService
     ) {
         this.userRepository = userRepository;
         this.officeRepository = officeRepository;
         this.membershipRepository = membershipRepository;
         this.operationEventService = operationEventService;
+        this.platformAdminService = platformAdminService;
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +73,11 @@ public class OfficeManagementService {
 
     @Transactional(readOnly = true)
     public OfficeResponse getOffice(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            var office = officeRepository.findById(officeId)
+                    .orElseThrow(() -> new NotFoundException("Office not found"));
+            return toOfficeResponse(office, MembershipRole.OWNER);
+        }
         var membership = requireMembership(userId, officeId);
         return toOfficeResponse(membership);
     }
@@ -84,7 +93,7 @@ public class OfficeManagementService {
     @Transactional
     public OfficeMemberResponse addExistingUserMember(Long actorUserId, Long officeId, AddOfficeMemberRequest request) {
         var actorMembership = requireOfficeManager(actorUserId, officeId);
-        requireOfficeWorkspace(actorMembership);
+        requireOfficeWorkspace(officeId);
         requireOwnerIfOwnerRole(actorMembership, request.role());
         var email = normalizeEmail(request.email());
         var user = userRepository.findByEmailIgnoreCase(email)
@@ -183,6 +192,9 @@ public class OfficeManagementService {
     }
 
     private OfficeMembership requireOfficeManager(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return null;
+        }
         var membership = requireMembership(userId, officeId);
         if (membership.role() != MembershipRole.OWNER && membership.role() != MembershipRole.ADMIN) {
             throw new ForbiddenException("Office admin role required");
@@ -196,18 +208,32 @@ public class OfficeManagementService {
         }
     }
 
+    private void requireOfficeWorkspace(Long officeId) {
+        var office = officeRepository.findById(officeId)
+                .orElseThrow(() -> new NotFoundException("Office not found"));
+        if (office.type() != OfficeType.OFFICE) {
+            throw new ForbiddenException("Personal workspace cannot manage office members");
+        }
+    }
+
     private OfficeMembership requireActiveOfficeMember(Long userId, Long officeId) {
         return membershipRepository.findByUserIdAndOfficeIdAndStatus(userId, officeId, MembershipStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Office member not found"));
     }
 
     private void requireOwnerIfOwnerRole(OfficeMembership actorMembership, MembershipRole role) {
+        if (actorMembership == null) {
+            return;
+        }
         if (role == MembershipRole.OWNER && actorMembership.role() != MembershipRole.OWNER) {
             throw new ForbiddenException("Only an owner can assign owner role");
         }
     }
 
     private void requireOwnerToModifyOwner(OfficeMembership actorMembership, OfficeMembership target) {
+        if (actorMembership == null) {
+            return;
+        }
         if (target.role() == MembershipRole.OWNER && actorMembership.role() != MembershipRole.OWNER) {
             throw new ForbiddenException("Only an owner can modify another owner");
         }
@@ -265,12 +291,16 @@ public class OfficeManagementService {
 
     private OfficeResponse toOfficeResponse(OfficeMembership membership) {
         var office = membership.office();
+        return toOfficeResponse(office, membership.role());
+    }
+
+    private OfficeResponse toOfficeResponse(Office office, MembershipRole role) {
         return new OfficeResponse(
                 office.id(),
                 office.officeCode(),
                 office.displayName(),
                 office.type(),
                 office.planCode(),
-                membership.role());
+                role);
     }
 }

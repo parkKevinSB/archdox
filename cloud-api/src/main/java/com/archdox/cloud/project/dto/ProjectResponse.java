@@ -11,6 +11,9 @@ public record ProjectResponse(
         String buildingType,
         LocalDate startDate,
         LocalDate endDate,
-        ProjectStatus status
+        ProjectStatus status,
+        boolean manageAllowed,
+        boolean structureManageAllowed,
+        boolean reportCreateAllowed
 ) {
 }

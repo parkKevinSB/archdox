@@ -8,6 +8,7 @@ import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.project.domain.Project;
 import com.archdox.cloud.project.dto.CreateProjectRequest;
 import com.archdox.cloud.project.dto.ProjectResponse;
+import com.archdox.cloud.project.dto.UpdateProjectRequest;
 import com.archdox.cloud.project.infra.ProjectRepository;
 import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
@@ -20,12 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ProjectService {
     private static final Set<String> SUPPORTED_BUSINESS_TYPES = Set.of(
-            "CONSTRUCTION_SUPERVISION",
-            "BUILDING_SAFETY_INSPECTION",
-            "FACILITY_INSPECTION",
-            "ASBESTOS_SUPERVISION",
-            "MAINTENANCE_INSPECTION",
-            "OTHER");
+            "CONSTRUCTION_SUPERVISION");
 
     private final ProjectRepository projectRepository;
     private final OfficePermissionService permissionService;
@@ -42,10 +38,10 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProjectResponse> list() {
+    public List<ProjectResponse> list(UserPrincipal principal) {
         var officeId = OfficeContext.requireCurrentOfficeId();
         return projectRepository.findByOfficeIdOrderByUpdatedAtDesc(officeId).stream()
-                .map(this::toResponse)
+                .map(project -> toResponse(project, principal))
                 .toList();
     }
 
@@ -63,12 +59,26 @@ public class ProjectService {
                 request.endDate(),
                 principal.userId(),
                 now);
-        return toResponse(projectRepository.save(project));
+        return toResponse(projectRepository.save(project), principal);
     }
 
     @Transactional(readOnly = true)
-    public ProjectResponse get(Long projectId) {
-        return toResponse(requireProject(projectId));
+    public ProjectResponse get(Long projectId, UserPrincipal principal) {
+        return toResponse(requireProject(projectId), principal);
+    }
+
+    @Transactional
+    public ProjectResponse update(Long projectId, UpdateProjectRequest request, UserPrincipal principal) {
+        var project = requireProject(projectId);
+        permissionService.requireProjectManager(principal.userId(), project.officeId());
+        project.updateDetails(
+                request.name().trim(),
+                trimToNull(request.address()),
+                normalizeSupportedCode(request.buildingType(), SUPPORTED_BUSINESS_TYPES, "buildingType"),
+                request.startDate(),
+                request.endDate(),
+                OffsetDateTime.now());
+        return toResponse(project, principal);
     }
 
     @Transactional
@@ -76,7 +86,7 @@ public class ProjectService {
         var project = requireProject(projectId);
         permissionService.requireProjectManager(principal.userId(), project.officeId());
         project.archive(OffsetDateTime.now());
-        return toResponse(project);
+        return toResponse(project, principal);
     }
 
     @Transactional
@@ -92,7 +102,8 @@ public class ProjectService {
                 .orElseThrow(() -> new NotFoundException("Project not found"));
     }
 
-    private ProjectResponse toResponse(Project project) {
+    private ProjectResponse toResponse(Project project, UserPrincipal principal) {
+        var manageAllowed = permissionService.canManageProjects(principal.userId(), project.officeId());
         return new ProjectResponse(
                 project.id(),
                 project.officeId(),
@@ -101,7 +112,10 @@ public class ProjectService {
                 project.buildingType(),
                 project.startDate(),
                 project.endDate(),
-                project.status());
+                project.status(),
+                manageAllowed,
+                permissionService.canManageProjectStructure(principal.userId(), project.officeId(), project.id()),
+                permissionService.canWriteReport(principal.userId(), project.officeId(), project.id(), null));
     }
 
     private String trimToNull(String value) {

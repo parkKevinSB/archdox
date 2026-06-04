@@ -6,8 +6,14 @@ import type {
   SupervisionDomainCatalog
 } from "./types";
 
-export function getDocumentTypes(token: string, officeId: number) {
-  return request<DocumentTypeDefinition[]>("/api/v1/document-types", { token, officeId });
+const ACTIVE_DOCUMENT_TYPES = new Set([
+  "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+  "CONSTRUCTION_SUPERVISION_REPORT"
+]);
+
+export async function getDocumentTypes(token: string, officeId: number) {
+  const documentTypes = await request<DocumentTypeDefinition[]>("/api/v1/document-types", { token, officeId });
+  return documentTypes.filter((documentType) => ACTIVE_DOCUMENT_TYPES.has(documentType.code));
 }
 
 export function getInspectionSteps(token: string, officeId: number, reportId: number) {

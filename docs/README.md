@@ -33,6 +33,7 @@ needed for the change.
 | Document engine and formats | [architecture/DOCUMENT_NEUTRAL_MODEL.md](architecture/DOCUMENT_NEUTRAL_MODEL.md), [architecture/KOREAN_DOCUMENT_FORMAT_STRATEGY.md](architecture/KOREAN_DOCUMENT_FORMAT_STRATEGY.md), [DOCUMENT_RENDER_RUNTIME_POLICY.md](DOCUMENT_RENDER_RUNTIME_POLICY.md) |
 | Images and storage | [architecture/IMAGE_UPLOAD_POLICY.md](architecture/IMAGE_UPLOAD_POLICY.md), [architecture/DEPLOYMENT_PORTABILITY.md](architecture/DEPLOYMENT_PORTABILITY.md) |
 | Configuration and templates | [architecture/CONFIGURATION_BASED_CUSTOMIZATION.md](architecture/CONFIGURATION_BASED_CUSTOMIZATION.md) |
+| Domain assets and construction supervision catalog | [architecture/CONSTRUCTION_SUPERVISION_DOMAIN_CATALOG.md](architecture/CONSTRUCTION_SUPERVISION_DOMAIN_CATALOG.md), [architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md](architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md) |
 | Project/site/target hierarchy | [architecture/SITE_TARGET_HIERARCHY.md](architecture/SITE_TARGET_HIERARCHY.md), [architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md](architecture/SITE_SUPERVISION_LEDGER_ARCHITECTURE.md) |
 | User-facing UI | [architecture/CLIENT_PRODUCT_UI_DIRECTION.md](architecture/CLIENT_PRODUCT_UI_DIRECTION.md), [architecture/UI_WORKFLOW_ORCHESTRATION.md](architecture/UI_WORKFLOW_ORCHESTRATION.md) |
 | React structure | [architecture/FRONTEND_ARCHITECTURE.md](architecture/FRONTEND_ARCHITECTURE.md), [architecture/FRONTEND_STACK_DECISION.md](architecture/FRONTEND_STACK_DECISION.md) |
@@ -40,6 +41,9 @@ needed for the change.
 | Operations and platform admin | [architecture/OPERATIONS_AND_ADMIN.md](architecture/OPERATIONS_AND_ADMIN.md) |
 | AI harness and AI review | [ai-harness/README.md](ai-harness/README.md), [architecture/AI_PROVIDER_POLICY.md](architecture/AI_PROVIDER_POLICY.md) |
 | Office knowledge platform direction | [architecture/OFFICE_KNOWLEDGE_PLATFORM_STRATEGY.md](architecture/OFFICE_KNOWLEDGE_PLATFORM_STRATEGY.md) |
+| Engine boundary, external Engine API, and business positioning | [architecture/ARCHDOX_ENGINE_BOUNDARY.md](architecture/ARCHDOX_ENGINE_BOUNDARY.md), [architecture/ARCHDOX_ENGINE_SERVICE_STRATEGY.md](architecture/ARCHDOX_ENGINE_SERVICE_STRATEGY.md), [architecture/ARCHDOX_ENGINE_BUSINESS_POSITIONING.md](architecture/ARCHDOX_ENGINE_BUSINESS_POSITIONING.md), [architecture/ARCHDOX_MCP_GATEWAY_STRATEGY.md](architecture/ARCHDOX_MCP_GATEWAY_STRATEGY.md) |
+| Public site and domain routing | [architecture/PUBLIC_SITE_AND_DOMAIN_STRATEGY.md](architecture/PUBLIC_SITE_AND_DOMAIN_STRATEGY.md) |
+| Legal domain and compliance review | [architecture/LEGAL_DOMAIN_ARCHITECTURE.md](architecture/LEGAL_DOMAIN_ARCHITECTURE.md) |
 | Git workflow | [development/GIT_WORKFLOW.md](development/GIT_WORKFLOW.md) |
 | Phase discipline | [development/PHASE_EXECUTION_RULE.md](development/PHASE_EXECUTION_RULE.md) |
 | Korean reference forms | [reference-forms/korean/README.md](reference-forms/korean/README.md) |

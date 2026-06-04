@@ -9,6 +9,7 @@ import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.api.UnauthorizedException;
 import com.archdox.cloud.office.domain.OfficeMembership;
 import com.archdox.cloud.office.infra.OfficeMembershipRepository;
+import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import java.util.List;
 import com.archdox.shared.MembershipRole;
 import com.archdox.shared.MembershipStatus;
@@ -21,15 +22,18 @@ public class OfficePermissionService {
     private final OfficeMembershipRepository membershipRepository;
     private final ProjectAssignmentRepository projectAssignmentRepository;
     private final ReportAssignmentRepository reportAssignmentRepository;
+    private final PlatformAdminService platformAdminService;
 
     public OfficePermissionService(
             OfficeMembershipRepository membershipRepository,
             ProjectAssignmentRepository projectAssignmentRepository,
-            ReportAssignmentRepository reportAssignmentRepository
+            ReportAssignmentRepository reportAssignmentRepository,
+            PlatformAdminService platformAdminService
     ) {
         this.membershipRepository = membershipRepository;
         this.projectAssignmentRepository = projectAssignmentRepository;
         this.reportAssignmentRepository = reportAssignmentRepository;
+        this.platformAdminService = platformAdminService;
     }
 
     public OfficeMembership requireActiveMembership(Long userId, Long officeId) {
@@ -41,7 +45,17 @@ public class OfficePermissionService {
                         Map.of("officeId", officeId)));
     }
 
+    public void requireOfficeAccess(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return;
+        }
+        requireActiveMembership(userId, officeId);
+    }
+
     public void requireProjectManager(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return;
+        }
         var membership = requireActiveMembership(userId, officeId);
         if (!canManageProjects(membership)) {
             throw new ForbiddenException(
@@ -53,6 +67,9 @@ public class OfficePermissionService {
     }
 
     public void requireProjectStructureManager(Long userId, Long officeId, Long projectId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return;
+        }
         var membership = requireActiveMembership(userId, officeId);
         if (canManageProjects(membership)) {
             return;
@@ -74,6 +91,9 @@ public class OfficePermissionService {
     }
 
     public void requireReportWriter(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return;
+        }
         var membership = requireActiveMembership(userId, officeId);
         if (!canWriteReports(membership)) {
             throw reportWriterForbidden(officeId, null, null);
@@ -81,6 +101,9 @@ public class OfficePermissionService {
     }
 
     public void requireReportWriter(Long userId, Long officeId, Long projectId, Long reportId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return;
+        }
         var membership = requireActiveMembership(userId, officeId);
         if (canManageProjects(membership)) {
             return;
@@ -135,12 +158,44 @@ public class OfficePermissionService {
                         "Project assignment required",
                         Map.of("officeId", officeId, "projectId", projectId));
             }
+            throw new ForbiddenException(
+                    "PROJECT_ASSIGNMENT_REQUIRED",
+                    "errors.project.assignmentRequired",
+                    "Project assignment required",
+                    Map.of("officeId", officeId, "projectId", projectId));
         }
+        throw reportWriterForbidden(officeId, projectId, reportId);
     }
 
     public boolean canWriteReport(Long userId, Long officeId, Long projectId, Long reportId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return true;
+        }
         try {
             requireReportWriter(userId, officeId, projectId, reportId);
+            return true;
+        } catch (ForbiddenException | UnauthorizedException ex) {
+            return false;
+        }
+    }
+
+    public boolean canManageProjects(Long userId, Long officeId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return true;
+        }
+        try {
+            return canManageProjects(requireActiveMembership(userId, officeId));
+        } catch (UnauthorizedException ex) {
+            return false;
+        }
+    }
+
+    public boolean canManageProjectStructure(Long userId, Long officeId, Long projectId) {
+        if (platformAdminService.isPlatformAdmin(userId)) {
+            return true;
+        }
+        try {
+            requireProjectStructureManager(userId, officeId, projectId);
             return true;
         } catch (ForbiddenException | UnauthorizedException ex) {
             return false;
@@ -159,8 +214,7 @@ public class OfficePermissionService {
             return membership.role() == MembershipRole.OWNER;
         }
         return membership.role() == MembershipRole.OWNER
-                || membership.role() == MembershipRole.ADMIN
-                || membership.role() == MembershipRole.MEMBER;
+                || membership.role() == MembershipRole.ADMIN;
     }
 
     private ForbiddenException reportWriterForbidden(Long officeId, Long projectId, Long reportId) {

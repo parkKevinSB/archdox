@@ -1,20 +1,40 @@
 {
-    auto_https disable_redirects
+	auto_https disable_redirects
 }
 
-http://archdox.co.kr, http://www.archdox.co.kr {
-    redir https://archdox.co.kr{uri} 308
+http://archdox.co.kr, http://www.archdox.co.kr, http://app.archdox.co.kr, http://admin.archdox.co.kr, http://api.archdox.co.kr, http://mcp.archdox.co.kr {
+	redir https://{host}{uri} 308
 }
 
 http:// {
-    respond "Not Found" 404
+	respond "Not Found" 404
 }
 
 archdox.co.kr {
-    encode zstd gzip
-    reverse_proxy web:80
+	encode zstd gzip
+	reverse_proxy web:80
 }
 
 www.archdox.co.kr {
-    redir https://archdox.co.kr{uri} 308
+	redir https://archdox.co.kr{uri} 308
+}
+
+app.archdox.co.kr {
+	encode zstd gzip
+	reverse_proxy web:80
+}
+
+admin.archdox.co.kr {
+	encode zstd gzip
+	reverse_proxy web:80
+}
+
+api.archdox.co.kr {
+	encode zstd gzip
+	reverse_proxy api-server:8080
+}
+
+mcp.archdox.co.kr {
+	encode zstd gzip
+	redir https://archdox.co.kr/developers/mcp/ 302
 }

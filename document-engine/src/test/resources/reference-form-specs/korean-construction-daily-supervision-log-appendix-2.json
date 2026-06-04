@@ -5,8 +5,6 @@
   "source": "PDF_TEXT_EXTRACTED",
   "pages": 1,
   "reportTypes": [
-    "DAILY_SUPERVISION",
-    "CONSTRUCTION_DAILY_LOG",
     "CONSTRUCTION_DAILY_SUPERVISION_LOG"
   ],
   "recommendedPlaceholders": [

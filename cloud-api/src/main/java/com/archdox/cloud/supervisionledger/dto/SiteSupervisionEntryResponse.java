@@ -16,8 +16,6 @@ public record SiteSupervisionEntryResponse(
         String tradeName,
         String processCode,
         String processName,
-        String itemCode,
-        String itemName,
         String inspectionItemCode,
         String inspectionItemName,
         String supervisionContent,

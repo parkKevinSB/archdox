@@ -4,11 +4,14 @@ import com.archdox.cloud.supervisionledger.domain.SiteSupervisionEntry;
 import com.archdox.cloud.supervisionledger.domain.SiteSupervisionEntryStatus;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface SiteSupervisionEntryRepository extends JpaRepository<SiteSupervisionEntry, Long> {
+    Optional<SiteSupervisionEntry> findByIdAndOfficeId(Long id, Long officeId);
+
     List<SiteSupervisionEntry> findByOfficeIdAndProjectIdAndSiteIdOrderByEntryDateDescUpdatedAtDescIdDesc(
             Long officeId,
             Long projectId,

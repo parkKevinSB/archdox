@@ -31,6 +31,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            EngineApiKeyAuthenticationFilter engineApiKeyAuthenticationFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             OfficeContextFilter officeContextFilter
     )
@@ -48,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/agent/api/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
+                .addFilterBefore(engineApiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(officeContextFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

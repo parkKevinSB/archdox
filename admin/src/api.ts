@@ -12,8 +12,13 @@ import type {
   AiUsageSummary,
   AuthTokenResponse,
   ConfigDefinition,
+  CreateEngineApiKeyResponse,
   DocumentDelivery,
   DocumentJob,
+  EngineApiKey,
+  LegalChangeDigest,
+  LegalChangeSet,
+  LegalSyncRun,
   DocumentTemplateRevision,
   MeResponse,
   MembershipRole,
@@ -38,7 +43,13 @@ import type {
   PlatformUserOps,
   OfficeAiPolicy,
   Photo,
-  TemplateFieldCatalog
+  Project,
+  ProjectAssignment,
+  ProjectAssignmentRole,
+  ProjectFormRequest,
+  TemplateFieldCatalog,
+  WorkerApprovalRequest,
+  WorkerGovernanceSummary
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -335,6 +346,70 @@ export function getOfficeInvitations(token: string, officeId: number) {
   return request<OfficeInvitation[]>(`/api/v1/offices/${officeId}/invitations`, { token, officeId });
 }
 
+export function getProjects(token: string, officeId: number) {
+  return request<Project[]>("/api/v1/projects", { token, officeId });
+}
+
+export function createProject(token: string, officeId: number, body: ProjectFormRequest) {
+  return request<Project>("/api/v1/projects", {
+    token,
+    officeId,
+    method: "POST",
+    body
+  });
+}
+
+export function updateProject(token: string, officeId: number, projectId: number, body: ProjectFormRequest) {
+  return request<Project>(`/api/v1/projects/${projectId}`, {
+    token,
+    officeId,
+    method: "PATCH",
+    body
+  });
+}
+
+export function archiveProject(token: string, officeId: number, projectId: number) {
+  return request<Project>(`/api/v1/projects/${projectId}/archive`, {
+    token,
+    officeId,
+    method: "POST"
+  });
+}
+
+export function deleteProject(token: string, officeId: number, projectId: number) {
+  return request<void>(`/api/v1/projects/${projectId}`, {
+    token,
+    officeId,
+    method: "DELETE"
+  });
+}
+
+export function getProjectAssignments(token: string, officeId: number, projectId: number) {
+  return request<ProjectAssignment[]>(`/api/v1/projects/${projectId}/assignments`, { token, officeId });
+}
+
+export function upsertProjectAssignment(
+  token: string,
+  officeId: number,
+  projectId: number,
+  body: { userId: number; role: ProjectAssignmentRole }
+) {
+  return request<ProjectAssignment>(`/api/v1/projects/${projectId}/assignments`, {
+    token,
+    officeId,
+    method: "PUT",
+    body
+  });
+}
+
+export function removeProjectAssignment(token: string, officeId: number, projectId: number, userId: number) {
+  return request<ProjectAssignment>(`/api/v1/projects/${projectId}/assignments/${userId}`, {
+    token,
+    officeId,
+    method: "DELETE"
+  });
+}
+
 export function createOfficeInvitation(
   token: string,
   officeId: number,
@@ -526,6 +601,36 @@ export function getPlatformEvents(token: string, limit = 50) {
   });
 }
 
+export function getPlatformWorkerGovernance(token: string, days = 7, recentLimit = 30, officeId?: number | null) {
+  return request<WorkerGovernanceSummary>("/api/v1/platform-admin/ops/worker-governance", {
+    token,
+    query: { days, recentLimit, officeId }
+  });
+}
+
+export function getPlatformWorkerApprovals(token: string, limit = 50, status?: string, officeId?: number | null) {
+  return request<WorkerApprovalRequest[]>("/api/v1/platform-admin/ops/worker-approvals", {
+    token,
+    query: { limit, status, officeId }
+  });
+}
+
+export function approvePlatformWorkerApproval(token: string, approvalRequestId: number, reason?: string) {
+  return request<WorkerApprovalRequest>(`/api/v1/platform-admin/ops/worker-approvals/${approvalRequestId}/approve`, {
+    token,
+    method: "POST",
+    body: { reason }
+  });
+}
+
+export function rejectPlatformWorkerApproval(token: string, approvalRequestId: number, reason?: string) {
+  return request<WorkerApprovalRequest>(`/api/v1/platform-admin/ops/worker-approvals/${approvalRequestId}/reject`, {
+    token,
+    method: "POST",
+    body: { reason }
+  });
+}
+
 export function detectPlatformStuckHealth(token: string) {
   return request<PlatformHealthDetection>("/api/v1/platform-admin/ops/health/detect-stuck", {
     token,
@@ -556,6 +661,70 @@ export function getPlatformOpsFindings(token: string, limit = 50, incidentId?: n
 
 export function diagnosePlatformOpsIncident(token: string, incidentId: number) {
   return request<PlatformOpsRun>(`/api/v1/platform-admin/ops/incidents/${incidentId}/diagnose`, {
+    token,
+    method: "POST"
+  });
+}
+
+export function startPlatformLegalFakeSync(token: string) {
+  return request<LegalSyncRun>("/api/v1/platform-admin/legal/sync/fake", {
+    token,
+    method: "POST"
+  });
+}
+
+export function startPlatformLegalOpenDataSync(token: string) {
+  return request<LegalSyncRun>("/api/v1/platform-admin/legal/sync/open-data", {
+    token,
+    method: "POST"
+  });
+}
+
+export function getPlatformLegalSyncRuns(token: string, limit = 50, sourceCode?: string) {
+  return request<LegalSyncRun[]>("/api/v1/platform-admin/legal/sync-runs", {
+    token,
+    query: { limit, sourceCode }
+  });
+}
+
+export function getPlatformLegalChangeSets(token: string, limit = 50) {
+  return request<LegalChangeSet[]>("/api/v1/platform-admin/legal/change-sets", {
+    token,
+    query: { limit }
+  });
+}
+
+export function getPlatformLegalChangeDigests(token: string, limit = 50) {
+  return request<LegalChangeDigest[]>("/api/v1/platform-admin/legal/change-digests", {
+    token,
+    query: { limit }
+  });
+}
+
+export function getPlatformEngineApiKeys(token: string) {
+  return request<EngineApiKey[]>("/api/v1/platform-admin/engine/api-keys", { token });
+}
+
+export function createPlatformEngineApiKey(
+  token: string,
+  body: {
+    displayName: string;
+    ownerUserId: number;
+    officeId?: number | null;
+    scopes: string[];
+    dailyRequestUnitLimit?: number | null;
+    expiresAt?: string | null;
+  }
+) {
+  return request<CreateEngineApiKeyResponse>("/api/v1/platform-admin/engine/api-keys", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function revokePlatformEngineApiKey(token: string, apiKeyId: number) {
+  return request<EngineApiKey>(`/api/v1/platform-admin/engine/api-keys/${apiKeyId}/revoke`, {
     token,
     method: "POST"
   });

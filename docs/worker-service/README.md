@@ -1,8 +1,8 @@
-# ArchDox Worker Service Direction
+﻿# ArchDox Worker Service Direction
 
 This document captures the intended direction for ArchDox as a worker-based
 service. It merges the controlled agent runtime idea from
-`flower-agent-orchestration` with the product direction discussed for ArchDox.
+`flower-agent-runtime` with the product direction discussed for ArchDox.
 
 This is a direction document, not an implementation ticket. The goal is to
 guide the next ArchDox design/implementation chat.
@@ -186,7 +186,7 @@ and recoverable.
 
 ## Implementation Readiness
 
-The generic `flower-agent-orchestration` framework should not be implemented
+The generic `flower-agent-runtime` framework should not be implemented
 yet.
 
 The right next step is to implement a small ArchDox-owned worker runtime slice
@@ -202,7 +202,7 @@ Implement now inside ArchDox:
   ReviewPlannerWorker
 
 Do not implement yet as a generic framework:
-  flower-agent-orchestration
+  flower-agent-runtime
   enterprise worker operations platform
   generic worker marketplace
   full AI governance/compliance suite
@@ -235,7 +235,7 @@ flower-ai-harness
 ArchDox worker orchestration
   = ArchDox-internal orchestration of domain workers and allowed actions
 
-future flower-agent-orchestration
+future flower-agent-runtime
   = optional extraction of domain-neutral controlled-agent patterns,
     only after ArchDox proves repeated needs
 ```
@@ -252,6 +252,10 @@ archdox-ai-harness
 archdox-worker
   = controlled ArchDox action orchestration layer
 
+archdox-engine
+  = ArchDox Engine/API boundary for external or MCP-style context review,
+    validation, legal-reference binding, and source-backed findings
+
 archdox-agent
   = registered document/photo/artifact execution runtime
   = not an AI agent
@@ -261,8 +265,27 @@ Do not add ArchDox worker concepts into Flower.
 
 Do not add multi-worker planning/orchestration into `flower-ai-harness`.
 
-Do not create `flower-agent-orchestration` as a generic framework first.
+Do not create `flower-agent-runtime` as a generic framework first.
 Build and validate the worker pattern inside ArchDox first.
+
+`archdox-worker` and the current ArchDox Engine boundary are not competing
+modules. They validate the same `flower-agent-runtime` governance idea at
+different product edges:
+
+```text
+archdox-worker
+  -> internal SaaS/user workflow actions
+  -> creates/updates ArchDox domain objects through existing services
+
+ArchDox Engine boundary
+  -> external Engine API/MCP-style validation actions
+  -> normalizes customer context and returns typed findings/results
+```
+
+Both should use typed action proposals, definitions, policy gates, controlled
+executors, and traceable results. They should stay physically inside ArchDox
+until repeated domain-neutral patterns justify extracting a generic
+`flower-agent-runtime`.
 
 ## Terminology Rule
 
@@ -398,13 +421,24 @@ ArchDoxWorkerAction
   - confidence
   - proposed by: user, planner, system
 
+ArchDoxWorkerActionDefinition
+  - action owner and executor name
+  - enabled/disabled flag
+  - read/write classification
+  - risk level
+  - required context fields
+  - allowed request sources
+  - default approval and dry-run support
+
 ArchDoxWorkerActionRegistry
-  - maps allowed action ids to executors
+  - maps known action ids to definitions
+  - maps implemented action ids to executors
   - exposes planner-safe action descriptions
-  - rejects unknown actions
+  - rejects unknown or executor-missing actions
 
 ArchDoxWorkerPolicyGate
   - checks user permission
+  - reads `ArchDoxWorkerActionDefinition`
   - checks office/project/report state
   - checks current workflow stage
   - checks budget/loop limits
@@ -460,26 +494,24 @@ Example:
 
 ```text
 Available actions:
-  RUN_DOCUMENT_QA
-  RUN_LEGAL_REVIEW
-  RERUN_DOCUMENT_QA_WITH_STRONGER_MODEL
-  DRAFT_INSPECTION_LOG
-  REQUEST_HUMAN_REVIEW
-  PREPARE_SUBMISSION_PACKAGE
-  APPROVE_DOCUMENT
-  FAIL_REVIEW
+  WORKER_CHAT_ADVANCE
+  CREATE_SITE
+  CREATE_REPORT
+  UPDATE_REPORT_STEP
+  SUBMIT_REPORT
+  RUN_PREFLIGHT_REVIEW
+  REQUEST_DOCUMENT_GENERATION
 
 Planner input:
   current report/document state
-  document QA findings
-  legal review findings
+  deterministic and AI review findings
   existing photos/evidence
   user command
   previous worker action history
 
 Planner output:
-  action: RERUN_DOCUMENT_QA_WITH_STRONGER_MODEL
-  reason: "QA and legal review disagree on required clause coverage."
+  action: REQUEST_DOCUMENT_GENERATION
+  reason: "The report is submitted and the preflight review has passed."
 ```
 
 The planner result must be checked:
@@ -494,6 +526,11 @@ Should it be escalated instead of executed?
 ```
 
 Only after those checks should Flower execute the action.
+
+Future action ideas such as legal review, document QA reruns, evidence-gap
+analysis, approval, and submission package preparation are tracked in
+`archdox-worker/docs/worker-action-backlog.md`. They must not be added to the
+runtime registry until an executor, policy rules, and tests are added together.
 
 ## UI And Worker Must Share State
 
@@ -700,6 +737,144 @@ The chat layer does not write hidden product state. It proposes typed actions;
 the ArchDox Worker Flower flow executes registered executors, and those
 executors call the existing domain services.
 
+## Governance Metrics
+
+Worker governance must prove that the controlled-action runtime is useful, not
+just that it can execute actions.
+
+The first production-friendly metrics should be derived from existing Worker
+trace events instead of adding a large raw metrics table:
+
+```text
+source: operation_events
+filter: workflow_type = archdox-worker
+window: bounded, default 7 days, maximum 30 days
+recent samples: bounded, maximum 100 rows
+```
+
+Current admin-visible metrics:
+
+```text
+catch rate
+  = policy denied + action rejected + unknown action
+    divided by worker requests received
+
+approval-required rate
+  = approval-required decisions divided by worker requests received
+
+failure rate
+  = failed action executions divided by succeeded + failed executions
+
+event distribution
+  = request, allow, deny, approval-required, success, failure, rejection, unknown
+
+reason distribution
+  = policy/rejection/failure reason codes from trace payloads
+
+action trace distribution
+  = event counts grouped by registered action type
+```
+
+This is enough to answer the early operational questions:
+
+```text
+Is the gate actually blocking risky or invalid actions?
+Which actions are most often denied or failing?
+Are workers failing after policy allowed them?
+Is approval becoming a normal path or a friction point?
+Can an operator reconstruct what happened from trace events?
+```
+
+Do not store unlimited prompt, chat, or worker trace history just to make these
+metrics. If a metric can be calculated from existing operation events, prefer
+bounded aggregation over a new persistence model.
+
+Future metrics should be added only when the underlying feature exists:
+
+```text
+false-positive rate
+  requires explicit human feedback that a denied action should have been allowed
+
+override rate
+  requires an approval/override flow with durable decisions
+
+approval latency
+  requires approval tasks with requested/approved/rejected timestamps
+
+audit reconstruction rate
+  requires periodic replay/audit tests against stored snapshots
+
+replay success
+  requires a real replay runner or deterministic dry-run reconstruction flow
+```
+
+Until those flows exist, the admin UI should label only the metrics ArchDox can
+measure honestly from durable data.
+
+## Approval And Override Foundation
+
+Worker approval is a controlled execution state, not a replacement for trace
+events.
+
+When the policy gate decides that an action requires approval:
+
+```text
+Worker policy gate
+-> returns REQUIRE_APPROVAL
+-> ArchDox Worker flow stops before executor
+-> operation_events records APPROVAL_REQUIRED trace
+-> Cloud API creates one worker_approval_requests row
+-> platform admin approves or rejects
+```
+
+Approval must not execute the domain mutation directly. An approved request is
+replayed through the same Worker Flower envelope:
+
+```text
+platform admin approves
+-> approval row status becomes APPROVED
+-> a fresh executionRequestId is generated
+-> action payload receives workerApprovalRequestId
+-> ArchDoxWorkerExecutionFlow is submitted again
+-> policy gate verifies approval id + execution request id + action type + context
+-> executor runs only after that verification passes
+```
+
+This keeps the security boundary simple:
+
+```text
+AI/user/system cannot bypass approval by adding arbitrary payload fields.
+Only a matching APPROVED DB row can unlock the replay.
+```
+
+Current MVP approval scope:
+
+```text
+- platform admins can read approval requests
+- SUPER_ADMIN and SUPPORT can approve/reject
+- approval creates a replayed Worker execution
+- rejection blocks the action
+- normal Worker trace events still record execution result
+```
+
+Future override metrics should be derived from this table plus Worker trace
+events:
+
+```text
+approval latency
+  = decidedAt - requestedAt
+
+override rate
+  = approved high-risk or previously denied requests divided by approval requests
+
+false-positive feedback
+  = explicit human feedback that a gate denial was wrong
+```
+
+Do not store extra raw approval metric rows until the product has real approval
+feedback/replay needs that cannot be calculated from `worker_approval_requests`
+and `operation_events`.
+
 Report writing through chat must remain schema-aware. The chat assistant may
 help the user choose or fill a step, but it must not invent hidden step codes or
 store arbitrary worker-only report content. The Cloud API resolves the report's
@@ -801,11 +976,11 @@ assistant message exists, the composer and action controls are disabled and a
 small status bar shows the current work:
 
 ```text
-요청을 보내는 중...
-현장을 생성하는 중...
-리포트를 생성하는 중...
-리포트 내용을 저장하는 중...
-다음 작업 흐름을 확인하는 중...
+?붿껌??蹂대궡??以?..
+?꾩옣???앹꽦?섎뒗 以?..
+由ы룷?몃? ?앹꽦?섎뒗 以?..
+由ы룷???댁슜????ν븯??以?..
+?ㅼ쓬 ?묒뾽 ?먮쫫???뺤씤?섎뒗 以?..
 ```
 
 This is still REST plus polling, not token streaming. Streaming may be added
@@ -952,7 +1127,7 @@ workflow needs.
 ## What Might Be Extracted Later
 
 Only after ArchDox proves repeated, domain-neutral patterns should a separate
-`flower-agent-orchestration` project be considered.
+`flower-agent-runtime` project be considered.
 
 Possible extraction candidates:
 
@@ -974,7 +1149,7 @@ If the concept mentions reports, construction, supervision, offices,
 documents, photos, approvals, or ArchDox permissions, it stays in ArchDox.
 
 If the concept applies cleanly to any Java business workflow using Flower,
-it may later move to flower-agent-orchestration.
+it may later move to flower-agent-runtime.
 ```
 
 ## Non-Goals

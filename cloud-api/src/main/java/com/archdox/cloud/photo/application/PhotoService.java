@@ -8,6 +8,7 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.inspection.application.InspectionReportService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.office.application.OfficeContext;
+import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAsset;
 import com.archdox.cloud.photo.domain.PhotoAssetStatus;
@@ -29,6 +30,9 @@ import com.archdox.cloud.photo.event.PhotoUploadConfirmed;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.project.application.ProjectService;
+import com.archdox.cloud.site.application.SiteService;
+import com.archdox.cloud.supervisionledger.domain.SiteSupervisionEntry;
+import com.archdox.cloud.supervisionledger.infra.SiteSupervisionEntryRepository;
 import io.github.parkkevinsb.bloom.EventBus;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,8 +50,11 @@ public class PhotoService {
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
     private final ProjectService projectService;
+    private final SiteService siteService;
     private final InspectionReportService inspectionReportService;
+    private final OfficePermissionService permissionService;
     private final ChecklistService checklistService;
+    private final SiteSupervisionEntryRepository supervisionEntryRepository;
     private final PhotoStorageRefFactory storageRefFactory;
     private final PhotoStorageAdapterResolver storageAdapterResolver;
     private final PhotoStorageProperties storageProperties;
@@ -57,8 +64,11 @@ public class PhotoService {
             PhotoRepository photoRepository,
             PhotoAssetRepository photoAssetRepository,
             ProjectService projectService,
+            SiteService siteService,
             InspectionReportService inspectionReportService,
+            OfficePermissionService permissionService,
             ChecklistService checklistService,
+            SiteSupervisionEntryRepository supervisionEntryRepository,
             PhotoStorageRefFactory storageRefFactory,
             PhotoStorageAdapterResolver storageAdapterResolver,
             PhotoStorageProperties storageProperties,
@@ -67,8 +77,11 @@ public class PhotoService {
         this.photoRepository = photoRepository;
         this.photoAssetRepository = photoAssetRepository;
         this.projectService = projectService;
+        this.siteService = siteService;
         this.inspectionReportService = inspectionReportService;
+        this.permissionService = permissionService;
         this.checklistService = checklistService;
+        this.supervisionEntryRepository = supervisionEntryRepository;
         this.storageRefFactory = storageRefFactory;
         this.storageAdapterResolver = storageAdapterResolver;
         this.storageProperties = storageProperties;
@@ -80,12 +93,13 @@ public class PhotoService {
         var officeId = OfficeContext.requireCurrentOfficeId();
         var hash = normalizeHash(request.hash());
         var resolved = resolveParent(request);
+        var evidenceContext = resolveEvidenceContext(request, resolved, officeId);
         validateChecklistLink(request, resolved);
         var existing = photoRepository.findFirstByOfficeIdAndHashSha256AndStatus(
                 officeId,
                 hash,
                 PhotoStatus.UPLOADED);
-        if (existing.isPresent() && isSameUploadContext(existing.get(), resolved, request)) {
+        if (existing.isPresent() && isSameUploadContext(existing.get(), resolved, evidenceContext, request)) {
             var photo = existing.get();
             return new PhotoUploadIntentResponse(
                     photo.id(),
@@ -106,9 +120,17 @@ public class PhotoService {
         var photo = new Photo(
                 officeId,
                 resolved.projectId(),
+                evidenceContext.siteId(),
                 resolved.reportId(),
                 normalizeStepCode(request.stepCode()),
                 request.checklistItemId(),
+                evidenceContext.siteSupervisionEntryId(),
+                evidenceContext.tradeCode(),
+                evidenceContext.processCode(),
+                evidenceContext.inspectionItemCode(),
+                evidenceContext.caption(),
+                evidenceContext.locationNote(),
+                evidenceContext.drawingRef(),
                 request.captureKind() == null ? PhotoCaptureKind.UPLOAD : request.captureKind(),
                 mimeType,
                 request.bytes(),
@@ -227,6 +249,27 @@ public class PhotoService {
     }
 
     @Transactional
+    public void delete(Long photoId, UserPrincipal principal) {
+        var photo = requirePhoto(photoId);
+        if (photo.status() == PhotoStatus.DELETED) {
+            return;
+        }
+        if (photo.reportId() != null) {
+            var report = inspectionReportService.requireReport(photo.reportId());
+            permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
+        } else if (photo.projectId() != null) {
+            permissionService.requireReportWriter(principal.userId(), photo.officeId(), photo.projectId(), null);
+        } else {
+            permissionService.requireReportWriter(principal.userId(), photo.officeId());
+        }
+        var now = OffsetDateTime.now();
+        markUploadAbandoned(photo, now);
+        if (photo.reportId() != null) {
+            inspectionReportService.removePhotoReference(photo.reportId(), photo.id(), principal.userId(), now);
+        }
+    }
+
+    @Transactional
     public void storeContent(Long photoId, PhotoUploadKind kind, Long contentLength, InputStream input) throws IOException {
         var photo = requirePhoto(photoId);
         if (photo.status() != PhotoStatus.PENDING_UPLOAD) {
@@ -267,13 +310,53 @@ public class PhotoService {
             if (request.projectId() != null && !request.projectId().equals(report.projectId())) {
                 throw new BadRequestException("projectId does not match the report's project");
             }
-            return new ParentRef(report.projectId(), report.id(), report);
+            if (request.siteId() != null && report.siteId() != null && !request.siteId().equals(report.siteId())) {
+                throw new BadRequestException("siteId does not match the report's site");
+            }
+            if (request.siteId() != null) {
+                siteService.requireSiteForProject(request.siteId(), report.projectId());
+            }
+            return new ParentRef(report.projectId(), report.siteId() == null ? request.siteId() : report.siteId(), report.id(), report);
         }
         if (request.projectId() == null) {
             throw new BadRequestException("projectId or reportId is required");
         }
         var project = projectService.requireProject(request.projectId());
-        return new ParentRef(project.id(), null, null);
+        if (request.siteId() != null) {
+            siteService.requireSiteForProject(request.siteId(), project.id());
+        }
+        return new ParentRef(project.id(), request.siteId(), null, null);
+    }
+
+    private PhotoEvidenceContext resolveEvidenceContext(
+            CreatePhotoUploadIntentRequest request,
+            ParentRef parent,
+            Long officeId
+    ) {
+        SiteSupervisionEntry entry = null;
+        if (request.siteSupervisionEntryId() != null) {
+            entry = supervisionEntryRepository.findByIdAndOfficeId(request.siteSupervisionEntryId(), officeId)
+                    .orElseThrow(() -> new BadRequestException("siteSupervisionEntryId does not match the current office"));
+            if (!entry.projectId().equals(parent.projectId())) {
+                throw new BadRequestException("siteSupervisionEntryId does not match the photo project");
+            }
+            if (parent.siteId() != null && !entry.siteId().equals(parent.siteId())) {
+                throw new BadRequestException("siteSupervisionEntryId does not match the photo site");
+            }
+        }
+        var siteId = parent.siteId();
+        if (siteId == null && entry != null) {
+            siteId = entry.siteId();
+        }
+        return new PhotoEvidenceContext(
+                siteId,
+                request.siteSupervisionEntryId(),
+                firstNonBlank(normalizeCode(request.tradeCode()), entry == null ? null : entry.tradeCode()),
+                firstNonBlank(normalizeCode(request.processCode()), entry == null ? null : entry.processCode()),
+                firstNonBlank(normalizeCode(request.inspectionItemCode()), entry == null ? null : entry.inspectionItemCode()),
+                trimToNull(request.caption()),
+                trimToNull(request.locationNote()),
+                trimToNull(request.drawingRef()));
     }
 
     private void validateChecklistLink(CreatePhotoUploadIntentRequest request, ParentRef resolved) {
@@ -286,10 +369,23 @@ public class PhotoService {
         checklistService.requireItemForReport(resolved.report(), request.checklistItemId());
     }
 
-    private boolean isSameUploadContext(Photo photo, ParentRef resolved, CreatePhotoUploadIntentRequest request) {
+    private boolean isSameUploadContext(
+            Photo photo,
+            ParentRef resolved,
+            PhotoEvidenceContext evidenceContext,
+            CreatePhotoUploadIntentRequest request
+    ) {
         return Objects.equals(photo.projectId(), resolved.projectId())
+                && Objects.equals(photo.siteId(), evidenceContext.siteId())
                 && Objects.equals(photo.reportId(), resolved.reportId())
                 && Objects.equals(photo.checklistItemId(), request.checklistItemId())
+                && Objects.equals(photo.siteSupervisionEntryId(), evidenceContext.siteSupervisionEntryId())
+                && Objects.equals(photo.tradeCode(), evidenceContext.tradeCode())
+                && Objects.equals(photo.processCode(), evidenceContext.processCode())
+                && Objects.equals(photo.inspectionItemCode(), evidenceContext.inspectionItemCode())
+                && Objects.equals(photo.caption(), evidenceContext.caption())
+                && Objects.equals(photo.locationNote(), evidenceContext.locationNote())
+                && Objects.equals(photo.drawingRef(), evidenceContext.drawingRef())
                 && Objects.equals(photo.stepCode(), normalizeStepCode(request.stepCode()));
     }
 
@@ -381,9 +477,19 @@ public class PhotoService {
                 photo.id(),
                 photo.officeId(),
                 photo.projectId(),
+                photo.siteId(),
                 photo.reportId(),
                 photo.stepCode(),
                 photo.checklistItemId(),
+                photo.siteSupervisionEntryId(),
+                photo.tradeCode(),
+                photo.processCode(),
+                photo.inspectionItemCode(),
+                photo.caption(),
+                photo.locationNote(),
+                photo.drawingRef(),
+                contextLabel(photo),
+                contextDescription(photo),
                 photo.captureKind(),
                 photo.status(),
                 photo.mimeType(),
@@ -469,7 +575,70 @@ public class PhotoService {
         return stepCode.trim().toUpperCase(Locale.ROOT);
     }
 
-    private record ParentRef(Long projectId, Long reportId, InspectionReport report) {
+    private String normalizeCode(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return code.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String firstNonBlank(String first, String fallback) {
+        return first == null || first.isBlank() ? trimToNull(fallback) : first;
+    }
+
+    private String contextLabel(Photo photo) {
+        if (photo.caption() != null && !photo.caption().isBlank()) {
+            return photo.caption();
+        }
+        if (photo.inspectionItemCode() != null && !photo.inspectionItemCode().isBlank()) {
+            return photo.inspectionItemCode();
+        }
+        if (photo.stepCode() != null && !photo.stepCode().isBlank()) {
+            return photo.stepCode();
+        }
+        return "Photo " + photo.id();
+    }
+
+    private String contextDescription(Photo photo) {
+        var parts = new java.util.ArrayList<String>();
+        if (photo.siteId() != null) {
+            parts.add("site:" + photo.siteId());
+        }
+        if (photo.tradeCode() != null) {
+            parts.add("trade:" + photo.tradeCode());
+        }
+        if (photo.processCode() != null) {
+            parts.add("process:" + photo.processCode());
+        }
+        if (photo.inspectionItemCode() != null) {
+            parts.add("inspectionItem:" + photo.inspectionItemCode());
+        }
+        if (photo.locationNote() != null) {
+            parts.add(photo.locationNote());
+        }
+        return parts.isEmpty() ? null : String.join(" / ", parts);
+    }
+
+    private record ParentRef(Long projectId, Long siteId, Long reportId, InspectionReport report) {
+    }
+
+    private record PhotoEvidenceContext(
+            Long siteId,
+            Long siteSupervisionEntryId,
+            String tradeCode,
+            String processCode,
+            String inspectionItemCode,
+            String caption,
+            String locationNote,
+            String drawingRef
+    ) {
     }
 
     private void publishAfterCommit(Object event) {

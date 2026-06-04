@@ -60,6 +60,7 @@ public class ReportSubmitValidationService {
                 .payload();
         var minWorkingPhotos = minWorkingPhotos(ruleSet, workflow);
 
+        requireSiteForSiteBoundWorkflow(report, workflow, blockingIssues);
         for (var requiredStep : requiredSteps(ruleSet)) {
             requireSavedStep(stepsByCode, requiredStep, "Required step must be saved before submit.", blockingIssues);
         }
@@ -71,6 +72,23 @@ public class ReportSubmitValidationService {
             return ReportSubmitValidationResponse.valid(warnings);
         }
         return ReportSubmitValidationResponse.invalid(blockingIssues, warnings);
+    }
+
+    private void requireSiteForSiteBoundWorkflow(
+            InspectionReport report,
+            ReportWorkflowDefinitionResponse workflow,
+            ArrayList<ReportSubmitValidationIssueResponse> blockingIssues
+    ) {
+        var requiresSite = workflow.steps().stream()
+                .anyMatch(step -> "DAILY_LOG".equals(normalizeCode(step.code())));
+        if (!requiresSite || report.siteId() != null) {
+            return;
+        }
+        blockingIssues.add(new ReportSubmitValidationIssueResponse(
+                "REPORT_SITE_REQUIRED",
+                "Site must be selected before submitting a construction supervision report.",
+                "INSPECTION_REPORT",
+                "siteId"));
     }
 
     private void validateWorkflowStep(

@@ -7,6 +7,7 @@ import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.site.application.SiteService;
+import com.archdox.cloud.supervisioncatalog.application.SupervisionDomainCatalogService;
 import com.archdox.cloud.supervisionledger.domain.SiteSupervisionEntry;
 import com.archdox.cloud.supervisionledger.domain.SiteSupervisionEntryStatus;
 import com.archdox.cloud.supervisionledger.dto.SiteSupervisionEntryResponse;
@@ -26,13 +27,12 @@ public class SiteSupervisionLedgerService {
     private static final String DAILY_LOG_STEP = "DAILY_LOG";
     private static final String BASIC_INFO_STEP = "BASIC_INFO";
     private static final String SOURCE_TYPE_REPORT_STEP = "REPORT_STEP";
-    private static final String CATALOG_CODE = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
-    private static final int CATALOG_VERSION = 2;
 
     private final SiteSupervisionEntryRepository entryRepository;
     private final InspectionReportStepRepository stepRepository;
     private final SiteService siteService;
     private final OfficePermissionService permissionService;
+    private final SupervisionDomainCatalogService catalogService;
     private final ObjectMapper objectMapper;
 
     public SiteSupervisionLedgerService(
@@ -40,12 +40,14 @@ public class SiteSupervisionLedgerService {
             InspectionReportStepRepository stepRepository,
             SiteService siteService,
             OfficePermissionService permissionService,
+            SupervisionDomainCatalogService catalogService,
             ObjectMapper objectMapper
     ) {
         this.entryRepository = entryRepository;
         this.stepRepository = stepRepository;
         this.siteService = siteService;
         this.permissionService = permissionService;
+        this.catalogService = catalogService;
         this.objectMapper = objectMapper;
     }
 
@@ -64,12 +66,16 @@ public class SiteSupervisionLedgerService {
 
     @Transactional
     public void syncReportDailyLog(InspectionReport report, Long userId, OffsetDateTime now) {
-        if (report.siteId() == null) {
-            return;
-        }
         var dailyStep = stepRepository.findByReportIdAndStepCode(report.id(), DAILY_LOG_STEP).orElse(null);
         if (dailyStep == null) {
             return;
+        }
+        if (report.siteId() == null) {
+            throw new com.archdox.cloud.global.api.BadRequestException(
+                    "REPORT_SITE_REQUIRED_FOR_SUPERVISION_LEDGER",
+                    "errors.report.siteRequiredForSupervisionLedger",
+                    "Site is required before saving construction daily supervision ledger data",
+                    Map.of("reportId", report.id(), "stepCode", DAILY_LOG_STEP));
         }
         var basicInfoStep = stepRepository.findByReportIdAndStepCode(report.id(), BASIC_INFO_STEP).orElse(null);
         var entryDate = resolveEntryDate(dailyStep, basicInfoStep, now);
@@ -79,6 +85,7 @@ public class SiteSupervisionLedgerService {
                 report.id(),
                 report.contentRevision(),
                 DAILY_LOG_STEP);
+        entryRepository.flush();
         if (!entries.isEmpty()) {
             entryRepository.saveAll(entries);
         }
@@ -106,43 +113,44 @@ public class SiteSupervisionLedgerService {
         var entries = new ArrayList<SiteSupervisionEntry>();
         for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
             var group = groups.get(groupIndex);
-            var items = group.path("items");
+            var items = group.path("entries");
             if (!items.isArray()) {
                 continue;
             }
             for (int itemIndex = 0; itemIndex < items.size(); itemIndex++) {
                 var item = items.get(itemIndex);
-                var inspectionItemCode = firstNonBlank(
-                        text(item, "inspectionItemCode"),
-                        text(item, "itemCode"));
-                var inspectionItemName = firstNonBlank(
-                        text(item, "inspectionItemName"),
-                        text(item, "item"));
-                if (isBlank(text(group, "trade")) && isBlank(inspectionItemName)
-                        && isBlank(text(item, "content")) && photoIds(item).isEmpty()) {
+                var supervisionContent = text(item, "supervisionContent");
+                var photos = photoIds(item);
+                if (isBlank(text(group, "tradeCode"))
+                        && isBlank(text(group, "processCode"))
+                        && isBlank(text(item, "inspectionItemCode"))
+                        && isBlank(supervisionContent)
+                        && photos.isEmpty()) {
                     continue;
                 }
+                var catalogSelection = catalogService.requireInspectionItemSelection(
+                        text(group, "tradeCode"),
+                        text(group, "processCode"),
+                        text(item, "inspectionItemCode"));
                 var sourceGroupKey = firstNonBlank(text(group, "id"), "group-" + groupIndex);
-                var sourceItemKey = firstNonBlank(text(item, "id"), "item-" + itemIndex);
+                var sourceItemKey = firstNonBlank(text(item, "id"), "entry-" + itemIndex);
                 entries.add(new SiteSupervisionEntry(
                         report.officeId(),
                         report.projectId(),
                         report.siteId(),
                         entryDate,
                         trimToNull(text(group, "floor")),
-                        trimToNull(text(group, "tradeCode")),
-                        trimToNull(text(group, "trade")),
-                        trimToNull(text(group, "processCode")),
-                        trimToNull(text(group, "process")),
-                        trimToNull(text(item, "itemCode")),
-                        trimToNull(text(item, "item")),
-                        trimToNull(inspectionItemCode),
-                        trimToNull(inspectionItemName),
-                        trimToNull(text(item, "content")),
+                        catalogSelection.tradeCode(),
+                        trimToNull(catalogSelection.tradeName()),
+                        catalogSelection.processCode(),
+                        trimToNull(catalogSelection.processName()),
+                        catalogSelection.inspectionItemCode(),
+                        trimToNull(catalogSelection.inspectionItemName()),
+                        trimToNull(supervisionContent),
                         trimToNull(text(item, "resultStatus")),
                         trimToNull(text(item, "issueText")),
                         trimToNull(firstNonBlank(text(item, "actionResult"), text(item, "correctiveAction"))),
-                        photoIds(item),
+                        photos,
                         SiteSupervisionEntryStatus.DRAFT,
                         SOURCE_TYPE_REPORT_STEP,
                         report.id(),
@@ -152,8 +160,8 @@ public class SiteSupervisionLedgerService {
                         sourceGroupKey,
                         sourceItemKey,
                         sourceGroupKey + ":" + sourceItemKey,
-                        CATALOG_CODE,
-                        CATALOG_VERSION,
+                        catalogSelection.catalogCode(),
+                        catalogSelection.catalogVersion(),
                         userId,
                         now));
             }
@@ -257,8 +265,6 @@ public class SiteSupervisionLedgerService {
                 entry.tradeName(),
                 entry.processCode(),
                 entry.processName(),
-                entry.itemCode(),
-                entry.itemName(),
                 entry.inspectionItemCode(),
                 entry.inspectionItemName(),
                 entry.supervisionContent(),

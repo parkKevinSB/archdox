@@ -44,7 +44,7 @@ class OfficeIsolationIntegrationTest {
         var userB = signup("bravo@example.com", "Bravo User");
 
         var projectB = createProject(userB.accessToken(), userB.officeId(), "Bravo Tower");
-        var reportB = createReport(userB.accessToken(), userB.officeId(), projectB, "DAILY_SUPERVISION");
+        var reportB = createReport(userB.accessToken(), userB.officeId(), projectB, "CONSTRUCTION_DAILY_SUPERVISION_LOG");
 
         mockMvc.perform(get("/api/v1/projects/{projectId}", projectB)
                         .header("Authorization", bearer(userA.accessToken()))

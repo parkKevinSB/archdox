@@ -18,6 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DocumentTypeRegistryService {
+    private static final List<String> CURRENT_CONSTRUCTION_SUPERVISION_TYPES = List.of(
+            "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+            "CONSTRUCTION_SUPERVISION_REPORT");
+
     private final DocumentTypeDefinitionRepository repository;
 
     public DocumentTypeRegistryService(DocumentTypeDefinitionRepository repository) {
@@ -26,16 +30,17 @@ public class DocumentTypeRegistryService {
 
     @Transactional(readOnly = true)
     public List<DocumentTypeResponse> listVisible() {
-        var officeId = OfficeContext.requireCurrentOfficeId();
-        return repository.findVisible(officeId).stream()
+        OfficeContext.requireCurrentOfficeId();
+        return repository.findSystemVisible().stream()
+                .filter(this::isUserCreatable)
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public DocumentTypeResponse get(String code) {
-        var officeId = OfficeContext.requireCurrentOfficeId();
-        return toResponse(resolve(officeId, code)
+        OfficeContext.requireCurrentOfficeId();
+        return toResponse(resolveUserCreatable(code)
                 .orElseThrow(() -> new NotFoundException(
                         "DOCUMENT_TYPE_NOT_FOUND",
                         "errors.documentType.notFound",
@@ -45,7 +50,7 @@ public class DocumentTypeRegistryService {
 
     @Transactional(readOnly = true)
     public DocumentTypeDefinition requireForReportCreation(Long officeId, String code) {
-        return resolve(officeId, code)
+        return resolveUserCreatable(code)
                 .orElseThrow(() -> new BadRequestException(
                         "DOCUMENT_TYPE_NOT_SUPPORTED",
                         "errors.documentType.notSupported",
@@ -101,6 +106,23 @@ public class DocumentTypeRegistryService {
             return Optional.empty();
         }
         return repository.resolve(officeId, normalized);
+    }
+
+    private Optional<DocumentTypeDefinition> resolveUserCreatable(String code) {
+        var normalized = normalizeCode(code);
+        if (normalized == null) {
+            return Optional.empty();
+        }
+        return repository.findSystemResolutionCandidates(normalized).stream()
+                .filter(this::isUserCreatable)
+                .findFirst();
+    }
+
+    private boolean isUserCreatable(DocumentTypeDefinition definition) {
+        return definition.officeId() == null
+                && "CONSTRUCTION_SUPERVISION".equals(normalizeCode(definition.category()))
+                && CURRENT_CONSTRUCTION_SUPERVISION_TYPES.contains(normalizeCode(definition.code()))
+                && CURRENT_CONSTRUCTION_SUPERVISION_TYPES.contains(normalizeCode(definition.reportType()));
     }
 
     private ReportWorkflowStepResponse parseStep(Map<String, Object> rawStep) {

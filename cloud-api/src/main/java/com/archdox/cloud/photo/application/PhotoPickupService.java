@@ -76,7 +76,17 @@ public class PhotoPickupService {
         payload.put("photoId", photo.id());
         payload.put("officeId", photo.officeId());
         payload.put("projectId", photo.projectId());
+        payload.put("siteId", photo.siteId());
         payload.put("reportId", photo.reportId());
+        payload.put("stepCode", photo.stepCode());
+        payload.put("checklistItemId", photo.checklistItemId());
+        payload.put("siteSupervisionEntryId", photo.siteSupervisionEntryId());
+        payload.put("tradeCode", photo.tradeCode());
+        payload.put("processCode", photo.processCode());
+        payload.put("inspectionItemCode", photo.inspectionItemCode());
+        payload.put("caption", photo.caption());
+        payload.put("locationNote", photo.locationNote());
+        payload.put("drawingRef", photo.drawingRef());
         payload.put("sourceStorageKind", original.storageKind().name());
         payload.put("sourceStorageRef", original.storageRef());
         payload.put("mime", original.mimeType());
