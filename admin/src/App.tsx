@@ -519,9 +519,19 @@ export default function App() {
     [auth?.user.offices, platformAdmin, platformData.offices]
   );
 
+  const platformManagedOfficeOffices = useMemo(
+    () => platformManagedOffices.filter(isOfficeAdminOffice),
+    [platformManagedOffices]
+  );
+
+  const platformManagedPersonalOffices = useMemo(
+    () => platformManagedOffices.filter(isPersonalTemplateOffice),
+    [platformManagedOffices]
+  );
+
   const consoleOffices = useMemo(
-    () => [...adminOffices, ...personalTemplateOffices, ...platformManagedOffices],
-    [adminOffices, personalTemplateOffices, platformManagedOffices]
+    () => [...adminOffices, ...platformManagedOfficeOffices, ...personalTemplateOffices, ...platformManagedPersonalOffices],
+    [adminOffices, platformManagedOfficeOffices, personalTemplateOffices, platformManagedPersonalOffices]
   );
 
   const selectedOffice = useMemo(
@@ -646,10 +656,18 @@ export default function App() {
       setSelectedOfficeId(null);
       return;
     }
+    if (
+      platformAdmin
+      && selectedOffice?.type === "PERSONAL"
+      && platformManagedOfficeOffices.length > 0
+    ) {
+      setSelectedOfficeId(platformManagedOfficeOffices[0].id);
+      return;
+    }
     if (!selectedOfficeId || !consoleOffices.some((office) => office.id === selectedOfficeId)) {
       setSelectedOfficeId(consoleOffices[0].id);
     }
-  }, [auth, consoleOffices, selectedOfficeId]);
+  }, [auth, consoleOffices, platformAdmin, platformManagedOfficeOffices, selectedOffice, selectedOfficeId]);
 
   useEffect(() => {
     if (!auth || !platformChecked) {

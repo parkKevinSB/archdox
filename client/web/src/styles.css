@@ -3771,35 +3771,6 @@ button.list-row {
   background-size: auto, 76px 76px, 76px 76px, auto;
 }
 
-.auth-page::before {
-  position: absolute;
-  inset: auto max(34px, 5vw) 8vh auto;
-  width: min(520px, 42vw);
-  height: min(560px, 64vh);
-  border: 1px solid #2d4642;
-  border-radius: 8px;
-  background:
-    linear-gradient(#172322 0 58px, transparent 58px),
-    repeating-linear-gradient(180deg, transparent 0 34px, rgb(111 200 174 / 10%) 34px 35px),
-    linear-gradient(135deg, #11201e, #182d2a);
-  box-shadow: 0 28px 70px rgb(20 32 31 / 24%);
-  content: "";
-}
-
-.auth-page::after {
-  position: absolute;
-  right: max(58px, 7vw);
-  top: 27vh;
-  z-index: 0;
-  color: #a9c4bd;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: clamp(11px, 1.1vw, 14px);
-  font-weight: 800;
-  line-height: 1.95;
-  white-space: pre;
-  content: "ArchDox.Engine\A  context.normalize(report)\A  policy.gate(action)\A  worker.run(flow)\A  document.render()";
-}
-
 .fullscreen-center {
   gap: 10px;
   color: #14201f;
@@ -3808,8 +3779,8 @@ button.list-row {
 .auth-panel {
   position: relative;
   z-index: 1;
-  justify-self: start;
-  margin-left: clamp(0px, 7vw, 110px);
+  justify-self: center;
+  margin-left: 0;
   width: min(448px, 100%);
   padding: 30px;
   border: 1px solid #d8e1df;
