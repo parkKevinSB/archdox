@@ -309,7 +309,7 @@ const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDa
 const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-overview", label: "개요" },
   { key: "platform-incidents", label: "이슈/진단" },
-  { key: "platform-resources", label: "전체 회원/사무소" },
+  { key: "platform-resources", label: "계정/사무소" },
   { key: "platform-legal", label: "법령" },
   { key: "platform-engine-keys", label: "Engine API Key" },
   { key: "platform-worker-governance", label: "Worker 통제" },
