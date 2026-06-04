@@ -275,6 +275,29 @@ Implemented concepts:
 Office roles such as `OWNER`, `ADMIN`, `MEMBER`, and `VIEWER` must not grant
 cross-tenant admin access.
 
+Platform admin is not an office admin. A platform admin must not be rendered as
+an `OWNER` or `ADMIN` member of an arbitrary office in the UI. Platform admin
+features use platform-scoped APIs and present platform-wide resources directly.
+
+Platform admin UI must expose the major operating surfaces as first-class menu
+items:
+
+- offices and tenants
+- users/accounts
+- ArchDox Agent connection state
+- Agent command state and failures
+- document jobs
+- photo pickup and artifact delivery
+- operation events and logs
+- system default templates/document settings
+- AI provider/policy/usage
+- legal sync/change digest
+- Worker governance and approvals
+
+Office admin UI remains separate and is scoped to one selected office. Office
+template overrides, member management, projects, and sites belong there. System
+default templates belong to platform admin.
+
 ## Implemented Platform Ops API And UI
 
 Phase 9-5 and Phase 9-6 add a first platform operations layer.

@@ -183,7 +183,13 @@ type ViewKey =
   | "events"
   | "platform-overview"
   | "platform-incidents"
-  | "platform-resources"
+  | "platform-offices"
+  | "platform-users"
+  | "platform-agents"
+  | "platform-commands"
+  | "platform-document-jobs"
+  | "platform-photo-delivery"
+  | "platform-templates"
   | "platform-legal"
   | "platform-engine-keys"
   | "platform-worker-governance"
@@ -198,7 +204,23 @@ type OfficeViewKey = Extract<
   ViewKey,
   "dashboard" | "agents" | "commands" | "documents" | "members" | "projects" | "templates" | "photos" | "deliveries" | "events"
 >;
-type PlatformViewKey = Extract<ViewKey, "platform-overview" | "platform-incidents" | "platform-resources" | "platform-legal" | "platform-engine-keys" | "platform-worker-governance" | "platform-worker-approvals" | "platform-events">;
+type PlatformViewKey = Extract<
+  ViewKey,
+  | "platform-overview"
+  | "platform-incidents"
+  | "platform-offices"
+  | "platform-users"
+  | "platform-agents"
+  | "platform-commands"
+  | "platform-document-jobs"
+  | "platform-photo-delivery"
+  | "platform-templates"
+  | "platform-legal"
+  | "platform-engine-keys"
+  | "platform-worker-governance"
+  | "platform-worker-approvals"
+  | "platform-events"
+>;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 
@@ -308,13 +330,19 @@ const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDa
 
 const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-overview", label: "개요" },
+  { key: "platform-offices", label: "사무소" },
+  { key: "platform-users", label: "회원" },
+  { key: "platform-agents", label: "Agent" },
+  { key: "platform-commands", label: "Agent 명령" },
+  { key: "platform-document-jobs", label: "문서 작업" },
+  { key: "platform-photo-delivery", label: "사진/전달" },
   { key: "platform-incidents", label: "이슈/진단" },
-  { key: "platform-resources", label: "계정/사무소" },
+  { key: "platform-events", label: "이벤트/로그" },
+  { key: "platform-templates", label: "템플릿/문서설정" },
   { key: "platform-legal", label: "법령" },
   { key: "platform-engine-keys", label: "Engine API Key" },
   { key: "platform-worker-governance", label: "Worker 통제" },
-  { key: "platform-worker-approvals", label: "Worker 승인" },
-  { key: "platform-events", label: "이벤트/로그" }
+  { key: "platform-worker-approvals", label: "Worker 승인" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -3614,7 +3642,13 @@ function PlatformView({
     : null;
   const showOverview = view === "platform-overview";
   const showIncidents = view === "platform-incidents";
-  const showResources = view === "platform-resources";
+  const showOffices = view === "platform-offices";
+  const showUsers = view === "platform-users";
+  const showAgents = view === "platform-agents";
+  const showCommands = view === "platform-commands";
+  const showDocumentJobs = view === "platform-document-jobs";
+  const showPhotoDelivery = view === "platform-photo-delivery";
+  const showTemplates = view === "platform-templates";
   const showLegal = view === "platform-legal";
   const showEngineKeys = view === "platform-engine-keys";
   const showWorkerGovernance = view === "platform-worker-governance";
@@ -3856,7 +3890,7 @@ function PlatformView({
         </Panel>
       ) : null}
 
-      {showResources ? (
+      {showOffices ? (
         <Panel title="사무소" icon={<HardDrive size={18} />} count={data.offices.length}>
         <Table
           columns={["사무소", "유형", "플랜", "상태"]}
@@ -3871,7 +3905,21 @@ function PlatformView({
         </Panel>
       ) : null}
 
-      {showResources ? (
+      {showUsers ? (
+        <Panel title="회원" icon={<Users size={18} />} count={data.users.length}>
+        <Table
+          columns={["회원", "상태", "생성"]}
+          empty="회원이 없습니다."
+          rows={data.users.slice(0, 50).map((user) => [
+            <CellTitle key="user" title={user.name} subtitle={`${user.email} / #${user.id}`} />,
+            <StatusBadge key="status" status={user.status} />,
+            formatDate(user.createdAt)
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showAgents ? (
         <Panel title="에이전트" icon={<Server size={18} />} count={data.agents.length}>
         <Table
           columns={["에이전트", "사무소", "상태", "모드", "버전", "최근 신호"]}
@@ -3888,7 +3936,25 @@ function PlatformView({
         </Panel>
       ) : null}
 
-      {showResources ? (
+      {showCommands ? (
+        <Panel title="Agent 명령" icon={<Command size={18} />} count={data.commands.length}>
+        <Table
+          columns={["명령", "사무소", "Agent", "상태", "시도", "다음 시도", "오류"]}
+          empty="Agent 명령이 없습니다."
+          rows={data.commands.slice(0, 50).map((command) => [
+            <CellTitle key="command" title={displayLabel(command.commandType)} subtitle={`#${command.id}`} />,
+            `#${command.officeId}`,
+            `${command.agentCode} / #${command.agentId}`,
+            <StatusBadge key="status" status={command.status} />,
+            `${command.attemptCount}/${command.maxAttempts}`,
+            formatDate(command.nextAttemptAt ?? command.lastAttemptAt ?? command.createdAt),
+            command.errorMessage ?? "-"
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showDocumentJobs ? (
         <Panel title="실패 또는 최근 문서 작업" icon={<FileText size={18} />} count={data.documents.length}>
         <Table
           columns={["작업", "사무소", "상태", "진행", "처리 주체", "수정", "오류"]}
@@ -3906,18 +3972,64 @@ function PlatformView({
         </Panel>
       ) : null}
 
-      {showResources ? (
-        <Panel title="사용자" icon={<Users size={18} />} count={data.users.length}>
+      {showPhotoDelivery ? (
+        <Panel title="사진" icon={<Camera size={18} />} count={data.photos.length}>
         <Table
-          columns={["사용자", "상태", "생성"]}
-          empty="사용자가 없습니다."
-          rows={data.users.slice(0, 20).map((user) => [
-            <CellTitle key="user" title={user.name} subtitle={`${user.email} / #${user.id}`} />,
-            <StatusBadge key="status" status={user.status} />,
-            formatDate(user.createdAt)
+          columns={["사진", "사무소", "리포트", "상태", "회수", "저장", "오류"]}
+          empty="사진 기록이 없습니다."
+          rows={data.photos.slice(0, 50).map((photo) => [
+            <CellTitle key="photo" title={`사진 #${photo.id}`} subtitle={photo.stepCode ?? "step 없음"} />,
+            `#${photo.officeId}`,
+            photo.reportId ? `#${photo.reportId}` : "-",
+            <StatusBadge key="status" status={photo.status} />,
+            <StatusBadge key="pickup" status={photo.originalPickupStatus} />,
+            displayLabel(photo.storageKind),
+            photo.pickupErrorMessage ?? "-"
           ])}
         />
         </Panel>
+      ) : null}
+
+      {showPhotoDelivery ? (
+        <Panel title="문서 전달" icon={<Truck size={18} />} count={data.deliveries.length}>
+        <Table
+          columns={["전달", "사무소", "문서 작업", "채널", "상태", "수정", "오류"]}
+          empty="문서 전달 기록이 없습니다."
+          rows={data.deliveries.slice(0, 50).map((delivery) => [
+            <CellTitle key="delivery" title={`전달 #${delivery.id}`} subtitle={delivery.artifactId ? `artifact #${delivery.artifactId}` : "artifact 없음"} />,
+            `#${delivery.officeId}`,
+            `#${delivery.documentJobId}`,
+            displayLabel(delivery.channel),
+            <StatusBadge key="status" status={delivery.status} />,
+            formatDate(delivery.updatedAt),
+            delivery.errorMessage ?? "-"
+          ])}
+        />
+        </Panel>
+      ) : null}
+
+      {showTemplates ? (
+        <div className="dashboard-grid">
+          <Panel title="시스템 기본 템플릿/문서설정" icon={<Upload size={18} />}>
+            <InlineNotice message="플랫폼 관리자는 ArchDox 기본 템플릿, 기본 workflow, rule set, output layout을 관리해야 합니다. 사무소별 수정본은 사무소 운영 > 템플릿에서 오버라이드로 관리합니다." />
+            <div className="metric-grid compact">
+              <MetricCard icon={<FileText size={20} />} label="관리 범위" value="시스템 기본" detail="office_id 없는 기본 설정" tone="blue" />
+              <MetricCard icon={<HardDrive size={20} />} label="사무소 수정본" value={data.offices.length} detail="각 사무소 override 대상" tone="slate" />
+              <MetricCard icon={<Upload size={20} />} label="현재 UI" value="분리 필요" detail="플랫폼 전용 템플릿 API/UI 보강 대상" tone="amber" />
+            </div>
+          </Panel>
+          <Panel title="템플릿 계층 정책" icon={<ShieldCheck size={18} />}>
+            <Table
+              columns={["계층", "관리자", "용도"]}
+              empty="템플릿 정책이 없습니다."
+              rows={[
+                ["시스템 기본 템플릿", "플랫폼 관리자", "공식 기본 양식과 기본 렌더링 정책"],
+                ["사무소 오버라이드", "사무소 OWNER/ADMIN", "사무소별 양식 수정본과 문구/레이아웃 조정"],
+                ["개인 워크스페이스 템플릿", "개인 사용자", "개인 테스트 또는 개인 업무용 템플릿"]
+              ]}
+            />
+          </Panel>
+        </div>
       ) : null}
     </div>
   );
