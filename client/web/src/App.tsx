@@ -296,7 +296,7 @@ export default function App() {
   }, [auth?.accessToken, selectedOfficeId]);
 
   useEffect(() => {
-    if (!auth || !selectedOfficeId || !canManageSelectedOffice) {
+    if (!auth || !selectedOfficeId || !canManageSelectedOfficeAssignments) {
       setOfficeMembers([]);
       return;
     }
@@ -315,7 +315,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [auth?.accessToken, canManageSelectedOffice, selectedOfficeId]);
+  }, [auth?.accessToken, canManageSelectedOfficeAssignments, selectedOfficeId]);
 
   useEffect(() => {
     if (workspace.projects.length === 0) {
