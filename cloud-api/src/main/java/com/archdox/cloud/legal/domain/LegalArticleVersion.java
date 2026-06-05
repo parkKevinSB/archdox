@@ -106,8 +106,16 @@ public class LegalArticleVersion {
         return articleTitle;
     }
 
+    public String articleText() {
+        return articleText;
+    }
+
     public String contentHash() {
         return contentHash;
+    }
+
+    public LocalDate effectiveDate() {
+        return effectiveDate;
     }
 
     private static Long requireId(Long value, String fieldName) {

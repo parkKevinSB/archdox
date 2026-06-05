@@ -1256,7 +1256,7 @@ button {
   background: #fbfcfc;
 }
 
-.legal-diff-item > div {
+.legal-diff-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1267,9 +1267,45 @@ button {
   font-size: 13px;
 }
 
+.legal-diff-title-row a {
+  color: #17685e;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .legal-diff-item span,
-.legal-diff-item small {
+.legal-diff-item small,
+.legal-diff-item p {
   overflow-wrap: anywhere;
+}
+
+.legal-diff-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.legal-diff-preview-grid > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e1e8e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.legal-diff-preview-grid strong {
+  color: #49615c;
+  font-size: 11px;
+}
+
+.legal-diff-preview-grid p {
+  margin: 0;
+  color: #405751;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .legal-diff-item small {
@@ -2415,6 +2451,10 @@ tbody tr:hover {
   .member-form,
   .project-form,
   .project-assignment-form {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-diff-preview-grid {
     grid-template-columns: 1fr;
   }
 }

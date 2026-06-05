@@ -79,8 +79,16 @@ public class LegalVersion {
         return sourceVersionKey;
     }
 
+    public LocalDate promulgationDate() {
+        return promulgationDate;
+    }
+
     public LocalDate effectiveDate() {
         return effectiveDate;
+    }
+
+    public String sourceUrl() {
+        return sourceUrl;
     }
 
     public String contentHash() {

@@ -12,12 +12,17 @@ import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.domain.LegalArticleChangeType;
 import com.archdox.cloud.legal.domain.LegalArticleDiff;
+import com.archdox.cloud.legal.domain.LegalArticleVersion;
+import com.archdox.cloud.legal.domain.LegalVersion;
 import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
+import com.archdox.cloud.legal.infra.LegalArticleVersionRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
+import com.archdox.cloud.legal.infra.LegalVersionRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +30,13 @@ import org.springframework.data.domain.Pageable;
 class LegalUpdateReadServiceTest {
     private final LegalChangeDigestRepository repository = mock(LegalChangeDigestRepository.class);
     private final LegalArticleDiffRepository articleDiffRepository = mock(LegalArticleDiffRepository.class);
-    private final LegalUpdateReadService service = new LegalUpdateReadService(repository, articleDiffRepository);
+    private final LegalArticleVersionRepository articleVersionRepository = mock(LegalArticleVersionRepository.class);
+    private final LegalVersionRepository versionRepository = mock(LegalVersionRepository.class);
+    private final LegalUpdateReadService service = new LegalUpdateReadService(
+            repository,
+            articleDiffRepository,
+            articleVersionRepository,
+            versionRepository);
 
     @Test
     void recentExcludesFakeLegalSource() throws Exception {
@@ -38,6 +49,10 @@ class LegalUpdateReadServiceTest {
                 .thenReturn(List.of(digest));
         when(articleDiffRepository.findByChangeSetIdOrderByIdAsc(100L))
                 .thenReturn(List.of(diff(1L, 100L)));
+        when(articleVersionRepository.findAllById(any()))
+                .thenReturn(List.of(articleVersion(250L, 300L)));
+        when(versionRepository.findAllById(any()))
+                .thenReturn(List.of(legalVersion(300L)));
 
         var updates = service.recent(30, 50);
 
@@ -48,7 +63,10 @@ class LegalUpdateReadServiceTest {
                     assertThat(update.articleDiffs()).singleElement()
                             .satisfies(diff -> {
                                 assertThat(diff.articleNo()).isEqualTo("제25조");
+                                assertThat(diff.articleTitle()).isEqualTo("공사감리");
                                 assertThat(diff.changeType()).isEqualTo(LegalArticleChangeType.ADDED);
+                                assertThat(diff.afterTextPreview()).contains("감리자는 공사감리 업무를 수행한다");
+                                assertThat(diff.sourceUrl()).isEqualTo("https://www.law.go.kr/DRF/lawService.do?target=law&type=JSON&ID=001823");
                             });
                 });
         verify(repository).findPublishedExcludingSourceCode(
@@ -67,6 +85,10 @@ class LegalUpdateReadServiceTest {
                 .thenReturn(Optional.of(digest(10L, 100L)));
         when(articleDiffRepository.findByChangeSetIdOrderByIdAsc(100L))
                 .thenReturn(List.of(diff(1L, 100L)));
+        when(articleVersionRepository.findAllById(any()))
+                .thenReturn(List.of(articleVersion(250L, 300L)));
+        when(versionRepository.findAllById(any()))
+                .thenReturn(List.of(legalVersion(300L)));
 
         var update = service.detail(10L);
 
@@ -111,6 +133,39 @@ class LegalUpdateReadServiceTest {
                 now);
         setId(diff, id);
         return diff;
+    }
+
+    private LegalArticleVersion articleVersion(Long id, Long legalVersionId) throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var articleVersion = new LegalArticleVersion(
+                25L,
+                legalVersionId,
+                "0025001",
+                "제25조",
+                "공사감리",
+                "감리자는 공사감리 업무를 수행한다. 현장 증빙과 감리 내용을 기록한다.",
+                "감리자는 공사감리 업무를 수행한다 현장 증빙과 감리 내용을 기록한다",
+                "after-hash",
+                LocalDate.of(2026, 7, 1),
+                Map.of(),
+                now);
+        setId(articleVersion, id);
+        return articleVersion;
+    }
+
+    private LegalVersion legalVersion(Long id) throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var version = new LegalVersion(
+                1L,
+                "0018232026070100000",
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 7, 1),
+                "https://www.law.go.kr/DRF/lawService.do?target=law&type=JSON&ID=001823",
+                "version-hash",
+                Map.of(),
+                now);
+        setId(version, id);
+        return version;
     }
 
     private void setId(Object target, Long id) throws Exception {

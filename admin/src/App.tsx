@@ -3895,11 +3895,30 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
           <div className="legal-diff-list">
             {articleDiffs.slice(0, 80).map((diff) => (
               <div className="legal-diff-item" key={diff.id}>
-                <div>
+                <div className="legal-diff-title-row">
                   <StatusBadge status={diff.changeType} />
-                  <strong>{legalArticleLabel(diff.articleNo, diff.articleKey)}</strong>
-                  <span>{diff.diffSummary}</span>
+                  <strong>{legalArticleLabel(diff.articleNo, diff.articleTitle, diff.articleKey)}</strong>
+                  {diff.effectiveDate ? <span>시행일 {diff.effectiveDate}</span> : null}
+                  {diff.sourceVersionKey ? <span>버전 {diff.sourceVersionKey}</span> : null}
+                  {diff.sourceUrl ? (
+                    <a href={diff.sourceUrl} target="_blank" rel="noreferrer">
+                      원문
+                    </a>
+                  ) : null}
                 </div>
+                <span>{diff.diffSummary}</span>
+                {diff.beforeTextPreview || diff.afterTextPreview ? (
+                  <div className="legal-diff-preview-grid">
+                    <div>
+                      <strong>이전</strong>
+                      <p>{diff.beforeTextPreview || "이전 조문 본문 없음"}</p>
+                    </div>
+                    <div>
+                      <strong>이후</strong>
+                      <p>{diff.afterTextPreview || "이후 조문 본문 없음"}</p>
+                    </div>
+                  </div>
+                ) : null}
                 <small>
                   before #{diff.beforeArticleVersionId ?? "-"} / after #{diff.afterArticleVersionId ?? "-"} / {shortHash(diff.beforeHash)} → {shortHash(diff.afterHash)}
                 </small>
@@ -4863,8 +4882,13 @@ function metadataList(metadata: Record<string, unknown> | undefined, key: string
   return [];
 }
 
-function legalArticleLabel(articleNo?: string | null, articleKey?: string | null) {
-  return articleNo?.trim() || articleKey?.trim() || "조문";
+function legalArticleLabel(articleNo?: string | null, articleTitle?: string | null, articleKey?: string | null) {
+  const no = articleNo?.trim();
+  const title = articleTitle?.trim();
+  if (no && title) {
+    return `${no} ${title}`;
+  }
+  return no || title || articleKey?.trim() || "조문";
 }
 
 function shortHash(value?: string | null) {

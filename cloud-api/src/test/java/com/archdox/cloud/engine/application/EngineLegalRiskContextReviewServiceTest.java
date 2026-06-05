@@ -44,5 +44,18 @@ class EngineLegalRiskContextReviewServiceTest {
         assertThat(result.findings())
                 .extracting(ArchDoxEngineFinding::legalReferences)
                 .contains(List.of("BUILDING_ACT:25@001823:20260701"));
+        assertThat(result.findings()).singleElement()
+                .satisfies(finding -> {
+                    var summaries = (List<?>) finding.metadata().get("legalReferenceSummaries");
+                    assertThat(summaries).singleElement()
+                            .satisfies(summary -> {
+                                var map = (Map<?, ?>) summary;
+                                assertThat(map.get("actName")).isEqualTo("건축법");
+                                assertThat(map.get("articleNo")).isEqualTo("25");
+                                assertThat(map.get("sourceUrl")).isEqualTo("https://www.law.go.kr/DRF/lawService.do?ID=001823");
+                            });
+                    assertThat(String.valueOf(finding.metadata().get("evidenceRequirement")))
+                            .contains("감리내용");
+                });
     }
 }

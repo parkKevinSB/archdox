@@ -22,11 +22,18 @@ export type LegalArticleDiff = {
   articleId?: number | null;
   articleKey: string;
   articleNo?: string | null;
+  articleTitle?: string | null;
   changeType: string;
   beforeArticleVersionId?: number | null;
   afterArticleVersionId?: number | null;
   beforeHash?: string | null;
   afterHash?: string | null;
+  beforeTextPreview?: string | null;
+  afterTextPreview?: string | null;
+  legalVersionId?: number | null;
+  sourceVersionKey?: string | null;
+  effectiveDate?: string | null;
+  sourceUrl?: string | null;
   diffSummary: string;
   createdAt: string;
 };

@@ -25,6 +25,7 @@ public class EngineLegalRiskContextReviewService {
         var hasLegalReferences = !references.isEmpty();
         var evidenceContext = evidenceContext(normalizedContext);
         var findings = new ArrayList<ArchDoxEngineFinding>();
+        var referenceSummaries = compactReferences(references);
         if (hasLegalReferences && evidenceContext.isEmpty()) {
             findings.add(new ArchDoxEngineFinding(
                     "LEGAL_EVIDENCE_CONTEXT_MISSING",
@@ -37,12 +38,15 @@ public class EngineLegalRiskContextReviewService {
                     Map.of(
                             "engineCheck", "LEGAL_REFERENCE_CONTEXT_REQUIRED",
                             "legalReferenceCount", references.size(),
+                            "legalReferenceSummaries", referenceSummaries,
+                            "evidenceRequirement", "감리내용, 작업 위치, 사진/증빙 또는 현장 확인 내용 중 하나 이상이 필요합니다.",
                             "recommendedFields", EVIDENCE_CONTEXT_FIELDS)));
         }
 
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("legalRiskContextReviewApplied", hasLegalReferences);
         metadata.put("legalReferenceCount", references.size());
+        metadata.put("legalReferenceSummaries", referenceSummaries);
         metadata.put("evidenceContextPresent", !evidenceContext.isEmpty());
         metadata.put("evidenceContextFields", evidenceContext.keySet().stream().toList());
         metadata.put("aiPromptContext", aiPromptContext(catalogBindings, references, evidenceContext));

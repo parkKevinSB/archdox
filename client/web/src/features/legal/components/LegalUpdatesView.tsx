@@ -173,8 +173,29 @@ function LegalUpdateDetail({ loading, update }: { loading: boolean; update: Lega
           <div className="legal-update-diff-list">
             {articleDiffs.slice(0, 80).map((diff) => (
               <div className="legal-update-diff-item" key={diff.id}>
-                <strong>{formatChangeType(diff.changeType)} · {legalArticleLabel(diff.articleNo, diff.articleKey)}</strong>
+                <div className="legal-update-diff-heading">
+                  <strong>{formatChangeType(diff.changeType)} · {legalArticleLabel(diff.articleNo, diff.articleTitle, diff.articleKey)}</strong>
+                  {diff.effectiveDate ? <small>시행일 {diff.effectiveDate}</small> : null}
+                  {diff.sourceUrl ? (
+                    <a href={diff.sourceUrl} target="_blank" rel="noreferrer">
+                      원문
+                    </a>
+                  ) : null}
+                </div>
                 <span>{diff.diffSummary}</span>
+                {diff.beforeTextPreview || diff.afterTextPreview ? (
+                  <div className="legal-update-diff-preview">
+                    <div>
+                      <strong>이전</strong>
+                      <p>{diff.beforeTextPreview || "이전 조문 본문 없음"}</p>
+                    </div>
+                    <div>
+                      <strong>이후</strong>
+                      <p>{diff.afterTextPreview || "이후 조문 본문 없음"}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {diff.sourceVersionKey ? <small className="legal-update-source-version">버전 {diff.sourceVersionKey}</small> : null}
               </div>
             ))}
           </div>
@@ -205,8 +226,13 @@ function formatChangeType(value: string) {
   return labels[value] ?? value;
 }
 
-function legalArticleLabel(articleNo?: string | null, articleKey?: string | null) {
-  return articleNo?.trim() || articleKey?.trim() || "조문";
+function legalArticleLabel(articleNo?: string | null, articleTitle?: string | null, articleKey?: string | null) {
+  const no = articleNo?.trim();
+  const title = articleTitle?.trim();
+  if (no && title) {
+    return `${no} ${title}`;
+  }
+  return no || title || articleKey?.trim() || "조문";
 }
 
 function formatDate(value?: string | null) {

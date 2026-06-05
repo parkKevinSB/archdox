@@ -3262,11 +3262,18 @@ button.list-row {
 
 .legal-update-diff-item {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   padding: 10px 12px;
   border: 1px solid #d8e0df;
   border-radius: 8px;
   background: #fbfcfc;
+}
+
+.legal-update-diff-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .legal-update-diff-item strong {
@@ -3274,8 +3281,51 @@ button.list-row {
   font-size: 13px;
 }
 
+.legal-update-diff-heading small,
+.legal-update-source-version {
+  color: #738682;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.legal-update-diff-heading a {
+  color: #17685e;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .legal-update-diff-item span {
   color: #60746f;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.legal-update-diff-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.legal-update-diff-preview > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e1e8e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.legal-update-diff-preview strong {
+  color: #49615c;
+  font-size: 11px;
+}
+
+.legal-update-diff-preview p {
+  margin: 0;
+  color: #405751;
   font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -4226,6 +4276,10 @@ button.list-row {
 
   .legal-update-diff-summary {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .legal-update-diff-preview {
+    grid-template-columns: 1fr;
   }
 
   .document-card {
