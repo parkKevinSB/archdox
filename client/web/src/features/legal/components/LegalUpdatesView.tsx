@@ -4,6 +4,16 @@ import { EmptyState, InlineNotice, Panel, StatusBadge, ViewHeader } from "../../
 import { listLegalUpdates } from "../api";
 import type { LegalChangeDigest } from "../types";
 
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
+  CONSTRUCTION_SUPERVISION_REPORT: "감리보고서"
+};
+
+const CATALOG_ITEM_LABELS: Record<string, string> = {
+  CONSTRUCTION_SUPERVISION_CHECKLIST: "공사감리 체크리스트",
+  CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT: "공사감리 법령 근거"
+};
+
 export function LegalUpdatesView({ token }: { token: string }) {
   const [updates, setUpdates] = useState<LegalChangeDigest[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -21,7 +31,7 @@ export function LegalUpdatesView({ token }: { token: string }) {
     try {
       const next = await listLegalUpdates(token, 30, 50);
       setUpdates(next);
-      setSelectedId((current) => current ?? next[0]?.id ?? null);
+      setSelectedId((current) => (next.some((update) => update.id === current) ? current : next[0]?.id ?? null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항을 불러오지 못했습니다.");
     } finally {
@@ -37,7 +47,7 @@ export function LegalUpdatesView({ token }: { token: string }) {
     <div className="view-stack legal-updates-view">
       <ViewHeader
         title="법령 변경사항"
-        text="최근 법령 변경사항을 게시글처럼 확인합니다. 나중에는 중요한 변경이 추가되면 알림으로도 알려줄 수 있습니다."
+        text="최근 법령 변경과 ArchDox 업무 영향 요약을 게시글처럼 확인합니다."
       />
       <Panel
         title="최근 변경"
@@ -49,9 +59,9 @@ export function LegalUpdatesView({ token }: { token: string }) {
         }
       >
         {error ? <InlineNotice message={error} /> : null}
-        <InlineNotice message="현재는 변경사항 요약을 deterministic digest로 표시합니다. 실제 법령 API와 AI 요약 worker가 붙으면 제목/영향 설명이 더 정교해집니다." />
+        <InlineNotice message="현재 요약은 deterministic digest 기준입니다. AI 영향도 분석 worker가 붙으면 제목, 요약, 관련 업무가 더 정교해집니다." />
         {updates.length === 0 && !loading ? (
-          <EmptyState title="최근 변경사항이 없습니다" text="법령 동기화가 실행되면 최근 30일 변경사항이 여기에 표시됩니다." />
+          <EmptyState title="최근 변경사항이 없습니다" text="법령 동기화가 실행되면 최근 30일 변경사항이 표시됩니다." />
         ) : (
           <div className="legal-update-layout">
             <div className="legal-update-list">
@@ -85,6 +95,10 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
     );
   }
 
+  const affectedReportTypes = update.affectedReportTypes.map(formatReportType);
+  const affectedCatalogItems = update.affectedCatalogItems.map(formatCatalogItem);
+  const hasAffectedItems = affectedReportTypes.length > 0 || affectedCatalogItems.length > 0;
+
   return (
     <article className="legal-update-detail">
       <header>
@@ -93,7 +107,9 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
         </div>
         <div>
           <h2>{update.title}</h2>
-          <p>{formatDate(update.publishedAt ?? update.detectedAt)} · 시행일 {update.effectiveDate ?? "미정"}</p>
+          <p>
+            {formatDate(update.publishedAt ?? update.detectedAt)} · 시행일 {update.effectiveDate ?? "미정"}
+          </p>
         </div>
         <StatusBadge status={update.status} />
       </header>
@@ -105,12 +121,32 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
         <h3>업무 영향</h3>
         <p>{update.impactSummary ?? "아직 업무 영향 요약이 작성되지 않았습니다."}</p>
       </section>
+      {hasAffectedItems ? (
+        <section>
+          <h3>관련 업무</h3>
+          <div className="legal-update-tags">
+            {[...affectedReportTypes, ...affectedCatalogItems].map((label) => (
+              <span className="legal-update-tag" key={label}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <footer>
         <Bell size={16} />
-        <span>알림 기능은 추후 추가됩니다. 지금은 최근 변경 목록에서 확인합니다.</span>
+        <span>중요 변경 알림은 이후 추가됩니다. 지금은 최근 변경 목록에서 확인합니다.</span>
       </footer>
     </article>
   );
+}
+
+function formatReportType(value: string) {
+  return REPORT_TYPE_LABELS[value] ?? value;
+}
+
+function formatCatalogItem(value: string) {
+  return CATALOG_ITEM_LABELS[value] ?? value;
 }
 
 function formatDate(value?: string | null) {

@@ -3209,6 +3209,22 @@ button.list-row {
   line-height: 1.6;
 }
 
+.legal-update-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legal-update-tag {
+  padding: 5px 9px;
+  border: 1px solid #c9d8d5;
+  border-radius: 999px;
+  color: #29423d;
+  background: #f2f7f5;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
 .legal-update-detail footer {
   display: flex;
   align-items: center;

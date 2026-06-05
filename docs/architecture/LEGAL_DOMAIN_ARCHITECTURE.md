@@ -435,6 +435,16 @@ affected ArchDox domain bindings. Notifications should be triggered only after
 the digest is published; notification delivery is a channel concern, not the
 source of truth.
 
+The current deterministic digest is intentionally conservative: it summarizes
+article change counts, includes a small set of representative article labels,
+keeps the raw change-set summary as source context, and fills construction
+supervision report/catalog bindings for Building Act or supervision-related
+acts. This gives user and admin screens a useful post before AI impact analysis
+exists, while keeping the future AI worker as an enrichment layer instead of
+the source of truth. Existing deterministic digests may be refreshed from the
+same raw change set, but AI-sourced digests must not be overwritten by the
+deterministic fallback.
+
 For report review:
 
 ```text

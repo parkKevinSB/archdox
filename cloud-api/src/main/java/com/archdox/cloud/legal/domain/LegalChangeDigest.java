@@ -167,6 +167,31 @@ public class LegalChangeDigest {
         this.updatedAt = now;
     }
 
+    public void refreshDeterministic(
+            String title,
+            String summary,
+            String impactSummary,
+            List<String> affectedReportTypes,
+            List<String> affectedCatalogItems,
+            LocalDate effectiveDate,
+            OffsetDateTime detectedAt,
+            OffsetDateTime now
+    ) {
+        if (this.source != LegalChangeDigestSource.DETERMINISTIC) {
+            return;
+        }
+        this.status = LegalChangeDigestStatus.PUBLISHED;
+        this.title = required(title, "title");
+        this.summary = required(summary, "summary");
+        this.impactSummary = blankToNull(impactSummary);
+        this.affectedReportTypesJson = affectedReportTypes == null ? List.of() : List.copyOf(affectedReportTypes);
+        this.affectedCatalogItemsJson = affectedCatalogItems == null ? List.of() : List.copyOf(affectedCatalogItems);
+        this.effectiveDate = effectiveDate;
+        this.detectedAt = detectedAt == null ? now : detectedAt;
+        this.publishedAt = this.publishedAt == null ? now : this.publishedAt;
+        this.updatedAt = now;
+    }
+
     private static Long requireId(Long value, String fieldName) {
         if (value == null) {
             throw new IllegalArgumentException(fieldName + " is required");
