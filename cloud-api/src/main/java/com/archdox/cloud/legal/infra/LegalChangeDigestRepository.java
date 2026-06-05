@@ -15,6 +15,23 @@ public interface LegalChangeDigestRepository extends JpaRepository<LegalChangeDi
 
     List<LegalChangeDigest> findAllByOrderByDetectedAtDescIdDesc(Pageable pageable);
 
+    @Query("""
+            select digest
+            from LegalChangeDigest digest
+            where not exists (
+                select 1
+                from LegalChangeSet changeSet, LegalSyncRun syncRun
+                where changeSet.id = digest.changeSetId
+                  and syncRun.id = changeSet.syncRunId
+                  and syncRun.sourceCode = :excludedSourceCode
+            )
+            order by digest.detectedAt desc, digest.id desc
+            """)
+    List<LegalChangeDigest> findAllExcludingSourceCode(
+            @Param("excludedSourceCode") String excludedSourceCode,
+            Pageable pageable
+    );
+
     List<LegalChangeDigest> findByStatusAndPublishedAtAfterOrderByPublishedAtDescIdDesc(
             LegalChangeDigestStatus status,
             OffsetDateTime publishedAfter,

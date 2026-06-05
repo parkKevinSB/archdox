@@ -139,7 +139,9 @@ public class LegalPlatformAdminService {
 
     public List<LegalChangeDigestResponse> changeDigests(UserPrincipal principal, Integer limit) {
         platformAdminService.requirePlatformAdmin(principal);
-        return changeDigestRepository.findAllByOrderByDetectedAtDescIdDesc(PageRequest.of(0, limit(limit)))
+        return changeDigestRepository.findAllExcludingSourceCode(
+                        FakeLegalSourceClient.DEFAULT_SOURCE_CODE,
+                        PageRequest.of(0, limit(limit)))
                 .stream()
                 .map(updateReadService::toResponse)
                 .toList();

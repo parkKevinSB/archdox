@@ -14,6 +14,7 @@ import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.domain.LegalChangeSet;
+import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
 import com.archdox.cloud.legal.flow.LegalSyncWorker;
 import com.archdox.cloud.legal.infra.LegalActRepository;
@@ -57,6 +58,43 @@ class LegalPlatformAdminServiceTest {
             updateReadService,
             legalSyncProperties,
             changeDigestService);
+
+    @Test
+    void changeDigestsExcludeFakeSource() {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        var response = new LegalChangeDigestResponse(
+                1L,
+                10L,
+                LegalChangeDigestStatus.PUBLISHED,
+                LegalChangeDigestSource.DETERMINISTIC,
+                "건축법 조문 변경: 신설 1건",
+                "summary",
+                "impact",
+                List.of(),
+                List.of(),
+                null,
+                LocalDate.of(2026, 7, 1),
+                now,
+                now,
+                now,
+                now,
+                List.of());
+        when(changeDigestRepository.findAllExcludingSourceCode(
+                eq(FakeLegalSourceClient.DEFAULT_SOURCE_CODE),
+                any(Pageable.class)))
+                .thenReturn(List.of(digest));
+        when(updateReadService.toResponse(digest)).thenReturn(response);
+
+        var result = service.changeDigests(principal, 50);
+
+        assertThat(result).containsExactly(response);
+        verify(platformAdminService).requirePlatformAdmin(principal);
+        verify(changeDigestRepository).findAllExcludingSourceCode(
+                eq(FakeLegalSourceClient.DEFAULT_SOURCE_CODE),
+                any(Pageable.class));
+    }
 
     @Test
     void refreshDeterministicDigestsSkipsAiAndMissingActs() throws Exception {
