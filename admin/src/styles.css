@@ -1150,24 +1150,46 @@ button {
   gap: 16px;
 }
 
-.legal-admin-layout {
+.legal-admin-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.9fr);
   gap: 16px;
-  align-items: start;
 }
 
-.legal-change-shell {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
-.legal-tabs {
+.legal-page-tabs {
   padding: 4px;
   border: 1px solid #d8e1df;
   border-radius: 8px;
   background: #eef4f2;
+}
+
+.legal-page-tabs .ai-observer-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal-page-tabs .ai-observer-tab span {
+  display: inline-flex;
+  min-width: 24px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #50635f;
+  background: #ffffff;
+  font-size: 11px;
+}
+
+.legal-page-tabs .ai-observer-tab.active span {
+  color: #193f3a;
+}
+
+.legal-digest-tab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.95fr);
+  gap: 16px;
+  align-items: start;
 }
 
 .panel-action-row {
@@ -2376,7 +2398,7 @@ tbody tr:hover {
   }
 
   .config-grid,
-  .legal-admin-layout,
+  .legal-digest-tab,
   .member-grid,
   .engine-key-grid,
   .project-management-grid,
@@ -2560,10 +2582,6 @@ tbody tr:hover {
   .ai-observer-tabs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .legal-tabs {
-    display: flex;
   }
 
   .ai-observer-tab {

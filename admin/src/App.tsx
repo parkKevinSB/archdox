@@ -3671,6 +3671,8 @@ function StatusBars({ groups }: { groups: Array<[string, Record<string, number>]
   );
 }
 
+type LegalAdminTabKey = "SYNC" | "DIGESTS" | "CHANGE_SETS";
+
 function PlatformLegalAdminPanel({
   data,
   loading,
@@ -3686,104 +3688,121 @@ function PlatformLegalAdminPanel({
   const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId)
     ?? data.legalChangeDigests[0]
     ?? null;
+  const [activeTab, setActiveTab] = useState<LegalAdminTabKey>("SYNC");
+  const tabs: Array<{ key: LegalAdminTabKey; label: string; count?: number }> = [
+    { key: "SYNC", label: "동기화", count: data.legalSyncRuns.length },
+    { key: "DIGESTS", label: "사용자용 변경사항", count: data.legalChangeDigests.length },
+    { key: "CHANGE_SETS", label: "원천 기록", count: data.legalChangeSets.length }
+  ];
 
   return (
-    <div className="legal-admin-layout">
-      <div className="view-stack">
-        <Panel
-          title="법령 동기화"
-          icon={<ShieldCheck size={18} />}
-          action={
-            <div className="panel-action-row">
-              <button className="button primary" disabled={loading} onClick={onLegalOpenDataSync} type="button">
-                {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-                동기화
-              </button>
-              <button className="button" disabled={loading} onClick={onLegalDigestRefresh} type="button">
-                {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-                Digest 재생성
-              </button>
-            </div>
-          }
-        >
-          <div className="metric-grid compact">
-            <MetricCard icon={<Gauge size={20} />} label="동기화 Run" value={data.legalSyncRuns.length} detail="최근 50건" tone="blue" />
-            <MetricCard icon={<Activity size={20} />} label="Change Set" value={data.legalChangeSets.length} detail="법령 원천 diff" tone="amber" />
-            <MetricCard icon={<FileText size={20} />} label="게시 요약" value={data.legalChangeDigests.length} detail="사용자 노출 digest" tone="green" />
-          </div>
-          {data.legalOpenApiStatus ? (
-            <>
-              <div className="metric-grid compact">
-                <MetricCard
-                  icon={data.legalOpenApiStatus.ready ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
-                  label="Open API"
-                  value={data.legalOpenApiStatus.ready ? "READY" : "BLOCKED"}
-                  detail={`${data.legalOpenApiStatus.sourceCode} / ${data.legalOpenApiStatus.enabled ? "enabled" : "disabled"}`}
-                  tone={data.legalOpenApiStatus.ready ? "green" : "amber"}
-                />
-                <MetricCard
-                  icon={data.legalOpenApiStatus.ocConfigured ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
-                  label="OC Key"
-                  value={data.legalOpenApiStatus.ocConfigured ? "설정됨" : "미설정"}
-                  detail="원문 키는 노출하지 않음"
-                  tone={data.legalOpenApiStatus.ocConfigured ? "green" : "red"}
-                />
-                <MetricCard
-                  icon={<Clock3 size={20} />}
-                  label="호출 간격"
-                  value={`${data.legalOpenApiStatus.requestIntervalMs}ms`}
-                  detail={`timeout ${data.legalOpenApiStatus.requestTimeoutMs}ms / retry ${data.legalOpenApiStatus.maxAttempts}`}
-                  tone="slate"
-                />
-                <MetricCard
-                  icon={<Gauge size={20} />}
-                  label="예상 호출"
-                  value={data.legalOpenApiStatus.estimatedRequestCount}
-                  detail={`${data.legalOpenApiStatus.targetCount} targets / search+detail`}
-                  tone="blue"
-                />
-              </div>
-              <Table
-                columns={["Target", "검색어", "예상 법령명", "Act Code", "Type"]}
-                empty="설정된 법령 Open API target이 없습니다."
-                rows={data.legalOpenApiStatus.targets.map((target) => [
-                  target.target,
-                  target.query,
-                  target.expectedName,
-                  target.actCode,
-                  target.actType
-                ])}
-              />
-              <InlineNotice message={`법령 Open API base URL: ${data.legalOpenApiStatus.baseUrl} / User-Agent: ${data.legalOpenApiStatus.userAgent}`} />
-            </>
-          ) : (
-            <InlineNotice message="법령 Open API 상태를 불러오지 못했습니다. 동기화 실행 전 설정 상태를 확인하세요." />
-          )}
-        </Panel>
-
-        <Panel title="법령 동기화 Run" icon={<Clock3 size={18} />} count={data.legalSyncRuns.length}>
-          <Table
-            columns={["Run", "상태", "Source", "Trigger", "시작", "완료"]}
-            empty="법령 동기화 Run이 없습니다."
-            rows={data.legalSyncRuns.slice(0, 20).map((run) => [
-              <CellTitle key="run" title={`Run #${run.id}`} subtitle={run.failureCode ?? "failure 없음"} />,
-              <StatusBadge key="status" status={run.status} />,
-              run.sourceCode,
-              displayLabel(run.triggerType),
-              formatDate(run.startedAt),
-              formatDate(run.completedAt)
-            ])}
-          />
-        </Panel>
+    <div className="legal-admin-page">
+      <div className="ai-observer-tabs legal-page-tabs">
+        {tabs.map((tab) => (
+          <button
+            className={`ai-observer-tab${activeTab === tab.key ? " active" : ""}`}
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            type="button"
+          >
+            {tab.label}
+            <span>{tab.count ?? 0}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="legal-change-shell">
-        <div className="ai-observer-tabs legal-tabs">
-          <button className="ai-observer-tab active" type="button">
-            법령 변경사항
-          </button>
-        </div>
+      {activeTab === "SYNC" ? (
         <div className="view-stack">
+          <Panel
+            title="법령 동기화"
+            icon={<ShieldCheck size={18} />}
+            action={
+              <div className="panel-action-row">
+                <button className="button primary" disabled={loading} onClick={onLegalOpenDataSync} type="button">
+                  {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+                  동기화
+                </button>
+                <button className="button" disabled={loading} onClick={onLegalDigestRefresh} type="button">
+                  {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+                  Digest 재생성
+                </button>
+              </div>
+            }
+          >
+            <div className="metric-grid compact">
+              <MetricCard icon={<Gauge size={20} />} label="동기화 Run" value={data.legalSyncRuns.length} detail="최근 50건" tone="blue" />
+              <MetricCard icon={<Activity size={20} />} label="Change Set" value={data.legalChangeSets.length} detail="법령 원천 diff" tone="amber" />
+              <MetricCard icon={<FileText size={20} />} label="게시 요약" value={data.legalChangeDigests.length} detail="사용자 노출 digest" tone="green" />
+            </div>
+            {data.legalOpenApiStatus ? (
+              <>
+                <div className="metric-grid compact">
+                  <MetricCard
+                    icon={data.legalOpenApiStatus.ready ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+                    label="Open API"
+                    value={data.legalOpenApiStatus.ready ? "READY" : "BLOCKED"}
+                    detail={`${data.legalOpenApiStatus.sourceCode} / ${data.legalOpenApiStatus.enabled ? "enabled" : "disabled"}`}
+                    tone={data.legalOpenApiStatus.ready ? "green" : "amber"}
+                  />
+                  <MetricCard
+                    icon={data.legalOpenApiStatus.ocConfigured ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+                    label="OC Key"
+                    value={data.legalOpenApiStatus.ocConfigured ? "설정됨" : "미설정"}
+                    detail="원문 키는 노출하지 않음"
+                    tone={data.legalOpenApiStatus.ocConfigured ? "green" : "red"}
+                  />
+                  <MetricCard
+                    icon={<Clock3 size={20} />}
+                    label="호출 간격"
+                    value={`${data.legalOpenApiStatus.requestIntervalMs}ms`}
+                    detail={`timeout ${data.legalOpenApiStatus.requestTimeoutMs}ms / retry ${data.legalOpenApiStatus.maxAttempts}`}
+                    tone="slate"
+                  />
+                  <MetricCard
+                    icon={<Gauge size={20} />}
+                    label="예상 호출"
+                    value={data.legalOpenApiStatus.estimatedRequestCount}
+                    detail={`${data.legalOpenApiStatus.targetCount} targets / search+detail`}
+                    tone="blue"
+                  />
+                </div>
+                <Table
+                  columns={["Target", "검색어", "예상 법령명", "Act Code", "Type"]}
+                  empty="설정된 법령 Open API target이 없습니다."
+                  rows={data.legalOpenApiStatus.targets.map((target) => [
+                    target.target,
+                    target.query,
+                    target.expectedName,
+                    target.actCode,
+                    target.actType
+                  ])}
+                />
+                <InlineNotice message={`법령 Open API base URL: ${data.legalOpenApiStatus.baseUrl} / User-Agent: ${data.legalOpenApiStatus.userAgent}`} />
+              </>
+            ) : (
+              <InlineNotice message="법령 Open API 상태를 불러오지 못했습니다. 동기화 실행 전 설정 상태를 확인하세요." />
+            )}
+          </Panel>
+
+          <Panel title="법령 동기화 Run" icon={<Clock3 size={18} />} count={data.legalSyncRuns.length}>
+            <Table
+              columns={["Run", "상태", "Source", "Trigger", "시작", "완료"]}
+              empty="법령 동기화 Run이 없습니다."
+              rows={data.legalSyncRuns.slice(0, 20).map((run) => [
+                <CellTitle key="run" title={`Run #${run.id}`} subtitle={run.failureCode ?? "failure 없음"} />,
+                <StatusBadge key="status" status={run.status} />,
+                run.sourceCode,
+                displayLabel(run.triggerType),
+                formatDate(run.startedAt),
+                formatDate(run.completedAt)
+              ])}
+            />
+          </Panel>
+        </div>
+      ) : null}
+
+      {activeTab === "DIGESTS" ? (
+        <div className="legal-digest-tab">
           <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
             <Table
               columns={["제목", "상태", "출처", "시행일", "게시", "상세"]}
@@ -3808,23 +3827,25 @@ function PlatformLegalAdminPanel({
           >
             <LegalDigestDetail digest={selectedDigest} />
           </Panel>
-
-          <Panel title="법령 변경 원천 기록" icon={<Activity size={18} />} count={data.legalChangeSets.length}>
-            <Table
-              columns={["Change Set", "상태", "Act", "시행일", "감지", "요약"]}
-              empty="법령 변경 원천 기록이 없습니다."
-              rows={data.legalChangeSets.slice(0, 20).map((changeSet) => [
-                <CellTitle key="change-set" title={`Change Set #${changeSet.id}`} subtitle={`run #${changeSet.syncRunId ?? "-"} / version #${changeSet.newVersionId}`} />,
-                <StatusBadge key="status" status={changeSet.status} />,
-                `#${changeSet.actId}`,
-                changeSet.effectiveDate ?? "-",
-                formatDate(changeSet.detectedAt),
-                changeSet.summary
-              ])}
-            />
-          </Panel>
         </div>
-      </div>
+      ) : null}
+
+      {activeTab === "CHANGE_SETS" ? (
+        <Panel title="법령 변경 원천 기록" icon={<Activity size={18} />} count={data.legalChangeSets.length}>
+          <Table
+            columns={["Change Set", "상태", "Act", "시행일", "감지", "요약"]}
+            empty="법령 변경 원천 기록이 없습니다."
+            rows={data.legalChangeSets.slice(0, 50).map((changeSet) => [
+              <CellTitle key="change-set" title={`Change Set #${changeSet.id}`} subtitle={`run #${changeSet.syncRunId ?? "-"} / version #${changeSet.newVersionId}`} />,
+              <StatusBadge key="status" status={changeSet.status} />,
+              `#${changeSet.actId}`,
+              changeSet.effectiveDate ?? "-",
+              formatDate(changeSet.detectedAt),
+              changeSet.summary
+            ])}
+          />
+        </Panel>
+      ) : null}
     </div>
   );
 }
