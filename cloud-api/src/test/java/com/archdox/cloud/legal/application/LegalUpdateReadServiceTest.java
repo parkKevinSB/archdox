@@ -10,10 +10,12 @@ import static org.mockito.Mockito.when;
 import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
+import com.archdox.cloud.legal.domain.LegalAct;
 import com.archdox.cloud.legal.domain.LegalArticleChangeType;
 import com.archdox.cloud.legal.domain.LegalArticleDiff;
 import com.archdox.cloud.legal.domain.LegalArticleVersion;
 import com.archdox.cloud.legal.domain.LegalVersion;
+import com.archdox.cloud.legal.infra.LegalActRepository;
 import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalArticleVersionRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
@@ -32,11 +34,13 @@ class LegalUpdateReadServiceTest {
     private final LegalArticleDiffRepository articleDiffRepository = mock(LegalArticleDiffRepository.class);
     private final LegalArticleVersionRepository articleVersionRepository = mock(LegalArticleVersionRepository.class);
     private final LegalVersionRepository versionRepository = mock(LegalVersionRepository.class);
+    private final LegalActRepository actRepository = mock(LegalActRepository.class);
     private final LegalUpdateReadService service = new LegalUpdateReadService(
             repository,
             articleDiffRepository,
             articleVersionRepository,
-            versionRepository);
+            versionRepository,
+            actRepository);
 
     @Test
     void recentExcludesFakeLegalSource() throws Exception {
@@ -53,6 +57,8 @@ class LegalUpdateReadServiceTest {
                 .thenReturn(List.of(articleVersion(250L, 300L)));
         when(versionRepository.findAllById(any()))
                 .thenReturn(List.of(legalVersion(300L)));
+        when(actRepository.findAllById(any()))
+                .thenReturn(List.of(legalAct(1L)));
 
         var updates = service.recent(30, 50);
 
@@ -66,7 +72,8 @@ class LegalUpdateReadServiceTest {
                                 assertThat(diff.articleTitle()).isEqualTo("공사감리");
                                 assertThat(diff.changeType()).isEqualTo(LegalArticleChangeType.ADDED);
                                 assertThat(diff.afterTextPreview()).contains("감리자는 공사감리 업무를 수행한다");
-                                assertThat(diff.sourceUrl()).isEqualTo("https://www.law.go.kr/DRF/lawService.do?target=law&type=JSON&ID=001823");
+                                assertThat(diff.sourceUrl()).isEqualTo("https://www.law.go.kr/DRF/lawService.do?target=admrul&type=JSON&ID=2100000244148");
+                                assertThat(diff.publicSourceUrl()).isEqualTo("https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq=2100000244148&chrClsCd=010201");
                             });
                 });
         verify(repository).findPublishedExcludingSourceCode(
@@ -89,6 +96,8 @@ class LegalUpdateReadServiceTest {
                 .thenReturn(List.of(articleVersion(250L, 300L)));
         when(versionRepository.findAllById(any()))
                 .thenReturn(List.of(legalVersion(300L)));
+        when(actRepository.findAllById(any()))
+                .thenReturn(List.of(legalAct(1L)));
 
         var update = service.detail(10L);
 
@@ -160,12 +169,26 @@ class LegalUpdateReadServiceTest {
                 "0018232026070100000",
                 LocalDate.of(2026, 6, 1),
                 LocalDate.of(2026, 7, 1),
-                "https://www.law.go.kr/DRF/lawService.do?target=law&type=JSON&ID=001823",
+                "https://www.law.go.kr/DRF/lawService.do?target=admrul&type=JSON&ID=2100000244148",
                 "version-hash",
                 Map.of(),
                 now);
         setId(version, id);
         return version;
+    }
+
+    private LegalAct legalAct(Long id) throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var act = new LegalAct(
+                1L,
+                "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD",
+                "건축공사 감리세부기준",
+                "ADMINISTRATIVE_RULE",
+                "KR",
+                "2100000244148",
+                now);
+        setId(act, id);
+        return act;
     }
 
     private void setId(Object target, Long id) throws Exception {

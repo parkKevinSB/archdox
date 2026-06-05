@@ -21,6 +21,7 @@ public record LegalArticleDiffResponse(
         String sourceVersionKey,
         LocalDate effectiveDate,
         String sourceUrl,
+        String publicSourceUrl,
         String diffSummary,
         OffsetDateTime createdAt
 ) {

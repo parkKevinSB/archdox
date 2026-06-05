@@ -176,9 +176,9 @@ function LegalUpdateDetail({ loading, update }: { loading: boolean; update: Lega
                 <div className="legal-update-diff-heading">
                   <strong>{formatChangeType(diff.changeType)} · {legalArticleLabel(diff.articleNo, diff.articleTitle, diff.articleKey)}</strong>
                   {diff.effectiveDate ? <small>시행일 {diff.effectiveDate}</small> : null}
-                  {diff.sourceUrl ? (
-                    <a href={diff.sourceUrl} target="_blank" rel="noreferrer">
-                      원문
+                  {diff.publicSourceUrl ? (
+                    <a href={diff.publicSourceUrl} target="_blank" rel="noreferrer">
+                      법령정보센터
                     </a>
                   ) : null}
                 </div>

@@ -659,6 +659,7 @@ export type LegalArticleDiff = {
   sourceVersionKey?: string | null;
   effectiveDate?: string | null;
   sourceUrl?: string | null;
+  publicSourceUrl?: string | null;
   diffSummary: string;
   createdAt: string;
 };

@@ -3900,9 +3900,9 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
                   <strong>{legalArticleLabel(diff.articleNo, diff.articleTitle, diff.articleKey)}</strong>
                   {diff.effectiveDate ? <span>시행일 {diff.effectiveDate}</span> : null}
                   {diff.sourceVersionKey ? <span>버전 {diff.sourceVersionKey}</span> : null}
-                  {diff.sourceUrl ? (
-                    <a href={diff.sourceUrl} target="_blank" rel="noreferrer">
-                      원문
+                  {diff.publicSourceUrl ? (
+                    <a href={diff.publicSourceUrl} target="_blank" rel="noreferrer">
+                      법령정보센터
                     </a>
                   ) : null}
                 </div>

@@ -1,14 +1,19 @@
 package com.archdox.cloud.legal.application;
 
+import com.archdox.cloud.legal.domain.LegalAct;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.domain.LegalArticleVersion;
 import com.archdox.cloud.legal.domain.LegalVersion;
 import com.archdox.cloud.legal.dto.LegalArticleDiffResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
+import com.archdox.cloud.legal.infra.LegalActRepository;
 import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalArticleVersionRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalVersionRepository;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -30,17 +35,20 @@ public class LegalUpdateReadService {
     private final LegalArticleDiffRepository articleDiffRepository;
     private final LegalArticleVersionRepository articleVersionRepository;
     private final LegalVersionRepository versionRepository;
+    private final LegalActRepository actRepository;
 
     public LegalUpdateReadService(
             LegalChangeDigestRepository repository,
             LegalArticleDiffRepository articleDiffRepository,
             LegalArticleVersionRepository articleVersionRepository,
-            LegalVersionRepository versionRepository
+            LegalVersionRepository versionRepository,
+            LegalActRepository actRepository
     ) {
         this.repository = repository;
         this.articleDiffRepository = articleDiffRepository;
         this.articleVersionRepository = articleVersionRepository;
         this.versionRepository = versionRepository;
+        this.actRepository = actRepository;
     }
 
     @Transactional(readOnly = true)
@@ -106,21 +114,29 @@ public class LegalUpdateReadService {
         var legalVersions = versionRepository.findAllById(legalVersionIds)
                 .stream()
                 .collect(Collectors.toMap(LegalVersion::id, Function.identity()));
+        var actIds = legalVersions.values().stream()
+                .map(LegalVersion::actId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        var acts = actRepository.findAllById(actIds)
+                .stream()
+                .collect(Collectors.toMap(LegalAct::id, Function.identity()));
 
         return diffs.stream()
-                .map(diff -> articleDiffResponse(diff, articleVersions, legalVersions))
+                .map(diff -> articleDiffResponse(diff, articleVersions, legalVersions, acts))
                 .toList();
     }
 
     private LegalArticleDiffResponse articleDiffResponse(
             com.archdox.cloud.legal.domain.LegalArticleDiff diff,
             Map<Long, LegalArticleVersion> articleVersions,
-            Map<Long, LegalVersion> legalVersions
+            Map<Long, LegalVersion> legalVersions,
+            Map<Long, LegalAct> acts
     ) {
         var before = diff.beforeArticleVersionId() == null ? null : articleVersions.get(diff.beforeArticleVersionId());
         var after = diff.afterArticleVersionId() == null ? null : articleVersions.get(diff.afterArticleVersionId());
         var display = after == null ? before : after;
         var legalVersion = display == null ? null : legalVersions.get(display.legalVersionId());
+        var act = legalVersion == null ? null : acts.get(legalVersion.actId());
         return new LegalArticleDiffResponse(
                 diff.id(),
                 diff.articleId(),
@@ -138,8 +154,53 @@ public class LegalUpdateReadService {
                 legalVersion == null ? "" : text(legalVersion.sourceVersionKey()),
                 display == null ? null : display.effectiveDate(),
                 legalVersion == null ? "" : text(legalVersion.sourceUrl()),
+                publicSourceUrl(legalVersion, act),
                 diff.diffSummary(),
                 diff.createdAt());
+    }
+
+    private String publicSourceUrl(LegalVersion legalVersion, LegalAct act) {
+        if (legalVersion == null) {
+            return "";
+        }
+        var sourceUrl = text(legalVersion.sourceUrl());
+        var target = queryParam(sourceUrl, "target");
+        var sourceId = queryParam(sourceUrl, "ID");
+        if ("admrul".equalsIgnoreCase(target) && !sourceId.isBlank()) {
+            return "https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq="
+                    + encode(sourceId)
+                    + "&chrClsCd=010201";
+        }
+        if (act != null && !text(act.actName()).isBlank()) {
+            var category = "ADMINISTRATIVE_RULE".equalsIgnoreCase(text(act.actType())) ? "행정규칙" : "법령";
+            return "https://www.law.go.kr/" + encode(category) + "/" + encode(act.actName());
+        }
+        return "";
+    }
+
+    private String queryParam(String url, String name) {
+        if (url.isBlank()) {
+            return "";
+        }
+        try {
+            var query = URI.create(url).getRawQuery();
+            if (query == null || query.isBlank()) {
+                return "";
+            }
+            for (var pair : query.split("&")) {
+                var parts = pair.split("=", 2);
+                if (parts.length == 2 && name.equalsIgnoreCase(parts[0])) {
+                    return parts[1].trim();
+                }
+            }
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
+        return "";
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(text(value), StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private String preview(String value) {
