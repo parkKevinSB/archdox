@@ -25,9 +25,10 @@ public class LegalUpdateReadService {
     @Transactional(readOnly = true)
     public List<LegalChangeDigestResponse> recent(Integer days, Integer limit) {
         var publishedAfter = OffsetDateTime.now().minusDays(clampedDays(days));
-        return repository.findByStatusAndPublishedAtAfterOrderByPublishedAtDescIdDesc(
+        return repository.findPublishedExcludingSourceCode(
                         LegalChangeDigestStatus.PUBLISHED,
                         publishedAfter,
+                        FakeLegalSourceClient.DEFAULT_SOURCE_CODE,
                         PageRequest.of(0, clampedLimit(limit)))
                 .stream()
                 .map(this::toResponse)
@@ -36,8 +37,10 @@ public class LegalUpdateReadService {
 
     @Transactional(readOnly = true)
     public LegalChangeDigestResponse detail(Long id) {
-        return repository.findById(id)
-                .filter(digest -> digest.status() == LegalChangeDigestStatus.PUBLISHED)
+        return repository.findPublishedByIdExcludingSourceCode(
+                        id,
+                        LegalChangeDigestStatus.PUBLISHED,
+                        FakeLegalSourceClient.DEFAULT_SOURCE_CODE)
                 .map(this::toResponse)
                 .orElseThrow(() -> new IllegalArgumentException("Legal update not found: " + id));
     }

@@ -445,7 +445,9 @@ the source of truth. Existing deterministic digests may be refreshed from the
 same raw change set, but AI-sourced digests must not be overwritten by the
 deterministic fallback. Platform admin exposes a deterministic digest refresh
 action for this maintenance path so existing corpus data can be reprojected
-after digest wording or domain-binding rules improve.
+after digest wording or domain-binding rules improve. User-facing legal update
+reads exclude the fake legal source; platform admin readback still shows it as
+an operational test history.
 
 For report review:
 
