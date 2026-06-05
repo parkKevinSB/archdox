@@ -320,11 +320,17 @@ This V1 is source-backed by ArchDox's versioned domain catalog.
 
 The next source-backed slice also exists at foundation level:
 `EngineLegalReferenceBindingService` reads active `legal_domain_bindings` for
-matched catalog bindings and returns `legalReferences` in validation metadata.
+matched catalog bindings and returns typed `legalReferences` in the validation
+result.
 This does not yet decide legal compliance. It gives the Engine a deterministic
 way to attach source references such as act code, article number, source
 version key, relevance, catalog code, and checklist item code to the review
 context before AI or a human reviewer reasons over it.
+
+The external response contract now exposes those references as typed
+top-level `validationResult.legalReferences`. Metadata may keep a compatibility
+copy for debugging, but clients should treat the top-level field as the stable
+contract.
 
 `EngineLegalRiskContextReviewService` then uses those source references as
 guardrails for the first legal-risk context check. If legal/domain references
@@ -343,7 +349,9 @@ evidence context, and strict instructions not to invent legal citations.
 The context check is Engine recipe validation, not a controlled Engine action.
 If the result should lead to actual work before a Worker action exists, the
 Engine should return non-worker `nextActions` such as
-`ADD_SUPERVISION_EVIDENCE_CONTEXT`. Future ideas such as legal review or
+`ADD_SUPERVISION_EVIDENCE_CONTEXT`. In API/MCP responses these are typed
+objects with `code`, `label`, `actionType`, `blocking`, and `targetTool`
+fields, not bare strings. Future ideas such as legal review or
 evidence-gap analysis are tracked in the Worker action backlog and must be
 added only when executor, policy, and tests are implemented together. The next
 step is to expand legal-domain bindings beyond test/admin seed data and let a

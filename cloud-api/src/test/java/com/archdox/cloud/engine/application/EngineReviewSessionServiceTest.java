@@ -230,9 +230,10 @@ class EngineReviewSessionServiceTest {
         assertThat(validation.validationResult().status()).isEqualTo(ArchDoxEngineResultStatus.FAIL);
         assertThat(validation.validationResult().generationAllowed()).isFalse();
         assertThat(validation.validationResult().findings())
-                .extracting(ArchDoxEngineFinding::code)
+                .extracting(finding -> finding.code())
                 .contains("CATALOG_SELECTION_INVALID");
         assertThat(validation.validationResult().nextActions())
+                .extracting(action -> action.code())
                 .contains("FIX_CATALOG_SELECTION", "RUN_VALIDATION_AGAIN");
     }
 }

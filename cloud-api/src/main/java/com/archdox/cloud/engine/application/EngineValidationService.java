@@ -75,6 +75,7 @@ public class EngineValidationService {
                         ? "Context is ready for the current engine recipe review."
                         : "Context needs review before high-confidence validation.",
                 List.copyOf(findings),
+                legalReferenceReview.legalReferences(),
                 nextActions(findings),
                 "NOT_APPLICABLE_ENGINE_RECIPE_ONLY",
                 List.of(

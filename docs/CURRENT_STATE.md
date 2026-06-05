@@ -155,14 +155,14 @@ These are development-only credentials.
   official catalog binding metadata on success, and returns typed findings such
   as `CATALOG_SELECTION_INVALID` on mismatch. If matching active
   `legal_domain_bindings` rows exist, validation metadata now also includes
-  `legalReferences` with act/article/source-version context. This is the first
+  top-level typed `legalReferences` with act/article/source-version context. This is the first
   source-backed legal reference bridge; it is not yet full legal compliance
   judgment. The Engine now also runs a deterministic legal-risk context recipe:
   when legal references exist but supervision narrative/work area/photo/evidence
   context is missing, it emits `LEGAL_EVIDENCE_CONTEXT_MISSING` and prepares
   `metadata.legalRiskReview.aiPromptContext` for future legal-review harness
   steps. If that result should trigger real work before a real Worker action
-  exists, the Engine returns non-worker `nextActions` instead of pretending that
+  exists, the Engine returns typed non-worker `nextActions` instead of pretending that
   a future action is executable. `suggestedWorkerActions` must name only actions
   currently present in the Worker registry with executor, policy, and tests.
   Engine must not execute controlled actions itself. The first bridge now

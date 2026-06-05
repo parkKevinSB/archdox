@@ -226,10 +226,12 @@ callers submit normalized or normalizable context through Engine review
 sessions. Neither path executes Worker actions inside the Engine.
 
 If active `legal_domain_bindings` exist for that catalog item, the same
-validation response also returns `metadata.legalReferences`. These references
-are deterministic source links, not AI-generated legal conclusions. They are
-the bridge from domain catalog item to legal corpus material and should be used
-by future legal-risk review, AI harness prompts, and human-readable findings.
+validation response also returns typed `validationResult.legalReferences`.
+These references are deterministic source links, not AI-generated legal
+conclusions. They are the bridge from domain catalog item to legal corpus
+material and should be used by future legal-risk review, AI harness prompts,
+and human-readable findings. Metadata may keep a compatibility/debug copy, but
+external clients should use the top-level field.
 
 When Engine output includes `metadata.suggestedWorkerActions`, Cloud API must
 interpret that list from the Worker side. The first implementation is
@@ -241,9 +243,11 @@ own policy decisions. Its package placement is deliberate: Engine may suggest,
 Worker interprets and governs.
 
 Engine findings may also include non-worker `nextActions` such as
-`ADD_SUPERVISION_EVIDENCE_CONTEXT`. Those are user/product guidance, not
-runtime Worker actions. Do not convert them to `ArchDoxWorkerAction` until a
-real executor, policy gate rule, and test coverage exist.
+`ADD_SUPERVISION_EVIDENCE_CONTEXT`. API/MCP responses expose these as typed
+objects with `code`, `label`, `actionType`, `blocking`, and `targetTool`. Those
+are user/product guidance, not runtime Worker actions. Do not convert them to
+`ArchDoxWorkerAction` until a real executor, policy gate rule, and test
+coverage exist.
 
 The execution handoff is `EngineWorkerActionSubmissionService`, also under
 `com.archdox.cloud.worker.engine`. It can submit runnable candidates into
@@ -380,10 +384,30 @@ The result should be typed and stable:
       "source": "DETERMINISTIC",
       "location": "dailyItems.groups[0].entries[1]",
       "message": "Photo evidence is recommended for this supervision item.",
-      "legalReferences": []
+      "legalReferenceIds": []
     }
   ],
-  "nextActions": []
+  "legalReferences": [
+    {
+      "referenceId": "BUILDING_ACT:ARTICLE_025@2026-06-04",
+      "actCode": "BUILDING_ACT",
+      "actName": "Building Act",
+      "articleNo": "25",
+      "articleTitle": "Construction supervision",
+      "sourceVersionKey": "2026-06-04",
+      "effectiveDate": "2026-06-04",
+      "relevance": "DIRECT"
+    }
+  ],
+  "nextActions": [
+    {
+      "code": "ADD_SUPERVISION_EVIDENCE_CONTEXT",
+      "label": "Add supervision evidence context",
+      "actionType": "USER_INPUT",
+      "blocking": true,
+      "targetTool": ""
+    }
+  ]
 }
 ```
 

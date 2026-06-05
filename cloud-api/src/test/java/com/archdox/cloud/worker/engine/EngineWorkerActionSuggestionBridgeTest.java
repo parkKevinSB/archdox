@@ -67,6 +67,7 @@ class EngineWorkerActionSuggestionBridgeTest {
                 false,
                 "summary",
                 List.of(),
+                List.of(),
                 List.of("RUN_VALIDATION_AGAIN"),
                 "NOT_APPLICABLE_ENGINE_RECIPE_ONLY",
                 List.of("CATALOG_BINDING_REVIEW"),

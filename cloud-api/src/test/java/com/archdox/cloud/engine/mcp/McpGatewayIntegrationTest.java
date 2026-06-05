@@ -254,6 +254,11 @@ class McpGatewayIntegrationTest {
                         .value(org.hamcrest.Matchers.startsWith("rvw_sess_")))
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.engineRunId")
                         .value(org.hamcrest.Matchers.startsWith("eng_")))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.legalReferences").isArray())
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.nextActions[*].code")
+                        .value(org.hamcrest.Matchers.hasItem("RESULT_READY")))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.nextActions[0].actionType")
+                        .value("STATE"))
                 .andReturn();
 
         var reviewSessionId = objectMapper.readTree(validationResult.getResponse().getContentAsString())
