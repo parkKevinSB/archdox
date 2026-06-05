@@ -22,6 +22,7 @@ public record WorkerGovernanceSummaryResponse(
         double approvalRequiredRate,
         double failureRate,
         String dataPolicy,
+        List<WorkerActionDefinitionResponse> actionDefinitions,
         List<WorkerGovernanceGroupResponse> eventTypes,
         List<WorkerGovernanceGroupResponse> actionEvents,
         List<WorkerGovernanceGroupResponse> reasons,

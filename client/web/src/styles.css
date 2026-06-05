@@ -3334,6 +3334,121 @@ button.list-row {
   white-space: pre;
 }
 
+.legal-text-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.legal-text-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e1e8e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.legal-text-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.legal-text-panel-header strong {
+  color: #49615c;
+  font-size: 12px;
+}
+
+.legal-text-panel-header span {
+  color: #758984;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.legal-text-readable {
+  display: grid;
+  gap: 6px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.legal-text-block {
+  margin: 0;
+  color: #405751;
+  font-size: 12px;
+  line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+.legal-text-block.heading {
+  padding: 7px 8px;
+  border-left: 3px solid #2a766d;
+  color: #213633;
+  background: #f3f8f6;
+  font-weight: 850;
+}
+
+.legal-text-block.bullet {
+  padding-left: 10px;
+  border-left: 2px solid #d6e4e1;
+}
+
+.legal-text-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid #dfe9e6;
+  border-radius: 7px;
+  background: #fbfdfc;
+}
+
+.legal-text-cell {
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid #e6eeec;
+  border-radius: 6px;
+  color: #425a55;
+  background: #ffffff;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.legal-text-empty {
+  margin: 0;
+  color: #879692;
+  font-size: 12px;
+}
+
+.legal-text-raw {
+  border-top: 1px solid #edf2f1;
+  padding-top: 6px;
+}
+
+.legal-text-raw summary {
+  cursor: pointer;
+  color: #17685e;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.legal-text-raw pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 7px 0 0;
+  color: #405751;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Noto Sans KR", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+}
+
 .legal-update-detail footer {
   display: flex;
   align-items: center;
@@ -4281,6 +4396,10 @@ button.list-row {
   }
 
   .legal-update-diff-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-text-comparison {
     grid-template-columns: 1fr;
   }
 

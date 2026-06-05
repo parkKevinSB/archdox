@@ -45,7 +45,22 @@ class ArchDoxWorkerActionRegistryTest {
                         "UPDATE_REPORT_STEP",
                         "SUBMIT_REPORT",
                         "RUN_PREFLIGHT_REVIEW",
-                        "REQUEST_DOCUMENT_GENERATION");
+                        "REQUEST_DOCUMENT_GENERATION",
+                        "ENRICH_LEGAL_CHANGE_DIGEST");
+    }
+
+    @Test
+    void legal_digest_enrichment_action_is_declared_but_not_enabled_until_executor_is_wired() {
+        var registry = new ArchDoxWorkerActionRegistry(List.of());
+
+        var definition = registry.definition(ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST);
+
+        assertThat(definition).isPresent();
+        assertThat(definition.get().enabled()).isFalse();
+        assertThat(definition.get().requiresApprovalByDefault()).isTrue();
+        assertThat(definition.get().supportsDryRun()).isTrue();
+        assertThat(definition.get().requiredContextFields()).containsExactly("userId");
+        assertThat(registry.resolve(ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST)).isEmpty();
     }
 
     @Test

@@ -292,6 +292,21 @@ export type WorkerGovernanceGroup = {
   count: number;
 };
 
+export type WorkerActionDefinition = {
+  actionType: string;
+  owner: string;
+  executorName: string;
+  enabled: boolean;
+  executorRegistered: boolean;
+  readOnly: boolean;
+  riskLevel: string;
+  requiresApprovalByDefault: boolean;
+  supportsDryRun: boolean;
+  allowedSources: string[];
+  requiredContextFields: string[];
+  description: string;
+};
+
 export type WorkerGovernanceSummary = {
   from: string;
   to: string;
@@ -310,6 +325,7 @@ export type WorkerGovernanceSummary = {
   approvalRequiredRate: number;
   failureRate: number;
   dataPolicy: string;
+  actionDefinitions: WorkerActionDefinition[];
   eventTypes: WorkerGovernanceGroup[];
   actionEvents: WorkerGovernanceGroup[];
   reasons: WorkerGovernanceGroup[];

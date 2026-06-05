@@ -30,6 +30,7 @@ Current responsibilities:
 - Document QA harness specs and result mapping
 - Report preflight review harness specs and result mapping
 - Worker conversation planner harness specs and result mapping
+- Legal change digest harness specs and source-backed result mapping
 - ArchDox-specific prompt/schema/finding contracts
 - Testable fake-provider harness behavior without external API keys
 

@@ -5,9 +5,14 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
+import com.archdox.cloud.worker.governance.dto.WorkerActionDefinitionResponse;
 import com.archdox.cloud.worker.governance.dto.WorkerGovernanceGroupResponse;
 import com.archdox.cloud.worker.governance.dto.WorkerGovernanceSummaryResponse;
+import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
+import com.archdox.worker.domain.ArchDoxWorkerActionDefinition;
+import com.archdox.worker.domain.ArchDoxWorkerActionType;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,15 +32,18 @@ public class WorkerGovernanceReadService {
     private final PlatformAdminService platformAdminService;
     private final OperationEventRepository eventRepository;
     private final OperationEventService operationEventService;
+    private final ArchDoxWorkerActionRegistry actionRegistry;
 
     public WorkerGovernanceReadService(
             PlatformAdminService platformAdminService,
             OperationEventRepository eventRepository,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            ArchDoxWorkerActionRegistry actionRegistry
     ) {
         this.platformAdminService = platformAdminService;
         this.eventRepository = eventRepository;
         this.operationEventService = operationEventService;
+        this.actionRegistry = actionRegistry;
     }
 
     @Transactional(readOnly = true)
@@ -88,10 +96,35 @@ public class WorkerGovernanceReadService {
                 ratio(approvalRequired, requestReceived),
                 ratio(actionFailed, actionSucceeded + actionFailed),
                 "No additional raw worker metric table is created. This view aggregates existing operation_events for up to 30 days and returns only bounded recent samples.",
+                actionDefinitions(),
                 eventTypeGroups(eventCounts),
                 actionEventGroups(officeId, from, to),
                 reasonGroups(officeId, from, to),
                 recentEvents);
+    }
+
+    private List<WorkerActionDefinitionResponse> actionDefinitions() {
+        return Arrays.stream(ArchDoxWorkerActionType.values())
+                .map(actionType -> actionRegistry.definition(actionType).orElse(null))
+                .filter(definition -> definition != null)
+                .map(this::toActionDefinitionResponse)
+                .toList();
+    }
+
+    private WorkerActionDefinitionResponse toActionDefinitionResponse(ArchDoxWorkerActionDefinition definition) {
+        return new WorkerActionDefinitionResponse(
+                definition.actionType().name(),
+                definition.owner(),
+                definition.executorName(),
+                definition.enabled(),
+                actionRegistry.resolve(definition.actionType()).isPresent(),
+                definition.readOnly(),
+                definition.riskLevel().name(),
+                definition.requiresApprovalByDefault(),
+                definition.supportsDryRun(),
+                definition.allowedSources().stream().map(Enum::name).sorted().toList(),
+                definition.requiredContextFields().stream().sorted().toList(),
+                definition.description());
     }
 
     private Map<String, Long> eventCounts(Long officeId, OffsetDateTime from, OffsetDateTime to) {

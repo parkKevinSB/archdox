@@ -125,6 +125,17 @@ public class ArchDoxWorkerActionRegistry {
                 true,
                 required("userId", "officeId", "projectId"),
                 "Request document generation through the normal DocumentGenerationRequestService path.");
+        put(map, ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST,
+                "LEGAL",
+                "LegalDigestEnrichmentArchDoxWorkerActionExecutor",
+                false,
+                false,
+                ArchDoxWorkerActionRiskLevel.MEDIUM,
+                true,
+                true,
+                Set.of(ArchDoxWorkerRequestSource.UI, ArchDoxWorkerRequestSource.SYSTEM),
+                required("userId"),
+                "Enrich a legal change digest through source-backed legal corpus context and the ArchDox legal AI harness.");
         return Map.copyOf(map);
     }
 
@@ -141,6 +152,24 @@ public class ArchDoxWorkerActionRegistry {
             Set<String> requiredContextFields,
             String description
     ) {
+        put(map, actionType, owner, executorName, enabled, readOnly, riskLevel, requiresApprovalByDefault,
+                supportsDryRun, Set.of(ArchDoxWorkerRequestSource.UI), requiredContextFields, description);
+    }
+
+    private void put(
+            Map<ArchDoxWorkerActionType, ArchDoxWorkerActionDefinition> map,
+            ArchDoxWorkerActionType actionType,
+            String owner,
+            String executorName,
+            boolean enabled,
+            boolean readOnly,
+            ArchDoxWorkerActionRiskLevel riskLevel,
+            boolean requiresApprovalByDefault,
+            boolean supportsDryRun,
+            Set<ArchDoxWorkerRequestSource> allowedSources,
+            Set<String> requiredContextFields,
+            String description
+    ) {
         map.put(actionType, new ArchDoxWorkerActionDefinition(
                 actionType,
                 owner,
@@ -150,7 +179,7 @@ public class ArchDoxWorkerActionRegistry {
                 riskLevel,
                 requiresApprovalByDefault,
                 supportsDryRun,
-                Set.of(ArchDoxWorkerRequestSource.UI),
+                allowedSources,
                 requiredContextFields,
                 description));
     }

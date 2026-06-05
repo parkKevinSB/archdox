@@ -139,6 +139,7 @@ import type {
   EngineApiKey,
   EngineApiUsageEvent,
   EngineApiUsageSummary,
+  LegalArticleDiff,
   LegalChangeDigest,
   LegalChangeSet,
   LegalOpenApiStatus,
@@ -173,6 +174,7 @@ import type {
   ProjectFormRequest,
   TemplateFieldCatalog,
   TemplateFieldDefinition,
+  WorkerActionDefinition,
   WorkerApprovalRequest,
   WorkerGovernanceSummary
 } from "./types";
@@ -482,7 +484,7 @@ const statusLabels: Record<string, string> = {
 
 const codeLabels: Record<string, string> = {
   AGENT_COMMAND: "Agent 명령",
-  AI: "AI 검토",
+  AI: "AI 보강",
   AI_REVIEW: "AI 검토",
   API_LOCAL: "API 로컬 저장소",
   ARCHDOX_AGENT: "ArchDox Agent",
@@ -490,7 +492,7 @@ const codeLabels: Record<string, string> = {
   CLOUD_OFFICE: "클라우드 사무소",
   CUSTOM_HTTP: "사용자 HTTP",
   CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
-  DETERMINISTIC: "코드 검증",
+  DETERMINISTIC: "규칙 생성",
   DOCUMENT_GENERATION: "문서 생성 AI",
   DOCUMENT_REVIEW: "문서 검토 AI",
   DOCUMENT_DELIVERY_REQUEST: "문서 전달 요청",
@@ -498,6 +500,7 @@ const codeLabels: Record<string, string> = {
   DOCUMENT_RENDER: "문서 생성",
   DOWNLOAD: "다운로드",
   IN_FLIGHT: "진행 중",
+  LEGAL: "법령",
   LOCAL_OFFICE: "사무소 로컬",
   MANUAL_DIAGNOSIS: "수동 진단",
   PERSONAL: "개인",
@@ -507,6 +510,9 @@ const codeLabels: Record<string, string> = {
   REPORT_PREFLIGHT_REVIEW: "생성 전 검토",
   OPS_AI_DIAGNOSIS: "운영 AI 진단",
   TEMPLATE: "템플릿",
+  SYSTEM: "시스템",
+  UI: "UI",
+  WORKER_CHAT: "Worker Chat",
   WORKFLOW: "워크플로우"
 };
 
@@ -3723,7 +3729,7 @@ function PlatformLegalAdminPanel({
                 </button>
                 <button className="button" disabled={loading} onClick={onLegalDigestRefresh} type="button">
                   {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-                  Digest 재생성
+                  게시 요약 재생성
                 </button>
               </div>
             }
@@ -3913,18 +3919,7 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
                   ) : null}
                 </div>
                 <span>{diff.diffSummary}</span>
-                {diff.beforeTextPreview || diff.afterTextPreview ? (
-                  <div className="legal-diff-preview-grid">
-                    <div>
-                      <strong>이전</strong>
-                      <pre>{diff.beforeTextPreview || "이전 조문 본문 없음"}</pre>
-                    </div>
-                    <div>
-                      <strong>이후</strong>
-                      <pre>{diff.afterTextPreview || "이후 조문 본문 없음"}</pre>
-                    </div>
-                  </div>
-                ) : null}
+                {diff.beforeTextPreview || diff.afterTextPreview ? <AdminLegalTextComparison diff={diff} /> : null}
                 <small>
                   before #{diff.beforeArticleVersionId ?? "-"} / after #{diff.afterArticleVersionId ?? "-"} / {shortHash(diff.beforeHash)} → {shortHash(diff.afterHash)}
                 </small>
@@ -3935,6 +3930,134 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
       </section>
     </article>
   );
+}
+
+type AdminLegalTextBlock =
+  | { kind: "heading" | "bullet" | "paragraph"; text: string }
+  | { kind: "row"; cells: string[] };
+
+function AdminLegalTextComparison({ diff }: { diff: LegalArticleDiff }) {
+  return (
+    <div className="legal-text-comparison">
+      <AdminLegalTextPanel label="이전" text={diff.beforeTextPreview ?? ""} emptyText="이전 조문 본문 없음" />
+      <AdminLegalTextPanel label="이후" text={diff.afterTextPreview ?? ""} emptyText="이후 조문 본문 없음" />
+    </div>
+  );
+}
+
+function AdminLegalTextPanel({ label, text, emptyText }: { label: string; text: string; emptyText: string }) {
+  const sourceText = text?.trim() ?? "";
+  const blocks = formatAdminLegalTextBlocks(sourceText);
+  return (
+    <div className="legal-text-panel">
+      <div className="legal-text-panel-header">
+        <strong>{label}</strong>
+        <span>읽기 보기</span>
+      </div>
+      <div className="legal-text-readable">
+        {blocks.length === 0 ? (
+          <p className="legal-text-empty">{emptyText}</p>
+        ) : blocks.map((block, index) => renderAdminLegalTextBlock(block, `${label}-${index}`))}
+      </div>
+      {sourceText ? (
+        <details className="legal-text-raw">
+          <summary>원문 보기</summary>
+          <pre>{sourceText}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function renderAdminLegalTextBlock(block: AdminLegalTextBlock, key: string) {
+  if (block.kind === "row") {
+    return (
+      <div className="legal-text-row" key={key}>
+        {block.cells.map((cell, index) => (
+          <span className="legal-text-cell" key={`${key}-${index}`}>
+            {cell}
+          </span>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <p className={`legal-text-block ${block.kind}`} key={key}>
+      {block.text}
+    </p>
+  );
+}
+
+function formatAdminLegalTextBlocks(value: string): AdminLegalTextBlock[] {
+  return splitAdminLegalText(value)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !isAdminBoxRuleLine(line))
+    .map((line) => {
+      const cells = adminTableCells(line);
+      if (cells.length >= 2) {
+        return { kind: "row", cells } satisfies AdminLegalTextBlock;
+      }
+      if (isAdminLegalHeading(line)) {
+        return { kind: "heading", text: line } satisfies AdminLegalTextBlock;
+      }
+      if (isAdminLegalBullet(line)) {
+        return { kind: "bullet", text: line } satisfies AdminLegalTextBlock;
+      }
+      return { kind: "paragraph", text: line } satisfies AdminLegalTextBlock;
+    })
+    .slice(0, 120);
+}
+
+function splitAdminLegalText(value: string) {
+  if (!value?.trim()) {
+    return [];
+  }
+  const normalized = value
+    .replace(/\r\n?/g, "\n")
+    .replace(/([┌┬┐└┴┘├┼┤─━]{4,})/g, "\n$1\n")
+    .replace(/\s+(■\s*)/g, "\n$1")
+    .replace(/\s+(\[[^\]\n]{1,50}\])/g, "\n$1")
+    .replace(/\s+(제\s*\d+조(?:의\d+)?(?:\([^)]*\))?)/g, "\n$1")
+    .replace(/\s+(\d+\.\s+)/g, "\n$1")
+    .replace(/\s+([가-하]\.\s+)/g, "\n$1")
+    .replace(/\s+([①②③④⑤⑥⑦⑧⑨⑩])/g, "\n$1")
+    .replace(/\s+(-\s+)/g, "\n$1");
+  return normalized.split("\n").flatMap(splitAdminLongLegalLine);
+}
+
+function splitAdminLongLegalLine(line: string) {
+  const trimmed = line.trim();
+  if (trimmed.length < 260) {
+    return [trimmed];
+  }
+  if (trimmed.includes(" - ")) {
+    return trimmed.split(/\s+-\s+/).map((part, index) => (index === 0 ? part : `- ${part}`));
+  }
+  return trimmed.split(/(?=\s(?:\d+\.|[가-하]\.|[①②③④⑤⑥⑦⑧⑨⑩]))/g);
+}
+
+function adminTableCells(line: string) {
+  if (!/[│|]/.test(line)) {
+    return [];
+  }
+  return line
+    .split(/[│|]/)
+    .map((cell) => cell.replace(/[─━┬┴┼┌┐└┘├┤]+/g, " ").trim())
+    .filter((cell) => cell.length > 0)
+    .slice(0, 8);
+}
+
+function isAdminBoxRuleLine(line: string) {
+  const stripped = line.replace(/\s/g, "");
+  return stripped.length > 0 && /^[─━┬┴┼┌┐└┘├┤│|]+$/.test(stripped);
+}
+
+function isAdminLegalHeading(line: string) {
+  return /^(\[[^\]]+\]|■|제\s*\d+조|별표|별지)/.test(line);
+}
+
+function isAdminLegalBullet(line: string) {
+  return /^(\d+\.|[가-하]\.|[-ㆍ•]|[①②③④⑤⑥⑦⑧⑨⑩])/.test(line);
 }
 
 function PlatformView({
@@ -4339,6 +4462,7 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
       </Panel>
     );
   }
+  const actionDefinitions = summary.actionDefinitions ?? [];
 
   return (
     <div className="view-stack">
@@ -4354,6 +4478,29 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
           <MetricCard icon={<AlertTriangle size={20} />} label="Failure" value={`${summary.failureRate}%`} detail={`${summary.actionFailed}건 실패`} tone={summary.actionFailed > 0 ? "red" : "green"} />
         </div>
         <InlineNotice message={summary.dataPolicy} />
+      </Panel>
+
+      <Panel title="Worker Action Registry" icon={<Command size={18} />} count={actionDefinitions.length}>
+        <Table
+          columns={["액션", "Owner", "상태", "Executor", "위험도", "승인", "Dry-run", "Source", "필수 Context"]}
+          empty="등록된 Worker action이 없습니다."
+          rows={sortWorkerActionDefinitions(actionDefinitions).map((definition) => [
+            <CellTitle key="action" title={definition.actionType} subtitle={definition.description} />,
+            displayLabel(definition.owner),
+            <StatusBadge key="enabled" status={definition.enabled ? "ACTIVE" : "DISABLED"} />,
+            <CellTitle
+              key="executor"
+              title={definition.executorRegistered ? "등록됨" : "미등록"}
+              subtitle={definition.executorName || "-"}
+            />,
+            <StatusBadge key="risk" status={definition.riskLevel} />,
+            definition.requiresApprovalByDefault ? "필요" : "기본 허용",
+            definition.supportsDryRun ? "지원" : "-",
+            definition.allowedSources.length > 0 ? definition.allowedSources.map(displayLabel).join(", ") : "전체",
+            definition.requiredContextFields.length > 0 ? definition.requiredContextFields.join(", ") : "-"
+          ])}
+        />
+        <InlineNotice message="이 표는 실행 이력이 아니라 현재 Worker가 알고 있는 action 계약입니다. enabled=false 또는 executor 미등록 action은 trace에 나타나더라도 실제 실행 대상이 아닙니다." />
       </Panel>
 
       <div className="dashboard-grid">
@@ -4408,6 +4555,13 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
       </Panel>
     </div>
   );
+}
+
+function sortWorkerActionDefinitions(definitions: WorkerActionDefinition[]) {
+  return [...definitions].sort((left, right) => {
+    const ownerOrder = left.owner.localeCompare(right.owner);
+    return ownerOrder !== 0 ? ownerOrder : left.actionType.localeCompare(right.actionType);
+  });
 }
 
 function WorkerApprovalPanel({

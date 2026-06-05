@@ -2,7 +2,7 @@ import { ArrowLeft, Bell, FileText, Loader2, RefreshCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, InlineNotice, Panel, StatusBadge, ViewHeader } from "../../../components/common";
 import { getLegalUpdate, listLegalUpdates } from "../api";
-import type { LegalChangeDigest } from "../types";
+import type { LegalArticleDiff, LegalChangeDigest } from "../types";
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
   CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
@@ -85,7 +85,6 @@ export function LegalUpdatesView({ token }: { token: string }) {
         }
       >
         {error ? <InlineNotice message={error} /> : null}
-        {!detailMode ? <InlineNotice message="현재 요약은 deterministic digest 기준입니다. AI 영향도 분석 worker가 붙으면 제목, 요약, 관련 업무가 더 정교해집니다." /> : null}
         {detailMode ? (
           <LegalUpdateDetail loading={detailLoading} update={selectedDetail} />
         ) : updates.length === 0 && !loading ? (
@@ -188,18 +187,7 @@ function LegalUpdateDetail({ loading, update }: { loading: boolean; update: Lega
                   ) : null}
                 </div>
                 <span>{diff.diffSummary}</span>
-                {diff.beforeTextPreview || diff.afterTextPreview ? (
-                  <div className="legal-update-diff-preview">
-                    <div>
-                      <strong>이전</strong>
-                      <pre>{diff.beforeTextPreview || "이전 조문 본문 없음"}</pre>
-                    </div>
-                    <div>
-                      <strong>이후</strong>
-                      <pre>{diff.afterTextPreview || "이후 조문 본문 없음"}</pre>
-                    </div>
-                  </div>
-                ) : null}
+                {diff.beforeTextPreview || diff.afterTextPreview ? <LegalTextComparison diff={diff} /> : null}
                 {diff.sourceVersionKey ? <small className="legal-update-source-version">버전 {diff.sourceVersionKey}</small> : null}
               </div>
             ))}
@@ -212,6 +200,134 @@ function LegalUpdateDetail({ loading, update }: { loading: boolean; update: Lega
       </footer>
     </article>
   );
+}
+
+type LegalTextBlock =
+  | { kind: "heading" | "bullet" | "paragraph"; text: string }
+  | { kind: "row"; cells: string[] };
+
+function LegalTextComparison({ diff }: { diff: LegalArticleDiff }) {
+  return (
+    <div className="legal-text-comparison">
+      <LegalTextPanel label="이전" text={diff.beforeTextPreview ?? ""} emptyText="이전 조문 본문 없음" />
+      <LegalTextPanel label="이후" text={diff.afterTextPreview ?? ""} emptyText="이후 조문 본문 없음" />
+    </div>
+  );
+}
+
+function LegalTextPanel({ label, text, emptyText }: { label: string; text: string; emptyText: string }) {
+  const sourceText = text?.trim() ?? "";
+  const blocks = formatLegalTextBlocks(sourceText);
+  return (
+    <div className="legal-text-panel">
+      <div className="legal-text-panel-header">
+        <strong>{label}</strong>
+        <span>읽기 보기</span>
+      </div>
+      <div className="legal-text-readable">
+        {blocks.length === 0 ? (
+          <p className="legal-text-empty">{emptyText}</p>
+        ) : blocks.map((block, index) => renderLegalTextBlock(block, `${label}-${index}`))}
+      </div>
+      {sourceText ? (
+        <details className="legal-text-raw">
+          <summary>원문 보기</summary>
+          <pre>{sourceText}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function renderLegalTextBlock(block: LegalTextBlock, key: string) {
+  if (block.kind === "row") {
+    return (
+      <div className="legal-text-row" key={key}>
+        {block.cells.map((cell, index) => (
+          <span className="legal-text-cell" key={`${key}-${index}`}>
+            {cell}
+          </span>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <p className={`legal-text-block ${block.kind}`} key={key}>
+      {block.text}
+    </p>
+  );
+}
+
+function formatLegalTextBlocks(value: string): LegalTextBlock[] {
+  return splitLegalText(value)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !isBoxRuleLine(line))
+    .map((line) => {
+      const cells = tableCells(line);
+      if (cells.length >= 2) {
+        return { kind: "row", cells } satisfies LegalTextBlock;
+      }
+      if (isLegalHeading(line)) {
+        return { kind: "heading", text: line } satisfies LegalTextBlock;
+      }
+      if (isLegalBullet(line)) {
+        return { kind: "bullet", text: line } satisfies LegalTextBlock;
+      }
+      return { kind: "paragraph", text: line } satisfies LegalTextBlock;
+    })
+    .slice(0, 120);
+}
+
+function splitLegalText(value: string) {
+  if (!value?.trim()) {
+    return [];
+  }
+  const normalized = value
+    .replace(/\r\n?/g, "\n")
+    .replace(/([┌┬┐└┴┘├┼┤─━]{4,})/g, "\n$1\n")
+    .replace(/\s+(■\s*)/g, "\n$1")
+    .replace(/\s+(\[[^\]\n]{1,50}\])/g, "\n$1")
+    .replace(/\s+(제\s*\d+조(?:의\d+)?(?:\([^)]*\))?)/g, "\n$1")
+    .replace(/\s+(\d+\.\s+)/g, "\n$1")
+    .replace(/\s+([가-하]\.\s+)/g, "\n$1")
+    .replace(/\s+([①②③④⑤⑥⑦⑧⑨⑩])/g, "\n$1")
+    .replace(/\s+(-\s+)/g, "\n$1");
+  return normalized.split("\n").flatMap(splitLongLegalLine);
+}
+
+function splitLongLegalLine(line: string) {
+  const trimmed = line.trim();
+  if (trimmed.length < 260) {
+    return [trimmed];
+  }
+  if (trimmed.includes(" - ")) {
+    return trimmed.split(/\s+-\s+/).map((part, index) => (index === 0 ? part : `- ${part}`));
+  }
+  return trimmed.split(/(?=\s(?:\d+\.|[가-하]\.|[①②③④⑤⑥⑦⑧⑨⑩]))/g);
+}
+
+function tableCells(line: string) {
+  if (!/[│|]/.test(line)) {
+    return [];
+  }
+  return line
+    .split(/[│|]/)
+    .map((cell) => cell.replace(/[─━┬┴┼┌┐└┘├┤]+/g, " ").trim())
+    .filter((cell) => cell.length > 0)
+    .slice(0, 8);
+}
+
+function isBoxRuleLine(line: string) {
+  const stripped = line.replace(/\s/g, "");
+  return stripped.length > 0 && /^[─━┬┴┼┌┐└┘├┤│|]+$/.test(stripped);
+}
+
+function isLegalHeading(line: string) {
+  return /^(\[[^\]]+\]|■|제\s*\d+조|별표|별지)/.test(line);
+}
+
+function isLegalBullet(line: string) {
+  return /^(\d+\.|[가-하]\.|[-ㆍ•]|[①②③④⑤⑥⑦⑧⑨⑩])/.test(line);
 }
 
 function formatReportType(value: string) {
