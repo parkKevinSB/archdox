@@ -641,6 +641,26 @@ export type LegalChangeDigest = {
   updatedAt: string;
 };
 
+export type LegalOpenApiTarget = {
+  target: string;
+  query: string;
+  expectedName: string;
+  actCode: string;
+  actType: string;
+};
+
+export type LegalOpenApiStatus = {
+  enabled: boolean;
+  ocConfigured: boolean;
+  sourceCode: string;
+  baseUrl: string;
+  userAgent: string;
+  requestTimeoutMs: number;
+  requestIntervalMs: number;
+  maxAttempts: number;
+  targets: LegalOpenApiTarget[];
+};
+
 export type AiProviderType = "OPENAI" | "OLLAMA" | "GEMINI" | "ANTHROPIC" | "CUSTOM_HTTP";
 export type AiProviderCredentialStatus = "DRAFT" | "ACTIVE" | "DISABLED";
 export type AiCredentialDeliveryMode = "PROXY_ONLY" | "EPHEMERAL_TOKEN" | "DIRECT_SECRET";
@@ -831,6 +851,41 @@ export type EngineApiKey = {
 export type CreateEngineApiKeyResponse = {
   key: EngineApiKey;
   apiKey: string;
+};
+
+export type EngineApiUsageEvent = {
+  id: number;
+  apiKeyId: number;
+  keyId: string;
+  ownerUserId: number;
+  officeId?: number | null;
+  capability: string;
+  operation: string;
+  reviewSessionId?: string | null;
+  status: string;
+  requestUnits: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type EngineApiUsageGroup = {
+  apiKeyId: number;
+  keyId: string;
+  ownerUserId: number;
+  officeId?: number | null;
+  capability: string;
+  operation: string;
+  eventCount: number;
+  requestUnits: number;
+  lastCalledAt: string;
+};
+
+export type EngineApiUsageSummary = {
+  from: string;
+  to: string;
+  totalEventCount: number;
+  totalRequestUnits: number;
+  groups: EngineApiUsageGroup[];
 };
 
 export type AiModelCallLog = {

@@ -76,7 +76,7 @@ public class EngineApiUsageEvent {
         this.operation = require(operation, "operation");
         this.reviewSessionId = blankToNull(reviewSessionId);
         this.status = require(status, "status");
-        this.requestUnits = Math.max(1, requestUnits);
+        this.requestUnits = Math.max(0, requestUnits);
         this.metadataJson = metadataJson == null ? Map.of() : Map.copyOf(metadataJson);
         this.createdAt = createdAt == null ? OffsetDateTime.now() : createdAt;
     }

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "archdox.engine.connect")
 public class EngineConnectProperties {
     private String engineApiBaseUrl = "https://api.archdox.co.kr";
-    private String mcpServerUrl = "https://mcp.archdox.co.kr";
+    private String mcpServerUrl = "https://mcp.archdox.co.kr/api/v1/mcp";
     private int defaultKeyTtlDays = 90;
     private int maxKeyTtlDays = 365;
 

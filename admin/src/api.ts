@@ -16,8 +16,11 @@ import type {
   DocumentDelivery,
   DocumentJob,
   EngineApiKey,
+  EngineApiUsageEvent,
+  EngineApiUsageSummary,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalOpenApiStatus,
   LegalSyncRun,
   DocumentTemplateRevision,
   MeResponse,
@@ -710,8 +713,23 @@ export function getPlatformLegalChangeDigests(token: string, limit = 50) {
   });
 }
 
+export function getPlatformLegalOpenApiStatus(token: string) {
+  return request<LegalOpenApiStatus>("/api/v1/platform-admin/legal/open-api/status", { token });
+}
+
 export function getPlatformEngineApiKeys(token: string) {
   return request<EngineApiKey[]>("/api/v1/platform-admin/engine/api-keys", { token });
+}
+
+export function getPlatformEngineUsageSummary(token: string) {
+  return request<EngineApiUsageSummary>("/api/v1/platform-admin/engine/usage/summary", { token });
+}
+
+export function getPlatformEngineUsageEvents(token: string, limit = 100) {
+  return request<EngineApiUsageEvent[]>("/api/v1/platform-admin/engine/usage/events", {
+    token,
+    query: { limit }
+  });
 }
 
 export function createPlatformEngineApiKey(

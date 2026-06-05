@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class EngineApiKeyManagementService {
     public static final String SCOPE_ALL = "ALL";
     public static final String SCOPE_REVIEW_SESSION = "ENGINE_REVIEW_SESSION";
+    public static final String SCOPE_LEGAL_UPDATES = "LEGAL_UPDATES";
+    public static final String SCOPE_LEGAL_SEARCH = "LEGAL_SEARCH";
     public static final int DEFAULT_DAILY_REQUEST_UNIT_LIMIT = 1000;
 
     private final EngineApiKeyRepository repository;
@@ -192,7 +194,10 @@ public class EngineApiKeyManagementService {
                 continue;
             }
             var scope = value.trim().toUpperCase(Locale.ROOT);
-            if (!SCOPE_ALL.equals(scope) && !SCOPE_REVIEW_SESSION.equals(scope)) {
+            if (!SCOPE_ALL.equals(scope)
+                    && !SCOPE_REVIEW_SESSION.equals(scope)
+                    && !SCOPE_LEGAL_UPDATES.equals(scope)
+                    && !SCOPE_LEGAL_SEARCH.equals(scope)) {
                 throw new BadRequestException("Unsupported Engine API scope: " + value);
             }
             normalized.add(scope);

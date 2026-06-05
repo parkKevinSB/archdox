@@ -116,6 +116,7 @@ The current key scope is:
 
 ```text
 ENGINE_REVIEW_SESSION
+LEGAL_UPDATES
 ```
 
 The raw key is returned only once. It is intended for early Codex/Cursor/Claude
@@ -580,6 +581,90 @@ submit_context_answers
 run_validation
 get_review_result
 ```
+
+Current MVP implementation has started inside `cloud-api`:
+
+```text
+POST /api/v1/mcp
+```
+
+This endpoint is a Streamable-HTTP-style JSON-RPC facade over the existing
+external Engine API surface. It is protected by the same ArchDox Engine API key
+used by `/api/v1/engine/external/**`; JWT SaaS tokens are intentionally not used
+for this endpoint.
+
+Implemented MCP methods:
+
+```text
+initialize
+ping
+tools/list
+tools/call
+```
+
+Implemented tools:
+
+```text
+create_review_session
+submit_document
+submit_context_facts
+normalize_context
+run_validation
+get_review_result
+validate_inspection_report
+get_legal_updates
+```
+
+The current V1 implementation uses a small MCP tool registry rather than raw
+controller branching. Each tool definition carries:
+
+```text
+tool name
+capability
+required scope
+read/write access mode
+request units
+gateway-managed usage flag
+input schema
+handler
+```
+
+Gateway-managed tools such as `get_legal_updates` now pass quota checks and
+record usage under their own capability (`LEGAL_UPDATES`). Review-session tools
+reuse the external review-session service facade so REST and MCP keep the same
+quota/usage behavior for the underlying engine operations.
+
+MCP tool-call usage metadata includes the MCP source, tool name, capability,
+required scope, access mode, JSON-RPC id, correlation id, remote IP, and
+user-agent when available. Failed or denied tool calls are recorded with
+`FAILED` or `DENIED` status and `0` request units so platform admins can debug
+scope and quota problems without charging denied calls as successful usage.
+
+JSON-RPC errors preserve ArchDox internal error codes under `error.data.code`.
+The current error data contract is:
+
+```text
+code        ArchDox internal error code
+category    stable external category
+retryable   whether a client may retry without changing input/auth/scope
+messageKey  ArchDox localization/debug key when available
+params      structured error context
+```
+
+For example, scope failures return `ENGINE_API_SCOPE_REQUIRED` with category
+`SCOPE_REQUIRED`, quota failures return `ENGINE_API_DAILY_QUOTA_EXCEEDED` with
+category `QUOTA_EXCEEDED`, unknown tools return `MCP_TOOL_NOT_FOUND`, and
+malformed MCP params return `MCP_INVALID_PARAMS`.
+
+`validate_inspection_report` is a convenience wrapper for early Codex/Cursor
+testing. It creates a review session, submits optional document text/facts, and
+runs validation. Long-running or state-mutating business work must still go
+through ArchDox Worker action registry, policy gate, Flower execution, and
+operation audit.
+
+This is still not a production OAuth MCP gateway. It is the smallest useful
+MCP-compatible adapter that proves external agents can call ArchDox Engine
+through scoped keys without touching internal SaaS DTOs or raw database state.
 
 ### Phase MCP-6: Agent Connect Bootstrap
 

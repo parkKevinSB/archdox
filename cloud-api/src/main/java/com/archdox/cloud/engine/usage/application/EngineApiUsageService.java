@@ -12,7 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EngineApiUsageService {
     public static final String CAPABILITY_REVIEW_SESSION = "ENGINE_REVIEW_SESSION";
+    public static final String CAPABILITY_LEGAL_UPDATES = "LEGAL_UPDATES";
+    public static final String CAPABILITY_LEGAL_SEARCH = "LEGAL_SEARCH";
     public static final String STATUS_SUCCEEDED = "SUCCEEDED";
+    public static final String STATUS_FAILED = "FAILED";
+    public static final String STATUS_DENIED = "DENIED";
 
     private final EngineApiUsageEventRepository repository;
 
@@ -27,6 +31,31 @@ public class EngineApiUsageService {
             String reviewSessionId,
             Map<String, Object> metadata
     ) {
+        recordUsage(principal, CAPABILITY_REVIEW_SESSION, operation, reviewSessionId, 1, metadata);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordUsage(
+            EngineApiPrincipal principal,
+            String capability,
+            String operation,
+            String resourceId,
+            int requestUnits,
+            Map<String, Object> metadata
+    ) {
+        recordUsage(principal, capability, operation, resourceId, STATUS_SUCCEEDED, requestUnits, metadata);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordUsage(
+            EngineApiPrincipal principal,
+            String capability,
+            String operation,
+            String resourceId,
+            String status,
+            int requestUnits,
+            Map<String, Object> metadata
+    ) {
         if (principal == null) {
             return;
         }
@@ -35,11 +64,11 @@ public class EngineApiUsageService {
                 principal.keyId(),
                 principal.ownerUserId(),
                 principal.officeId(),
-                CAPABILITY_REVIEW_SESSION,
+                capability,
                 operation,
-                reviewSessionId,
-                STATUS_SUCCEEDED,
-                1,
+                resourceId,
+                status,
+                Math.max(0, requestUnits),
                 metadata == null ? Map.of() : metadata,
                 OffsetDateTime.now()));
     }

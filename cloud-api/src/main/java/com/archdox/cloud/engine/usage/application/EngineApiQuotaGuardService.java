@@ -21,7 +21,17 @@ public class EngineApiQuotaGuardService {
         requireQuota(principal, EngineApiUsageService.CAPABILITY_REVIEW_SESSION, operation, 1);
     }
 
-    private void requireQuota(
+    @Transactional(readOnly = true)
+    public void requireReviewSessionQuota(EngineApiPrincipal principal, String operation, int requestUnits) {
+        requireQuota(
+                principal,
+                EngineApiUsageService.CAPABILITY_REVIEW_SESSION,
+                operation,
+                Math.max(1, requestUnits));
+    }
+
+    @Transactional(readOnly = true)
+    public void requireQuota(
             EngineApiPrincipal principal,
             String capability,
             String operation,

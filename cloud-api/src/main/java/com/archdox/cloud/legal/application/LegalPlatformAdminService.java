@@ -3,6 +3,7 @@ package com.archdox.cloud.legal.application;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
+import com.archdox.cloud.legal.dto.LegalOpenApiStatusResponse;
 import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import com.archdox.cloud.legal.event.LegalSyncRequested;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
@@ -28,6 +29,7 @@ public class LegalPlatformAdminService {
     private final LegalChangeSetRepository changeSetRepository;
     private final LegalChangeDigestRepository changeDigestRepository;
     private final LegalUpdateReadService updateReadService;
+    private final LegalSyncProperties legalSyncProperties;
 
     public LegalPlatformAdminService(
             PlatformAdminService platformAdminService,
@@ -37,7 +39,8 @@ public class LegalPlatformAdminService {
             LegalSyncRunRepository syncRunRepository,
             LegalChangeSetRepository changeSetRepository,
             LegalChangeDigestRepository changeDigestRepository,
-            LegalUpdateReadService updateReadService
+            LegalUpdateReadService updateReadService,
+            LegalSyncProperties legalSyncProperties
     ) {
         this.platformAdminService = platformAdminService;
         this.syncService = syncService;
@@ -47,6 +50,29 @@ public class LegalPlatformAdminService {
         this.changeSetRepository = changeSetRepository;
         this.changeDigestRepository = changeDigestRepository;
         this.updateReadService = updateReadService;
+        this.legalSyncProperties = legalSyncProperties;
+    }
+
+    public LegalOpenApiStatusResponse openApiStatus(UserPrincipal principal) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var openApi = legalSyncProperties.getOpenApi();
+        return new LegalOpenApiStatusResponse(
+                openApi.isEnabled(),
+                openApi.getOc() != null && !openApi.getOc().isBlank(),
+                openApi.getSourceCode(),
+                openApi.getBaseUrl(),
+                openApi.getUserAgent(),
+                openApi.getRequestTimeoutMs(),
+                openApi.getRequestIntervalMs(),
+                openApi.getMaxAttempts(),
+                openApi.getTargets().stream()
+                        .map(target -> new LegalOpenApiStatusResponse.TargetResponse(
+                                target.getTarget(),
+                                target.getQuery(),
+                                target.getExpectedName(),
+                                target.getActCode(),
+                                target.getActType()))
+                        .toList());
     }
 
     public LegalSyncRunResponse startFakeSync(UserPrincipal principal) {

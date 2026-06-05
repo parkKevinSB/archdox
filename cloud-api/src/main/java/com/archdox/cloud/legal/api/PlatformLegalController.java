@@ -4,6 +4,7 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.application.LegalPlatformAdminService;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
+import com.archdox.cloud.legal.dto.LegalOpenApiStatusResponse;
 import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import java.util.List;
 import org.springframework.security.core.Authentication;
@@ -30,6 +31,11 @@ public class PlatformLegalController {
     @PostMapping("/sync/open-data")
     public LegalSyncRunResponse startOpenDataSync(Authentication authentication) {
         return service.startOpenDataSync(principal(authentication));
+    }
+
+    @GetMapping("/open-api/status")
+    public LegalOpenApiStatusResponse openApiStatus(Authentication authentication) {
+        return service.openApiStatus(principal(authentication));
     }
 
     @GetMapping("/sync-runs")

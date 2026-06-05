@@ -20,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class EngineApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private static final String EXTERNAL_ENGINE_PREFIX = "/api/v1/engine/external/";
+    private static final String MCP_PREFIX = "/api/v1/mcp";
     private static final String KEY_HEADER = "X-ArchDox-Engine-Key";
 
     private final EngineApiKeyAuthenticationService service;
@@ -35,7 +36,8 @@ public class EngineApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith(EXTERNAL_ENGINE_PREFIX);
+        var uri = request.getRequestURI();
+        return !uri.startsWith(EXTERNAL_ENGINE_PREFIX) && !uri.startsWith(MCP_PREFIX);
     }
 
     @Override

@@ -57,7 +57,9 @@ public class EngineConnectBootstrapWorker {
                 principal.userId(),
                 request.officeId(),
                 principal.userId(),
-                List.of(EngineApiKeyManagementService.SCOPE_REVIEW_SESSION),
+                List.of(
+                        EngineApiKeyManagementService.SCOPE_REVIEW_SESSION,
+                        EngineApiKeyManagementService.SCOPE_LEGAL_UPDATES),
                 expiresAt);
         var engineApiBaseUrl = properties.getEngineApiBaseUrl();
         var mcpServerUrl = properties.getMcpServerUrl();

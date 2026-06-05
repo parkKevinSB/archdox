@@ -772,6 +772,7 @@ POST /api/v1/platform-admin/legal/sync/open-data
 GET  /api/v1/platform-admin/legal/sync-runs
 GET  /api/v1/platform-admin/legal/change-sets
 GET  /api/v1/platform-admin/legal/change-digests
+GET  /api/v1/platform-admin/legal/open-api/status
 GET  /api/v1/legal-updates
 GET  /api/v1/legal-updates/{id}
 ```
@@ -782,6 +783,8 @@ Real Open API integration status:
 - `LEGAL_OPEN_API_OC` required for live sync
 - exact target list is configured in `LegalSyncProperties`
 - live sync is platform-admin/manual for now
+- platform admins can inspect Open API enabled/credential/target status through
+  `/api/v1/platform-admin/legal/open-api/status`
 - current live smoke result on 2026-06-04 synchronized 4 tracked assets and
   created 462 article diffs
 

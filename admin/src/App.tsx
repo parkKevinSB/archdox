@@ -80,8 +80,11 @@ import {
   getPlatformDocumentJobs,
   getPlatformEvents,
   getPlatformEngineApiKeys,
+  getPlatformEngineUsageEvents,
+  getPlatformEngineUsageSummary,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
+  getPlatformLegalOpenApiStatus,
   getPlatformLegalSyncRuns,
   getPlatformWorkerApprovals,
   getPlatformWorkerGovernance,
@@ -133,8 +136,11 @@ import type {
   DocumentJob,
   DocumentTemplateRevision,
   EngineApiKey,
+  EngineApiUsageEvent,
+  EngineApiUsageSummary,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalOpenApiStatus,
   LegalSyncRun,
   MeResponse,
   MembershipRole,
@@ -257,7 +263,10 @@ type PlatformOpsData = {
   legalSyncRuns: LegalSyncRun[];
   legalChangeSets: LegalChangeSet[];
   legalChangeDigests: LegalChangeDigest[];
+  legalOpenApiStatus: LegalOpenApiStatus | null;
   engineApiKeys: EngineApiKey[];
+  engineApiUsageSummary: EngineApiUsageSummary | null;
+  engineApiUsageEvents: EngineApiUsageEvent[];
   workerGovernance: WorkerGovernanceSummary | null;
   workerApprovals: WorkerApprovalRequest[];
   aiProviders: AiProviderCredential[];
@@ -301,7 +310,10 @@ const emptyPlatformOpsData: PlatformOpsData = {
   legalSyncRuns: [],
   legalChangeSets: [],
   legalChangeDigests: [],
+  legalOpenApiStatus: null,
   engineApiKeys: [],
+  engineApiUsageSummary: null,
+  engineApiUsageEvents: [],
   workerGovernance: null,
   workerApprovals: [],
   aiProviders: [],
@@ -791,19 +803,22 @@ export default function App() {
         ]);
         Object.assign(next, { summary, offices });
       } else if (view === "platform-legal") {
-        const [legalSyncRuns, legalChangeSets, legalChangeDigests] = await Promise.all([
+        const [legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests] = await Promise.all([
+          getPlatformLegalOpenApiStatus(token),
           getPlatformLegalSyncRuns(token, 50),
           getPlatformLegalChangeSets(token, 50),
           getPlatformLegalChangeDigests(token, 50)
         ]);
-        Object.assign(next, { legalSyncRuns, legalChangeSets, legalChangeDigests });
+        Object.assign(next, { legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests });
       } else if (view === "platform-engine-keys") {
-        const [engineApiKeys, offices, users] = await Promise.all([
+        const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users] = await Promise.all([
           getPlatformEngineApiKeys(token),
+          getPlatformEngineUsageSummary(token),
+          getPlatformEngineUsageEvents(token, 100),
           getPlatformOffices(token, 100),
           getPlatformUsers(token, 100)
         ]);
-        Object.assign(next, { engineApiKeys, offices, users });
+        Object.assign(next, { engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users });
       } else if (view === "platform-worker-governance") {
         next.workerGovernance = await getPlatformWorkerGovernance(token, 7, 30);
       } else if (view === "platform-worker-approvals") {
@@ -3778,7 +3793,47 @@ function PlatformView({
               <MetricCard icon={<Activity size={20} />} label="Change Set" value={data.legalChangeSets.length} detail="법령 원천 diff" tone="amber" />
               <MetricCard icon={<FileText size={20} />} label="게시 요약" value={data.legalChangeDigests.length} detail="사용자 노출 digest" tone="green" />
             </div>
-            <InlineNotice message="현재는 국가법령 API 승인 전 테스트용 fake source를 사용합니다. 실제 API가 붙어도 Flow/DB/API 구조는 동일하게 유지됩니다." />
+            {data.legalOpenApiStatus ? (
+              <>
+                <div className="metric-grid compact">
+                  <MetricCard
+                    icon={data.legalOpenApiStatus.enabled ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+                    label="Open API"
+                    value={data.legalOpenApiStatus.enabled ? "ON" : "OFF"}
+                    detail={data.legalOpenApiStatus.sourceCode}
+                    tone={data.legalOpenApiStatus.enabled ? "green" : "amber"}
+                  />
+                  <MetricCard
+                    icon={data.legalOpenApiStatus.ocConfigured ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+                    label="OC Key"
+                    value={data.legalOpenApiStatus.ocConfigured ? "설정됨" : "미설정"}
+                    detail="원문 키는 노출하지 않음"
+                    tone={data.legalOpenApiStatus.ocConfigured ? "green" : "red"}
+                  />
+                  <MetricCard
+                    icon={<Clock3 size={20} />}
+                    label="호출 간격"
+                    value={`${data.legalOpenApiStatus.requestIntervalMs}ms`}
+                    detail={`timeout ${data.legalOpenApiStatus.requestTimeoutMs}ms / retry ${data.legalOpenApiStatus.maxAttempts}`}
+                    tone="slate"
+                  />
+                </div>
+                <Table
+                  columns={["Target", "검색어", "예상 법령명", "Act Code", "Type"]}
+                  empty="설정된 법령 Open API target이 없습니다."
+                  rows={data.legalOpenApiStatus.targets.map((target) => [
+                    target.target,
+                    target.query,
+                    target.expectedName,
+                    target.actCode,
+                    target.actType
+                  ])}
+                />
+                <InlineNotice message={`법령 Open API base URL: ${data.legalOpenApiStatus.baseUrl} / User-Agent: ${data.legalOpenApiStatus.userAgent}`} />
+              </>
+            ) : (
+              <InlineNotice message="법령 Open API 상태를 불러오지 못했습니다. 동기화 실행 전 설정 상태를 확인하세요." />
+            )}
           </Panel>
 
           <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
@@ -3832,6 +3887,8 @@ function PlatformView({
         <EngineApiKeyManagementPanel
           busy={loading}
           keys={data.engineApiKeys}
+          usageEvents={data.engineApiUsageEvents}
+          usageSummary={data.engineApiUsageSummary}
           offices={data.offices}
           users={data.users}
           issuedKey={issuedEngineApiKey}
@@ -4279,6 +4336,8 @@ function payloadPreview(payload: Record<string, unknown>) {
 function EngineApiKeyManagementPanel({
   busy,
   keys,
+  usageEvents,
+  usageSummary,
   offices,
   users,
   issuedKey,
@@ -4288,6 +4347,8 @@ function EngineApiKeyManagementPanel({
 }: {
   busy: boolean;
   keys: EngineApiKey[];
+  usageEvents: EngineApiUsageEvent[];
+  usageSummary: EngineApiUsageSummary | null;
   offices: PlatformOfficeOps[];
   users: PlatformUserOps[];
   issuedKey: CreateEngineApiKeyResponse | null;
@@ -4304,6 +4365,8 @@ function EngineApiKeyManagementPanel({
 }) {
   const activeCount = keys.filter((key) => key.status === "ACTIVE").length;
   const revokedCount = keys.filter((key) => key.status === "REVOKED").length;
+  const mcpEvents = usageEvents.filter((event) => metadataText(event.metadata, "source") === "MCP");
+  const failedMcpEvents = mcpEvents.filter((event) => event.status !== "SUCCEEDED").length;
 
   return (
     <div className="view-stack">
@@ -4364,8 +4427,56 @@ function EngineApiKeyManagementPanel({
           ])}
         />
       </Panel>
+
+      <Panel title="Engine / MCP usage" icon={<Activity size={18} />} count={usageSummary?.groups.length ?? 0}>
+        <div className="metric-grid compact">
+          <MetricCard icon={<Activity size={20} />} label="Events" value={usageSummary?.totalEventCount ?? 0} detail="selected range" tone="blue" />
+          <MetricCard icon={<Gauge size={20} />} label="Request units" value={usageSummary?.totalRequestUnits ?? 0} detail="quota units" tone="amber" />
+          <MetricCard icon={<Command size={20} />} label="MCP calls" value={mcpEvents.length} detail="recent 100 events" tone="slate" />
+          <MetricCard icon={<AlertTriangle size={20} />} label="MCP failed" value={failedMcpEvents} detail="FAILED or DENIED" tone={failedMcpEvents > 0 ? "red" : "green"} />
+        </div>
+        <Table
+          columns={["Capability", "Operation", "Key", "Events", "Units", "Last call"]}
+          empty="Engine API usage summary is empty."
+          rows={(usageSummary?.groups ?? []).slice(0, 30).map((group) => [
+            <StatusBadge key="capability" status={group.capability} />,
+            group.operation,
+            <CellTitle key="key" title={group.keyId} subtitle={`API Key #${group.apiKeyId}`} />,
+            group.eventCount.toLocaleString(),
+            group.requestUnits.toLocaleString(),
+            formatDate(group.lastCalledAt)
+          ])}
+        />
+      </Panel>
+
+      <Panel title="Recent MCP calls" icon={<Command size={18} />} count={mcpEvents.length}>
+        <Table
+          columns={["Time", "Status", "Tool", "Capability", "Key", "Trace / Error"]}
+          empty="Recent MCP call logs are empty."
+          rows={mcpEvents.slice(0, 30).map((event) => [
+            formatDate(event.createdAt),
+            <StatusBadge key="status" status={event.status} />,
+            metadataText(event.metadata, "toolName") || event.operation,
+            event.capability,
+            <CellTitle key="key" title={event.keyId} subtitle={event.officeId ? officeLabel(offices, event.officeId) : "-"} />,
+            <CellTitle
+              key="trace"
+              title={metadataText(event.metadata, "correlationId") || "-"}
+              subtitle={metadataText(event.metadata, "errorCode") || metadataText(event.metadata, "accessMode") || "-"}
+            />
+          ])}
+        />
+      </Panel>
     </div>
   );
+}
+
+function metadataText(metadata: Record<string, unknown> | undefined, key: string) {
+  const value = metadata?.[key];
+  if (value === undefined || value === null) {
+    return "";
+  }
+  return String(value);
 }
 
 function EngineApiKeyCreateForm({
@@ -4408,7 +4519,7 @@ function EngineApiKeyCreateForm({
       displayName: normalizeFormValue(displayName) ?? "Engine API Key",
       ownerUserId,
       officeId: officeId === "" ? null : officeId,
-      scopes: allScopes ? ["ALL"] : ["ENGINE_REVIEW_SESSION"],
+      scopes: allScopes ? ["ALL"] : ["ENGINE_REVIEW_SESSION", "LEGAL_UPDATES"],
       dailyRequestUnitLimit,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
     });
@@ -4462,7 +4573,7 @@ function EngineApiKeyCreateForm({
         <input type="checkbox" checked={allScopes} onChange={(event) => setAllScopes(event.target.checked)} />
         ALL 스코프로 발급
       </label>
-      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION입니다. 외부 문서 검토 세션 테스트에는 기본값을 권장합니다.</div>
+      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION, LEGAL_UPDATES입니다. 외부 문서 검토와 법령 업데이트 MCP 조회 테스트에는 기본값을 권장합니다.</div>
       <button className="button primary" disabled={busy || ownerUserId === ""} type="submit">
         {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
         API Key 발급

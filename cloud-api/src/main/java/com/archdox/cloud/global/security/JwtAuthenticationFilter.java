@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String EXTERNAL_ENGINE_PREFIX = "/api/v1/engine/external/";
+    private static final String MCP_PREFIX = "/api/v1/mcp";
 
     private final JwtService jwtService;
 
@@ -23,7 +24,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getRequestURI().startsWith(EXTERNAL_ENGINE_PREFIX);
+        var uri = request.getRequestURI();
+        return uri.startsWith(EXTERNAL_ENGINE_PREFIX) || uri.startsWith(MCP_PREFIX);
     }
 
     @Override
