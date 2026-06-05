@@ -139,16 +139,22 @@ These are development-only credentials.
   issuing, one-time secret display, copy, and revoke operations. A first
   logged-in user connect bootstrap endpoint also exists at
   `/api/v1/engine/connect/bootstrap`. It uses `EngineConnectBootstrapWorker` to
-  verify optional office membership, issue a scoped `ENGINE_REVIEW_SESSION`
-  key for the current user, and return suggested MCP/API connection metadata
-  for Codex, Claude, Cursor, ChatGPT, or custom agents. Self-service bootstrap
-  keys now get a default TTL and cannot request an excessive future expiry.
+  verify optional office membership, issue a scoped `ENGINE_REVIEW_SESSION`,
+  `LEGAL_UPDATES`, and `LEGAL_SEARCH` key for the current user, and return
+  suggested MCP/API connection metadata for Codex, Claude, Cursor, ChatGPT, or
+  custom agents. Self-service bootstrap keys now get a default TTL and cannot
+  request an excessive future expiry.
   This is a bootstrap package, not a live MCP protocol server. External review
   sessions are isolated by `externalSessionId + ownerUserId + officeId`; an
   office-bound Engine API key cannot read another office context for the same
   owner user. `run-validation` now flows through `EngineValidationService` for
   recipe validation and returns typed `ArchDoxEngineFinding` /
   `EngineValidationResult` output.
+  MCP now also exposes read-only legal corpus tools, `search_law` and
+  `get_law_article`, under the `LEGAL_SEARCH` scope/capability. They search the
+  synchronized DB-backed legal corpus, return source/version metadata, exclude
+  fake-source rows, and are quota/usage metered separately from legal update
+  digests.
   It also includes the first domain-backed review slice: if external context
   supplies `tradeCode`, `processCode`, and `inspectionItemCode`, the Engine
   validates the selection against `SupervisionDomainCatalogService`, returns

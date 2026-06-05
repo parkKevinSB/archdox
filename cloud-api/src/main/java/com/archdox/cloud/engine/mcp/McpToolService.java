@@ -12,8 +12,11 @@ import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
 import com.archdox.cloud.global.api.ApiException;
 import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.api.TooManyRequestsException;
+import com.archdox.cloud.legal.application.LegalCorpusReadService;
 import com.archdox.cloud.legal.application.LegalUpdateReadService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +32,7 @@ public class McpToolService {
 
     private final EngineExternalReviewSessionService reviewSessionService;
     private final LegalUpdateReadService legalUpdateReadService;
+    private final LegalCorpusReadService legalCorpusReadService;
     private final EngineApiQuotaGuardService quotaGuardService;
     private final EngineApiUsageService usageService;
     private final ObjectMapper objectMapper;
@@ -37,12 +41,14 @@ public class McpToolService {
     public McpToolService(
             EngineExternalReviewSessionService reviewSessionService,
             LegalUpdateReadService legalUpdateReadService,
+            LegalCorpusReadService legalCorpusReadService,
             EngineApiQuotaGuardService quotaGuardService,
             EngineApiUsageService usageService,
             ObjectMapper objectMapper
     ) {
         this.reviewSessionService = reviewSessionService;
         this.legalUpdateReadService = legalUpdateReadService;
+        this.legalCorpusReadService = legalCorpusReadService;
         this.quotaGuardService = quotaGuardService;
         this.usageService = usageService;
         this.objectMapper = objectMapper;
@@ -185,6 +191,25 @@ public class McpToolService {
         return legalUpdateReadService.recent(intValue(arguments.get("days")), intValue(arguments.get("limit")));
     }
 
+    private Object searchLaw(Map<String, Object> arguments) {
+        return legalCorpusReadService.search(
+                optionalText(arguments.get("query")),
+                optionalText(arguments.get("actCode")),
+                optionalText(arguments.get("actName")),
+                optionalText(arguments.get("articleNo")),
+                localDateValue(arguments.get("effectiveDate"), "effectiveDate"),
+                intValue(arguments.get("limit")));
+    }
+
+    private Object getLawArticle(Map<String, Object> arguments) {
+        return legalCorpusReadService.getArticle(
+                longValue(arguments.get("articleVersionId"), "articleVersionId"),
+                longValue(arguments.get("articleId"), "articleId"),
+                optionalText(arguments.get("actCode")),
+                optionalText(arguments.get("articleNo")),
+                localDateValue(arguments.get("effectiveDate"), "effectiveDate"));
+    }
+
     private void requireScope(EngineApiPrincipal principal, McpToolDefinition definition) {
         if (principal.hasScope(definition.requiredScope())) {
             return;
@@ -323,6 +348,32 @@ public class McpToolService {
         return null;
     }
 
+    private Long longValue(Object value, String fieldName) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                throw new McpInvalidParamsException(fieldName + " must be an integer");
+            }
+        }
+        return null;
+    }
+
+    private LocalDate localDateValue(Object value, String fieldName) {
+        var text = optionalText(value);
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(text);
+        } catch (DateTimeParseException ignored) {
+            throw new McpInvalidParamsException(fieldName + " must be a date in yyyy-MM-dd format");
+        }
+    }
+
     private Double doubleValue(Object value) {
         if (value instanceof Number number) {
             return number.doubleValue();
@@ -431,7 +482,36 @@ public class McpToolService {
                         ACCESS_READ,
                         true,
                         arguments -> 1,
-                        (principal, arguments) -> getLegalUpdates(arguments)));
+                        (principal, arguments) -> getLegalUpdates(arguments)),
+                tool("search_law", "Search law",
+                        "Search source-backed ArchDox legal corpus articles.",
+                        schema(required(),
+                                property("query", "string"),
+                                property("actCode", "string"),
+                                property("actName", "string"),
+                                property("articleNo", "string"),
+                                property("effectiveDate", "string"),
+                                property("limit", "integer")),
+                        EngineApiUsageService.CAPABILITY_LEGAL_SEARCH,
+                        EngineApiKeyManagementService.SCOPE_LEGAL_SEARCH,
+                        ACCESS_READ,
+                        true,
+                        arguments -> 1,
+                        (principal, arguments) -> searchLaw(arguments)),
+                tool("get_law_article", "Get law article",
+                        "Read one source-backed legal article by articleVersionId, articleId, or actCode plus articleNo.",
+                        schema(required(),
+                                property("articleVersionId", "integer"),
+                                property("articleId", "integer"),
+                                property("actCode", "string"),
+                                property("articleNo", "string"),
+                                property("effectiveDate", "string")),
+                        EngineApiUsageService.CAPABILITY_LEGAL_SEARCH,
+                        EngineApiKeyManagementService.SCOPE_LEGAL_SEARCH,
+                        ACCESS_READ,
+                        true,
+                        arguments -> 1,
+                        (principal, arguments) -> getLawArticle(arguments)));
     }
 
     private McpToolDefinition tool(

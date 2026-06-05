@@ -799,6 +799,19 @@ GET  /api/v1/legal-updates
 GET  /api/v1/legal-updates/{id}
 ```
 
+External MCP legal corpus read tools are also implemented through the Engine
+boundary:
+
+```text
+search_law
+get_law_article
+```
+
+These tools are read-only, require the `LEGAL_SEARCH` scope, record
+`LEGAL_SEARCH` usage/quota events, and read only the synchronized DB-backed
+legal corpus. They do not call the National Law Open API at request time and
+they exclude the fake development legal source from external results.
+
 Real Open API integration status:
 
 - `LEGAL_OPEN_API_ENABLED=false` by default

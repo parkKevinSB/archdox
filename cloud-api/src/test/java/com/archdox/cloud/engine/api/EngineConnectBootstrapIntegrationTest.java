@@ -66,6 +66,10 @@ class EngineConnectBootstrapIntegrationTest {
                 .andExpect(jsonPath("$.connectionId").value(org.hamcrest.Matchers.startsWith("eng_conn_")))
                 .andExpect(jsonPath("$.clientType").value("CODEX"))
                 .andExpect(jsonPath("$.key.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.key.scopes").value(org.hamcrest.Matchers.hasItems(
+                        "ENGINE_REVIEW_SESSION",
+                        "LEGAL_UPDATES",
+                        "LEGAL_SEARCH")))
                 .andExpect(jsonPath("$.key.expiresAt").exists())
                 .andExpect(jsonPath("$.engineApiBaseUrl").value("https://api.archdox.test"))
                 .andExpect(jsonPath("$.mcpServerUrl").value("https://mcp.archdox.test"))

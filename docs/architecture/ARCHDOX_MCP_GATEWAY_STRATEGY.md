@@ -117,10 +117,12 @@ The current key scope is:
 ```text
 ENGINE_REVIEW_SESSION
 LEGAL_UPDATES
+LEGAL_SEARCH
 ```
 
 The raw key is returned only once. It is intended for early Codex/Cursor/Claude
-or custom-agent testing against the external Engine API review-session surface.
+or custom-agent testing against the external Engine API review-session and
+source-backed legal read surfaces.
 Self-service bootstrap keys have a bounded lifetime by default. The MVP default
 is 90 days and the maximum is 365 days unless a future plan/admin policy says
 otherwise.
@@ -613,6 +615,8 @@ run_validation
 get_review_result
 validate_inspection_report
 get_legal_updates
+search_law
+get_law_article
 ```
 
 The current V1 implementation uses a small MCP tool registry rather than raw
@@ -629,10 +633,26 @@ input schema
 handler
 ```
 
-Gateway-managed tools such as `get_legal_updates` now pass quota checks and
-record usage under their own capability (`LEGAL_UPDATES`). Review-session tools
-reuse the external review-session service facade so REST and MCP keep the same
+Gateway-managed tools such as `get_legal_updates`, `search_law`, and
+`get_law_article` now pass quota checks and record usage under their own
+capabilities (`LEGAL_UPDATES` or `LEGAL_SEARCH`). Review-session tools reuse the
+external review-session service facade so REST and MCP keep the same
 quota/usage behavior for the underlying engine operations.
+
+The first legal corpus tools are intentionally read-only and source-backed:
+
+```text
+search_law
+  -> searches the synchronized ArchDox legal corpus
+  -> returns bounded article snippets and source/version metadata
+
+get_law_article
+  -> reads one synchronized article by articleVersionId, articleId, or actCode + articleNo
+  -> returns the full article text plus source/version metadata
+```
+
+They read from ArchDox's synchronized corpus, not from live law.go.kr calls, and
+exclude development fake-source rows from external results.
 
 MCP tool-call usage metadata includes the MCP source, tool name, capability,
 required scope, access mode, JSON-RPC id, correlation id, remote IP, and

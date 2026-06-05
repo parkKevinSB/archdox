@@ -211,6 +211,8 @@ Supported first scopes:
 
 ```text
 ENGINE_REVIEW_SESSION
+LEGAL_UPDATES
+LEGAL_SEARCH
 ALL
 ```
 

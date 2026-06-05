@@ -11,6 +11,7 @@ import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
 import com.archdox.cloud.engine.usage.domain.EngineApiUsageEvent;
 import com.archdox.cloud.engine.usage.infra.EngineApiUsageEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -53,10 +55,14 @@ class McpGatewayIntegrationTest {
     @Autowired
     EngineApiKeyManagementService apiKeyManagementService;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
     @Test
     void mcpGatewayListsAndCallsEngineToolsWithEngineApiKey() throws Exception {
         var user = signup("mcp-user@example.com", "MCP User");
         var apiKey = bootstrapApiKey(user.accessToken(), user.officeId());
+        var legalArticleVersionId = seedLegalCorpus();
 
         mockMvc.perform(post("/api/v1/mcp")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -87,7 +93,11 @@ class McpGatewayIntegrationTest {
                         .content("{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.tools[*].name")
-                        .value(org.hamcrest.Matchers.hasItems("validate_inspection_report", "get_legal_updates")));
+                        .value(org.hamcrest.Matchers.hasItems(
+                                "validate_inspection_report",
+                                "get_legal_updates",
+                                "search_law",
+                                "get_law_article")));
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
@@ -154,6 +164,84 @@ class McpGatewayIntegrationTest {
                     assertThat(event.metadataJson()).containsEntry("correlationId", "mcp-legal-success");
                     assertThat(event.metadataJson()).containsEntry("userAgent", "ArchDox MCP Integration Test");
                 });
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-law-search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 61,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "search_law",
+                                    "arguments": {
+                                      "query": "감리",
+                                      "actCode": "BUILDING_ACT_MCP",
+                                      "limit": 5
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.count").value(1))
+                .andExpect(jsonPath("$.result.structuredContent.items[0].actCode").value("BUILDING_ACT_MCP"))
+                .andExpect(jsonPath("$.result.structuredContent.items[0].articleNo").value("25의2"))
+                .andExpect(jsonPath("$.result.structuredContent.items[0].snippet").value(org.hamcrest.Matchers.containsString("감리")));
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-law-article")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 62,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "get_law_article",
+                                    "arguments": {
+                                      "articleVersionId": %d
+                                    }
+                                  }
+                                }
+                                """.formatted(legalArticleVersionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.articleVersionId").value(legalArticleVersionId))
+                .andExpect(jsonPath("$.result.structuredContent.articleText").value(org.hamcrest.Matchers.containsString("감리자는")));
+
+        assertThat(usageEventRepository.findAll())
+                .filteredOn(event -> EngineApiUsageService.CAPABILITY_LEGAL_SEARCH.equals(event.capability()))
+                .filteredOn(event -> EngineApiUsageService.STATUS_SUCCEEDED.equals(event.status()))
+                .extracting(EngineApiUsageEvent::operation)
+                .contains("MCP_SEARCH_LAW", "MCP_GET_LAW_ARTICLE");
+
+        var updatesOnlyKey = issueApiKey(user, List.of(EngineApiKeyManagementService.SCOPE_LEGAL_UPDATES), 1000);
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", updatesOnlyKey)
+                        .header("X-Correlation-Id", "mcp-law-denied")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 63,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "search_law",
+                                    "arguments": {
+                                      "query": "감리"
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error.code").value(-32003))
+                .andExpect(jsonPath("$.error.data.code").value("ENGINE_API_SCOPE_REQUIRED"))
+                .andExpect(jsonPath("$.error.data.category").value("SCOPE_REQUIRED"))
+                .andExpect(jsonPath("$.error.data.params.requiredScope").value("LEGAL_SEARCH"));
 
         var reviewOnlyKey = issueApiKey(user, List.of(EngineApiKeyManagementService.SCOPE_REVIEW_SESSION), 1000);
         mockMvc.perform(post("/api/v1/mcp")
@@ -334,6 +422,82 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.mcpServerUrl").value("https://mcp.archdox.test/api/v1/mcp"))
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("apiKey").asText();
+    }
+
+    private long seedLegalCorpus() {
+        var now = OffsetDateTime.now();
+        var sourceId = jdbcTemplate.queryForObject("""
+                insert into legal_sources (code, source_type, display_name, base_url, status, metadata_json, created_at, updated_at)
+                values (?, ?, ?, ?, ?, cast(? as jsonb), ?, ?)
+                returning id
+                """, Long.class,
+                "NATIONAL_LAW_OPEN_DATA_MCP",
+                "LAW_OPEN_API",
+                "National Law Open Data MCP",
+                "https://www.law.go.kr/DRF",
+                "ACTIVE",
+                "{}",
+                now,
+                now);
+        var actId = jdbcTemplate.queryForObject("""
+                insert into legal_acts (source_id, act_code, act_name, act_type, jurisdiction, source_law_id, status, created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                returning id
+                """, Long.class,
+                sourceId,
+                "BUILDING_ACT_MCP",
+                "건축법",
+                "LAW",
+                "KR",
+                "001823",
+                "ACTIVE",
+                now,
+                now);
+        var versionId = jdbcTemplate.queryForObject("""
+                insert into legal_versions (act_id, source_version_key, promulgation_date, effective_date, source_url, content_hash, source_metadata_json, captured_at)
+                values (?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
+                returning id
+                """, Long.class,
+                actId,
+                "001823:20260701",
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 7, 1),
+                "https://www.law.go.kr/DRF/lawService.do?ID=001823",
+                "version-hash",
+                "{}",
+                now);
+        var articleId = jdbcTemplate.queryForObject("""
+                insert into legal_articles (act_id, article_key, article_no, article_title, parent_article_key, sort_order, created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                returning id
+                """, Long.class,
+                actId,
+                "25-2",
+                "25의2",
+                "공사감리",
+                null,
+                25,
+                now,
+                now);
+        return jdbcTemplate.queryForObject("""
+                insert into legal_article_versions (
+                    article_id, legal_version_id, article_key, article_no, article_title,
+                    article_text, normalized_text, content_hash, effective_date, source_metadata_json, created_at
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
+                returning id
+                """, Long.class,
+                articleId,
+                versionId,
+                "25-2",
+                "25의2",
+                "공사감리",
+                "감리자는 건축법에 따라 공사감리 업무를 수행한다.",
+                "감리자는 건축법에 따라 공사감리 업무를 수행한다.",
+                "article-hash",
+                LocalDate.of(2026, 7, 1),
+                "{}",
+                now);
     }
 
     private String bearer(String token) {

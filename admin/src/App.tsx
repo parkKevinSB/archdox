@@ -4550,7 +4550,7 @@ function EngineApiKeyCreateForm({
       displayName: normalizeFormValue(displayName) ?? "Engine API Key",
       ownerUserId,
       officeId: officeId === "" ? null : officeId,
-      scopes: allScopes ? ["ALL"] : ["ENGINE_REVIEW_SESSION", "LEGAL_UPDATES"],
+      scopes: allScopes ? ["ALL"] : ["ENGINE_REVIEW_SESSION", "LEGAL_UPDATES", "LEGAL_SEARCH"],
       dailyRequestUnitLimit,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
     });
@@ -4604,7 +4604,7 @@ function EngineApiKeyCreateForm({
         <input type="checkbox" checked={allScopes} onChange={(event) => setAllScopes(event.target.checked)} />
         ALL 스코프로 발급
       </label>
-      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION, LEGAL_UPDATES입니다. 외부 문서 검토와 법령 업데이트 MCP 조회 테스트에는 기본값을 권장합니다.</div>
+      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION, LEGAL_UPDATES, LEGAL_SEARCH입니다. 외부 문서 검토와 법령 업데이트/법령 검색 MCP 조회 테스트에는 기본값을 권장합니다.</div>
       <button className="button primary" disabled={busy || ownerUserId === ""} type="submit">
         {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
         API Key 발급
