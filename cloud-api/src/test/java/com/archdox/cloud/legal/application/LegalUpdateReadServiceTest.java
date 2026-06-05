@@ -72,6 +72,7 @@ class LegalUpdateReadServiceTest {
                                 assertThat(diff.articleTitle()).isEqualTo("공사감리");
                                 assertThat(diff.changeType()).isEqualTo(LegalArticleChangeType.ADDED);
                                 assertThat(diff.afterTextPreview()).contains("감리자는 공사감리 업무를 수행한다");
+                                assertThat(diff.afterTextPreview()).contains("\n┌────┬────┐\n│구분│내용│");
                                 assertThat(diff.sourceUrl()).isEqualTo("https://www.law.go.kr/DRF/lawService.do?target=admrul&type=JSON&ID=2100000244148");
                                 assertThat(diff.publicSourceUrl()).isEqualTo("https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq=2100000244148&chrClsCd=010201");
                             });
@@ -152,7 +153,15 @@ class LegalUpdateReadServiceTest {
                 "0025001",
                 "제25조",
                 "공사감리",
-                "감리자는 공사감리 업무를 수행한다. 현장 증빙과 감리 내용을 기록한다.",
+                """
+                        감리자는 공사감리 업무를 수행한다.
+                        ┌────┬────┐
+                        │구분│내용│
+                        ├────┼────┤
+                        │사진│촬영│
+                        └────┴────┘
+                        현장 증빙과 감리 내용을 기록한다.
+                        """,
                 "감리자는 공사감리 업무를 수행한다 현장 증빙과 감리 내용을 기록한다",
                 "after-hash",
                 LocalDate.of(2026, 7, 1),

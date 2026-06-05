@@ -3917,11 +3917,11 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
                   <div className="legal-diff-preview-grid">
                     <div>
                       <strong>이전</strong>
-                      <p>{diff.beforeTextPreview || "이전 조문 본문 없음"}</p>
+                      <pre>{diff.beforeTextPreview || "이전 조문 본문 없음"}</pre>
                     </div>
                     <div>
                       <strong>이후</strong>
-                      <p>{diff.afterTextPreview || "이후 조문 본문 없음"}</p>
+                      <pre>{diff.afterTextPreview || "이후 조문 본문 없음"}</pre>
                     </div>
                   </div>
                 ) : null}

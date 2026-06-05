@@ -3322,12 +3322,16 @@ button.list-row {
   font-size: 11px;
 }
 
-.legal-update-diff-preview p {
+.legal-update-diff-preview pre {
+  max-height: 360px;
+  overflow: auto;
   margin: 0;
   color: #405751;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Noto Sans KR", monospace;
   font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
 }
 
 .legal-update-detail footer {

@@ -30,6 +30,7 @@ public class LegalUpdateReadService {
     private static final int MAX_DAYS = 365;
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
+    private static final int TEXT_PREVIEW_LIMIT = 4000;
 
     private final LegalChangeDigestRepository repository;
     private final LegalArticleDiffRepository articleDiffRepository;
@@ -204,11 +205,16 @@ public class LegalUpdateReadService {
     }
 
     private String preview(String value) {
-        var text = text(value).replaceAll("\\s+", " ");
-        if (text.length() <= 360) {
+        var text = text(value)
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .replaceAll("[\\t ]+\\n", "\n")
+                .replaceAll("\\n[\\t ]+", "\n")
+                .replaceAll("\\n{4,}", "\n\n\n");
+        if (text.length() <= TEXT_PREVIEW_LIMIT) {
             return text;
         }
-        return text.substring(0, 360) + "...";
+        return text.substring(0, TEXT_PREVIEW_LIMIT).trim() + "\n\n... 본문이 길어 일부만 표시합니다. 전체 내용은 법령정보센터에서 확인하세요.";
     }
 
     private String text(String value) {

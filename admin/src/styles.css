@@ -1308,8 +1308,7 @@ button {
 }
 
 .legal-diff-item span,
-.legal-diff-item small,
-.legal-diff-item p {
+.legal-diff-item small {
   overflow-wrap: anywhere;
 }
 
@@ -1334,11 +1333,16 @@ button {
   font-size: 11px;
 }
 
-.legal-diff-preview-grid p {
+.legal-diff-preview-grid pre {
+  max-height: 360px;
+  overflow: auto;
   margin: 0;
   color: #405751;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Noto Sans KR", monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
 }
 
 .legal-diff-item small {
