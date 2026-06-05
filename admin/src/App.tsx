@@ -1,6 +1,7 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   Camera,
   CheckCircle2,
   ChevronDown,
@@ -3685,9 +3686,7 @@ function PlatformLegalAdminPanel({
   onLegalDigestRefresh: () => void;
 }) {
   const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
-  const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId)
-    ?? data.legalChangeDigests[0]
-    ?? null;
+  const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId) ?? null;
   const [activeTab, setActiveTab] = useState<LegalAdminTabKey>("SYNC");
   const tabs: Array<{ key: LegalAdminTabKey; label: string; count?: number }> = [
     { key: "SYNC", label: "동기화", count: data.legalSyncRuns.length },
@@ -3802,32 +3801,39 @@ function PlatformLegalAdminPanel({
       ) : null}
 
       {activeTab === "DIGESTS" ? (
-        <div className="legal-digest-tab">
-          <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
-            <Table
-              columns={["제목", "상태", "출처", "시행일", "게시", "상세"]}
-              empty="게시된 법령 변경사항이 없습니다."
-              rows={data.legalChangeDigests.slice(0, 20).map((digest) => [
-                <CellTitle key="digest" title={digest.title} subtitle={`Digest #${digest.id} / Change Set #${digest.changeSetId}`} />,
-                <StatusBadge key="status" status={digest.status} />,
-                displayLabel(digest.source),
-                digest.effectiveDate ?? "-",
-                formatDate(digest.publishedAt),
-                <button className="button compact" key="detail" onClick={() => setSelectedDigestId(digest.id)} type="button">
-                  보기
-                </button>
-              ])}
-            />
-          </Panel>
-
+        selectedDigest ? (
           <Panel
             title="법령 변경사항 상세"
             icon={<FileText size={18} />}
-            action={selectedDigest ? <span className="panel-context">Digest #{selectedDigest.id}</span> : null}
+            action={
+              <button className="button compact" onClick={() => setSelectedDigestId(null)} type="button">
+                <ArrowLeft size={15} />
+                목록으로
+              </button>
+            }
           >
             <LegalDigestDetail digest={selectedDigest} />
           </Panel>
-        </div>
+        ) : (
+          <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
+            {data.legalChangeDigests.length === 0 ? (
+              <EmptyState message="게시된 법령 변경사항이 없습니다." />
+            ) : (
+              <div className="legal-admin-digest-list">
+                {data.legalChangeDigests.slice(0, 20).map((digest) => (
+                  <button className="legal-admin-digest-item" key={digest.id} onClick={() => setSelectedDigestId(digest.id)} type="button">
+                    <span>{formatDate(digest.publishedAt ?? digest.detectedAt)}</span>
+                    <strong>{digest.title}</strong>
+                    <small>{digest.summary}</small>
+                    <em>
+                      Digest #{digest.id} / Change Set #{digest.changeSetId} / 시행일 {digest.effectiveDate ?? "미정"}
+                    </em>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Panel>
+        )
       ) : null}
 
       {activeTab === "CHANGE_SETS" ? (

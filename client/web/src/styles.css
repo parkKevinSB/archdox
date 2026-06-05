@@ -3139,6 +3139,7 @@ button.list-row {
   display: grid;
   gap: 8px;
   align-content: start;
+  max-width: 960px;
 }
 
 .legal-update-item {
@@ -3256,8 +3257,6 @@ button.list-row {
 .legal-update-diff-list {
   display: grid;
   gap: 8px;
-  max-height: 420px;
-  overflow: auto;
 }
 
 .legal-update-diff-item {
@@ -4257,7 +4256,6 @@ button.list-row {
   .daily-supervision-group-fields,
   .checklist-summary-bar,
   .stage-context-grid,
-  .legal-update-layout,
   .document-action-buttons,
   .artifact-row,
   .preflight-summary,

@@ -1,5 +1,5 @@
-import { Bell, FileText, Loader2, RefreshCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Bell, FileText, Loader2, RefreshCcw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { EmptyState, InlineNotice, Panel, StatusBadge, ViewHeader } from "../../../components/common";
 import { getLegalUpdate, listLegalUpdates } from "../api";
 import type { LegalChangeDigest } from "../types";
@@ -21,11 +21,7 @@ export function LegalUpdatesView({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const selected = useMemo(
-    () => selectedDetail ?? updates.find((update) => update.id === selectedId) ?? updates[0] ?? null,
-    [selectedDetail, updates, selectedId]
-  );
+  const detailMode = selectedDetail !== null || detailLoading;
 
   async function refresh() {
     setLoading(true);
@@ -33,11 +29,8 @@ export function LegalUpdatesView({ token }: { token: string }) {
     try {
       const next = await listLegalUpdates(token, 30, 50);
       setUpdates(next);
-      setSelectedId((current) => {
-        const nextSelectedId = next.some((update) => update.id === current) ? current : next[0]?.id ?? null;
-        return nextSelectedId;
-      });
-      setSelectedDetail((current) => next.find((update) => update.id === current?.id) ?? next[0] ?? null);
+      setSelectedId((current) => (next.some((update) => update.id === current) ? current : null));
+      setSelectedDetail((current) => current == null ? null : next.find((update) => update.id === current.id) ?? current);
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항을 불러오지 못했습니다.");
     } finally {
@@ -63,6 +56,12 @@ export function LegalUpdatesView({ token }: { token: string }) {
     }
   }
 
+  function backToList() {
+    setSelectedId(null);
+    setSelectedDetail(null);
+    setDetailLoading(false);
+  }
+
   return (
     <div className="view-stack legal-updates-view">
       <ViewHeader
@@ -70,37 +69,43 @@ export function LegalUpdatesView({ token }: { token: string }) {
         text="최근 법령 변경과 ArchDox 업무 영향 요약을 게시글처럼 확인합니다."
       />
       <Panel
-        title="최근 변경"
+        title={detailMode ? "변경사항 상세" : "최근 변경"}
         action={
-          <button className="secondary-button" disabled={loading} onClick={refresh} type="button">
-            {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-            새로고침
-          </button>
+          detailMode ? (
+            <button className="secondary-button" onClick={backToList} type="button">
+              <ArrowLeft size={16} />
+              목록으로
+            </button>
+          ) : (
+            <button className="secondary-button" disabled={loading} onClick={refresh} type="button">
+              {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+              새로고침
+            </button>
+          )
         }
       >
         {error ? <InlineNotice message={error} /> : null}
-        <InlineNotice message="현재 요약은 deterministic digest 기준입니다. AI 영향도 분석 worker가 붙으면 제목, 요약, 관련 업무가 더 정교해집니다." />
-        {updates.length === 0 && !loading ? (
+        {!detailMode ? <InlineNotice message="현재 요약은 deterministic digest 기준입니다. AI 영향도 분석 worker가 붙으면 제목, 요약, 관련 업무가 더 정교해집니다." /> : null}
+        {detailMode ? (
+          <LegalUpdateDetail loading={detailLoading} update={selectedDetail} />
+        ) : updates.length === 0 && !loading ? (
           <EmptyState title="최근 변경사항이 없습니다" text="법령 동기화가 실행되면 최근 30일 변경사항이 표시됩니다." />
         ) : (
-          <div className="legal-update-layout">
-            <div className="legal-update-list">
-              {updates.map((update) => (
-                <button
-                  className={selected?.id === update.id ? "legal-update-item active" : "legal-update-item"}
-                  key={update.id}
-                  onClick={() => void selectUpdate(update)}
-                  aria-pressed={selected?.id === update.id}
-                  type="button"
-                >
-                  <span>{formatDate(update.publishedAt ?? update.detectedAt)}</span>
-                  <strong>{update.title}</strong>
-                  <small>{update.summary}</small>
-                  <em>{selected?.id === update.id ? "선택됨" : "상세 보기"}</em>
-                </button>
-              ))}
-            </div>
-            <LegalUpdateDetail loading={detailLoading} update={selected} />
+          <div className="legal-update-list">
+            {updates.map((update) => (
+              <button
+                className={selectedId === update.id ? "legal-update-item active" : "legal-update-item"}
+                key={update.id}
+                onClick={() => void selectUpdate(update)}
+                aria-pressed={selectedId === update.id}
+                type="button"
+              >
+                <span>{formatDate(update.publishedAt ?? update.detectedAt)}</span>
+                <strong>{update.title}</strong>
+                <small>{update.summary}</small>
+                <em>상세 보기</em>
+              </button>
+            ))}
           </div>
         )}
       </Panel>
@@ -112,7 +117,7 @@ function LegalUpdateDetail({ loading, update }: { loading: boolean; update: Lega
   if (!update) {
     return (
       <div className="legal-update-detail">
-        <EmptyState title="선택된 변경사항이 없습니다" text="왼쪽 목록에서 변경사항을 선택하세요." />
+        <EmptyState title="선택된 변경사항이 없습니다" text="목록에서 변경사항을 선택하세요." />
       </div>
     );
   }

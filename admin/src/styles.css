@@ -1185,18 +1185,53 @@ button {
   color: #193f3a;
 }
 
-.legal-digest-tab {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.95fr);
-  gap: 16px;
-  align-items: start;
-}
-
 .panel-action-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.legal-admin-digest-list {
+  display: grid;
+  gap: 8px;
+  max-width: 960px;
+}
+
+.legal-admin-digest-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  color: #1d2b2a;
+  background: #ffffff;
+  text-align: left;
+}
+
+.legal-admin-digest-item:hover {
+  border-color: #94c7bd;
+  background: #f1f8f6;
+}
+
+.legal-admin-digest-item strong {
+  color: #162321;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.legal-admin-digest-item span,
+.legal-admin-digest-item small,
+.legal-admin-digest-item em {
+  color: #60746f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.legal-admin-digest-item em {
+  font-style: normal;
+  font-weight: 750;
 }
 
 .legal-digest-detail {
@@ -1243,8 +1278,6 @@ button {
 .legal-diff-list {
   display: grid;
   gap: 8px;
-  max-height: 520px;
-  overflow: auto;
 }
 
 .legal-diff-item {
@@ -2434,7 +2467,6 @@ tbody tr:hover {
   }
 
   .config-grid,
-  .legal-digest-tab,
   .member-grid,
   .engine-key-grid,
   .project-management-grid,
