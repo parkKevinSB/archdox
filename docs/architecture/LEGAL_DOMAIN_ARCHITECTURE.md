@@ -812,6 +812,16 @@ These tools are read-only, require the `LEGAL_SEARCH` scope, record
 legal corpus. They do not call the National Law Open API at request time and
 they exclude the fake development legal source from external results.
 
+The Engine validation path also uses the synchronized corpus as a legal
+reference fallback. `EngineLegalReferenceBindingService` still prefers explicit
+`legal_domain_bindings`, because those are the intended domain-to-law mapping
+surface. When a construction-supervision validation has catalog context but no
+explicit binding, the service searches tracked corpus articles and attaches
+candidate `legalReferences` with source code, source URL, article version id,
+source version key, and effective date. The later legal-risk prompt context
+keeps that metadata and instructs AI/harness work to use only supplied
+references.
+
 Real Open API integration status:
 
 - `LEGAL_OPEN_API_ENABLED=false` by default

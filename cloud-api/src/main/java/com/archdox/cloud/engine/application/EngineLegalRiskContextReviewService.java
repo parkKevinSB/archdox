@@ -77,12 +77,33 @@ public class EngineLegalRiskContextReviewService {
                     compact.put("actName", text(reference.get("actName")));
                     compact.put("articleNo", text(reference.get("articleNo")));
                     compact.put("articleTitle", text(reference.get("articleTitle")));
+                    compact.put("legalVersionId", text(reference.get("legalVersionId")));
                     compact.put("sourceVersionKey", text(reference.get("sourceVersionKey")));
+                    compact.put("effectiveDate", text(reference.get("effectiveDate")));
                     compact.put("relevance", text(reference.get("relevance")));
                     compact.put("notes", text(reference.get("notes")));
+                    var metadata = metadata(reference.get("metadata"));
+                    putIfPresent(compact, "sourceCode", text(metadata.get("sourceCode")));
+                    putIfPresent(compact, "sourceUrl", text(metadata.get("sourceUrl")));
+                    putIfPresent(compact, "articleVersionId", text(metadata.get("articleVersionId")));
+                    putIfPresent(compact, "resolutionSource", text(metadata.get("resolutionSource")));
                     return Map.copyOf(compact);
                 })
                 .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> metadata(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
+    }
+
+    private void putIfPresent(Map<String, Object> map, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            map.put(key, value.trim());
+        }
     }
 
     private List<String> referenceIds(List<Map<String, Object>> legalReferences) {

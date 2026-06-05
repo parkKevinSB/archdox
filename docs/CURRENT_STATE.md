@@ -159,11 +159,14 @@ These are development-only credentials.
   supplies `tradeCode`, `processCode`, and `inspectionItemCode`, the Engine
   validates the selection against `SupervisionDomainCatalogService`, returns
   official catalog binding metadata on success, and returns typed findings such
-  as `CATALOG_SELECTION_INVALID` on mismatch. If matching active
-  `legal_domain_bindings` rows exist, validation metadata now also includes
-  top-level typed `legalReferences` with act/article/source-version context. This is the first
-  source-backed legal reference bridge; it is not yet full legal compliance
-  judgment. The Engine now also runs a deterministic legal-risk context recipe:
+  as `CATALOG_SELECTION_INVALID` on mismatch. Validation metadata now also
+  includes top-level typed `legalReferences` with act/article/source-version
+  context. `legal_domain_bindings` rows are preferred when they exist; for the
+  construction-supervision context, Engine falls back to synchronized legal
+  corpus candidates such as Building Act or construction-supervision detailed
+  standard articles. This is the first source-backed legal reference bridge; it
+  is not yet full legal compliance judgment. The Engine now also runs a
+  deterministic legal-risk context recipe:
   when legal references exist but supervision narrative/work area/photo/evidence
   context is missing, it emits `LEGAL_EVIDENCE_CONTEXT_MISSING` and prepares
   `metadata.legalRiskReview.aiPromptContext` for future legal-review harness

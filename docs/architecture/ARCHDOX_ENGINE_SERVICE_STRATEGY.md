@@ -321,13 +321,15 @@ CATALOG_SELECTION_INVALID
 This V1 is source-backed by ArchDox's versioned domain catalog.
 
 The next source-backed slice also exists at foundation level:
-`EngineLegalReferenceBindingService` reads active `legal_domain_bindings` for
-matched catalog bindings and returns typed `legalReferences` in the validation
-result.
+`EngineLegalReferenceBindingService` resolves typed `legalReferences` in the
+validation result. It prefers active `legal_domain_bindings` for matched catalog
+bindings. If no binding is available for the construction-supervision context,
+it falls back to synchronized legal corpus candidates from tracked acts such as
+`BUILDING_ACT` and `CONSTRUCTION_SUPERVISION_DETAILED_STANDARD`.
 This does not yet decide legal compliance. It gives the Engine a deterministic
 way to attach source references such as act code, article number, source
-version key, relevance, catalog code, and checklist item code to the review
-context before AI or a human reviewer reasons over it.
+version key, effective date, source URL, relevance, catalog code, and checklist
+item code to the review context before AI or a human reviewer reasons over it.
 
 The external response contract now exposes those references as typed
 top-level `validationResult.legalReferences`. Metadata may keep a compatibility
@@ -344,6 +346,10 @@ LEGAL_EVIDENCE_CONTEXT_MISSING
 ```
 
 The same result metadata includes `legalRiskReview.aiPromptContext`. This
+prompt context keeps compact legal reference metadata such as `sourceCode`,
+`sourceUrl`, `articleVersionId`, `sourceVersionKey`, and `effectiveDate` so a
+future legal-review harness can cite supplied sources only instead of inventing
+law references.
 prompt context is not sent to a model yet. It is the safe package future AI
 harness steps should use: domain catalog bindings, legal references, supplied
 evidence context, and strict instructions not to invent legal citations.
