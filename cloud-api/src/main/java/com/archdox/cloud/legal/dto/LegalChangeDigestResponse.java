@@ -21,6 +21,7 @@ public record LegalChangeDigestResponse(
         OffsetDateTime detectedAt,
         OffsetDateTime publishedAt,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        List<LegalArticleDiffResponse> articleDiffs
 ) {
 }

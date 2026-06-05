@@ -1,7 +1,7 @@
 import { Bell, FileText, Loader2, RefreshCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState, InlineNotice, Panel, StatusBadge, ViewHeader } from "../../../components/common";
-import { listLegalUpdates } from "../api";
+import { getLegalUpdate, listLegalUpdates } from "../api";
 import type { LegalChangeDigest } from "../types";
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
@@ -17,12 +17,14 @@ const CATALOG_ITEM_LABELS: Record<string, string> = {
 export function LegalUpdatesView({ token }: { token: string }) {
   const [updates, setUpdates] = useState<LegalChangeDigest[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<LegalChangeDigest | null>(null);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selected = useMemo(
-    () => updates.find((update) => update.id === selectedId) ?? updates[0] ?? null,
-    [updates, selectedId]
+    () => selectedDetail ?? updates.find((update) => update.id === selectedId) ?? updates[0] ?? null,
+    [selectedDetail, updates, selectedId]
   );
 
   async function refresh() {
@@ -31,7 +33,11 @@ export function LegalUpdatesView({ token }: { token: string }) {
     try {
       const next = await listLegalUpdates(token, 30, 50);
       setUpdates(next);
-      setSelectedId((current) => (next.some((update) => update.id === current) ? current : next[0]?.id ?? null));
+      setSelectedId((current) => {
+        const nextSelectedId = next.some((update) => update.id === current) ? current : next[0]?.id ?? null;
+        return nextSelectedId;
+      });
+      setSelectedDetail((current) => next.find((update) => update.id === current?.id) ?? next[0] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항을 불러오지 못했습니다.");
     } finally {
@@ -42,6 +48,20 @@ export function LegalUpdatesView({ token }: { token: string }) {
   useEffect(() => {
     void refresh();
   }, [token]);
+
+  async function selectUpdate(update: LegalChangeDigest) {
+    setSelectedId(update.id);
+    setSelectedDetail(update);
+    setDetailLoading(true);
+    setError(null);
+    try {
+      setSelectedDetail(await getLegalUpdate(token, update.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 변경사항 상세를 불러오지 못했습니다.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   return (
     <div className="view-stack legal-updates-view">
@@ -69,16 +89,18 @@ export function LegalUpdatesView({ token }: { token: string }) {
                 <button
                   className={selected?.id === update.id ? "legal-update-item active" : "legal-update-item"}
                   key={update.id}
-                  onClick={() => setSelectedId(update.id)}
+                  onClick={() => void selectUpdate(update)}
+                  aria-pressed={selected?.id === update.id}
                   type="button"
                 >
                   <span>{formatDate(update.publishedAt ?? update.detectedAt)}</span>
                   <strong>{update.title}</strong>
                   <small>{update.summary}</small>
+                  <em>{selected?.id === update.id ? "선택됨" : "상세 보기"}</em>
                 </button>
               ))}
             </div>
-            <LegalUpdateDetail update={selected} />
+            <LegalUpdateDetail loading={detailLoading} update={selected} />
           </div>
         )}
       </Panel>
@@ -86,7 +108,7 @@ export function LegalUpdatesView({ token }: { token: string }) {
   );
 }
 
-function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
+function LegalUpdateDetail({ loading, update }: { loading: boolean; update: LegalChangeDigest | null }) {
   if (!update) {
     return (
       <div className="legal-update-detail">
@@ -98,6 +120,10 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
   const affectedReportTypes = update.affectedReportTypes.map(formatReportType);
   const affectedCatalogItems = update.affectedCatalogItems.map(formatCatalogItem);
   const hasAffectedItems = affectedReportTypes.length > 0 || affectedCatalogItems.length > 0;
+  const articleDiffs = update.articleDiffs ?? [];
+  const added = articleDiffs.filter((diff) => diff.changeType === "ADDED").length;
+  const modified = articleDiffs.filter((diff) => diff.changeType === "MODIFIED").length;
+  const removed = articleDiffs.filter((diff) => diff.changeType === "REMOVED").length;
 
   return (
     <article className="legal-update-detail">
@@ -108,11 +134,17 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
         <div>
           <h2>{update.title}</h2>
           <p>
-            {formatDate(update.publishedAt ?? update.detectedAt)} · 시행일 {update.effectiveDate ?? "미정"}
+            {formatDate(update.publishedAt ?? update.detectedAt)} · 시행일 {update.effectiveDate ?? "미정"} · Change Set #{update.changeSetId}
           </p>
         </div>
-        <StatusBadge status={update.status} />
+        {loading ? <Loader2 className="spin" size={18} /> : <StatusBadge status={update.status} />}
       </header>
+      <div className="legal-update-diff-summary">
+        <span>조문 {articleDiffs.length}건</span>
+        <span>신설 {added}건</span>
+        <span>수정 {modified}건</span>
+        <span>삭제 {removed}건</span>
+      </div>
       <section>
         <h3>변경 요약</h3>
         <p>{update.summary}</p>
@@ -133,6 +165,21 @@ function LegalUpdateDetail({ update }: { update: LegalChangeDigest | null }) {
           </div>
         </section>
       ) : null}
+      <section>
+        <h3>조문별 변경</h3>
+        {articleDiffs.length === 0 ? (
+          <p>조문 단위 변경 기록은 없습니다.</p>
+        ) : (
+          <div className="legal-update-diff-list">
+            {articleDiffs.slice(0, 80).map((diff) => (
+              <div className="legal-update-diff-item" key={diff.id}>
+                <strong>{formatChangeType(diff.changeType)} · {legalArticleLabel(diff.articleNo, diff.articleKey)}</strong>
+                <span>{diff.diffSummary}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
       <footer>
         <Bell size={16} />
         <span>중요 변경 알림은 이후 추가됩니다. 지금은 최근 변경 목록에서 확인합니다.</span>
@@ -147,6 +194,19 @@ function formatReportType(value: string) {
 
 function formatCatalogItem(value: string) {
   return CATALOG_ITEM_LABELS[value] ?? value;
+}
+
+function formatChangeType(value: string) {
+  const labels: Record<string, string> = {
+    ADDED: "신설",
+    MODIFIED: "수정",
+    REMOVED: "삭제"
+  };
+  return labels[value] ?? value;
+}
+
+function legalArticleLabel(articleNo?: string | null, articleKey?: string | null) {
+  return articleNo?.trim() || articleKey?.trim() || "조문";
 }
 
 function formatDate(value?: string | null) {

@@ -431,6 +431,7 @@ const statusLabels: Record<string, string> = {
   ACKED: "수신 확인",
   ACCEPTED: "수용",
   ACTIVE: "활성",
+  ADDED: "신설",
   ADMIN: "관리자",
   ALL: "전체",
   CANCELLED: "취소",
@@ -451,6 +452,7 @@ const statusLabels: Record<string, string> = {
   LOW: "낮음",
   MEDIUM: "보통",
   MEMBER: "멤버",
+  MODIFIED: "수정",
   NEEDS_ATTENTION: "확인 필요",
   NOT_REQUIRED: "불필요",
   OFF: "꺼짐",
@@ -466,6 +468,7 @@ const statusLabels: Record<string, string> = {
   PUBLISHED: "게시됨",
   REQUESTED: "요청됨",
   RESOLVED: "해결",
+  REMOVED: "삭제",
   RUNNING: "실행 중",
   SENDING: "전송 중",
   STEP_SAVED: "작성 중",
@@ -3679,6 +3682,11 @@ function PlatformLegalAdminPanel({
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
 }) {
+  const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
+  const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId)
+    ?? data.legalChangeDigests[0]
+    ?? null;
+
   return (
     <div className="legal-admin-layout">
       <div className="view-stack">
@@ -3778,7 +3786,7 @@ function PlatformLegalAdminPanel({
         <div className="view-stack">
           <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
             <Table
-              columns={["제목", "상태", "출처", "시행일", "게시", "요약"]}
+              columns={["제목", "상태", "출처", "시행일", "게시", "상세"]}
               empty="게시된 법령 변경사항이 없습니다."
               rows={data.legalChangeDigests.slice(0, 20).map((digest) => [
                 <CellTitle key="digest" title={digest.title} subtitle={`Digest #${digest.id} / Change Set #${digest.changeSetId}`} />,
@@ -3786,9 +3794,19 @@ function PlatformLegalAdminPanel({
                 displayLabel(digest.source),
                 digest.effectiveDate ?? "-",
                 formatDate(digest.publishedAt),
-                digest.summary
+                <button className="button compact" key="detail" onClick={() => setSelectedDigestId(digest.id)} type="button">
+                  보기
+                </button>
               ])}
             />
+          </Panel>
+
+          <Panel
+            title="법령 변경사항 상세"
+            icon={<FileText size={18} />}
+            action={selectedDigest ? <span className="panel-context">Digest #{selectedDigest.id}</span> : null}
+          >
+            <LegalDigestDetail digest={selectedDigest} />
           </Panel>
 
           <Panel title="법령 변경 원천 기록" icon={<Activity size={18} />} count={data.legalChangeSets.length}>
@@ -3808,6 +3826,68 @@ function PlatformLegalAdminPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
+  if (!digest) {
+    return <EmptyState message="선택된 법령 변경사항이 없습니다." />;
+  }
+
+  const articleDiffs = digest.articleDiffs ?? [];
+  const added = articleDiffs.filter((diff) => diff.changeType === "ADDED").length;
+  const modified = articleDiffs.filter((diff) => diff.changeType === "MODIFIED").length;
+  const removed = articleDiffs.filter((diff) => diff.changeType === "REMOVED").length;
+
+  return (
+    <article className="legal-digest-detail">
+      <header>
+        <div>
+          <strong>{digest.title}</strong>
+          <span>{formatDate(digest.publishedAt ?? digest.detectedAt)} / 시행일 {digest.effectiveDate ?? "미정"}</span>
+        </div>
+        <StatusBadge status={digest.status} />
+      </header>
+
+      <div className="metric-grid compact">
+        <MetricCard icon={<FileText size={20} />} label="조문 diff" value={articleDiffs.length} detail="원천 변경 조문" tone="blue" />
+        <MetricCard icon={<Plus size={20} />} label="신설" value={added} detail="ADDED" tone="green" />
+        <MetricCard icon={<Activity size={20} />} label="수정" value={modified} detail="MODIFIED" tone="amber" />
+        <MetricCard icon={<XCircle size={20} />} label="삭제" value={removed} detail="REMOVED" tone={removed > 0 ? "red" : "slate"} />
+      </div>
+
+      <section>
+        <h3>변경 요약</h3>
+        <p>{digest.summary}</p>
+      </section>
+
+      <section>
+        <h3>업무 영향</h3>
+        <p>{digest.impactSummary ?? "아직 업무 영향 요약이 작성되지 않았습니다."}</p>
+      </section>
+
+      <section>
+        <h3>조문별 변경</h3>
+        {articleDiffs.length === 0 ? (
+          <InlineNotice message="이 변경사항에는 조문 단위 diff가 없습니다." />
+        ) : (
+          <div className="legal-diff-list">
+            {articleDiffs.slice(0, 80).map((diff) => (
+              <div className="legal-diff-item" key={diff.id}>
+                <div>
+                  <StatusBadge status={diff.changeType} />
+                  <strong>{legalArticleLabel(diff.articleNo, diff.articleKey)}</strong>
+                  <span>{diff.diffSummary}</span>
+                </div>
+                <small>
+                  before #{diff.beforeArticleVersionId ?? "-"} / after #{diff.afterArticleVersionId ?? "-"} / {shortHash(diff.beforeHash)} → {shortHash(diff.afterHash)}
+                </small>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </article>
   );
 }
 
@@ -4760,6 +4840,17 @@ function metadataList(metadata: Record<string, unknown> | undefined, key: string
     return value.split(",").map((item) => item.trim()).filter(Boolean);
   }
   return [];
+}
+
+function legalArticleLabel(articleNo?: string | null, articleKey?: string | null) {
+  return articleNo?.trim() || articleKey?.trim() || "조문";
+}
+
+function shortHash(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+  return value.length > 10 ? value.slice(0, 10) : value;
 }
 
 function compactJson(value: unknown, maxLength = 1200) {

@@ -1177,6 +1177,85 @@ button {
   justify-content: flex-end;
 }
 
+.legal-digest-detail {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.legal-digest-detail header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.legal-digest-detail header div,
+.legal-digest-detail section {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.legal-digest-detail strong {
+  color: #162321;
+  font-size: 17px;
+}
+
+.legal-digest-detail h3,
+.legal-digest-detail p {
+  margin: 0;
+}
+
+.legal-digest-detail h3 {
+  color: #263936;
+  font-size: 13px;
+}
+
+.legal-digest-detail p,
+.legal-digest-detail span {
+  color: #60746f;
+  line-height: 1.55;
+}
+
+.legal-diff-list {
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.legal-diff-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.legal-diff-item > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal-diff-item strong {
+  font-size: 13px;
+}
+
+.legal-diff-item span,
+.legal-diff-item small {
+  overflow-wrap: anywhere;
+}
+
+.legal-diff-item small {
+  color: #7a8c88;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
 .panel {
   min-width: 0;
   border: 1px solid #d8e1df;

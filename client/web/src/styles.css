@@ -3160,9 +3160,20 @@ button.list-row {
 }
 
 .legal-update-item span,
-.legal-update-item small {
+.legal-update-item small,
+.legal-update-item em {
   color: #60746f;
   font-size: 12px;
+}
+
+.legal-update-item em {
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #1d5d51;
+  background: #e4f3ef;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .legal-update-item strong {
@@ -3209,6 +3220,23 @@ button.list-row {
   line-height: 1.6;
 }
 
+.legal-update-diff-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.legal-update-diff-summary span {
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid #d6e1de;
+  border-radius: 8px;
+  color: #29423d;
+  background: #f4f8f7;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .legal-update-tags {
   display: flex;
   flex-wrap: wrap;
@@ -3223,6 +3251,34 @@ button.list-row {
   background: #f2f7f5;
   font-size: 12px;
   line-height: 1.2;
+}
+
+.legal-update-diff-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.legal-update-diff-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #d8e0df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.legal-update-diff-item strong {
+  color: #213633;
+  font-size: 13px;
+}
+
+.legal-update-diff-item span {
+  color: #60746f;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .legal-update-detail footer {
@@ -4166,6 +4222,10 @@ button.list-row {
   .legal-update-detail header .status-badge {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .legal-update-diff-summary {
+    grid-template-columns: 1fr 1fr;
   }
 
   .document-card {

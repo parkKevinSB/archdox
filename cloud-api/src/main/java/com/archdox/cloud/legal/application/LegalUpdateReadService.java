@@ -1,7 +1,9 @@
 package com.archdox.cloud.legal.application;
 
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
+import com.archdox.cloud.legal.dto.LegalArticleDiffResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
+import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -17,9 +19,14 @@ public class LegalUpdateReadService {
     private static final int MAX_LIMIT = 200;
 
     private final LegalChangeDigestRepository repository;
+    private final LegalArticleDiffRepository articleDiffRepository;
 
-    public LegalUpdateReadService(LegalChangeDigestRepository repository) {
+    public LegalUpdateReadService(
+            LegalChangeDigestRepository repository,
+            LegalArticleDiffRepository articleDiffRepository
+    ) {
         this.repository = repository;
+        this.articleDiffRepository = articleDiffRepository;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +68,22 @@ public class LegalUpdateReadService {
                 digest.detectedAt(),
                 digest.publishedAt(),
                 digest.createdAt(),
-                digest.updatedAt());
+                digest.updatedAt(),
+                articleDiffRepository.findByChangeSetIdOrderByIdAsc(digest.changeSetId())
+                        .stream()
+                        .map(diff -> new LegalArticleDiffResponse(
+                                diff.id(),
+                                diff.articleId(),
+                                diff.articleKey(),
+                                diff.articleNo(),
+                                diff.changeType(),
+                                diff.beforeArticleVersionId(),
+                                diff.afterArticleVersionId(),
+                                diff.beforeHash(),
+                                diff.afterHash(),
+                                diff.diffSummary(),
+                                diff.createdAt()))
+                        .toList());
     }
 
     private int clampedDays(Integer days) {

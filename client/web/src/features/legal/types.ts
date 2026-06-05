@@ -14,4 +14,19 @@ export type LegalChangeDigest = {
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  articleDiffs: LegalArticleDiff[];
+};
+
+export type LegalArticleDiff = {
+  id: number;
+  articleId?: number | null;
+  articleKey: string;
+  articleNo?: string | null;
+  changeType: string;
+  beforeArticleVersionId?: number | null;
+  afterArticleVersionId?: number | null;
+  beforeHash?: string | null;
+  afterHash?: string | null;
+  diffSummary: string;
+  createdAt: string;
 };

@@ -104,8 +104,28 @@ public class LegalArticleDiff {
         return changeType;
     }
 
+    public Long beforeArticleVersionId() {
+        return beforeArticleVersionId;
+    }
+
+    public Long afterArticleVersionId() {
+        return afterArticleVersionId;
+    }
+
+    public String beforeHash() {
+        return beforeHash;
+    }
+
+    public String afterHash() {
+        return afterHash;
+    }
+
     public String diffSummary() {
         return diffSummary;
+    }
+
+    public OffsetDateTime createdAt() {
+        return createdAt;
     }
 
     private static Long requireId(Long value, String fieldName) {

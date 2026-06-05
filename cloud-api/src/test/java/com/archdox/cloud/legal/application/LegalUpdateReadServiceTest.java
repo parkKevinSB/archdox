@@ -10,6 +10,9 @@ import static org.mockito.Mockito.when;
 import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
+import com.archdox.cloud.legal.domain.LegalArticleChangeType;
+import com.archdox.cloud.legal.domain.LegalArticleDiff;
+import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -21,7 +24,8 @@ import org.springframework.data.domain.Pageable;
 
 class LegalUpdateReadServiceTest {
     private final LegalChangeDigestRepository repository = mock(LegalChangeDigestRepository.class);
-    private final LegalUpdateReadService service = new LegalUpdateReadService(repository);
+    private final LegalArticleDiffRepository articleDiffRepository = mock(LegalArticleDiffRepository.class);
+    private final LegalUpdateReadService service = new LegalUpdateReadService(repository, articleDiffRepository);
 
     @Test
     void recentExcludesFakeLegalSource() throws Exception {
@@ -32,6 +36,8 @@ class LegalUpdateReadServiceTest {
                 eq(FakeLegalSourceClient.DEFAULT_SOURCE_CODE),
                 any(Pageable.class)))
                 .thenReturn(List.of(digest));
+        when(articleDiffRepository.findByChangeSetIdOrderByIdAsc(100L))
+                .thenReturn(List.of(diff(1L, 100L)));
 
         var updates = service.recent(30, 50);
 
@@ -39,6 +45,11 @@ class LegalUpdateReadServiceTest {
                 .satisfies(update -> {
                     assertThat(update.id()).isEqualTo(10L);
                     assertThat(update.title()).isEqualTo("건축법 조문 변경: 신설 1건");
+                    assertThat(update.articleDiffs()).singleElement()
+                            .satisfies(diff -> {
+                                assertThat(diff.articleNo()).isEqualTo("제25조");
+                                assertThat(diff.changeType()).isEqualTo(LegalArticleChangeType.ADDED);
+                            });
                 });
         verify(repository).findPublishedExcludingSourceCode(
                 eq(LegalChangeDigestStatus.PUBLISHED),
@@ -54,11 +65,14 @@ class LegalUpdateReadServiceTest {
                 LegalChangeDigestStatus.PUBLISHED,
                 FakeLegalSourceClient.DEFAULT_SOURCE_CODE))
                 .thenReturn(Optional.of(digest(10L, 100L)));
+        when(articleDiffRepository.findByChangeSetIdOrderByIdAsc(100L))
+                .thenReturn(List.of(diff(1L, 100L)));
 
         var update = service.detail(10L);
 
         assertThat(update.id()).isEqualTo(10L);
         assertThat(update.changeSetId()).isEqualTo(100L);
+        assertThat(update.articleDiffs()).hasSize(1);
     }
 
     private LegalChangeDigest digest(Long id, Long changeSetId) throws Exception {
@@ -79,6 +93,24 @@ class LegalUpdateReadServiceTest {
                 now);
         setId(digest, id);
         return digest;
+    }
+
+    private LegalArticleDiff diff(Long id, Long changeSetId) throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var diff = new LegalArticleDiff(
+                changeSetId,
+                25L,
+                "0025001",
+                "제25조",
+                LegalArticleChangeType.ADDED,
+                null,
+                250L,
+                null,
+                "after-hash",
+                "Article added: 제25조 공사감리",
+                now);
+        setId(diff, id);
+        return diff;
     }
 
     private void setId(Object target, Long id) throws Exception {
