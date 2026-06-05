@@ -230,6 +230,7 @@ type PlatformViewKey = Extract<
 >;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
+type EngineUsageEventFilter = "ALL" | "ENGINE" | "MCP" | "LEGAL" | "FAILED";
 
 type AdminState = {
   accessToken: string;
@@ -4394,10 +4395,25 @@ function EngineApiKeyManagementPanel({
   onDismissIssuedKey: () => void;
   onRevoke: (apiKeyId: number) => Promise<void>;
 }) {
+  const [eventFilter, setEventFilter] = useState<EngineUsageEventFilter>("ALL");
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const activeCount = keys.filter((key) => key.status === "ACTIVE").length;
   const revokedCount = keys.filter((key) => key.status === "REVOKED").length;
-  const mcpEvents = usageEvents.filter((event) => metadataText(event.metadata, "source") === "MCP");
-  const failedMcpEvents = mcpEvents.filter((event) => event.status !== "SUCCEEDED").length;
+  const mcpEvents = usageEvents.filter(isMcpUsageEvent);
+  const engineEvents = usageEvents.filter(isEngineUsageEvent);
+  const legalEvents = usageEvents.filter(isLegalUsageEvent);
+  const failedEvents = usageEvents.filter((event) => event.status !== "SUCCEEDED");
+  const observableEvents = useMemo(
+    () => usageEvents.filter((event) => usageEventMatchesFilter(event, eventFilter)),
+    [eventFilter, usageEvents]
+  );
+  const selectedEvent = observableEvents.find((event) => event.id === selectedEventId) ?? observableEvents[0] ?? null;
+
+  useEffect(() => {
+    if (selectedEventId !== null && !observableEvents.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId(null);
+    }
+  }, [observableEvents, selectedEventId]);
 
   return (
     <div className="view-stack">
@@ -4463,8 +4479,10 @@ function EngineApiKeyManagementPanel({
         <div className="metric-grid compact">
           <MetricCard icon={<Activity size={20} />} label="Events" value={usageSummary?.totalEventCount ?? 0} detail="selected range" tone="blue" />
           <MetricCard icon={<Gauge size={20} />} label="Request units" value={usageSummary?.totalRequestUnits ?? 0} detail="quota units" tone="amber" />
+          <MetricCard icon={<ShieldCheck size={20} />} label="Engine REST" value={engineEvents.length} detail="recent 100 events" tone="green" />
           <MetricCard icon={<Command size={20} />} label="MCP calls" value={mcpEvents.length} detail="recent 100 events" tone="slate" />
-          <MetricCard icon={<AlertTriangle size={20} />} label="MCP failed" value={failedMcpEvents} detail="FAILED or DENIED" tone={failedMcpEvents > 0 ? "red" : "green"} />
+          <MetricCard icon={<FileText size={20} />} label="Legal-backed" value={legalEvents.length} detail="legal scope/reference" tone="blue" />
+          <MetricCard icon={<AlertTriangle size={20} />} label="Failed" value={failedEvents.length} detail="FAILED or DENIED" tone={failedEvents.length > 0 ? "red" : "green"} />
         </div>
         <Table
           columns={["Capability", "Operation", "Key", "Events", "Units", "Last call"]}
@@ -4480,24 +4498,225 @@ function EngineApiKeyManagementPanel({
         />
       </Panel>
 
-      <Panel title="Recent MCP calls" icon={<Command size={18} />} count={mcpEvents.length}>
+      <Panel title="Recent Engine / MCP calls" icon={<Command size={18} />} count={observableEvents.length}>
+        <div className="usage-filter-row">
+          {engineUsageEventFilters.map((filter) => (
+            <button
+              className={`button compact${eventFilter === filter ? " primary" : ""}`}
+              key={filter}
+              onClick={() => setEventFilter(filter)}
+              type="button"
+            >
+              {engineUsageEventFilterLabel(filter)}
+              <span>{usageEvents.filter((event) => usageEventMatchesFilter(event, filter)).length}</span>
+            </button>
+          ))}
+        </div>
         <Table
-          columns={["Time", "Status", "Tool", "Capability", "Key", "Trace / Error"]}
-          empty="Recent MCP call logs are empty."
-          rows={mcpEvents.slice(0, 30).map((event) => [
+          columns={["Time", "Status", "Source", "Operation / Tool", "Key", "Trace / Legal", "상세"]}
+          empty="Recent Engine / MCP call logs are empty."
+          rows={observableEvents.slice(0, 50).map((event) => [
             formatDate(event.createdAt),
             <StatusBadge key="status" status={event.status} />,
-            metadataText(event.metadata, "toolName") || event.operation,
-            event.capability,
+            <CellTitle key="source" title={usageEventSource(event)} subtitle={event.capability} />,
+            <CellTitle key="operation" title={usageEventTool(event)} subtitle={event.operation} />,
             <CellTitle key="key" title={event.keyId} subtitle={event.officeId ? officeLabel(offices, event.officeId) : "-"} />,
             <CellTitle
               key="trace"
-              title={metadataText(event.metadata, "correlationId") || "-"}
-              subtitle={metadataText(event.metadata, "errorCode") || metadataText(event.metadata, "accessMode") || "-"}
-            />
+              title={usageEventTraceTitle(event)}
+              subtitle={usageEventTraceSubtitle(event)}
+            />,
+            <button className="button compact" key="detail" onClick={() => setSelectedEventId(event.id)} type="button">
+              보기
+            </button>
           ])}
         />
       </Panel>
+
+      <Panel
+        title="Engine / MCP call detail"
+        icon={<Activity size={18} />}
+        action={selectedEvent ? <span className="panel-context">Event #{selectedEvent.id}</span> : null}
+      >
+        <EngineUsageEventDetailPanel event={selectedEvent} offices={offices} users={users} />
+      </Panel>
+    </div>
+  );
+}
+
+const engineUsageEventFilters: EngineUsageEventFilter[] = ["ALL", "ENGINE", "MCP", "LEGAL", "FAILED"];
+
+function engineUsageEventFilterLabel(filter: EngineUsageEventFilter) {
+  const labels: Record<EngineUsageEventFilter, string> = {
+    ALL: "전체",
+    ENGINE: "Engine REST",
+    MCP: "MCP",
+    LEGAL: "Legal",
+    FAILED: "실패"
+  };
+  return labels[filter];
+}
+
+function usageEventMatchesFilter(event: EngineApiUsageEvent, filter: EngineUsageEventFilter) {
+  switch (filter) {
+    case "ENGINE":
+      return isEngineUsageEvent(event);
+    case "MCP":
+      return isMcpUsageEvent(event);
+    case "LEGAL":
+      return isLegalUsageEvent(event);
+    case "FAILED":
+      return event.status !== "SUCCEEDED";
+    default:
+      return true;
+  }
+}
+
+function isMcpUsageEvent(event: EngineApiUsageEvent) {
+  return usageEventSource(event) === "MCP";
+}
+
+function isEngineUsageEvent(event: EngineApiUsageEvent) {
+  return event.capability === "ENGINE_REVIEW_SESSION" && !isMcpUsageEvent(event);
+}
+
+function isLegalUsageEvent(event: EngineApiUsageEvent) {
+  return (
+    event.capability.startsWith("LEGAL_") ||
+    metadataNumber(event.metadata, "legalReferenceCount") > 0 ||
+    metadataList(event.metadata, "legalReferenceIds").length > 0
+  );
+}
+
+function usageEventSource(event: EngineApiUsageEvent) {
+  const source = metadataText(event.metadata, "source");
+  if (source) {
+    return source;
+  }
+  if (event.capability.startsWith("LEGAL_")) {
+    return "LEGAL_API";
+  }
+  if (event.capability === "ENGINE_REVIEW_SESSION") {
+    return "ENGINE_REST";
+  }
+  return "ENGINE_API";
+}
+
+function usageEventTool(event: EngineApiUsageEvent) {
+  return metadataText(event.metadata, "toolName") || event.operation;
+}
+
+function usageEventTraceTitle(event: EngineApiUsageEvent) {
+  return (
+    metadataText(event.metadata, "correlationId") ||
+    event.reviewSessionId ||
+    metadataText(event.metadata, "jsonRpcId") ||
+    "-"
+  );
+}
+
+function usageEventTraceSubtitle(event: EngineApiUsageEvent) {
+  const legalCount = metadataNumber(event.metadata, "legalReferenceCount");
+  if (legalCount > 0) {
+    const sources = metadataList(event.metadata, "legalReferenceSources").join(", ");
+    return `${legalCount.toLocaleString()} legal refs${sources ? ` / ${sources}` : ""}`;
+  }
+  return (
+    metadataText(event.metadata, "errorCode") ||
+    metadataText(event.metadata, "accessMode") ||
+    metadataText(event.metadata, "engineStatus") ||
+    "-"
+  );
+}
+
+function EngineUsageEventDetailPanel({
+  event,
+  offices,
+  users
+}: {
+  event: EngineApiUsageEvent | null;
+  offices: PlatformOfficeOps[];
+  users: PlatformUserOps[];
+}) {
+  if (!event) {
+    return <EmptyState message="표시할 Engine / MCP 호출 로그가 없습니다." />;
+  }
+
+  const metadata = event.metadata ?? {};
+  const legalReferenceIds = metadataList(metadata, "legalReferenceIds");
+  const legalReferenceSources = metadataList(metadata, "legalReferenceSources");
+  const findingCodes = metadataList(metadata, "findingCodes");
+  const legalReferenceCount = metadataNumber(metadata, "legalReferenceCount", legalReferenceIds.length);
+  const errorCode = metadataText(metadata, "errorCode");
+  const errorMessage = metadataText(metadata, "errorMessage");
+
+  return (
+    <div className="engine-event-detail">
+      <div className="ops-detail-grid engine-event-metrics">
+        <MetricCard icon={<Activity size={20} />} label="상태" value={displayLabel(event.status)} detail={usageEventSource(event)} tone={event.status === "SUCCEEDED" ? "green" : "red"} />
+        <MetricCard icon={<Gauge size={20} />} label="Request units" value={event.requestUnits} detail={event.capability} tone="amber" />
+        <MetricCard icon={<FileText size={20} />} label="Legal refs" value={legalReferenceCount} detail={legalReferenceSources.join(", ") || "근거 없음"} tone={legalReferenceCount > 0 ? "blue" : "slate"} />
+        <MetricCard icon={<AlertTriangle size={20} />} label="Findings" value={metadataNumber(metadata, "findingCount", findingCodes.length)} detail={findingCodes.slice(0, 2).join(", ") || "없음"} tone={findingCodes.length > 0 ? "amber" : "green"} />
+      </div>
+
+      <dl className="ops-fact-list engine-event-facts">
+        <div>
+          <dt>호출</dt>
+          <dd>{usageEventTool(event)} / {event.operation}</dd>
+        </div>
+        <div>
+          <dt>API Key</dt>
+          <dd>{event.keyId} / #{event.apiKeyId}</dd>
+        </div>
+        <div>
+          <dt>소유자</dt>
+          <dd>{userLabel(users, event.ownerUserId)}</dd>
+        </div>
+        <div>
+          <dt>사무소</dt>
+          <dd>{officeLabel(offices, event.officeId)}</dd>
+        </div>
+        <div>
+          <dt>Review</dt>
+          <dd>{event.reviewSessionId || "-"}</dd>
+        </div>
+        <div>
+          <dt>Trace</dt>
+          <dd>{usageEventTraceTitle(event)}</dd>
+        </div>
+        <div>
+          <dt>Scope</dt>
+          <dd>{metadataText(metadata, "requiredScope") || event.capability}</dd>
+        </div>
+        <div>
+          <dt>Client</dt>
+          <dd>{metadataText(metadata, "remoteIp") || "-"} / {metadataText(metadata, "userAgent") || "-"}</dd>
+        </div>
+        <div>
+          <dt>오류</dt>
+          <dd>{errorCode || "-"}{errorMessage ? ` / ${errorMessage}` : ""}</dd>
+        </div>
+        <div>
+          <dt>생성일</dt>
+          <dd>{formatDate(event.createdAt)}</dd>
+        </div>
+      </dl>
+
+      {legalReferenceIds.length > 0 ? (
+        <div className="engine-reference-list">
+          <strong>법령 근거</strong>
+          {legalReferenceIds.map((referenceId, index) => (
+            <span key={`${referenceId}-${index}`}>
+              {referenceId}
+              {legalReferenceSources[index] ? ` / ${legalReferenceSources[index]}` : ""}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <InlineNotice message="이 호출에는 usage metadata 기준 법령 reference가 연결되지 않았습니다." />
+      )}
+
+      <pre className="metadata-json">{compactJson(metadata, 2600)}</pre>
     </div>
   );
 }
@@ -4508,6 +4727,34 @@ function metadataText(metadata: Record<string, unknown> | undefined, key: string
     return "";
   }
   return String(value);
+}
+
+function metadataNumber(metadata: Record<string, unknown> | undefined, key: string, fallback = 0) {
+  const value = metadata?.[key];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function metadataList(metadata: Record<string, unknown> | undefined, key: string) {
+  const value = metadata?.[key];
+  if (Array.isArray(value)) {
+    return value.map((item) => stringValue(item)).filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function compactJson(value: unknown, maxLength = 1200) {
+  const text = JSON.stringify(value ?? {}, null, 2);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}\n...` : text;
 }
 
 function EngineApiKeyCreateForm({

@@ -7,6 +7,7 @@ import com.archdox.cloud.engine.dto.EngineReviewResultResponse;
 import com.archdox.cloud.engine.dto.EngineReviewSessionResponse;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewDocumentRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
+import com.archdox.cloud.engine.dto.EngineLegalReferenceResponse;
 import com.archdox.cloud.engine.usage.application.EngineApiQuotaGuardService;
 import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
 import java.util.LinkedHashMap;
@@ -110,10 +111,7 @@ public class EngineExternalReviewSessionService {
     ) {
         authorize(principal, "RUN_VALIDATION");
         var response = reviewSessionService.runValidation(reviewSessionId, principal);
-        recordUsage(principal, "RUN_VALIDATION", response.reviewSessionId(), Map.of(
-                "engineStatus", response.validationResult().status().name(),
-                "findingCount", response.validationResult().findings().size(),
-                "generationAllowed", response.validationResult().generationAllowed()));
+        recordUsage(principal, "RUN_VALIDATION", response.reviewSessionId(), validationMetadata(response));
         return response;
     }
 
@@ -146,6 +144,45 @@ public class EngineExternalReviewSessionService {
             }
         }
         return Map.copyOf(metadata);
+    }
+
+    private Map<String, Object> validationMetadata(EngineReviewSessionResponse response) {
+        var result = response.validationResult();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("engineStatus", result.status().name());
+        metadata.put("findingCount", result.findings().size());
+        metadata.put("generationAllowed", result.generationAllowed());
+        metadata.put("legalReferenceCount", result.legalReferences().size());
+        metadata.put("legalReferenceIds", result.legalReferences().stream()
+                .map(EngineLegalReferenceResponse::referenceId)
+                .filter(value -> value != null && !value.isBlank())
+                .limit(10)
+                .toList());
+        metadata.put("legalReferenceSources", result.legalReferences().stream()
+                .map(this::legalReferenceSource)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .limit(10)
+                .toList());
+        metadata.put("findingCodes", result.findings().stream()
+                .map(finding -> finding.code())
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .limit(10)
+                .toList());
+        return Map.copyOf(metadata);
+    }
+
+    private String legalReferenceSource(EngineLegalReferenceResponse reference) {
+        var sourceCode = stringValue(reference.metadata().get("sourceCode"));
+        if (!sourceCode.isBlank()) {
+            return sourceCode;
+        }
+        return stringValue(reference.metadata().get("resolutionSource"));
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private int listSize(Object value) {

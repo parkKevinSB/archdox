@@ -176,6 +176,22 @@ class EngineApiKeyIntegrationTest {
                 .andExpect(jsonPath("$.validationResult.metadata.legalRiskReview.aiPromptContext.purpose")
                         .value("SOURCE_BACKED_LEGAL_RISK_REVIEW_CONTEXT"));
 
+        mockMvc.perform(get("/api/v1/platform-admin/engine/usage/events")
+                        .header("Authorization", bearer(platformAdmin.accessToken()))
+                        .param("operation", "RUN_VALIDATION")
+                        .param("reviewSessionId", validReviewSessionId)
+                        .param("limit", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$[0].capability").value("ENGINE_REVIEW_SESSION"))
+                .andExpect(jsonPath("$[0].metadata.engineStatus").value("WARN"))
+                .andExpect(jsonPath("$[0].metadata.findingCount").value(1))
+                .andExpect(jsonPath("$[0].metadata.legalReferenceCount").value(1))
+                .andExpect(jsonPath("$[0].metadata.legalReferenceIds[0]")
+                        .value(org.hamcrest.Matchers.containsString("ENGINE_TEST_BUILDING_STANDARD")))
+                .andExpect(jsonPath("$[0].metadata.legalReferenceSources[0]").value("LEGAL_DOMAIN_BINDING"))
+                .andExpect(jsonPath("$[0].metadata.findingCodes[0]").value("LEGAL_EVIDENCE_CONTEXT_MISSING"));
+
         var noOfficeCreateBody = """
                 {
                   "displayName": "No office key",

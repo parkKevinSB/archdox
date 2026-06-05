@@ -1382,6 +1382,89 @@ button {
   white-space: nowrap;
 }
 
+.usage-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.usage-filter-row .button span {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: #50635f;
+  background: #edf3f2;
+  font-size: 11px;
+}
+
+.usage-filter-row .button.primary span {
+  color: #1d5d51;
+  background: #ffffff;
+}
+
+.engine-event-detail {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.engine-event-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.engine-event-facts {
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.engine-reference-list {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #d7e0df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.engine-reference-list strong {
+  color: #172322;
+  font-size: 13px;
+}
+
+.engine-reference-list span {
+  color: #526661;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.engine-event-detail .inline-notice {
+  margin: 0;
+}
+
+.metadata-json {
+  max-height: 320px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #d7e0df;
+  border-radius: 8px;
+  color: #dcefeb;
+  background: #10201e;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .config-form label,
 .revision-form label,
 .override-form label,
