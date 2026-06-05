@@ -679,13 +679,6 @@ export function diagnosePlatformOpsIncident(token: string, incidentId: number) {
   });
 }
 
-export function startPlatformLegalFakeSync(token: string) {
-  return request<LegalSyncRun>("/api/v1/platform-admin/legal/sync/fake", {
-    token,
-    method: "POST"
-  });
-}
-
 export function startPlatformLegalOpenDataSync(token: string) {
   return request<LegalSyncRun>("/api/v1/platform-admin/legal/sync/open-data", {
     token,

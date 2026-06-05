@@ -1150,6 +1150,33 @@ button {
   gap: 16px;
 }
 
+.legal-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.legal-change-shell {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.legal-tabs {
+  padding: 4px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #eef4f2;
+}
+
+.panel-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .panel {
   min-width: 0;
   border: 1px solid #d8e1df;
@@ -2270,6 +2297,7 @@ tbody tr:hover {
   }
 
   .config-grid,
+  .legal-admin-layout,
   .member-grid,
   .engine-key-grid,
   .project-management-grid,
@@ -2446,9 +2474,17 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .panel-action-row {
+    justify-content: flex-start;
+  }
+
   .ai-observer-tabs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .legal-tabs {
+    display: flex;
   }
 
   .ai-observer-tab {
