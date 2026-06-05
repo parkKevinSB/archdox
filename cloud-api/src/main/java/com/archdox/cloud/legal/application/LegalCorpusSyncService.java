@@ -192,7 +192,7 @@ public class LegalCorpusSyncService {
     @Transactional
     public void markRunFailed(Long runId, String failureCode, String failureMessage) {
         var now = OffsetDateTime.now();
-        syncRunRepository.findById(runId).ifPresent(run -> run.fail(failureCode, now));
+        syncRunRepository.findById(runId).ifPresent(run -> run.fail(failureCode, failureMessage, now));
         var safeFailureCode = failureCode == null ? "UNKNOWN" : failureCode;
         var safeFailureMessage = failureMessage == null || failureMessage.isBlank()
                 ? "No failure message was captured."

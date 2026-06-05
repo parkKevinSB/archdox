@@ -1,6 +1,7 @@
 package com.archdox.cloud.legal.flow.step;
 
 import com.archdox.cloud.legal.application.LegalCorpusSyncService;
+import com.archdox.cloud.legal.application.LawOpenDataException;
 import com.archdox.cloud.legal.event.LegalSyncRequested;
 import com.archdox.cloud.legal.flow.LegalSyncSession;
 import io.github.parkkevinsb.flower.core.step.Step;
@@ -33,8 +34,15 @@ public final class StoreAndDiffLegalSnapshotStep extends Step {
             session.result(syncService.applySnapshot(event.syncRunId(), session.snapshot()));
             return StepResult.done();
         } catch (RuntimeException ex) {
-            syncService.markRunFailed(event.syncRunId(), ex.getClass().getSimpleName(), ex.getMessage());
+            syncService.markRunFailed(event.syncRunId(), failureCode(ex), ex.getMessage());
             return StepResult.fail(ex);
         }
+    }
+
+    private String failureCode(RuntimeException ex) {
+        if (ex instanceof LawOpenDataException openDataException) {
+            return openDataException.code();
+        }
+        return ex.getClass().getSimpleName();
     }
 }

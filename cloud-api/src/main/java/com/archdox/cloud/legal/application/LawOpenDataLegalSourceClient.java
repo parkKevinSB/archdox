@@ -122,6 +122,15 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 .map(this::fetchTarget)
                 .sorted(Comparator.comparing(LegalActSnapshot::actCode))
                 .toList();
+        if (acts.isEmpty()) {
+            throw new LawOpenDataException(
+                    "LAW_OPEN_DATA_TARGETS_EMPTY",
+                    "fetch",
+                    "",
+                    0,
+                    false,
+                    "Law Open Data API sync target list is empty");
+        }
         return new LegalSourceSnapshot(
                 openApi.getSourceCode(),
                 "LAW_OPEN_DATA",
@@ -135,29 +144,59 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
 
     private LegalActSnapshot fetchTarget(LegalSyncProperties.Target target) {
         var normalizedTarget = normalizeTarget(target.getTarget());
-        var search = fetchJson(
-                "lawSearch.do",
-                Map.of(
-                        "target", normalizedTarget,
-                        "type", "JSON",
-                        "query", target.getQuery(),
-                        "display", "10"));
-        var item = selectSearchResult(target, normalizedTarget, search);
-        var detailId = detailId(normalizedTarget, item);
-        var detail = fetchJson(
-                "lawService.do",
-                Map.of(
-                        "target", normalizedTarget,
-                        "type", "JSON",
-                        "ID", detailId));
-        var sourceUrl = serviceUrl(normalizedTarget, detailId);
-        if (TARGET_LAW.equals(normalizedTarget)) {
-            return parseLawDetail(target, detail, sourceUrl);
+        try {
+            var search = fetchJson(
+                    "lawSearch.do",
+                    normalizedTarget,
+                    Map.of(
+                            "target", normalizedTarget,
+                            "type", "JSON",
+                            "query", target.getQuery(),
+                            "display", "10"));
+            var item = selectSearchResult(target, normalizedTarget, search);
+            var detailId = detailId(normalizedTarget, item);
+            if (detailId.isBlank()) {
+                throw new LawOpenDataException(
+                        "LAW_OPEN_DATA_DETAIL_ID_MISSING",
+                        "lawSearch.do",
+                        normalizedTarget,
+                        0,
+                        false,
+                        "Law Open Data search result has no detail ID for query: " + target.getQuery());
+            }
+            var detail = fetchJson(
+                    "lawService.do",
+                    normalizedTarget,
+                    Map.of(
+                            "target", normalizedTarget,
+                            "type", "JSON",
+                            "ID", detailId));
+            var sourceUrl = serviceUrl(normalizedTarget, detailId);
+            var snapshot = TARGET_LAW.equals(normalizedTarget)
+                    ? parseLawDetail(target, detail, sourceUrl)
+                    : parseAdminRuleDetail(target, detail, sourceUrl);
+            if (snapshot.articles().isEmpty()) {
+                throw new LawOpenDataException(
+                        "LAW_OPEN_DATA_ARTICLES_EMPTY",
+                        "lawService.do",
+                        normalizedTarget,
+                        0,
+                        false,
+                        "Law Open Data detail response has no articles or annex body for query: " + target.getQuery());
+            }
+            return snapshot;
+        } catch (LawOpenDataException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new LawOpenDataException(
+                    "LAW_OPEN_DATA_TARGET_FAILED",
+                    "fetchTarget",
+                    normalizedTarget,
+                    0,
+                    false,
+                    "Law Open Data target failed for query '" + target.getQuery() + "': " + ex.getMessage(),
+                    ex);
         }
-        if (TARGET_ADMIN_RULE.equals(normalizedTarget)) {
-            return parseAdminRuleDetail(target, detail, sourceUrl);
-        }
-        throw new IllegalArgumentException("Unsupported law.go.kr target: " + target.getTarget());
     }
 
     LegalActSnapshot parseLawDetail(
@@ -286,7 +325,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 articles);
     }
 
-    private JsonNode fetchJson(String path, Map<String, String> parameters) {
+    private JsonNode fetchJson(String path, String target, Map<String, String> parameters) {
         var uri = URI.create(baseUrl() + "/" + path + "?" + query(parameters));
         var request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(Math.max(1000, properties.getOpenApi().getRequestTimeoutMs())))
@@ -300,14 +339,32 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 waitForRequestSlot();
                 var response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    throw new IllegalStateException("Law Open Data API returned HTTP " + response.statusCode()
-                            + " for " + path);
+                    var retryable = retryableHttpStatus(response.statusCode());
+                    var error = new LawOpenDataException(
+                            "LAW_OPEN_DATA_HTTP_" + response.statusCode(),
+                            path,
+                            target,
+                            response.statusCode(),
+                            retryable,
+                            "Law Open Data API returned HTTP " + response.statusCode() + " for " + path);
+                    if (retryable && attempt < maxAttempts) {
+                        sleepBeforeRetry(attempt);
+                        continue;
+                    }
+                    throw error;
                 }
-                return readJsonBody(response, path);
+                var json = readJsonBody(response, path);
+                validateOpenDataResponse(json, path, target);
+                return json;
             } catch (IOException ex) {
                 lastIOException = ex;
                 if (attempt == maxAttempts) {
                     break;
+                }
+                sleepBeforeRetry(attempt);
+            } catch (LawOpenDataException ex) {
+                if (!ex.retryable() || attempt == maxAttempts) {
+                    throw ex;
                 }
                 sleepBeforeRetry(attempt);
             } catch (InterruptedException ex) {
@@ -315,9 +372,19 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 throw new IllegalStateException("Law Open Data API request was interrupted for " + path, ex);
             }
         }
-        throw new IllegalStateException("Failed to read Law Open Data API response for " + path
-                + ": " + (lastIOException == null ? "unknown IO failure" : lastIOException.getMessage()),
+        throw new LawOpenDataException(
+                "LAW_OPEN_DATA_IO_FAILURE",
+                path,
+                target,
+                0,
+                true,
+                "Failed to read Law Open Data API response for " + path
+                        + ": " + (lastIOException == null ? "unknown IO failure" : lastIOException.getMessage()),
                 lastIOException);
+    }
+
+    private static boolean retryableHttpStatus(int statusCode) {
+        return statusCode == 429 || statusCode >= 500;
     }
 
     private void waitForRequestSlot() {
@@ -403,6 +470,59 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 .filter(node -> normalizeDisplayName(text(node, nameField, "")).equals(expectedName))
                 .findFirst()
                 .orElse(results.get(0));
+    }
+
+    private void validateOpenDataResponse(JsonNode json, String path, String target) {
+        var error = openDataError(json);
+        if (error.isEmpty()) {
+            return;
+        }
+        var errorPayload = error.get();
+        var providerCode = text(errorPayload, "code", "UNKNOWN");
+        throw new LawOpenDataException(
+                "LAW_OPEN_DATA_RESPONSE_ERROR",
+                path,
+                target,
+                0,
+                false,
+                "Law Open Data API returned an error payload for " + path + ": "
+                        + providerCode + " " + text(errorPayload, "message", "unknown error"));
+    }
+
+    private Optional<JsonNode> openDataError(JsonNode json) {
+        if (json == null || !json.isObject()) {
+            return Optional.empty();
+        }
+        var result = json.get("RESULT");
+        if (result == null) {
+            result = json.get("result");
+        }
+        if (result != null && result.isObject()) {
+            var code = firstNonBlank(
+                    text(result, "CODE", null),
+                    text(result, "code", null),
+                    text(result, "resultCode", null));
+            if (!code.isBlank() && !successCode(code)) {
+                var error = new LinkedHashMap<String, String>();
+                error.put("code", code);
+                error.put("message", firstNonBlank(
+                        text(result, "MESSAGE", null),
+                        text(result, "message", null),
+                        text(result, "resultMsg", null),
+                        text(result, "resultMessage", null)));
+                return Optional.of(objectMapper.valueToTree(error));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean successCode(String code) {
+        var normalized = normalize(code);
+        return normalized.isBlank()
+                || "0".equals(normalized)
+                || "00".equals(normalized)
+                || "success".equals(normalized)
+                || "info-000".equals(normalized);
     }
 
     private String detailId(String normalizedTarget, JsonNode item) {

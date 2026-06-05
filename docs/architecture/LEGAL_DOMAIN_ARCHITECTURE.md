@@ -195,8 +195,11 @@ connection, and may not always provide perfectly unique source keys. The
 connector therefore:
 
 - uses JSON only for now
-- retries transient response-read failures
+- retries transient response-read failures and retryable HTTP status codes
+  such as 429 and 5xx
 - throttles requests between calls
+- rejects official API error payloads before they reach corpus storage
+- rejects target snapshots that have no article/body/annex content
 - preserves official source ids in metadata
 - normalizes duplicate article keys with a stable suffix such as `_2`
 - stores hashes and versions in ArchDox, not raw unbounded response logs
@@ -213,9 +216,14 @@ Rules:
 - Sync only configured tracked assets.
 - Use DB-backed corpus and change sets for UI, AI context, and user notices.
 - Manual sync is allowed from platform admin.
+- Manual Open API sync must be blocked before creating a sync run unless the
+  connector is enabled, OC is configured, and at least one exact target exists.
 - Scheduled sync is allowed later only as a trigger that submits Flower flow.
 - Keep `display` small for exact-name search.
 - Keep request interval and retry count configurable.
+- Sync failures should preserve stable failure codes such as
+  `LAW_OPEN_DATA_HTTP_429`, `LAW_OPEN_DATA_RESPONSE_ERROR`, and
+  `LAW_OPEN_DATA_ARTICLES_EMPTY` in `legal_sync_runs`.
 
 Current defensive defaults:
 
@@ -785,6 +793,11 @@ Real Open API integration status:
 - live sync is platform-admin/manual for now
 - platform admins can inspect Open API enabled/credential/target status through
   `/api/v1/platform-admin/legal/open-api/status`
+- the status response includes `ready`, target count, and estimated API request
+  count; manual live sync is rejected with `LEGAL_OPEN_API_NOT_READY` when it is
+  not ready
+- live HTTP sync retries 429/5xx and response-read failures, throttles calls,
+  and records stable failure codes into failed sync runs
 - current live smoke result on 2026-06-04 synchronized 4 tracked assets and
   created 462 article diffs
 

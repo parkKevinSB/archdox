@@ -5,12 +5,15 @@ import java.util.List;
 public record LegalOpenApiStatusResponse(
         boolean enabled,
         boolean ocConfigured,
+        boolean ready,
         String sourceCode,
         String baseUrl,
         String userAgent,
         long requestTimeoutMs,
         long requestIntervalMs,
         int maxAttempts,
+        int targetCount,
+        int estimatedRequestCount,
         List<TargetResponse> targets
 ) {
     public LegalOpenApiStatusResponse {

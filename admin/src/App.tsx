@@ -3797,11 +3797,11 @@ function PlatformView({
               <>
                 <div className="metric-grid compact">
                   <MetricCard
-                    icon={data.legalOpenApiStatus.enabled ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+                    icon={data.legalOpenApiStatus.ready ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
                     label="Open API"
-                    value={data.legalOpenApiStatus.enabled ? "ON" : "OFF"}
-                    detail={data.legalOpenApiStatus.sourceCode}
-                    tone={data.legalOpenApiStatus.enabled ? "green" : "amber"}
+                    value={data.legalOpenApiStatus.ready ? "READY" : "BLOCKED"}
+                    detail={`${data.legalOpenApiStatus.sourceCode} / ${data.legalOpenApiStatus.enabled ? "enabled" : "disabled"}`}
+                    tone={data.legalOpenApiStatus.ready ? "green" : "amber"}
                   />
                   <MetricCard
                     icon={data.legalOpenApiStatus.ocConfigured ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
@@ -3816,6 +3816,13 @@ function PlatformView({
                     value={`${data.legalOpenApiStatus.requestIntervalMs}ms`}
                     detail={`timeout ${data.legalOpenApiStatus.requestTimeoutMs}ms / retry ${data.legalOpenApiStatus.maxAttempts}`}
                     tone="slate"
+                  />
+                  <MetricCard
+                    icon={<Gauge size={20} />}
+                    label="예상 호출"
+                    value={data.legalOpenApiStatus.estimatedRequestCount}
+                    detail={`${data.legalOpenApiStatus.targetCount} targets / search+detail`}
+                    tone="blue"
                   />
                 </div>
                 <Table

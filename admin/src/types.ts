@@ -652,12 +652,15 @@ export type LegalOpenApiTarget = {
 export type LegalOpenApiStatus = {
   enabled: boolean;
   ocConfigured: boolean;
+  ready: boolean;
   sourceCode: string;
   baseUrl: string;
   userAgent: string;
   requestTimeoutMs: number;
   requestIntervalMs: number;
   maxAttempts: number;
+  targetCount: number;
+  estimatedRequestCount: number;
   targets: LegalOpenApiTarget[];
 };
 

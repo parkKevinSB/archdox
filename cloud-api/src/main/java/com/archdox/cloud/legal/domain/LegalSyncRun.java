@@ -66,9 +66,18 @@ public class LegalSyncRun {
     }
 
     public void fail(String failureCode, OffsetDateTime now) {
+        fail(failureCode, null, now);
+    }
+
+    public void fail(String failureCode, String failureMessage, OffsetDateTime now) {
         this.status = LegalSyncRunStatus.FAILED;
         this.failureCode = blankToNull(failureCode);
         this.completedAt = now;
+        this.summaryJson = failureMessage == null || failureMessage.isBlank()
+                ? Map.of("failureCode", this.failureCode == null ? "UNKNOWN" : this.failureCode)
+                : Map.of(
+                        "failureCode", this.failureCode == null ? "UNKNOWN" : this.failureCode,
+                        "failureMessage", failureMessage.trim());
     }
 
     public Long id() {

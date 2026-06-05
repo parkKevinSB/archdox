@@ -218,6 +218,10 @@ These are development-only credentials.
   and `LEGAL_OPEN_API_OC` are configured. It tracks only construction
   supervision MVP assets and throttles calls with
   `LEGAL_OPEN_API_REQUEST_INTERVAL_MS` / `LEGAL_OPEN_API_MAX_ATTEMPTS`.
+  Platform admin live sync is blocked before creating a sync run unless the
+  Open API connector is ready. Live HTTP sync retries 429/5xx and response-read
+  failures, rejects official API error payloads, and stores stable failure
+  codes in `legal_sync_runs`.
 - Site supervision ledger foundation exists: construction daily log `DAILY_LOG`
   saves now synchronize structured trade/process/inspection-item/photo
   observations into `site_supervision_entries`, and report submission promotes
@@ -382,9 +386,10 @@ These are development-only credentials.
   and published change digests. Platform admins can trigger a fake legal sync
   and inspect sync runs/change sets/digests. Authenticated users can read recent
   published legal update digests through the client web legal update screen.
-  The current source connector is fake/static until National Law Open API
-  credentials are approved. Future notification fan-out should trigger from
-  published digest rows, not directly from raw article diffs.
+  The fake/static connector remains for deterministic development tests, while
+  the National Law Open API connector is used only when platform credentials
+  are configured. Future notification fan-out should trigger from published
+  digest rows, not directly from raw article diffs.
 
 ## Current Architectural Policies
 

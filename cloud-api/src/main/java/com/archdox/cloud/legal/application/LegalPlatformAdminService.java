@@ -1,5 +1,6 @@
 package com.archdox.cloud.legal.application;
 
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
@@ -13,6 +14,7 @@ import com.archdox.cloud.legal.infra.LegalChangeSetRepository;
 import com.archdox.cloud.legal.infra.LegalSyncRunRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -56,16 +58,21 @@ public class LegalPlatformAdminService {
     public LegalOpenApiStatusResponse openApiStatus(UserPrincipal principal) {
         platformAdminService.requirePlatformAdmin(principal);
         var openApi = legalSyncProperties.getOpenApi();
+        var activeTargets = activeTargets(openApi);
+        var ocConfigured = openApi.getOc() != null && !openApi.getOc().isBlank();
         return new LegalOpenApiStatusResponse(
                 openApi.isEnabled(),
-                openApi.getOc() != null && !openApi.getOc().isBlank(),
+                ocConfigured,
+                openApi.isEnabled() && ocConfigured && !activeTargets.isEmpty(),
                 openApi.getSourceCode(),
                 openApi.getBaseUrl(),
                 openApi.getUserAgent(),
                 openApi.getRequestTimeoutMs(),
                 openApi.getRequestIntervalMs(),
                 openApi.getMaxAttempts(),
-                openApi.getTargets().stream()
+                activeTargets.size(),
+                activeTargets.size() * 2,
+                activeTargets.stream()
                         .map(target -> new LegalOpenApiStatusResponse.TargetResponse(
                                 target.getTarget(),
                                 target.getQuery(),
@@ -84,6 +91,7 @@ public class LegalPlatformAdminService {
 
     public LegalSyncRunResponse startOpenDataSync(UserPrincipal principal) {
         platformAdminService.requirePlatformAdmin(principal);
+        requireOpenDataSyncReady();
         var run = syncService.createRun("PLATFORM_ADMIN_MANUAL", LawOpenDataLegalSourceClient.SOURCE_CODE, principal.userId());
         worker.submit(flowFactory.create(new LegalSyncRequested(run.id(), run.sourceCode())));
         return toRunResponse(run);
@@ -137,5 +145,28 @@ public class LegalPlatformAdminService {
 
     private int limit(Integer limit) {
         return Math.max(1, Math.min(limit == null ? DEFAULT_LIMIT : limit, MAX_LIMIT));
+    }
+
+    private void requireOpenDataSyncReady() {
+        var openApi = legalSyncProperties.getOpenApi();
+        var ocConfigured = openApi.getOc() != null && !openApi.getOc().isBlank();
+        var activeTargets = activeTargets(openApi);
+        if (openApi.isEnabled() && ocConfigured && !activeTargets.isEmpty()) {
+            return;
+        }
+        throw new BadRequestException(
+                "LEGAL_OPEN_API_NOT_READY",
+                "errors.legal.openApiNotReady",
+                "Legal Open API sync is not ready. Enable it, configure OC, and keep at least one target.",
+                Map.of(
+                        "enabled", openApi.isEnabled(),
+                        "ocConfigured", ocConfigured,
+                        "targetCount", activeTargets.size()));
+    }
+
+    private List<LegalSyncProperties.Target> activeTargets(LegalSyncProperties.OpenApi openApi) {
+        return openApi.getTargets().stream()
+                .filter(target -> target.getQuery() != null && !target.getQuery().isBlank())
+                .toList();
     }
 }
