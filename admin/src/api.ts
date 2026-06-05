@@ -20,6 +20,7 @@ import type {
   EngineApiUsageSummary,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDigestRefreshResult,
   LegalOpenApiStatus,
   LegalSyncRun,
   DocumentTemplateRevision,
@@ -709,6 +710,14 @@ export function getPlatformLegalChangeSets(token: string, limit = 50) {
 export function getPlatformLegalChangeDigests(token: string, limit = 50) {
   return request<LegalChangeDigest[]>("/api/v1/platform-admin/legal/change-digests", {
     token,
+    query: { limit }
+  });
+}
+
+export function refreshPlatformLegalDeterministicDigests(token: string, limit = 200) {
+  return request<LegalDigestRefreshResult>("/api/v1/platform-admin/legal/change-digests/refresh-deterministic", {
+    token,
+    method: "POST",
     query: { limit }
   });
 }

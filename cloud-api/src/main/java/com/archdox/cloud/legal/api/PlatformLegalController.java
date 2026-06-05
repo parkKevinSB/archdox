@@ -4,6 +4,7 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.application.LegalPlatformAdminService;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
+import com.archdox.cloud.legal.dto.LegalDigestRefreshResponse;
 import com.archdox.cloud.legal.dto.LegalOpenApiStatusResponse;
 import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import java.util.List;
@@ -31,6 +32,14 @@ public class PlatformLegalController {
     @PostMapping("/sync/open-data")
     public LegalSyncRunResponse startOpenDataSync(Authentication authentication) {
         return service.startOpenDataSync(principal(authentication));
+    }
+
+    @PostMapping("/change-digests/refresh-deterministic")
+    public LegalDigestRefreshResponse refreshDeterministicDigests(
+            Authentication authentication,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return service.refreshDeterministicDigests(principal(authentication), limit);
     }
 
     @GetMapping("/open-api/status")

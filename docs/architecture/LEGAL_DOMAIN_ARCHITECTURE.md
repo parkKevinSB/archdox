@@ -443,7 +443,9 @@ acts. This gives user and admin screens a useful post before AI impact analysis
 exists, while keeping the future AI worker as an enrichment layer instead of
 the source of truth. Existing deterministic digests may be refreshed from the
 same raw change set, but AI-sourced digests must not be overwritten by the
-deterministic fallback.
+deterministic fallback. Platform admin exposes a deterministic digest refresh
+action for this maintenance path so existing corpus data can be reprojected
+after digest wording or domain-binding rules improve.
 
 For report review:
 

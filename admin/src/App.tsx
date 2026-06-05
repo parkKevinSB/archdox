@@ -102,6 +102,7 @@ import {
   publishDocumentTemplateRevision,
   publishPlatformAiProvider,
   refreshAuthToken,
+  refreshPlatformLegalDeterministicDigests,
   removeProjectAssignment,
   rejectPlatformWorkerApproval,
   revokePlatformEngineApiKey,
@@ -915,6 +916,22 @@ export default function App() {
     }
   }
 
+  async function runPlatformLegalDigestRefresh() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await refreshPlatformLegalDeterministicDigests(auth.accessToken);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 변경사항 요약을 재생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleCreateEngineApiKey(body: {
     displayName: string;
     ownerUserId: number;
@@ -1507,6 +1524,7 @@ export default function App() {
               onDetectStuck={runPlatformDetection}
               onLegalFakeSync={runPlatformLegalFakeSync}
               onLegalOpenDataSync={runPlatformLegalOpenDataSync}
+              onLegalDigestRefresh={runPlatformLegalDigestRefresh}
               issuedEngineApiKey={issuedEngineApiKey}
               onCreateEngineApiKey={handleCreateEngineApiKey}
               onRevokeEngineApiKey={handleRevokeEngineApiKey}
@@ -3677,6 +3695,7 @@ function PlatformView({
   onDetectStuck,
   onLegalFakeSync,
   onLegalOpenDataSync,
+  onLegalDigestRefresh,
   issuedEngineApiKey,
   onCreateEngineApiKey,
   onRevokeEngineApiKey,
@@ -3694,6 +3713,7 @@ function PlatformView({
   onDetectStuck: () => void;
   onLegalFakeSync: () => void;
   onLegalOpenDataSync: () => void;
+  onLegalDigestRefresh: () => void;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
   onCreateEngineApiKey: (body: {
     displayName: string;
@@ -3785,6 +3805,10 @@ function PlatformView({
               <button className="button" disabled={loading} onClick={onLegalFakeSync} type="button">
                 {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
                 Fake 동기화
+              </button>
+              <button className="button" disabled={loading} onClick={onLegalDigestRefresh} type="button">
+                {loading ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+                Digest 재생성
               </button>
               </>}
           >

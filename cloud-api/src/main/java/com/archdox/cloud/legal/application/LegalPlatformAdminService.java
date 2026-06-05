@@ -2,17 +2,22 @@ package com.archdox.cloud.legal.application;
 
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
+import com.archdox.cloud.legal.dto.LegalDigestRefreshResponse;
 import com.archdox.cloud.legal.dto.LegalOpenApiStatusResponse;
 import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import com.archdox.cloud.legal.event.LegalSyncRequested;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
 import com.archdox.cloud.legal.flow.LegalSyncWorker;
+import com.archdox.cloud.legal.infra.LegalActRepository;
+import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalChangeSetRepository;
 import com.archdox.cloud.legal.infra.LegalSyncRunRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.PageRequest;
@@ -28,10 +33,13 @@ public class LegalPlatformAdminService {
     private final LegalSyncFlowFactory flowFactory;
     private final LegalSyncWorker worker;
     private final LegalSyncRunRepository syncRunRepository;
+    private final LegalActRepository actRepository;
     private final LegalChangeSetRepository changeSetRepository;
+    private final LegalArticleDiffRepository articleDiffRepository;
     private final LegalChangeDigestRepository changeDigestRepository;
     private final LegalUpdateReadService updateReadService;
     private final LegalSyncProperties legalSyncProperties;
+    private final LegalChangeDigestService changeDigestService;
 
     public LegalPlatformAdminService(
             PlatformAdminService platformAdminService,
@@ -39,20 +47,26 @@ public class LegalPlatformAdminService {
             LegalSyncFlowFactory flowFactory,
             LegalSyncWorker worker,
             LegalSyncRunRepository syncRunRepository,
+            LegalActRepository actRepository,
             LegalChangeSetRepository changeSetRepository,
+            LegalArticleDiffRepository articleDiffRepository,
             LegalChangeDigestRepository changeDigestRepository,
             LegalUpdateReadService updateReadService,
-            LegalSyncProperties legalSyncProperties
+            LegalSyncProperties legalSyncProperties,
+            LegalChangeDigestService changeDigestService
     ) {
         this.platformAdminService = platformAdminService;
         this.syncService = syncService;
         this.flowFactory = flowFactory;
         this.worker = worker;
         this.syncRunRepository = syncRunRepository;
+        this.actRepository = actRepository;
         this.changeSetRepository = changeSetRepository;
+        this.articleDiffRepository = articleDiffRepository;
         this.changeDigestRepository = changeDigestRepository;
         this.updateReadService = updateReadService;
         this.legalSyncProperties = legalSyncProperties;
+        this.changeDigestService = changeDigestService;
     }
 
     public LegalOpenApiStatusResponse openApiStatus(UserPrincipal principal) {
@@ -129,6 +143,38 @@ public class LegalPlatformAdminService {
                 .stream()
                 .map(updateReadService::toResponse)
                 .toList();
+    }
+
+    public LegalDigestRefreshResponse refreshDeterministicDigests(UserPrincipal principal, Integer limit) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var now = OffsetDateTime.now();
+        var inspected = 0;
+        var created = 0;
+        var refreshed = 0;
+        var skippedAi = 0;
+        var skippedMissingActs = 0;
+        var changeSets = changeSetRepository.findAllByOrderByDetectedAtDescIdDesc(PageRequest.of(0, limit(limit)));
+        for (var changeSet : changeSets) {
+            inspected++;
+            var act = actRepository.findById(changeSet.actId()).orElse(null);
+            if (act == null) {
+                skippedMissingActs++;
+                continue;
+            }
+            var existing = changeDigestRepository.findByChangeSetId(changeSet.id()).orElse(null);
+            if (existing != null && existing.source() == LegalChangeDigestSource.AI) {
+                skippedAi++;
+                continue;
+            }
+            var diffs = articleDiffRepository.findByChangeSetIdOrderByIdAsc(changeSet.id());
+            changeDigestService.ensureDeterministicDigest(changeSet, act, diffs, now);
+            if (existing == null) {
+                created++;
+            } else {
+                refreshed++;
+            }
+        }
+        return new LegalDigestRefreshResponse(inspected, created, refreshed, skippedAi, skippedMissingActs);
     }
 
     private LegalSyncRunResponse toRunResponse(com.archdox.cloud.legal.domain.LegalSyncRun run) {

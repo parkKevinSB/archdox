@@ -641,6 +641,14 @@ export type LegalChangeDigest = {
   updatedAt: string;
 };
 
+export type LegalDigestRefreshResult = {
+  inspectedChangeSets: number;
+  createdDigests: number;
+  refreshedDigests: number;
+  skippedAiDigests: number;
+  skippedMissingActs: number;
+};
+
 export type LegalOpenApiTarget = {
   target: string;
   query: string;

@@ -224,8 +224,8 @@ These are development-only credentials.
   codes in `legal_sync_runs`. Deterministic legal change digests now generate
   readable user-facing Korean titles, summaries, construction-supervision impact
   guidance, and affected report/catalog bindings. Existing deterministic
-  digests can be refreshed from the raw change set, while future AI-enriched
-  digests are preserved.
+  digests can be refreshed from the raw change set through the platform-admin
+  legal digest refresh action, while future AI-enriched digests are preserved.
 - Site supervision ledger foundation exists: construction daily log `DAILY_LOG`
   saves now synchronize structured trade/process/inspection-item/photo
   observations into `site_supervision_entries`, and report submission promotes
