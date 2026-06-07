@@ -92,6 +92,7 @@ public interface OperationEventRepository extends JpaRepository<OperationEvent, 
                   'ARCHDOX_WORKER_POLICY_DENIED',
                   'ARCHDOX_WORKER_APPROVAL_REQUIRED',
                   'ARCHDOX_WORKER_ACTION_REJECTED',
+                  'ARCHDOX_WORKER_ACTION_CANCELLED',
                   'ARCHDOX_WORKER_ACTION_FAILED',
                   'ARCHDOX_WORKER_ACTION_UNKNOWN'
               )

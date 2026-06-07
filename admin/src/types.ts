@@ -320,6 +320,7 @@ export type WorkerGovernanceSummary = {
   actionSucceeded: number;
   actionFailed: number;
   actionRejected: number;
+  actionCancelled: number;
   actionUnknown: number;
   catchRate: number;
   approvalRequiredRate: number;
@@ -330,6 +331,54 @@ export type WorkerGovernanceSummary = {
   actionEvents: WorkerGovernanceGroup[];
   reasons: WorkerGovernanceGroup[];
   recentEvents: OperationEvent[];
+};
+
+export type FlowerRuntimeDump = {
+  engineState: string;
+  capturedAt: string;
+  workerCount: number;
+  activeFlowCount: number;
+  workers: FlowerRuntimeWorker[];
+};
+
+export type FlowerRuntimeWorker = {
+  name: string;
+  state: string;
+  intervalMillis: number;
+  activeFlowCount: number;
+  flows: FlowerRuntimeFlow[];
+};
+
+export type FlowerRuntimeFlow = {
+  flowType: string;
+  flowKey: string;
+  state: string;
+  currentStepId?: string | null;
+  currentStepIndex: number;
+  currentStepNo: number;
+  failureType?: string | null;
+  failureMessage?: string | null;
+  executionContext: FlowerRuntimeExecutionContext;
+  steps: FlowerRuntimeFlowStep[];
+};
+
+export type FlowerRuntimeExecutionContext = {
+  tenantId?: string | null;
+  userId?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  traceId?: string | null;
+  correlationId?: string | null;
+};
+
+export type FlowerRuntimeFlowStep = {
+  index: number;
+  stepId: string;
+  stepType: string;
+  current: boolean;
+  guarded: boolean;
+  recoverable: boolean;
+  recoveryPolicy?: string | null;
 };
 
 export type WorkerApprovalRequest = {
@@ -656,6 +705,28 @@ export type LegalChangeDigest = {
   createdAt: string;
   updatedAt: string;
   articleDiffs: LegalArticleDiff[];
+};
+
+export type LegalDigestAiDraft = {
+  workerRequestId: string;
+  digestId: number;
+  changeSetId: number;
+  dryRun: boolean;
+  workerStatus: string;
+  resultCode: string;
+  aiHarnessRunId?: string | null;
+  digestDraftStatus: string;
+  title: string;
+  summary: string;
+  impactSummary: string;
+  confidence: string;
+  affectedReportTypes: string[];
+  affectedCatalogItems: string[];
+  keyArticles: string[];
+  reviewNotes: string;
+  publicationApplied: boolean;
+  corpusMutated: boolean;
+  digestMutated: boolean;
 };
 
 export type LegalArticleDiff = {

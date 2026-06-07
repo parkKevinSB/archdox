@@ -4,12 +4,14 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.application.LegalPlatformAdminService;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
+import com.archdox.cloud.legal.dto.LegalDigestAiDraftResponse;
 import com.archdox.cloud.legal.dto.LegalDigestRefreshResponse;
 import com.archdox.cloud.legal.dto.LegalOpenApiStatusResponse;
 import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,6 +42,14 @@ public class PlatformLegalController {
             @RequestParam(required = false) Integer limit
     ) {
         return service.refreshDeterministicDigests(principal(authentication), limit);
+    }
+
+    @PostMapping("/change-digests/{digestId}/ai-draft")
+    public LegalDigestAiDraftResponse generateDigestAiDraft(
+            Authentication authentication,
+            @PathVariable Long digestId
+    ) {
+        return service.generateDigestAiDraft(principal(authentication), digestId);
     }
 
     @GetMapping("/open-api/status")

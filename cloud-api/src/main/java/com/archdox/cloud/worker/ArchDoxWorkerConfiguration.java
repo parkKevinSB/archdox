@@ -3,6 +3,7 @@ package com.archdox.cloud.worker;
 import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
 import com.archdox.worker.application.ArchDoxWorkerPolicyGate;
+import com.archdox.worker.application.ArchDoxWorkerRunControl;
 import com.archdox.worker.application.ArchDoxWorkerTraceSink;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionFlowFactory;
 import java.util.List;
@@ -27,6 +28,12 @@ public class ArchDoxWorkerConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    ArchDoxWorkerRunControl archDoxWorkerRunControl() {
+        return ArchDoxWorkerRunControl.allowAll();
+    }
+
+    @Bean
     ArchDoxWorkerActionRegistry archDoxWorkerActionRegistry(List<ArchDoxWorkerActionExecutor> executors) {
         return new ArchDoxWorkerActionRegistry(executors);
     }
@@ -35,8 +42,9 @@ public class ArchDoxWorkerConfiguration {
     ArchDoxWorkerExecutionFlowFactory archDoxWorkerExecutionFlowFactory(
             ArchDoxWorkerActionRegistry registry,
             ArchDoxWorkerPolicyGate policyGate,
+            ArchDoxWorkerRunControl runControl,
             ArchDoxWorkerTraceSink traceSink
     ) {
-        return new ArchDoxWorkerExecutionFlowFactory(registry, policyGate, traceSink);
+        return new ArchDoxWorkerExecutionFlowFactory(registry, policyGate, runControl, traceSink);
     }
 }

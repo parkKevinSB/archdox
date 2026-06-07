@@ -4,5 +4,6 @@ public enum ArchDoxWorkerActionExecutionStatus {
     SUCCEEDED,
     PENDING_APPROVAL,
     REJECTED,
+    CANCELLED,
     FAILED
 }

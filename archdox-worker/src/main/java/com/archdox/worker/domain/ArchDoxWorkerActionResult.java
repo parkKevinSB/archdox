@@ -27,6 +27,10 @@ public record ArchDoxWorkerActionResult(
         return new ArchDoxWorkerActionResult(ArchDoxWorkerActionExecutionStatus.REJECTED, resultCode, message, Map.of());
     }
 
+    public static ArchDoxWorkerActionResult cancelled(String resultCode, String message) {
+        return new ArchDoxWorkerActionResult(ArchDoxWorkerActionExecutionStatus.CANCELLED, resultCode, message, Map.of());
+    }
+
     public static ArchDoxWorkerActionResult failed(String resultCode, String message) {
         return new ArchDoxWorkerActionResult(ArchDoxWorkerActionExecutionStatus.FAILED, resultCode, message, Map.of());
     }

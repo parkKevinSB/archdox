@@ -17,6 +17,7 @@ public record WorkerGovernanceSummaryResponse(
         long actionSucceeded,
         long actionFailed,
         long actionRejected,
+        long actionCancelled,
         long actionUnknown,
         double catchRate,
         double approvalRequiredRate,

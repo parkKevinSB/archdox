@@ -18,8 +18,10 @@ import type {
   EngineApiKey,
   EngineApiUsageEvent,
   EngineApiUsageSummary,
+  FlowerRuntimeDump,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDigestAiDraft,
   LegalDigestRefreshResult,
   LegalOpenApiStatus,
   LegalSyncRun,
@@ -628,6 +630,10 @@ export function getPlatformWorkerApprovals(token: string, limit = 50, status?: s
   });
 }
 
+export function getPlatformFlowerRuntimeDump(token: string) {
+  return request<FlowerRuntimeDump>("/api/v1/platform-admin/flower/dump", { token });
+}
+
 export function approvePlatformWorkerApproval(token: string, approvalRequestId: number, reason?: string) {
   return request<WorkerApprovalRequest>(`/api/v1/platform-admin/ops/worker-approvals/${approvalRequestId}/approve`, {
     token,
@@ -712,6 +718,13 @@ export function refreshPlatformLegalDeterministicDigests(token: string, limit = 
     token,
     method: "POST",
     query: { limit }
+  });
+}
+
+export function generatePlatformLegalDigestAiDraft(token: string, digestId: number) {
+  return request<LegalDigestAiDraft>(`/api/v1/platform-admin/legal/change-digests/${digestId}/ai-draft`, {
+    token,
+    method: "POST"
   });
 }
 

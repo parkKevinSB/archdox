@@ -28,6 +28,7 @@ public class RecordArchDoxWorkerResultStep extends Step {
             case SUCCEEDED -> ArchDoxWorkerTraceEventType.ACTION_SUCCEEDED;
             case PENDING_APPROVAL -> ArchDoxWorkerTraceEventType.APPROVAL_REQUIRED;
             case REJECTED -> ArchDoxWorkerTraceEventType.ACTION_REJECTED;
+            case CANCELLED -> ArchDoxWorkerTraceEventType.ACTION_CANCELLED;
             case FAILED -> ArchDoxWorkerTraceEventType.ACTION_FAILED;
         };
         traceSink.record(ArchDoxWorkerTraceEvent.of(

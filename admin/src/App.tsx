@@ -51,6 +51,7 @@ import {
   detectPlatformStuckHealth,
   disablePlatformAiPricingRule,
   downloadDocumentTemplateRevisionContent,
+  generatePlatformLegalDigestAiDraft,
   getAgentCommands,
   getAgentSessions,
   getAgents,
@@ -83,6 +84,7 @@ import {
   getPlatformEngineApiKeys,
   getPlatformEngineUsageEvents,
   getPlatformEngineUsageSummary,
+  getPlatformFlowerRuntimeDump,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
   getPlatformLegalOpenApiStatus,
@@ -139,9 +141,13 @@ import type {
   EngineApiKey,
   EngineApiUsageEvent,
   EngineApiUsageSummary,
+  FlowerRuntimeDump,
+  FlowerRuntimeFlow,
+  FlowerRuntimeWorker,
   LegalArticleDiff,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDigestAiDraft,
   LegalOpenApiStatus,
   LegalSyncRun,
   MeResponse,
@@ -203,6 +209,7 @@ type ViewKey =
   | "platform-engine-keys"
   | "platform-worker-governance"
   | "platform-worker-approvals"
+  | "platform-flower-runtime"
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
@@ -228,6 +235,7 @@ type PlatformViewKey = Extract<
   | "platform-engine-keys"
   | "platform-worker-governance"
   | "platform-worker-approvals"
+  | "platform-flower-runtime"
   | "platform-events"
 >;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
@@ -273,6 +281,7 @@ type PlatformOpsData = {
   engineApiUsageEvents: EngineApiUsageEvent[];
   workerGovernance: WorkerGovernanceSummary | null;
   workerApprovals: WorkerApprovalRequest[];
+  flowerRuntimeDump: FlowerRuntimeDump | null;
   aiProviders: AiProviderCredential[];
   officeAiPolicies: OfficeAiPolicy[];
   aiCallLogs: AiModelCallLog[];
@@ -320,6 +329,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   engineApiUsageEvents: [],
   workerGovernance: null,
   workerApprovals: [],
+  flowerRuntimeDump: null,
   aiProviders: [],
   officeAiPolicies: [],
   aiCallLogs: [],
@@ -358,7 +368,8 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-legal", label: "법령" },
   { key: "platform-engine-keys", label: "Engine API Key" },
   { key: "platform-worker-governance", label: "Worker 통제" },
-  { key: "platform-worker-approvals", label: "Worker 승인" }
+  { key: "platform-worker-approvals", label: "Worker 승인" },
+  { key: "platform-flower-runtime", label: "Flower Runtime" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -526,6 +537,7 @@ export default function App() {
   const [platformChecked, setPlatformChecked] = useState(false);
   const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
   const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
+  const [legalDigestAiDrafts, setLegalDigestAiDrafts] = useState<Record<number, LegalDigestAiDraft>>({});
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -834,6 +846,8 @@ export default function App() {
         next.workerGovernance = await getPlatformWorkerGovernance(token, 7, 30);
       } else if (view === "platform-worker-approvals") {
         next.workerApprovals = await getPlatformWorkerApprovals(token, 50);
+      } else if (view === "platform-flower-runtime") {
+        next.flowerRuntimeDump = await getPlatformFlowerRuntimeDump(token);
       } else if (view === "ai-overview") {
         const [aiProviders, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings] = await Promise.all([
           getPlatformAiProviders(token),
@@ -874,6 +888,26 @@ export default function App() {
       setError(err instanceof Error ? err.message : "플랫폼 데이터를 불러오지 못했습니다.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshPlatformFlowerRuntime(silent = false) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+    try {
+      const flowerRuntimeDump = await getPlatformFlowerRuntimeDump(auth.accessToken);
+      setPlatformData((current) => ({ ...current, flowerRuntimeDump }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Flower Runtime 상태를 불러오지 못했습니다.");
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }
 
@@ -921,6 +955,22 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항 요약을 재생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPlatformLegalDigestAiDraft(digestId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const draft = await generatePlatformLegalDigestAiDraft(auth.accessToken, digestId);
+      setLegalDigestAiDrafts((current) => ({ ...current, [digestId]: draft }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 변경사항 AI 초안을 생성하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1516,6 +1566,9 @@ export default function App() {
               onRefresh={refreshPlatform}
               lastDetection={lastPlatformDetection}
               onDetectStuck={runPlatformDetection}
+              legalDigestAiDrafts={legalDigestAiDrafts}
+              onFlowerRuntimeRefresh={refreshPlatformFlowerRuntime}
+              onLegalDigestAiDraft={runPlatformLegalDigestAiDraft}
               onLegalOpenDataSync={runPlatformLegalOpenDataSync}
               onLegalDigestRefresh={runPlatformLegalDigestRefresh}
               issuedEngineApiKey={issuedEngineApiKey}
@@ -3682,17 +3735,22 @@ type LegalAdminTabKey = "SYNC" | "DIGESTS" | "CHANGE_SETS";
 
 function PlatformLegalAdminPanel({
   data,
+  legalDigestAiDrafts,
   loading,
+  onLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh
 }: {
   data: PlatformOpsData;
+  legalDigestAiDrafts: Record<number, LegalDigestAiDraft>;
   loading: boolean;
+  onLegalDigestAiDraft: (digestId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
 }) {
   const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
   const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId) ?? null;
+  const selectedAiDraft = selectedDigest ? legalDigestAiDrafts[selectedDigest.id] ?? null : null;
   const [activeTab, setActiveTab] = useState<LegalAdminTabKey>("SYNC");
   const tabs: Array<{ key: LegalAdminTabKey; label: string; count?: number }> = [
     { key: "SYNC", label: "동기화", count: data.legalSyncRuns.length },
@@ -3812,13 +3870,19 @@ function PlatformLegalAdminPanel({
             title="법령 변경사항 상세"
             icon={<FileText size={18} />}
             action={
-              <button className="button compact" onClick={() => setSelectedDigestId(null)} type="button">
-                <ArrowLeft size={15} />
-                목록으로
-              </button>
+              <div className="panel-action-row">
+                <button className="button compact" disabled={loading} onClick={() => onLegalDigestAiDraft(selectedDigest.id)} type="button">
+                  {loading ? <Loader2 className="spin" size={15} /> : <FileText size={15} />}
+                  AI 초안 생성
+                </button>
+                <button className="button compact" onClick={() => setSelectedDigestId(null)} type="button">
+                  <ArrowLeft size={15} />
+                  목록으로
+                </button>
+              </div>
             }
           >
-            <LegalDigestDetail digest={selectedDigest} />
+            <LegalDigestDetail aiDraft={selectedAiDraft} digest={selectedDigest} />
           </Panel>
         ) : (
           <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
@@ -3862,7 +3926,7 @@ function PlatformLegalAdminPanel({
   );
 }
 
-function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
+function LegalDigestDetail({ aiDraft, digest }: { aiDraft?: LegalDigestAiDraft | null; digest: LegalChangeDigest | null }) {
   if (!digest) {
     return <EmptyState message="선택된 법령 변경사항이 없습니다." />;
   }
@@ -3899,6 +3963,32 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
         <p>{digest.impactSummary ?? "아직 업무 영향 요약이 작성되지 않았습니다."}</p>
       </section>
 
+      {aiDraft ? (
+        <section className="legal-ai-draft">
+          <div className="legal-ai-draft-header">
+            <div>
+              <h3>AI 초안</h3>
+              <strong>{aiDraft.title}</strong>
+            </div>
+            <div className="legal-ai-draft-badges">
+              <StatusBadge status={aiDraft.digestDraftStatus} />
+              <StatusBadge status={aiDraft.confidence} />
+            </div>
+          </div>
+          <p>{aiDraft.summary}</p>
+          <p>{aiDraft.impactSummary}</p>
+          <div className="legal-ai-draft-meta">
+            <span>Harness {aiDraft.aiHarnessRunId || "-"}</span>
+            <span>Worker {aiDraft.workerStatus}</span>
+            <span>{aiDraft.publicationApplied ? "게시 반영됨" : "미게시"}</span>
+          </div>
+          <LegalDigestDraftList label="관련 문서" values={aiDraft.affectedReportTypes} />
+          <LegalDigestDraftList label="관련 카탈로그" values={aiDraft.affectedCatalogItems} />
+          <LegalDigestDraftList label="근거 조문" values={aiDraft.keyArticles} />
+          {aiDraft.reviewNotes ? <p>{aiDraft.reviewNotes}</p> : null}
+        </section>
+      ) : null}
+
       <section>
         <h3>조문별 변경</h3>
         {articleDiffs.length === 0 ? (
@@ -3929,6 +4019,22 @@ function LegalDigestDetail({ digest }: { digest: LegalChangeDigest | null }) {
         )}
       </section>
     </article>
+  );
+}
+
+function LegalDigestDraftList({ label, values }: { label: string; values: string[] }) {
+  if (!values.length) {
+    return null;
+  }
+  return (
+    <div className="legal-ai-draft-list">
+      <span>{label}</span>
+      <div>
+        {values.map((value) => (
+          <em key={value}>{value}</em>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -4068,6 +4174,9 @@ function PlatformView({
   onRefresh,
   lastDetection,
   onDetectStuck,
+  legalDigestAiDrafts,
+  onFlowerRuntimeRefresh,
+  onLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh,
   issuedEngineApiKey,
@@ -4085,6 +4194,9 @@ function PlatformView({
   onRefresh: () => void;
   lastDetection: PlatformHealthDetection | null;
   onDetectStuck: () => void;
+  legalDigestAiDrafts: Record<number, LegalDigestAiDraft>;
+  onFlowerRuntimeRefresh: (silent?: boolean) => Promise<void>;
+  onLegalDigestAiDraft: (digestId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
@@ -4132,6 +4244,7 @@ function PlatformView({
   const showEngineKeys = view === "platform-engine-keys";
   const showWorkerGovernance = view === "platform-worker-governance";
   const showWorkerApprovals = view === "platform-worker-approvals";
+  const showFlowerRuntime = view === "platform-flower-runtime";
   const showEvents = view === "platform-events";
 
   return (
@@ -4168,7 +4281,9 @@ function PlatformView({
       {showLegal ? (
         <PlatformLegalAdminPanel
           data={data}
+          legalDigestAiDrafts={legalDigestAiDrafts}
           loading={loading}
+          onLegalDigestAiDraft={onLegalDigestAiDraft}
           onLegalDigestRefresh={onLegalDigestRefresh}
           onLegalOpenDataSync={onLegalOpenDataSync}
         />
@@ -4199,6 +4314,14 @@ function PlatformView({
           busy={loading}
           onApprove={onApproveWorkerApproval}
           onReject={onRejectWorkerApproval}
+        />
+      ) : null}
+
+      {showFlowerRuntime ? (
+        <FlowerRuntimePanel
+          dump={data.flowerRuntimeDump}
+          loading={loading}
+          onRefresh={onFlowerRuntimeRefresh}
         />
       ) : null}
 
@@ -4475,6 +4598,7 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
           <MetricCard icon={<Activity size={20} />} label="Trace" value={summary.totalTraceEvents} detail={`${formatDate(summary.from)} 이후`} tone="blue" />
           <MetricCard icon={<ShieldCheck size={20} />} label="Catch rate" value={`${summary.catchRate}%`} detail={`${summary.policyDenied + summary.actionRejected + summary.actionUnknown}건 차단`} tone={summary.catchRate > 0 ? "amber" : "green"} />
           <MetricCard icon={<Clock3 size={20} />} label="Approval" value={`${summary.approvalRequiredRate}%`} detail={`${summary.approvalRequired}건 승인 필요`} tone="slate" />
+          <MetricCard icon={<XCircle size={20} />} label="Cancel" value={summary.actionCancelled} detail="executor 실행 전 취소" tone={summary.actionCancelled > 0 ? "amber" : "green"} />
           <MetricCard icon={<AlertTriangle size={20} />} label="Failure" value={`${summary.failureRate}%`} detail={`${summary.actionFailed}건 실패`} tone={summary.actionFailed > 0 ? "red" : "green"} />
         </div>
         <InlineNotice message={summary.dataPolicy} />
@@ -4562,6 +4686,162 @@ function sortWorkerActionDefinitions(definitions: WorkerActionDefinition[]) {
     const ownerOrder = left.owner.localeCompare(right.owner);
     return ownerOrder !== 0 ? ownerOrder : left.actionType.localeCompare(right.actionType);
   });
+}
+
+function FlowerRuntimePanel({
+  dump,
+  loading,
+  onRefresh
+}: {
+  dump: FlowerRuntimeDump | null;
+  loading: boolean;
+  onRefresh: (silent?: boolean) => Promise<void>;
+}) {
+  const [polling, setPolling] = useState(false);
+  const [intervalMs, setIntervalMs] = useState(3000);
+  const activeWorkers = dump?.workers.filter((worker) => worker.activeFlowCount > 0) ?? [];
+  const activeFlows = activeWorkers.flatMap((worker) => worker.flows.map((flow) => ({ worker, flow })));
+
+  useEffect(() => {
+    if (!polling) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void onRefresh(true);
+    }, Math.max(500, intervalMs));
+    return () => window.clearInterval(id);
+  }, [intervalMs, onRefresh, polling]);
+
+  return (
+    <div className="view-stack flower-runtime-view">
+      <Panel
+        title="Flower Runtime"
+        icon={<Activity size={18} />}
+        action={
+          <div className="panel-action-row">
+            <label className="flower-runtime-interval">
+              <span>Interval</span>
+              <input
+                min={500}
+                step={500}
+                type="number"
+                value={intervalMs}
+                onChange={(event) => setIntervalMs(Math.max(500, Number(event.target.value) || 3000))}
+              />
+            </label>
+            <button
+              className={`button compact${polling ? "" : " primary"}`}
+              onClick={() => {
+                setPolling((value) => !value);
+                if (!polling) {
+                  void onRefresh(true);
+                }
+              }}
+              type="button"
+            >
+              {polling ? <XCircle size={15} /> : <Activity size={15} />}
+              {polling ? "Stop" : "Start"}
+            </button>
+            <button className="button compact" disabled={loading} onClick={() => onRefresh(false)} type="button">
+              {loading ? <Loader2 className="spin" size={15} /> : <RefreshCcw size={15} />}
+              Refresh
+            </button>
+          </div>
+        }
+      >
+        {dump ? (
+          <>
+            <div className="metric-grid compact">
+              <MetricCard icon={<Gauge size={20} />} label="Engine" value={dump.engineState} detail={formatDate(dump.capturedAt)} tone={dump.engineState === "RUNNING" ? "green" : "amber"} />
+              <MetricCard icon={<Server size={20} />} label="Workers" value={dump.workerCount} detail={`${activeWorkers.length} active`} tone="blue" />
+              <MetricCard icon={<Activity size={20} />} label="Flows" value={dump.activeFlowCount} detail="current active flows" tone={dump.activeFlowCount > 0 ? "amber" : "green"} />
+              <MetricCard icon={<Clock3 size={20} />} label="Polling" value={polling ? "ON" : "OFF"} detail={`${intervalMs}ms`} tone={polling ? "green" : "slate"} />
+            </div>
+            <Table
+              columns={["Worker", "State", "Interval", "Active flows"]}
+              empty="Flower worker가 없습니다."
+              rows={dump.workers.map((worker) => [
+                <CellTitle key="worker" title={worker.name} subtitle={worker.flows.map((flow) => flow.flowType).join(", ") || "active flow 없음"} />,
+                <StatusBadge key="state" status={worker.state} />,
+                `${worker.intervalMillis}ms`,
+                worker.activeFlowCount
+              ])}
+            />
+          </>
+        ) : (
+          <EmptyState message="Flower Runtime dump를 아직 불러오지 않았습니다." />
+        )}
+      </Panel>
+
+      <Panel title="Active Flower Flows" icon={<Command size={18} />} count={activeFlows.length}>
+        {activeFlows.length === 0 ? (
+          <InlineNotice message="현재 실행 중인 Flower flow가 없습니다." />
+        ) : (
+          <div className="flower-flow-list">
+            {activeFlows.map(({ worker, flow }) => (
+              <FlowerRuntimeFlowItem flow={flow} key={`${worker.name}:${flow.flowType}:${flow.flowKey}`} worker={worker} />
+            ))}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function FlowerRuntimeFlowItem({ flow, worker }: { flow: FlowerRuntimeFlow; worker: FlowerRuntimeWorker }) {
+  const contextPairs = flowerContextPairs(flow);
+  return (
+    <div className="flower-flow-item">
+      <div className="flower-flow-header">
+        <div>
+          <strong>{flow.flowType}</strong>
+          <span>{flow.flowKey}</span>
+        </div>
+        <div className="flower-flow-badges">
+          <StatusBadge status={flow.state} />
+          <StatusBadge status={worker.name} />
+        </div>
+      </div>
+
+      <div className="flower-flow-context">
+        <span>current {flow.currentStepId ?? "-"}</span>
+        <span>step #{flow.currentStepNo}</span>
+        {contextPairs.map(([label, value]) => (
+          <span key={label}>{label} {value}</span>
+        ))}
+      </div>
+
+      {flow.failureType || flow.failureMessage ? (
+        <InlineNotice message={`${flow.failureType || "Flow failure"} ${flow.failureMessage || ""}`.trim()} />
+      ) : null}
+
+      <div className="flower-step-list">
+        {flow.steps.map((step) => (
+          <div className={`flower-step-pill${step.current ? " current" : ""}`} key={`${flow.flowKey}:${step.stepId}`}>
+            <span>{step.index + 1}</span>
+            <strong>{step.stepId}</strong>
+            <em>{step.stepType}</em>
+            <small>
+              {step.guarded ? "guarded" : "unguarded"} / {step.recoverable ? "recoverable" : "plain"}
+              {step.recoveryPolicy ? ` / ${step.recoveryPolicy}` : ""}
+            </small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function flowerContextPairs(flow: FlowerRuntimeFlow) {
+  const context = flow.executionContext ?? {};
+  return [
+    ["tenant", context.tenantId],
+    ["user", context.userId],
+    ["session", context.sessionId],
+    ["run", context.runId],
+    ["trace", context.traceId],
+    ["corr", context.correlationId]
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 }
 
 function WorkerApprovalPanel({
@@ -6955,10 +7235,10 @@ function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
 }
 
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED"].includes(status)) {
     return "green";
   }
-  if (["REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW"].includes(status)) {
+  if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW"].includes(status)) {
     return "amber";
   }
   if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL"].includes(status)) {

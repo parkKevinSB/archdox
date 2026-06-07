@@ -148,6 +148,14 @@ archdox:
       delivery-stuck-minutes: ${PLATFORM_HEALTH_DELIVERY_STUCK_MINUTES:15}
       max-detected-items: ${PLATFORM_HEALTH_MAX_DETECTED_ITEMS:100}
   legal:
+    ai:
+      digest:
+        enabled: ${LEGAL_DIGEST_AI_ENABLED:false}
+        provider-code: ${LEGAL_DIGEST_AI_PROVIDER_CODE:}
+        model: ${LEGAL_DIGEST_AI_MODEL:}
+        max-attempts: ${LEGAL_DIGEST_AI_MAX_ATTEMPTS:2}
+        timeout-seconds: ${LEGAL_DIGEST_AI_TIMEOUT_SECONDS:90}
+        worker-interval-ms: ${LEGAL_DIGEST_AI_WORKER_INTERVAL_MS:250}
     sync:
       worker-interval-ms: ${LEGAL_SYNC_WORKER_INTERVAL_MS:250}
       open-api:

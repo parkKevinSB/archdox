@@ -65,6 +65,7 @@ public class WorkerGovernanceReadService {
         var actionSucceeded = count(eventCounts, "ACTION_SUCCEEDED");
         var actionFailed = count(eventCounts, "ACTION_FAILED");
         var actionRejected = count(eventCounts, "ACTION_REJECTED");
+        var actionCancelled = count(eventCounts, "ACTION_CANCELLED");
         var actionUnknown = count(eventCounts, "ACTION_UNKNOWN");
         var totalTraceEvents = eventCounts.values().stream().mapToLong(Long::longValue).sum();
         var recentEvents = eventRepository.searchPlatformEvents(
@@ -91,6 +92,7 @@ public class WorkerGovernanceReadService {
                 actionSucceeded,
                 actionFailed,
                 actionRejected,
+                actionCancelled,
                 actionUnknown,
                 ratio(policyDenied + actionRejected + actionUnknown, requestReceived),
                 ratio(approvalRequired, requestReceived),

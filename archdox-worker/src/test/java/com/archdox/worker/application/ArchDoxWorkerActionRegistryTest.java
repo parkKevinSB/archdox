@@ -50,14 +50,15 @@ class ArchDoxWorkerActionRegistryTest {
     }
 
     @Test
-    void legal_digest_enrichment_action_is_declared_but_not_enabled_until_executor_is_wired() {
+    void legal_digest_enrichment_action_is_enabled_for_dry_run_worker_execution() {
         var registry = new ArchDoxWorkerActionRegistry(List.of());
 
         var definition = registry.definition(ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST);
 
         assertThat(definition).isPresent();
-        assertThat(definition.get().enabled()).isFalse();
-        assertThat(definition.get().requiresApprovalByDefault()).isTrue();
+        assertThat(definition.get().enabled()).isTrue();
+        assertThat(definition.get().readOnly()).isTrue();
+        assertThat(definition.get().requiresApprovalByDefault()).isFalse();
         assertThat(definition.get().supportsDryRun()).isTrue();
         assertThat(definition.get().requiredContextFields()).containsExactly("userId");
         assertThat(registry.resolve(ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST)).isEmpty();

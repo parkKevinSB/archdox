@@ -15,6 +15,7 @@ public class AiFakeResponseFactory {
     private static final String REPORT_PREFLIGHT_PROMPT = "archdox-report-preflight";
     private static final String OPS_DIAGNOSIS_PROMPT = "archdox-ops-diagnosis";
     private static final String CONVERSATION_PLANNER_PROMPT = "archdox-conversation-planner";
+    private static final String LEGAL_DIGEST_PROMPT = "archdox-legal-digest";
     private static final Pattern USER_MESSAGE_PATTERN = Pattern.compile("\\\"userMessage\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"");
 
     public AiModelResponse create(AiModelRequest request, long latencyMs) {
@@ -23,6 +24,7 @@ public class AiFakeResponseFactory {
             case REPORT_PREFLIGHT_PROMPT -> reportPreflightResponse();
             case OPS_DIAGNOSIS_PROMPT -> opsDiagnosisResponse();
             case CONVERSATION_PLANNER_PROMPT -> conversationPlannerResponse(request);
+            case LEGAL_DIGEST_PROMPT -> legalDigestResponse();
             default -> defaultPassResponse();
         };
         return new AiModelResponse(
@@ -99,6 +101,22 @@ public class AiFakeResponseFactory {
                       "suggestedAction": "MANUAL_INVESTIGATION"
                     }
                   ]
+                }
+                """;
+    }
+
+    private String legalDigestResponse() {
+        return """
+                {
+                  "status": "NEEDS_HUMAN_REVIEW",
+                  "title": "Development legal change digest draft",
+                  "summary": "Development fake AI summarized the legal change set using only the provided legal corpus context.",
+                  "impactSummary": "Review whether construction supervision report templates, checklist catalog items, and site evidence guidance need an update.",
+                  "confidence": "MEDIUM",
+                  "affectedReportTypes": ["CONSTRUCTION_DAILY_SUPERVISION_LOG", "CONSTRUCTION_SUPERVISION_REPORT"],
+                  "affectedCatalogItems": ["CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT"],
+                  "keyArticles": ["SOURCE_BACKED_SAMPLE"],
+                  "reviewNotes": "Development-only draft. A platform admin must review and approve before publishing."
                 }
                 """;
     }

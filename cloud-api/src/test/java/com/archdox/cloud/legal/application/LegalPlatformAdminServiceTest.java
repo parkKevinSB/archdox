@@ -23,9 +23,23 @@ import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalChangeSetRepository;
 import com.archdox.cloud.legal.infra.LegalSyncRunRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
+import com.archdox.cloud.worker.ArchDoxWorkerServiceWorker;
+import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
+import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
+import com.archdox.worker.application.ArchDoxWorkerExecutionContext;
+import com.archdox.worker.application.ArchDoxWorkerPolicyGate;
+import com.archdox.worker.application.ArchDoxWorkerTraceSink;
+import com.archdox.worker.domain.ArchDoxWorkerActionResult;
+import com.archdox.worker.domain.ArchDoxWorkerActionType;
+import com.archdox.worker.flow.ArchDoxWorkerExecutionFlowFactory;
+import io.github.parkkevinsb.flower.core.engine.Engine;
+import io.github.parkkevinsb.flower.core.flow.Flow;
+import io.github.parkkevinsb.flower.core.worker.Worker;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +59,9 @@ class LegalPlatformAdminServiceTest {
     private final LegalUpdateReadService updateReadService = mock(LegalUpdateReadService.class);
     private final LegalSyncProperties legalSyncProperties = new LegalSyncProperties();
     private final LegalChangeDigestService changeDigestService = mock(LegalChangeDigestService.class);
+    private final ArchDoxWorkerExecutionFlowFactory workerFlowFactory = mock(ArchDoxWorkerExecutionFlowFactory.class);
+    private final ArchDoxWorkerServiceWorker workerServiceWorker = mock(ArchDoxWorkerServiceWorker.class);
+    private final LegalDigestAiProperties legalDigestAiProperties = new LegalDigestAiProperties();
     private final LegalPlatformAdminService service = new LegalPlatformAdminService(
             platformAdminService,
             syncService,
@@ -57,7 +74,10 @@ class LegalPlatformAdminServiceTest {
             changeDigestRepository,
             updateReadService,
             legalSyncProperties,
-            changeDigestService);
+            changeDigestService,
+            workerFlowFactory,
+            workerServiceWorker,
+            legalDigestAiProperties);
 
     @Test
     void changeDigestsExcludeFakeSource() {
@@ -129,6 +149,48 @@ class LegalPlatformAdminServiceTest {
         verifyNoInteractions(syncService, flowFactory, worker, syncRunRepository, updateReadService);
     }
 
+    @Test
+    void generateDigestAiDraftRunsArchDoxWorkerDryRunAndReturnsDraft() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        setId(digest, 1L);
+        when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
+        var properties = new LegalDigestAiProperties();
+        properties.setTimeoutSeconds(10);
+        var draftService = new LegalPlatformAdminService(
+                platformAdminService,
+                syncService,
+                flowFactory,
+                worker,
+                syncRunRepository,
+                actRepository,
+                changeSetRepository,
+                articleDiffRepository,
+                changeDigestRepository,
+                updateReadService,
+                legalSyncProperties,
+                changeDigestService,
+                new ArchDoxWorkerExecutionFlowFactory(
+                        new ArchDoxWorkerActionRegistry(List.of(aiDraftExecutor())),
+                        ArchDoxWorkerPolicyGate.allowAll(),
+                        ArchDoxWorkerTraceSink.noop()),
+                new DirectWorker(),
+                properties);
+
+        var result = draftService.generateDigestAiDraft(principal, 1L);
+
+        assertThat(result.digestId()).isEqualTo(1L);
+        assertThat(result.changeSetId()).isEqualTo(10L);
+        assertThat(result.dryRun()).isTrue();
+        assertThat(result.publicationApplied()).isFalse();
+        assertThat(result.corpusMutated()).isFalse();
+        assertThat(result.digestMutated()).isFalse();
+        assertThat(result.title()).isEqualTo("AI draft title");
+        assertThat(result.keyArticles()).containsExactly("0025001");
+        verify(platformAdminService).requirePlatformAdmin(principal);
+    }
+
     private LegalChangeSet changeSet(Long id, Long actId, OffsetDateTime now) throws Exception {
         var changeSet = new LegalChangeSet(
                 actId,
@@ -164,5 +226,64 @@ class LegalPlatformAdminServiceTest {
         Field field = target.getClass().getDeclaredField("id");
         field.setAccessible(true);
         field.set(target, id);
+    }
+
+    private ArchDoxWorkerActionExecutor aiDraftExecutor() {
+        return new ArchDoxWorkerActionExecutor() {
+            @Override
+            public ArchDoxWorkerActionType actionType() {
+                return ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST;
+            }
+
+            @Override
+            public ArchDoxWorkerActionResult execute(ArchDoxWorkerExecutionContext context) {
+                assertThat(context.action().payload())
+                        .containsEntry("digestId", 1L)
+                        .containsEntry("changeSetId", 10L)
+                        .containsEntry("dryRun", true);
+                var output = new LinkedHashMap<String, Object>();
+                output.put("dryRun", true);
+                output.put("publicationApplied", false);
+                output.put("corpusMutated", false);
+                output.put("digestMutated", false);
+                output.put("workerRequestId", context.request().requestId().toString());
+                output.put("digestId", 1L);
+                output.put("changeSetId", 10L);
+                output.put("aiHarnessRunId", "ai-run-1");
+                output.put("digestDraftStatus", "NEEDS_HUMAN_REVIEW");
+                output.put("title", "AI draft title");
+                output.put("summary", "AI draft summary");
+                output.put("impactSummary", "AI impact");
+                output.put("confidence", "MEDIUM");
+                output.put("affectedReportTypes", List.of("CONSTRUCTION_DAILY_SUPERVISION_LOG"));
+                output.put("affectedCatalogItems", List.of("CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT"));
+                output.put("keyArticles", List.of("0025001"));
+                output.put("reviewNotes", "Admin review required");
+                return ArchDoxWorkerActionResult.succeeded(output);
+            }
+        };
+    }
+
+    private static final class DirectWorker extends ArchDoxWorkerServiceWorker {
+        private DirectWorker() {
+            super(null);
+        }
+
+        @Override
+        public boolean submitAndAwait(Flow flow, Duration timeout) {
+            var worker = Worker.builder("archdox-worker-test").build();
+            Engine.builder()
+                    .worker(worker)
+                    .build()
+                    .attach();
+            worker.submit(flow);
+            for (var i = 0; i < 10; i++) {
+                worker.tickOnce();
+                if (flow.state().isTerminal()) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

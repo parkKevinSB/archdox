@@ -15,6 +15,7 @@ import com.archdox.cloud.operation.domain.OperationEvent;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformadmin.domain.PlatformAdmin;
+import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class WorkerGovernanceReadServiceTest {
     private final WorkerGovernanceReadService service = new WorkerGovernanceReadService(
             platformAdminService,
             eventRepository,
-            operationEventService);
+            operationEventService,
+            new ArchDoxWorkerActionRegistry(List.of()));
     private final UserPrincipal principal = new UserPrincipal(7L, "platform@test.co.kr");
 
     @Test
@@ -40,6 +42,7 @@ class WorkerGovernanceReadServiceTest {
                         eventType("ARCHDOX_WORKER_POLICY_DENIED", 2L),
                         eventType("ARCHDOX_WORKER_APPROVAL_REQUIRED", 1L),
                         eventType("ARCHDOX_WORKER_ACTION_SUCCEEDED", 6L),
+                        eventType("ARCHDOX_WORKER_ACTION_CANCELLED", 3L),
                         eventType("ARCHDOX_WORKER_ACTION_FAILED", 1L)));
         when(eventRepository.summarizeWorkerActionEvents(eq(3L), any(OffsetDateTime.class), any(OffsetDateTime.class)))
                 .thenReturn(List.of(actionEvent("CREATE_REPORT", "ARCHDOX_WORKER_POLICY_DENIED", 2L)));
@@ -63,6 +66,7 @@ class WorkerGovernanceReadServiceTest {
         assertThat(summary.approvalRequired()).isEqualTo(1);
         assertThat(summary.actionSucceeded()).isEqualTo(6);
         assertThat(summary.actionFailed()).isEqualTo(1);
+        assertThat(summary.actionCancelled()).isEqualTo(3);
         assertThat(summary.catchRate()).isEqualTo(20.0);
         assertThat(summary.approvalRequiredRate()).isEqualTo(10.0);
         assertThat(summary.failureRate()).isEqualTo(14.29);

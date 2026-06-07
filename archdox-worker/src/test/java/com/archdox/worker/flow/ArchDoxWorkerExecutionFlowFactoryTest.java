@@ -4,6 +4,7 @@ import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
 import com.archdox.worker.application.ArchDoxWorkerExecutionContext;
 import com.archdox.worker.application.ArchDoxWorkerPolicyGate;
+import com.archdox.worker.application.ArchDoxWorkerRunControlDecision;
 import com.archdox.worker.application.ArchDoxWorkerTraceEvent;
 import com.archdox.worker.application.ArchDoxWorkerTraceEventType;
 import com.archdox.worker.application.ArchDoxWorkerTraceSink;
@@ -43,6 +44,11 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
                 sink
         ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
         var worker = attachedWorker();
+
+        assertThat(flow.snapshot().executionContext().tenantId()).contains("20");
+        assertThat(flow.snapshot().executionContext().userId()).contains("10");
+        assertThat(flow.snapshot().executionContext().runId()).isPresent();
+        assertThat(flow.snapshot().executionContext().correlationId()).isPresent();
 
         worker.submit(flow);
         tickUntilTerminal(worker, flow);
@@ -106,6 +112,86 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
                 ArchDoxWorkerTraceEventType.POLICY_DENIED,
                 ArchDoxWorkerTraceEventType.ACTION_REJECTED);
         assertThat(sink.events().getLast().attributes()).containsEntry("status", "REJECTED");
+    }
+
+    @Test
+    void policy_approval_requirement_prevents_execution() {
+        var executions = new AtomicInteger();
+        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW, context -> {
+            executions.incrementAndGet();
+            return ArchDoxWorkerActionResult.succeeded(Map.of());
+        });
+        var sink = new RecordingTraceSink();
+        var flow = new ArchDoxWorkerExecutionFlowFactory(
+                new ArchDoxWorkerActionRegistry(List.of(executor)),
+                (request, action) -> ArchDoxWorkerPolicyDecision.requireApproval(
+                        "APPROVAL_REQUIRED_BY_TEST",
+                        "Approval required by test policy"),
+                sink
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
+        var worker = attachedWorker();
+
+        worker.submit(flow);
+        tickUntilTerminal(worker, flow);
+
+        assertThat(flow.state()).isEqualTo(FlowState.FINISHED);
+        assertThat(executions).hasValue(0);
+        assertThat(sink.eventTypes()).contains(ArchDoxWorkerTraceEventType.APPROVAL_REQUIRED);
+        assertThat(sink.events().getLast().attributes()).containsEntry("status", "PENDING_APPROVAL");
+    }
+
+    @Test
+    void run_control_cancels_after_policy_and_before_execution() {
+        var executions = new AtomicInteger();
+        var executor = new StubExecutor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW, context -> {
+            executions.incrementAndGet();
+            return ArchDoxWorkerActionResult.succeeded(Map.of());
+        });
+        var sink = new RecordingTraceSink();
+        var handle = new ArchDoxWorkerExecutionFlowFactory(
+                new ArchDoxWorkerActionRegistry(List.of(executor)),
+                ArchDoxWorkerPolicyGate.allowAll(),
+                (request, action, definition) -> ArchDoxWorkerRunControlDecision.cancel(
+                        "ARCHDOX_WORKER_ACTION_CANCELLED_BEFORE_EXECUTION",
+                        "Worker action was cancelled before execution."),
+                sink
+        ).createHandle(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
+        var flow = handle.flow();
+        var worker = attachedWorker();
+
+        worker.submit(flow);
+        tickUntilTerminal(worker, flow);
+
+        assertThat(flow.state()).isEqualTo(FlowState.FINISHED);
+        assertThat(handle.result().status().name()).isEqualTo("CANCELLED");
+        assertThat(executions).hasValue(0);
+        assertThat(sink.eventTypes()).containsSequence(
+                ArchDoxWorkerTraceEventType.REQUEST_RECEIVED,
+                ArchDoxWorkerTraceEventType.POLICY_ALLOWED,
+                ArchDoxWorkerTraceEventType.ACTION_CANCELLED);
+        assertThat(sink.eventTypes()).doesNotContain(ArchDoxWorkerTraceEventType.ACTION_STARTED);
+        assertThat(sink.events().getLast().attributes()).containsEntry("status", "CANCELLED");
+    }
+
+    @Test
+    void failed_executor_result_is_still_recorded_as_failed() {
+        var executor = new StubExecutor(
+                ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW,
+                context -> ArchDoxWorkerActionResult.failed("FAILED_BY_TEST", "Failed by test executor"));
+        var sink = new RecordingTraceSink();
+        var flow = new ArchDoxWorkerExecutionFlowFactory(
+                new ArchDoxWorkerActionRegistry(List.of(executor)),
+                ArchDoxWorkerPolicyGate.allowAll(),
+                sink
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
+        var worker = attachedWorker();
+
+        worker.submit(flow);
+        tickUntilTerminal(worker, flow);
+
+        assertThat(flow.state()).isEqualTo(FlowState.FINISHED);
+        assertThat(sink.eventTypes()).contains(ArchDoxWorkerTraceEventType.ACTION_FAILED);
+        assertThat(sink.events().getLast().attributes()).containsEntry("status", "FAILED");
     }
 
     private static Worker attachedWorker() {
