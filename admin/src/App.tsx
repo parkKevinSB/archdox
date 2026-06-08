@@ -34,6 +34,7 @@ import {
   acceptOfficeInvitation,
   addOfficeMember,
   applyPlatformLegalDigestAiDraft,
+  approvePlatformLegalDigestAiDraft,
   archiveProject,
   approvePlatformWorkerApproval,
   cancelOfficeInvitation,
@@ -111,6 +112,7 @@ import {
   refreshPlatformLegalDeterministicDigests,
   removeProjectAssignment,
   rejectPlatformWorkerApproval,
+  rejectPlatformLegalDigestAiDraft,
   revokePlatformEngineApiKey,
   signup,
   startPlatformLegalOpenDataSync,
@@ -467,8 +469,10 @@ const statusLabels: Record<string, string> = {
   EXPIRED: "만료",
   FAILED: "실패",
   GENERATED: "생성 완료",
-  NEEDS_HUMAN_REVIEW: "검토 필요",
-  APPLIED: "적용됨",
+  NEEDS_HUMAN_REVIEW: "검토 대기",
+  APPROVED: "승인됨",
+  REJECTED: "반려됨",
+  APPLIED: "게시 반영됨",
   GENERATING: "생성 중",
   SUCCEEDED: "성공",
   HIGH: "높음",
@@ -527,6 +531,10 @@ const codeLabels: Record<string, string> = {
   DOCUMENT_RENDER: "문서 생성",
   DOWNLOAD: "다운로드",
   IN_FLIGHT: "진행 중",
+  NEEDS_HUMAN_REVIEW: "검토 대기",
+  APPROVED: "승인됨",
+  REJECTED: "반려됨",
+  APPLIED: "게시 반영됨",
   LEGAL: "법령",
   LOCAL_OFFICE: "사무소 로컬",
   MANUAL_DIAGNOSIS: "수동 진단",
@@ -1031,6 +1039,47 @@ export default function App() {
       setPlatformData((current) => ({ ...current, legalChangeDigests }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI 초안을 게시 요약에 적용하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function approvePlatformLegalDigestAiDraftFromUi(digestId: number, draftId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const approved = await approvePlatformLegalDigestAiDraft(auth.accessToken, digestId, draftId);
+      setLegalDigestAiDrafts((current) => ({
+        ...current,
+        [digestId]: (current[digestId] ?? []).map((draft) => (draft.id === draftId ? approved : draft))
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 초안을 승인하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function rejectPlatformLegalDigestAiDraftFromUi(digestId: number, draftId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("AI 초안을 반려할까요? 반려된 초안은 게시 요약에 적용할 수 없습니다.")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const rejected = await rejectPlatformLegalDigestAiDraft(auth.accessToken, digestId, draftId);
+      setLegalDigestAiDrafts((current) => ({
+        ...current,
+        [digestId]: (current[digestId] ?? []).map((draft) => (draft.id === draftId ? rejected : draft))
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 초안을 반려하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1655,6 +1704,8 @@ export default function App() {
               onFlowerRuntimeRefresh={refreshPlatformFlowerRuntime}
               onLegalDigestAiDraft={runPlatformLegalDigestAiDraft}
               onLoadLegalDigestAiDrafts={loadPlatformLegalDigestAiDrafts}
+              onApproveLegalDigestAiDraft={approvePlatformLegalDigestAiDraftFromUi}
+              onRejectLegalDigestAiDraft={rejectPlatformLegalDigestAiDraftFromUi}
               onApplyLegalDigestAiDraft={applyPlatformLegalDigestAiDraftFromUi}
               onLegalOpenDataSync={runPlatformLegalOpenDataSync}
               onLegalDigestRefresh={runPlatformLegalDigestRefresh}
@@ -3828,6 +3879,8 @@ function PlatformLegalAdminPanel({
   loading,
   onLegalDigestAiDraft,
   onLoadLegalDigestAiDrafts,
+  onApproveLegalDigestAiDraft,
+  onRejectLegalDigestAiDraft,
   onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh
@@ -3837,6 +3890,8 @@ function PlatformLegalAdminPanel({
   loading: boolean;
   onLegalDigestAiDraft: (digestId: number) => void;
   onLoadLegalDigestAiDrafts: (digestId: number) => void;
+  onApproveLegalDigestAiDraft: (digestId: number, draftId: number) => void;
+  onRejectLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
@@ -3983,6 +4038,8 @@ function PlatformLegalAdminPanel({
               aiDrafts={selectedAiDrafts}
               digest={selectedDigest}
               loading={loading}
+              onApproveAiDraft={(draftId) => onApproveLegalDigestAiDraft(selectedDigest.id, draftId)}
+              onRejectAiDraft={(draftId) => onRejectLegalDigestAiDraft(selectedDigest.id, draftId)}
               onApplyAiDraft={(draftId) => onApplyLegalDigestAiDraft(selectedDigest.id, draftId)}
             />
           </Panel>
@@ -4032,11 +4089,15 @@ function LegalDigestDetail({
   aiDrafts,
   digest,
   loading,
+  onApproveAiDraft,
+  onRejectAiDraft,
   onApplyAiDraft
 }: {
   aiDrafts: LegalDigestAiDraft[];
   digest: LegalChangeDigest | null;
   loading: boolean;
+  onApproveAiDraft: (draftId: number) => void;
+  onRejectAiDraft: (draftId: number) => void;
   onApplyAiDraft: (draftId: number) => void;
 }) {
   if (!digest) {
@@ -4084,6 +4145,7 @@ function LegalDigestDetail({
               <strong>{legalAiDraftText(aiDraft.title)}</strong>
             </div>
             <div className="legal-ai-draft-badges">
+              <StatusBadge status={aiDraft.status} />
               <StatusBadge status={aiDraft.digestDraftStatus} />
               <StatusBadge status={aiDraft.confidence} />
             </div>
@@ -4093,21 +4155,28 @@ function LegalDigestDetail({
           <div className="legal-ai-draft-meta">
             <span>하네스 {aiDraft.aiHarnessRunId || "-"}</span>
             <span>워커 {displayLabel(aiDraft.workerStatus)}</span>
-            <span>{aiDraft.publicationApplied ? "게시 반영됨" : "미게시"}</span>
+            <span>생성 {formatDate(aiDraft.generatedAt)}</span>
+            {aiDraft.reviewedAt ? <span>검토 {formatDate(aiDraft.reviewedAt)}</span> : null}
+            <span>{aiDraft.appliedAt ? `게시 반영 ${formatDate(aiDraft.appliedAt)}` : "게시 미반영"}</span>
           </div>
           <LegalDigestDraftList label="관련 문서" values={aiDraft.affectedReportTypes} />
           <LegalDigestDraftList label="관련 카탈로그" values={aiDraft.affectedCatalogItems} />
           <LegalDigestDraftList label="근거 조문" values={aiDraft.keyArticles} />
           {aiDraft.reviewNotes ? <p>{legalAiDraftText(aiDraft.reviewNotes)}</p> : null}
-          {aiDraft.status === "GENERATED" ? (
-            <div className="legal-ai-draft-actions">
-              <button className="button compact primary" disabled={loading} onClick={() => onApplyAiDraft(aiDraft.id)} type="button">
-                {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                게시 요약에 적용
-              </button>
-            </div>
-          ) : null}
-          <LegalDigestAiDraftHistory drafts={aiDrafts} loading={loading} onApply={onApplyAiDraft} />
+          <LegalDigestAiDraftActions
+            draft={aiDraft}
+            loading={loading}
+            onApply={onApplyAiDraft}
+            onApprove={onApproveAiDraft}
+            onReject={onRejectAiDraft}
+          />
+          <LegalDigestAiDraftHistory
+            drafts={aiDrafts}
+            loading={loading}
+            onApply={onApplyAiDraft}
+            onApprove={onApproveAiDraft}
+            onReject={onRejectAiDraft}
+          />
         </section>
       ) : null}
 
@@ -4147,11 +4216,15 @@ function LegalDigestDetail({
 function LegalDigestAiDraftHistory({
   drafts,
   loading,
-  onApply
+  onApply,
+  onApprove,
+  onReject
 }: {
   drafts: LegalDigestAiDraft[];
   loading: boolean;
   onApply: (draftId: number) => void;
+  onApprove: (draftId: number) => void;
+  onReject: (draftId: number) => void;
 }) {
   if (drafts.length <= 1) {
     return null;
@@ -4168,24 +4241,67 @@ function LegalDigestAiDraftHistory({
             </div>
             <div className="legal-ai-draft-badges">
               <StatusBadge status={draft.status} />
+              <StatusBadge status={draft.digestDraftStatus} />
               <StatusBadge status={draft.confidence} />
             </div>
           </div>
           <p>{legalAiDraftText(draft.summary)}</p>
           <div className="legal-ai-draft-meta">
             <span>하네스 {draft.aiHarnessRunId || "-"}</span>
-            <span>{draft.appliedAt ? `적용됨 ${formatDate(draft.appliedAt)}` : "미적용"}</span>
+            {draft.reviewedAt ? <span>검토 {formatDate(draft.reviewedAt)}</span> : null}
+            <span>{draft.appliedAt ? `게시 반영 ${formatDate(draft.appliedAt)}` : "게시 미반영"}</span>
           </div>
-          {draft.status === "GENERATED" ? (
-            <div className="legal-ai-draft-actions">
-              <button className="button compact" disabled={loading} onClick={() => onApply(draft.id)} type="button">
-                {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                게시 요약에 적용
-              </button>
-            </div>
-          ) : null}
+          <LegalDigestAiDraftActions
+            draft={draft}
+            loading={loading}
+            onApply={onApply}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
         </div>
       ))}
+    </div>
+  );
+}
+
+function LegalDigestAiDraftActions({
+  draft,
+  loading,
+  onApply,
+  onApprove,
+  onReject
+}: {
+  draft: LegalDigestAiDraft;
+  loading: boolean;
+  onApply: (draftId: number) => void;
+  onApprove: (draftId: number) => void;
+  onReject: (draftId: number) => void;
+}) {
+  const awaitingReview = draft.status === "NEEDS_HUMAN_REVIEW" || draft.status === "GENERATED";
+  const approved = draft.status === "APPROVED";
+  if (!awaitingReview && !approved) {
+    return null;
+  }
+  return (
+    <div className="legal-ai-draft-actions">
+      {awaitingReview ? (
+        <>
+          <button className="button compact primary" disabled={loading} onClick={() => onApprove(draft.id)} type="button">
+            {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+            승인
+          </button>
+          <button className="button compact" disabled={loading} onClick={() => onReject(draft.id)} type="button">
+            <XCircle size={15} />
+            반려
+          </button>
+        </>
+      ) : null}
+      {approved ? (
+        <button className="button compact primary" disabled={loading} onClick={() => onApply(draft.id)} type="button">
+          {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+          게시 요약에 반영
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -4357,6 +4473,8 @@ function PlatformView({
   onFlowerRuntimeRefresh,
   onLegalDigestAiDraft,
   onLoadLegalDigestAiDrafts,
+  onApproveLegalDigestAiDraft,
+  onRejectLegalDigestAiDraft,
   onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh,
@@ -4379,6 +4497,8 @@ function PlatformView({
   onFlowerRuntimeRefresh: (silent?: boolean) => Promise<void>;
   onLegalDigestAiDraft: (digestId: number) => void;
   onLoadLegalDigestAiDrafts: (digestId: number) => void;
+  onApproveLegalDigestAiDraft: (digestId: number, draftId: number) => void;
+  onRejectLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
@@ -4468,6 +4588,8 @@ function PlatformView({
           loading={loading}
           onLegalDigestAiDraft={onLegalDigestAiDraft}
           onLoadLegalDigestAiDrafts={onLoadLegalDigestAiDrafts}
+          onApproveLegalDigestAiDraft={onApproveLegalDigestAiDraft}
+          onRejectLegalDigestAiDraft={onRejectLegalDigestAiDraft}
           onApplyLegalDigestAiDraft={onApplyLegalDigestAiDraft}
           onLegalDigestRefresh={onLegalDigestRefresh}
           onLegalOpenDataSync={onLegalOpenDataSync}
@@ -7633,13 +7755,13 @@ function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
 }
 
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED"].includes(status)) {
     return "green";
   }
-  if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW"].includes(status)) {
+  if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW", "NEEDS_HUMAN_REVIEW"].includes(status)) {
     return "amber";
   }
-  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL"].includes(status)) {
+  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL", "REJECTED"].includes(status)) {
     return "red";
   }
   return "slate";

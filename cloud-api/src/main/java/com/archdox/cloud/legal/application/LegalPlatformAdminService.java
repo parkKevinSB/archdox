@@ -290,22 +290,62 @@ public class LegalPlatformAdminService {
     }
 
     @Transactional
-    public LegalDigestAiDraftResponse applyDigestAiDraft(UserPrincipal principal, Long digestId, Long draftId) {
+    public LegalDigestAiDraftResponse approveDigestAiDraft(UserPrincipal principal, Long digestId, Long draftId) {
         platformAdminService.requirePlatformAdmin(principal);
         var digest = requireDigest(digestId);
-        var draft = aiDraftRepository.findById(draftId)
-                .orElseThrow(() -> new NotFoundException("Legal digest AI draft not found"));
-        if (!digest.id().equals(draft.digestId())) {
-            throw new BadRequestException(
-                    "LEGAL_DIGEST_AI_DRAFT_DIGEST_MISMATCH",
-                    "errors.legal.digestAiDraftDigestMismatch",
-                    "Legal digest AI draft does not belong to this digest.");
-        }
-        if (draft.status() != LegalDigestAiDraftStatus.GENERATED) {
+        var draft = requireDraftForDigest(digest, draftId);
+        if (draft.status() != LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW
+                && draft.status() != LegalDigestAiDraftStatus.GENERATED) {
             throw new BadRequestException(
                     "LEGAL_DIGEST_AI_DRAFT_ALREADY_DECIDED",
                     "errors.legal.digestAiDraftAlreadyDecided",
-                    "Legal digest AI draft was already applied.");
+                    "Legal digest AI draft was already approved, rejected, or applied.");
+        }
+        requireSafeDraftOutput(draft);
+        var now = OffsetDateTime.now();
+        draft.approve(principal.userId(), now);
+        recordAiDraftEvent(
+                "LEGAL_DIGEST_AI_DRAFT_APPROVED",
+                "Legal digest AI draft was approved by a platform admin.",
+                digest,
+                draft,
+                principal);
+        return toAiDraftResponse(draft);
+    }
+
+    @Transactional
+    public LegalDigestAiDraftResponse rejectDigestAiDraft(UserPrincipal principal, Long digestId, Long draftId) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var digest = requireDigest(digestId);
+        var draft = requireDraftForDigest(digest, draftId);
+        if (draft.status() != LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW
+                && draft.status() != LegalDigestAiDraftStatus.GENERATED) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_ALREADY_DECIDED",
+                    "errors.legal.digestAiDraftAlreadyDecided",
+                    "Legal digest AI draft was already approved, rejected, or applied.");
+        }
+        var now = OffsetDateTime.now();
+        draft.reject(principal.userId(), now);
+        recordAiDraftEvent(
+                "LEGAL_DIGEST_AI_DRAFT_REJECTED",
+                "Legal digest AI draft was rejected by a platform admin.",
+                digest,
+                draft,
+                principal);
+        return toAiDraftResponse(draft);
+    }
+
+    @Transactional
+    public LegalDigestAiDraftResponse applyDigestAiDraft(UserPrincipal principal, Long digestId, Long draftId) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var digest = requireDigest(digestId);
+        var draft = requireDraftForDigest(digest, draftId);
+        if (draft.status() != LegalDigestAiDraftStatus.APPROVED) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_NOT_APPROVED",
+                    "errors.legal.digestAiDraftNotApproved",
+                    "Legal digest AI draft must be approved before it can be applied.");
         }
         requireSafeDraftOutput(draft);
         var now = OffsetDateTime.now();
@@ -330,6 +370,18 @@ public class LegalPlatformAdminService {
     private LegalChangeDigest requireDigest(Long digestId) {
         return changeDigestRepository.findById(digestId)
                 .orElseThrow(() -> new NotFoundException("Legal change digest not found"));
+    }
+
+    private LegalDigestAiDraft requireDraftForDigest(LegalChangeDigest digest, Long draftId) {
+        var draft = aiDraftRepository.findById(draftId)
+                .orElseThrow(() -> new NotFoundException("Legal digest AI draft not found"));
+        if (!digest.id().equals(draft.digestId())) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_DIGEST_MISMATCH",
+                    "errors.legal.digestAiDraftDigestMismatch",
+                    "Legal digest AI draft does not belong to this digest.");
+        }
+        return draft;
     }
 
     private LegalSyncRunResponse toRunResponse(com.archdox.cloud.legal.domain.LegalSyncRun run) {
@@ -452,6 +504,8 @@ public class LegalPlatformAdminService {
                 draft.digestMutated(),
                 draft.generatedByUserId(),
                 draft.generatedAt(),
+                draft.reviewedByUserId(),
+                draft.reviewedAt(),
                 draft.appliedByUserId(),
                 draft.appliedAt());
     }

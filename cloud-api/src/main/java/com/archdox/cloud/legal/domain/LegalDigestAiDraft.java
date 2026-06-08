@@ -85,6 +85,12 @@ public class LegalDigestAiDraft {
     @Column(name = "generated_by_user_id", nullable = false)
     private Long generatedByUserId;
 
+    @Column(name = "reviewed_by_user_id")
+    private Long reviewedByUserId;
+
+    @Column(name = "reviewed_at")
+    private OffsetDateTime reviewedAt;
+
     @Column(name = "applied_by_user_id")
     private Long appliedByUserId;
 
@@ -127,7 +133,7 @@ public class LegalDigestAiDraft {
     ) {
         this.digestId = requireId(digestId, "digestId");
         this.changeSetId = requireId(changeSetId, "changeSetId");
-        this.status = LegalDigestAiDraftStatus.GENERATED;
+        this.status = LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW;
         this.workerRequestId = workerRequestId == null ? UUID.randomUUID() : workerRequestId;
         this.workerStatus = required(workerStatus, "workerStatus");
         this.resultCode = blankToNull(resultCode);
@@ -150,9 +156,31 @@ public class LegalDigestAiDraft {
         this.updatedAt = this.generatedAt;
     }
 
+    public void approve(Long userId, OffsetDateTime now) {
+        if (status != LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW && status != LegalDigestAiDraftStatus.GENERATED) {
+            throw new IllegalStateException("Legal digest AI draft is not awaiting human review");
+        }
+        var reviewedAtValue = now == null ? OffsetDateTime.now() : now;
+        this.status = LegalDigestAiDraftStatus.APPROVED;
+        this.reviewedByUserId = requireId(userId, "userId");
+        this.reviewedAt = reviewedAtValue;
+        this.updatedAt = reviewedAtValue;
+    }
+
+    public void reject(Long userId, OffsetDateTime now) {
+        if (status != LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW && status != LegalDigestAiDraftStatus.GENERATED) {
+            throw new IllegalStateException("Legal digest AI draft is not awaiting human review");
+        }
+        var reviewedAtValue = now == null ? OffsetDateTime.now() : now;
+        this.status = LegalDigestAiDraftStatus.REJECTED;
+        this.reviewedByUserId = requireId(userId, "userId");
+        this.reviewedAt = reviewedAtValue;
+        this.updatedAt = reviewedAtValue;
+    }
+
     public void apply(Long userId, OffsetDateTime now) {
-        if (status != LegalDigestAiDraftStatus.GENERATED) {
-            throw new IllegalStateException("Legal digest AI draft is not generated");
+        if (status != LegalDigestAiDraftStatus.APPROVED) {
+            throw new IllegalStateException("Legal digest AI draft is not approved");
         }
         var appliedAtValue = now == null ? OffsetDateTime.now() : now;
         this.status = LegalDigestAiDraftStatus.APPLIED;
@@ -243,6 +271,14 @@ public class LegalDigestAiDraft {
 
     public Long generatedByUserId() {
         return generatedByUserId;
+    }
+
+    public Long reviewedByUserId() {
+        return reviewedByUserId;
+    }
+
+    public OffsetDateTime reviewedAt() {
+        return reviewedAt;
     }
 
     public Long appliedByUserId() {

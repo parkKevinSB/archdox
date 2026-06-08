@@ -742,6 +742,20 @@ export function applyPlatformLegalDigestAiDraft(token: string, digestId: number,
   });
 }
 
+export function approvePlatformLegalDigestAiDraft(token: string, digestId: number, draftId: number) {
+  return request<LegalDigestAiDraft>(`/api/v1/platform-admin/legal/change-digests/${digestId}/ai-drafts/${draftId}/approve`, {
+    token,
+    method: "POST"
+  });
+}
+
+export function rejectPlatformLegalDigestAiDraft(token: string, digestId: number, draftId: number) {
+  return request<LegalDigestAiDraft>(`/api/v1/platform-admin/legal/change-digests/${digestId}/ai-drafts/${draftId}/reject`, {
+    token,
+    method: "POST"
+  });
+}
+
 export function getPlatformLegalOpenApiStatus(token: string) {
   return request<LegalOpenApiStatus>("/api/v1/platform-admin/legal/open-api/status", { token });
 }

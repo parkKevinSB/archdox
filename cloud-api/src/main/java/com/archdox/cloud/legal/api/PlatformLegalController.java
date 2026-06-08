@@ -69,6 +69,24 @@ public class PlatformLegalController {
         return service.applyDigestAiDraft(principal(authentication), digestId, draftId);
     }
 
+    @PostMapping("/change-digests/{digestId}/ai-drafts/{draftId}/approve")
+    public LegalDigestAiDraftResponse approveDigestAiDraft(
+            Authentication authentication,
+            @PathVariable Long digestId,
+            @PathVariable Long draftId
+    ) {
+        return service.approveDigestAiDraft(principal(authentication), digestId, draftId);
+    }
+
+    @PostMapping("/change-digests/{digestId}/ai-drafts/{draftId}/reject")
+    public LegalDigestAiDraftResponse rejectDigestAiDraft(
+            Authentication authentication,
+            @PathVariable Long digestId,
+            @PathVariable Long draftId
+    ) {
+        return service.rejectDigestAiDraft(principal(authentication), digestId, draftId);
+    }
+
     @GetMapping("/open-api/status")
     public LegalOpenApiStatusResponse openApiStatus(Authentication authentication) {
         return service.openApiStatus(principal(authentication));

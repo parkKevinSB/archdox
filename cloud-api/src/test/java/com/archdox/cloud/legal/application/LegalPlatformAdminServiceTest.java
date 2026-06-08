@@ -1,6 +1,7 @@
 package com.archdox.cloud.legal.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -208,7 +209,7 @@ class LegalPlatformAdminServiceTest {
         var result = draftService.generateDigestAiDraft(principal, 1L);
 
         assertThat(result.id()).isEqualTo(99L);
-        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.GENERATED);
+        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW);
         assertThat(result.digestId()).isEqualTo(1L);
         assertThat(result.changeSetId()).isEqualTo(10L);
         assertThat(result.dryRun()).isTrue();
@@ -222,6 +223,67 @@ class LegalPlatformAdminServiceTest {
     }
 
     @Test
+    void approveDigestAiDraftMarksDraftApprovedWithoutPublishingDigest() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        setId(digest, 1L);
+        var draft = aiDraft(1L, 10L, 3L, now);
+        setId(draft, 7L);
+        when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
+        when(aiDraftRepository.findById(7L)).thenReturn(Optional.of(draft));
+
+        var result = service.approveDigestAiDraft(principal, 1L, 7L);
+
+        assertThat(result.id()).isEqualTo(7L);
+        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.APPROVED);
+        assertThat(result.reviewedByUserId()).isEqualTo(3L);
+        assertThat(result.reviewedAt()).isNotNull();
+        assertThat(digest.source()).isEqualTo(LegalChangeDigestSource.DETERMINISTIC);
+        assertThat(digest.title()).isEqualTo("title");
+        verify(platformAdminService).requirePlatformAdmin(principal);
+    }
+
+    @Test
+    void rejectDigestAiDraftMarksDraftRejectedWithoutPublishingDigest() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        setId(digest, 1L);
+        var draft = aiDraft(1L, 10L, 3L, now);
+        setId(draft, 7L);
+        when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
+        when(aiDraftRepository.findById(7L)).thenReturn(Optional.of(draft));
+
+        var result = service.rejectDigestAiDraft(principal, 1L, 7L);
+
+        assertThat(result.id()).isEqualTo(7L);
+        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.REJECTED);
+        assertThat(result.reviewedByUserId()).isEqualTo(3L);
+        assertThat(digest.source()).isEqualTo(LegalChangeDigestSource.DETERMINISTIC);
+        assertThat(digest.title()).isEqualTo("title");
+        verify(platformAdminService).requirePlatformAdmin(principal);
+    }
+
+    @Test
+    void applyDigestAiDraftRejectsUnapprovedDraft() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        setId(digest, 1L);
+        var draft = aiDraft(1L, 10L, 3L, now);
+        setId(draft, 7L);
+        when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
+        when(aiDraftRepository.findById(7L)).thenReturn(Optional.of(draft));
+
+        assertThatThrownBy(() -> service.applyDigestAiDraft(principal, 1L, 7L))
+                .hasMessageContaining("Legal digest AI draft must be approved");
+
+        assertThat(digest.source()).isEqualTo(LegalChangeDigestSource.DETERMINISTIC);
+        verify(platformAdminService).requirePlatformAdmin(principal);
+    }
+
+    @Test
     void applyDigestAiDraftUpdatesPublishedDigestOnlyAfterAdminApproval() throws Exception {
         var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
         var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
@@ -229,6 +291,7 @@ class LegalPlatformAdminServiceTest {
         setId(digest, 1L);
         var draft = aiDraft(1L, 10L, 3L, now);
         setId(draft, 7L);
+        draft.approve(principal.userId(), now);
         when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
         when(aiDraftRepository.findById(7L)).thenReturn(Optional.of(draft));
 

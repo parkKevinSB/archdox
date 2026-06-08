@@ -29,6 +29,8 @@ public record LegalDigestAiDraftResponse(
         boolean digestMutated,
         Long generatedByUserId,
         OffsetDateTime generatedAt,
+        Long reviewedByUserId,
+        OffsetDateTime reviewedAt,
         Long appliedByUserId,
         OffsetDateTime appliedAt
 ) {

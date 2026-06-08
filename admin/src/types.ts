@@ -731,6 +731,8 @@ export type LegalDigestAiDraft = {
   digestMutated: boolean;
   generatedByUserId: number;
   generatedAt: string;
+  reviewedByUserId?: number | null;
+  reviewedAt?: string | null;
   appliedByUserId?: number | null;
   appliedAt?: string | null;
 };
