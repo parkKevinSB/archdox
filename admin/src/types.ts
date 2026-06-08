@@ -708,6 +708,8 @@ export type LegalChangeDigest = {
 };
 
 export type LegalDigestAiDraft = {
+  id: number;
+  status: string;
   workerRequestId: string;
   digestId: number;
   changeSetId: number;
@@ -727,6 +729,10 @@ export type LegalDigestAiDraft = {
   publicationApplied: boolean;
   corpusMutated: boolean;
   digestMutated: boolean;
+  generatedByUserId: number;
+  generatedAt: string;
+  appliedByUserId?: number | null;
+  appliedAt?: string | null;
 };
 
 export type LegalArticleDiff = {

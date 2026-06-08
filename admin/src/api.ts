@@ -728,6 +728,19 @@ export function generatePlatformLegalDigestAiDraft(token: string, digestId: numb
   });
 }
 
+export function getPlatformLegalDigestAiDrafts(token: string, digestId: number) {
+  return request<LegalDigestAiDraft[]>(`/api/v1/platform-admin/legal/change-digests/${digestId}/ai-drafts`, {
+    token
+  });
+}
+
+export function applyPlatformLegalDigestAiDraft(token: string, digestId: number, draftId: number) {
+  return request<LegalDigestAiDraft>(`/api/v1/platform-admin/legal/change-digests/${digestId}/ai-drafts/${draftId}/apply`, {
+    token,
+    method: "POST"
+  });
+}
+
 export function getPlatformLegalOpenApiStatus(token: string) {
   return request<LegalOpenApiStatus>("/api/v1/platform-admin/legal/open-api/status", { token });
 }

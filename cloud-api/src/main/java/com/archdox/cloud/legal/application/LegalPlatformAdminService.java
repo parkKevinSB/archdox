@@ -3,7 +3,10 @@ package com.archdox.cloud.legal.application;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
+import com.archdox.cloud.legal.domain.LegalDigestAiDraft;
+import com.archdox.cloud.legal.domain.LegalDigestAiDraftStatus;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalDigestAiDraftResponse;
@@ -17,7 +20,10 @@ import com.archdox.cloud.legal.infra.LegalActRepository;
 import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalChangeSetRepository;
+import com.archdox.cloud.legal.infra.LegalDigestAiDraftRepository;
 import com.archdox.cloud.legal.infra.LegalSyncRunRepository;
+import com.archdox.cloud.operation.application.OperationEventService;
+import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.worker.ArchDoxWorkerServiceWorker;
 import com.archdox.worker.domain.ArchDoxWorkerAction;
@@ -37,6 +43,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LegalPlatformAdminService {
@@ -58,6 +65,8 @@ public class LegalPlatformAdminService {
     private final ArchDoxWorkerExecutionFlowFactory workerFlowFactory;
     private final ArchDoxWorkerServiceWorker workerServiceWorker;
     private final LegalDigestAiProperties legalDigestAiProperties;
+    private final LegalDigestAiDraftRepository aiDraftRepository;
+    private final OperationEventService operationEventService;
 
     public LegalPlatformAdminService(
             PlatformAdminService platformAdminService,
@@ -74,7 +83,9 @@ public class LegalPlatformAdminService {
             LegalChangeDigestService changeDigestService,
             ArchDoxWorkerExecutionFlowFactory workerFlowFactory,
             ArchDoxWorkerServiceWorker workerServiceWorker,
-            LegalDigestAiProperties legalDigestAiProperties
+            LegalDigestAiProperties legalDigestAiProperties,
+            LegalDigestAiDraftRepository aiDraftRepository,
+            OperationEventService operationEventService
     ) {
         this.platformAdminService = platformAdminService;
         this.syncService = syncService;
@@ -91,6 +102,8 @@ public class LegalPlatformAdminService {
         this.workerFlowFactory = workerFlowFactory;
         this.workerServiceWorker = workerServiceWorker;
         this.legalDigestAiProperties = legalDigestAiProperties;
+        this.aiDraftRepository = aiDraftRepository;
+        this.operationEventService = operationEventService;
     }
 
     public LegalOpenApiStatusResponse openApiStatus(UserPrincipal principal) {
@@ -244,7 +257,69 @@ public class LegalPlatformAdminService {
                     "errors.legal.digestAiDraftFailed",
                     result.message().isBlank() ? "Legal digest AI draft worker failed." : result.message());
         }
-        return toAiDraftResponse(result.output(), result.status().name(), result.resultCode(), requestId);
+        var now = OffsetDateTime.now();
+        var draft = toAiDraft(result.output(), result.status().name(), result.resultCode(), requestId, digest, principal.userId(), now);
+        requireSafeDraftOutput(draft);
+        var saved = aiDraftRepository.save(draft);
+        recordAiDraftEvent(
+                "LEGAL_DIGEST_AI_DRAFT_GENERATED",
+                "Legal digest AI draft was generated for platform admin review.",
+                digest,
+                saved,
+                principal);
+        return toAiDraftResponse(saved);
+    }
+
+    public List<LegalDigestAiDraftResponse> digestAiDrafts(UserPrincipal principal, Long digestId) {
+        platformAdminService.requirePlatformAdmin(principal);
+        requireDigest(digestId);
+        return aiDraftRepository.findByDigestIdOrderByGeneratedAtDescIdDesc(digestId)
+                .stream()
+                .map(this::toAiDraftResponse)
+                .toList();
+    }
+
+    @Transactional
+    public LegalDigestAiDraftResponse applyDigestAiDraft(UserPrincipal principal, Long digestId, Long draftId) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var digest = requireDigest(digestId);
+        var draft = aiDraftRepository.findById(draftId)
+                .orElseThrow(() -> new NotFoundException("Legal digest AI draft not found"));
+        if (!digest.id().equals(draft.digestId())) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_DIGEST_MISMATCH",
+                    "errors.legal.digestAiDraftDigestMismatch",
+                    "Legal digest AI draft does not belong to this digest.");
+        }
+        if (draft.status() != LegalDigestAiDraftStatus.GENERATED) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_ALREADY_DECIDED",
+                    "errors.legal.digestAiDraftAlreadyDecided",
+                    "Legal digest AI draft was already applied.");
+        }
+        requireSafeDraftOutput(draft);
+        var now = OffsetDateTime.now();
+        digest.applyAiDraft(
+                draft.title(),
+                draft.summary(),
+                draft.impactSummary(),
+                draft.affectedReportTypes(),
+                draft.affectedCatalogItems(),
+                draft.aiHarnessRunId(),
+                now);
+        draft.apply(principal.userId(), now);
+        recordAiDraftEvent(
+                "LEGAL_DIGEST_AI_DRAFT_APPLIED",
+                "Legal digest AI draft was applied to the published digest.",
+                digest,
+                draft,
+                principal);
+        return toAiDraftResponse(draft);
+    }
+
+    private LegalChangeDigest requireDigest(Long digestId) {
+        return changeDigestRepository.findById(digestId)
+                .orElseThrow(() -> new NotFoundException("Legal change digest not found"));
     }
 
     private LegalSyncRunResponse toRunResponse(com.archdox.cloud.legal.domain.LegalSyncRun run) {
@@ -286,17 +361,33 @@ public class LegalPlatformAdminService {
                 .toList();
     }
 
-    private LegalDigestAiDraftResponse toAiDraftResponse(
+    private LegalDigestAiDraft toAiDraft(
             Map<String, Object> output,
             String workerStatus,
             String resultCode,
-            UUID fallbackWorkerRequestId
+            UUID fallbackWorkerRequestId,
+            LegalChangeDigest digest,
+            Long generatedByUserId,
+            OffsetDateTime now
     ) {
-        return new LegalDigestAiDraftResponse(
+        var outputDigestId = longValue(output.get("digestId"));
+        var outputChangeSetId = longValue(output.get("changeSetId"));
+        if (outputDigestId != null && !outputDigestId.equals(digest.id())) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_OUTPUT_DIGEST_MISMATCH",
+                    "errors.legal.digestAiDraftOutputDigestMismatch",
+                    "Legal digest AI draft worker returned a mismatched digestId.");
+        }
+        if (outputChangeSetId != null && !outputChangeSetId.equals(digest.changeSetId())) {
+            throw new BadRequestException(
+                    "LEGAL_DIGEST_AI_DRAFT_OUTPUT_CHANGE_SET_MISMATCH",
+                    "errors.legal.digestAiDraftOutputChangeSetMismatch",
+                    "Legal digest AI draft worker returned a mismatched changeSetId.");
+        }
+        return new LegalDigestAiDraft(
+                digest.id(),
+                digest.changeSetId(),
                 uuidValue(output.get("workerRequestId"), fallbackWorkerRequestId),
-                longValue(output.get("digestId")),
-                longValue(output.get("changeSetId")),
-                booleanValue(output.get("dryRun")),
                 workerStatus,
                 resultCode,
                 text(output.get("aiHarnessRunId")),
@@ -311,7 +402,79 @@ public class LegalPlatformAdminService {
                 text(output.get("reviewNotes")),
                 booleanValue(output.get("publicationApplied")),
                 booleanValue(output.get("corpusMutated")),
-                booleanValue(output.get("digestMutated")));
+                booleanValue(output.get("digestMutated")),
+                generatedByUserId,
+                now);
+    }
+
+    private void requireSafeDraftOutput(LegalDigestAiDraft draft) {
+        if (!draft.publicationApplied() && !draft.corpusMutated() && !draft.digestMutated()) {
+            return;
+        }
+        throw new BadRequestException(
+                "LEGAL_DIGEST_AI_DRAFT_UNSAFE_OUTPUT",
+                "errors.legal.digestAiDraftUnsafeOutput",
+                "Legal digest AI draft output attempted to mutate publication, corpus, or digest state.");
+    }
+
+    private LegalDigestAiDraftResponse toAiDraftResponse(LegalDigestAiDraft draft) {
+        return new LegalDigestAiDraftResponse(
+                draft.id(),
+                draft.status(),
+                draft.workerRequestId(),
+                draft.digestId(),
+                draft.changeSetId(),
+                true,
+                draft.workerStatus(),
+                draft.resultCode(),
+                draft.aiHarnessRunId(),
+                draft.digestDraftStatus(),
+                draft.title(),
+                draft.summary(),
+                draft.impactSummary(),
+                draft.confidence(),
+                draft.affectedReportTypes(),
+                draft.affectedCatalogItems(),
+                draft.keyArticles(),
+                draft.reviewNotes(),
+                draft.publicationApplied(),
+                draft.corpusMutated(),
+                draft.digestMutated(),
+                draft.generatedByUserId(),
+                draft.generatedAt(),
+                draft.appliedByUserId(),
+                draft.appliedAt());
+    }
+
+    private void recordAiDraftEvent(
+            String eventType,
+            String message,
+            LegalChangeDigest digest,
+            LegalDigestAiDraft draft,
+            UserPrincipal principal
+    ) {
+        var payload = new java.util.LinkedHashMap<String, Object>();
+        payload.put("digestId", digest.id());
+        payload.put("changeSetId", digest.changeSetId());
+        payload.put("draftId", draft.id());
+        payload.put("draftStatus", draft.status().name());
+        payload.put("workerRequestId", draft.workerRequestId().toString());
+        if (draft.aiHarnessRunId() != null) {
+            payload.put("aiHarnessRunId", draft.aiHarnessRunId());
+        }
+        payload.put("source", digest.source().name());
+        operationEventService.record(
+                null,
+                OperationEventSeverity.INFO,
+                eventType,
+                "legal-digest-ai-draft",
+                "digest:" + digest.id(),
+                "LEGAL_DIGEST_AI_DRAFT",
+                draft.id(),
+                principal.userId(),
+                draft.workerRequestId().toString(),
+                message,
+                payload);
     }
 
     private UUID uuidValue(Object value, UUID fallback) {

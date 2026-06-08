@@ -14,6 +14,8 @@ import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.domain.LegalChangeSet;
+import com.archdox.cloud.legal.domain.LegalDigestAiDraft;
+import com.archdox.cloud.legal.domain.LegalDigestAiDraftStatus;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
 import com.archdox.cloud.legal.flow.LegalSyncWorker;
@@ -21,7 +23,9 @@ import com.archdox.cloud.legal.infra.LegalActRepository;
 import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalChangeSetRepository;
+import com.archdox.cloud.legal.infra.LegalDigestAiDraftRepository;
 import com.archdox.cloud.legal.infra.LegalSyncRunRepository;
+import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.worker.ArchDoxWorkerServiceWorker;
 import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
@@ -62,6 +66,8 @@ class LegalPlatformAdminServiceTest {
     private final ArchDoxWorkerExecutionFlowFactory workerFlowFactory = mock(ArchDoxWorkerExecutionFlowFactory.class);
     private final ArchDoxWorkerServiceWorker workerServiceWorker = mock(ArchDoxWorkerServiceWorker.class);
     private final LegalDigestAiProperties legalDigestAiProperties = new LegalDigestAiProperties();
+    private final LegalDigestAiDraftRepository aiDraftRepository = mock(LegalDigestAiDraftRepository.class);
+    private final OperationEventService operationEventService = mock(OperationEventService.class);
     private final LegalPlatformAdminService service = new LegalPlatformAdminService(
             platformAdminService,
             syncService,
@@ -77,7 +83,9 @@ class LegalPlatformAdminServiceTest {
             changeDigestService,
             workerFlowFactory,
             workerServiceWorker,
-            legalDigestAiProperties);
+            legalDigestAiProperties,
+            aiDraftRepository,
+            operationEventService);
 
     @Test
     void changeDigestsExcludeFakeSource() {
@@ -158,6 +166,11 @@ class LegalPlatformAdminServiceTest {
         when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
         var properties = new LegalDigestAiProperties();
         properties.setTimeoutSeconds(10);
+        when(aiDraftRepository.save(any(LegalDigestAiDraft.class))).thenAnswer(invocation -> {
+            var draft = invocation.<LegalDigestAiDraft>getArgument(0);
+            setId(draft, 99L);
+            return draft;
+        });
         var draftService = new LegalPlatformAdminService(
                 platformAdminService,
                 syncService,
@@ -176,10 +189,14 @@ class LegalPlatformAdminServiceTest {
                         ArchDoxWorkerPolicyGate.allowAll(),
                         ArchDoxWorkerTraceSink.noop()),
                 new DirectWorker(),
-                properties);
+                properties,
+                aiDraftRepository,
+                operationEventService);
 
         var result = draftService.generateDigestAiDraft(principal, 1L);
 
+        assertThat(result.id()).isEqualTo(99L);
+        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.GENERATED);
         assertThat(result.digestId()).isEqualTo(1L);
         assertThat(result.changeSetId()).isEqualTo(10L);
         assertThat(result.dryRun()).isTrue();
@@ -188,6 +205,30 @@ class LegalPlatformAdminServiceTest {
         assertThat(result.digestMutated()).isFalse();
         assertThat(result.title()).isEqualTo("AI draft title");
         assertThat(result.keyArticles()).containsExactly("0025001");
+        verify(platformAdminService).requirePlatformAdmin(principal);
+        verify(aiDraftRepository).save(any(LegalDigestAiDraft.class));
+    }
+
+    @Test
+    void applyDigestAiDraftUpdatesPublishedDigestOnlyAfterAdminApproval() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
+        setId(digest, 1L);
+        var draft = aiDraft(1L, 10L, 3L, now);
+        setId(draft, 7L);
+        when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
+        when(aiDraftRepository.findById(7L)).thenReturn(Optional.of(draft));
+
+        var result = service.applyDigestAiDraft(principal, 1L, 7L);
+
+        assertThat(result.id()).isEqualTo(7L);
+        assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.APPLIED);
+        assertThat(result.appliedByUserId()).isEqualTo(3L);
+        assertThat(digest.source()).isEqualTo(LegalChangeDigestSource.AI);
+        assertThat(digest.title()).isEqualTo("AI draft title");
+        assertThat(digest.summary()).isEqualTo("AI draft summary");
+        assertThat(digest.aiHarnessRunId()).isEqualTo("ai-run-1");
         verify(platformAdminService).requirePlatformAdmin(principal);
     }
 
@@ -219,6 +260,30 @@ class LegalPlatformAdminServiceTest {
                 LocalDate.of(2026, 7, 1),
                 now,
                 now,
+                now);
+    }
+
+    private LegalDigestAiDraft aiDraft(Long digestId, Long changeSetId, Long generatedByUserId, OffsetDateTime now) {
+        return new LegalDigestAiDraft(
+                digestId,
+                changeSetId,
+                java.util.UUID.randomUUID(),
+                "SUCCEEDED",
+                null,
+                "ai-run-1",
+                "NEEDS_HUMAN_REVIEW",
+                "AI draft title",
+                "AI draft summary",
+                "AI impact",
+                "MEDIUM",
+                List.of("CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                List.of("CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT"),
+                List.of("0025001"),
+                "Admin review required",
+                false,
+                false,
+                false,
+                generatedByUserId,
                 now);
     }
 

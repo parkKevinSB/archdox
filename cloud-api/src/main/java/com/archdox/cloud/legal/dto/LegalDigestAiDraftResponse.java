@@ -1,9 +1,13 @@
 package com.archdox.cloud.legal.dto;
 
+import com.archdox.cloud.legal.domain.LegalDigestAiDraftStatus;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 public record LegalDigestAiDraftResponse(
+        Long id,
+        LegalDigestAiDraftStatus status,
         UUID workerRequestId,
         Long digestId,
         Long changeSetId,
@@ -22,7 +26,11 @@ public record LegalDigestAiDraftResponse(
         String reviewNotes,
         boolean publicationApplied,
         boolean corpusMutated,
-        boolean digestMutated
+        boolean digestMutated,
+        Long generatedByUserId,
+        OffsetDateTime generatedAt,
+        Long appliedByUserId,
+        OffsetDateTime appliedAt
 ) {
     public LegalDigestAiDraftResponse {
         affectedReportTypes = affectedReportTypes == null ? List.of() : List.copyOf(affectedReportTypes);

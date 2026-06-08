@@ -192,6 +192,28 @@ public class LegalChangeDigest {
         this.updatedAt = now;
     }
 
+    public void applyAiDraft(
+            String title,
+            String summary,
+            String impactSummary,
+            List<String> affectedReportTypes,
+            List<String> affectedCatalogItems,
+            String aiHarnessRunId,
+            OffsetDateTime now
+    ) {
+        var appliedAt = now == null ? OffsetDateTime.now() : now;
+        this.status = LegalChangeDigestStatus.PUBLISHED;
+        this.source = LegalChangeDigestSource.AI;
+        this.title = required(title, "title");
+        this.summary = required(summary, "summary");
+        this.impactSummary = blankToNull(impactSummary);
+        this.affectedReportTypesJson = affectedReportTypes == null ? List.of() : List.copyOf(affectedReportTypes);
+        this.affectedCatalogItemsJson = affectedCatalogItems == null ? List.of() : List.copyOf(affectedCatalogItems);
+        this.aiHarnessRunId = blankToNull(aiHarnessRunId);
+        this.publishedAt = appliedAt;
+        this.updatedAt = appliedAt;
+    }
+
     private static Long requireId(Long value, String fieldName) {
         if (value == null) {
             throw new IllegalArgumentException(fieldName + " is required");

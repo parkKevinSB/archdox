@@ -33,6 +33,7 @@ import {
   ApiError,
   acceptOfficeInvitation,
   addOfficeMember,
+  applyPlatformLegalDigestAiDraft,
   archiveProject,
   approvePlatformWorkerApproval,
   cancelOfficeInvitation,
@@ -87,6 +88,7 @@ import {
   getPlatformFlowerRuntimeDump,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
+  getPlatformLegalDigestAiDrafts,
   getPlatformLegalOpenApiStatus,
   getPlatformLegalSyncRuns,
   getPlatformWorkerApprovals,
@@ -537,7 +539,7 @@ export default function App() {
   const [platformChecked, setPlatformChecked] = useState(false);
   const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
   const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
-  const [legalDigestAiDrafts, setLegalDigestAiDrafts] = useState<Record<number, LegalDigestAiDraft>>({});
+  const [legalDigestAiDrafts, setLegalDigestAiDrafts] = useState<Record<number, LegalDigestAiDraft[]>>({});
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -968,9 +970,46 @@ export default function App() {
     setError(null);
     try {
       const draft = await generatePlatformLegalDigestAiDraft(auth.accessToken, digestId);
-      setLegalDigestAiDrafts((current) => ({ ...current, [digestId]: draft }));
+      setLegalDigestAiDrafts((current) => ({ ...current, [digestId]: [draft, ...(current[digestId] ?? [])] }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항 AI 초안을 생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadPlatformLegalDigestAiDrafts(digestId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setError(null);
+    try {
+      const drafts = await getPlatformLegalDigestAiDrafts(auth.accessToken, digestId);
+      setLegalDigestAiDrafts((current) => ({ ...current, [digestId]: drafts }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "踰뺣졊 蹂寃쎌궗??AI 珥덉븞 ?대젰???쎌뼱?ㅼ? 紐삵뻽?듬땲??");
+    }
+  }
+
+  async function applyPlatformLegalDigestAiDraftFromUi(digestId: number, draftId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("??AI 珥덉븞???ъ슜?먯슜 寃뚯떆 ?붿빟???곸슜?좉퉴?? 踰뺣졊 ?먮Ц怨?corpus???섏젙?섏? ?딆뒿?덈떎.")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const applied = await applyPlatformLegalDigestAiDraft(auth.accessToken, digestId, draftId);
+      setLegalDigestAiDrafts((current) => ({
+        ...current,
+        [digestId]: (current[digestId] ?? []).map((draft) => (draft.id === draftId ? applied : draft))
+      }));
+      const legalChangeDigests = await getPlatformLegalChangeDigests(auth.accessToken, 50);
+      setPlatformData((current) => ({ ...current, legalChangeDigests }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 珥덉븞???寃뚯떆 ?붿빟???곸슜?섏? 紐삵뻽?듬땲??");
     } finally {
       setLoading(false);
     }
@@ -1569,6 +1608,8 @@ export default function App() {
               legalDigestAiDrafts={legalDigestAiDrafts}
               onFlowerRuntimeRefresh={refreshPlatformFlowerRuntime}
               onLegalDigestAiDraft={runPlatformLegalDigestAiDraft}
+              onLoadLegalDigestAiDrafts={loadPlatformLegalDigestAiDrafts}
+              onApplyLegalDigestAiDraft={applyPlatformLegalDigestAiDraftFromUi}
               onLegalOpenDataSync={runPlatformLegalOpenDataSync}
               onLegalDigestRefresh={runPlatformLegalDigestRefresh}
               issuedEngineApiKey={issuedEngineApiKey}
@@ -3738,20 +3779,28 @@ function PlatformLegalAdminPanel({
   legalDigestAiDrafts,
   loading,
   onLegalDigestAiDraft,
+  onLoadLegalDigestAiDrafts,
+  onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh
 }: {
   data: PlatformOpsData;
-  legalDigestAiDrafts: Record<number, LegalDigestAiDraft>;
+  legalDigestAiDrafts: Record<number, LegalDigestAiDraft[]>;
   loading: boolean;
   onLegalDigestAiDraft: (digestId: number) => void;
+  onLoadLegalDigestAiDrafts: (digestId: number) => void;
+  onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
 }) {
   const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
   const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId) ?? null;
-  const selectedAiDraft = selectedDigest ? legalDigestAiDrafts[selectedDigest.id] ?? null : null;
+  const selectedAiDrafts = selectedDigest ? legalDigestAiDrafts[selectedDigest.id] ?? [] : [];
   const [activeTab, setActiveTab] = useState<LegalAdminTabKey>("SYNC");
+  function selectDigest(digestId: number) {
+    setSelectedDigestId(digestId);
+    onLoadLegalDigestAiDrafts(digestId);
+  }
   const tabs: Array<{ key: LegalAdminTabKey; label: string; count?: number }> = [
     { key: "SYNC", label: "동기화", count: data.legalSyncRuns.length },
     { key: "DIGESTS", label: "사용자용 변경사항", count: data.legalChangeDigests.length },
@@ -3882,7 +3931,12 @@ function PlatformLegalAdminPanel({
               </div>
             }
           >
-            <LegalDigestDetail aiDraft={selectedAiDraft} digest={selectedDigest} />
+            <LegalDigestDetail
+              aiDrafts={selectedAiDrafts}
+              digest={selectedDigest}
+              loading={loading}
+              onApplyAiDraft={(draftId) => onApplyLegalDigestAiDraft(selectedDigest.id, draftId)}
+            />
           </Panel>
         ) : (
           <Panel title="사용자용 법령 변경사항" icon={<FileText size={18} />} count={data.legalChangeDigests.length}>
@@ -3891,7 +3945,7 @@ function PlatformLegalAdminPanel({
             ) : (
               <div className="legal-admin-digest-list">
                 {data.legalChangeDigests.slice(0, 20).map((digest) => (
-                  <button className="legal-admin-digest-item" key={digest.id} onClick={() => setSelectedDigestId(digest.id)} type="button">
+                  <button className="legal-admin-digest-item" key={digest.id} onClick={() => selectDigest(digest.id)} type="button">
                     <span>{formatDate(digest.publishedAt ?? digest.detectedAt)}</span>
                     <strong>{digest.title}</strong>
                     <small>{digest.summary}</small>
@@ -3926,7 +3980,17 @@ function PlatformLegalAdminPanel({
   );
 }
 
-function LegalDigestDetail({ aiDraft, digest }: { aiDraft?: LegalDigestAiDraft | null; digest: LegalChangeDigest | null }) {
+function LegalDigestDetail({
+  aiDrafts,
+  digest,
+  loading,
+  onApplyAiDraft
+}: {
+  aiDrafts: LegalDigestAiDraft[];
+  digest: LegalChangeDigest | null;
+  loading: boolean;
+  onApplyAiDraft: (draftId: number) => void;
+}) {
   if (!digest) {
     return <EmptyState message="선택된 법령 변경사항이 없습니다." />;
   }
@@ -3935,6 +3999,7 @@ function LegalDigestDetail({ aiDraft, digest }: { aiDraft?: LegalDigestAiDraft |
   const added = articleDiffs.filter((diff) => diff.changeType === "ADDED").length;
   const modified = articleDiffs.filter((diff) => diff.changeType === "MODIFIED").length;
   const removed = articleDiffs.filter((diff) => diff.changeType === "REMOVED").length;
+  const aiDraft = aiDrafts[0] ?? null;
 
   return (
     <article className="legal-digest-detail">
@@ -3986,6 +4051,15 @@ function LegalDigestDetail({ aiDraft, digest }: { aiDraft?: LegalDigestAiDraft |
           <LegalDigestDraftList label="관련 카탈로그" values={aiDraft.affectedCatalogItems} />
           <LegalDigestDraftList label="근거 조문" values={aiDraft.keyArticles} />
           {aiDraft.reviewNotes ? <p>{aiDraft.reviewNotes}</p> : null}
+          {aiDraft.status === "GENERATED" ? (
+            <div className="legal-ai-draft-actions">
+              <button className="button compact primary" disabled={loading} onClick={() => onApplyAiDraft(aiDraft.id)} type="button">
+                {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+                寃뚯떆 ?붿빟???곸슜
+              </button>
+            </div>
+          ) : null}
+          <LegalDigestAiDraftHistory drafts={aiDrafts} loading={loading} onApply={onApplyAiDraft} />
         </section>
       ) : null}
 
@@ -4019,6 +4093,52 @@ function LegalDigestDetail({ aiDraft, digest }: { aiDraft?: LegalDigestAiDraft |
         )}
       </section>
     </article>
+  );
+}
+
+function LegalDigestAiDraftHistory({
+  drafts,
+  loading,
+  onApply
+}: {
+  drafts: LegalDigestAiDraft[];
+  loading: boolean;
+  onApply: (draftId: number) => void;
+}) {
+  if (drafts.length <= 1) {
+    return null;
+  }
+  return (
+    <div className="legal-ai-draft-history">
+      <strong>AI draft history</strong>
+      {drafts.slice(1).map((draft) => (
+        <div className="legal-ai-draft-entry" key={draft.id}>
+          <div className="legal-ai-draft-entry-head">
+            <div>
+              <span>Draft #{draft.id} / {formatDate(draft.generatedAt)}</span>
+              <small>{draft.title}</small>
+            </div>
+            <div className="legal-ai-draft-badges">
+              <StatusBadge status={draft.status} />
+              <StatusBadge status={draft.confidence} />
+            </div>
+          </div>
+          <p>{draft.summary}</p>
+          <div className="legal-ai-draft-meta">
+            <span>Harness {draft.aiHarnessRunId || "-"}</span>
+            <span>{draft.appliedAt ? `Applied ${formatDate(draft.appliedAt)}` : "Not applied"}</span>
+          </div>
+          {draft.status === "GENERATED" ? (
+            <div className="legal-ai-draft-actions">
+              <button className="button compact" disabled={loading} onClick={() => onApply(draft.id)} type="button">
+                {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+                寃뚯떆 ?붿빟???곸슜
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -4177,6 +4297,8 @@ function PlatformView({
   legalDigestAiDrafts,
   onFlowerRuntimeRefresh,
   onLegalDigestAiDraft,
+  onLoadLegalDigestAiDrafts,
+  onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh,
   issuedEngineApiKey,
@@ -4194,9 +4316,11 @@ function PlatformView({
   onRefresh: () => void;
   lastDetection: PlatformHealthDetection | null;
   onDetectStuck: () => void;
-  legalDigestAiDrafts: Record<number, LegalDigestAiDraft>;
+  legalDigestAiDrafts: Record<number, LegalDigestAiDraft[]>;
   onFlowerRuntimeRefresh: (silent?: boolean) => Promise<void>;
   onLegalDigestAiDraft: (digestId: number) => void;
+  onLoadLegalDigestAiDrafts: (digestId: number) => void;
+  onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
@@ -4284,6 +4408,8 @@ function PlatformView({
           legalDigestAiDrafts={legalDigestAiDrafts}
           loading={loading}
           onLegalDigestAiDraft={onLegalDigestAiDraft}
+          onLoadLegalDigestAiDrafts={onLoadLegalDigestAiDrafts}
+          onApplyLegalDigestAiDraft={onApplyLegalDigestAiDraft}
           onLegalDigestRefresh={onLegalDigestRefresh}
           onLegalOpenDataSync={onLegalOpenDataSync}
         />

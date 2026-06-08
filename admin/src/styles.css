@@ -1345,6 +1345,47 @@ button {
   overflow-wrap: anywhere;
 }
 
+.legal-ai-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.legal-ai-draft-history {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #dbe9e6;
+}
+
+.legal-ai-draft-entry {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e6e3;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.legal-ai-draft-entry-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.legal-ai-draft-entry-head > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.legal-ai-draft-entry-head small {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
 .legal-diff-list {
   display: grid;
   gap: 8px;
