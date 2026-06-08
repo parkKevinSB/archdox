@@ -4,7 +4,6 @@ import com.archdox.cloud.agent.application.ArchDoxAgentConnectionHealthPropertie
 import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentDeliveryProperties;
 import com.archdox.cloud.documentai.application.DocumentAiReviewProperties;
-import com.archdox.cloud.legal.application.LegalDigestAiProperties;
 import com.archdox.cloud.legal.application.LegalSyncProperties;
 import com.archdox.cloud.photo.application.PhotoDerivativeProperties;
 import com.archdox.cloud.photo.application.PhotoPickupProperties;
@@ -55,8 +54,7 @@ public class ArchDoxRuntimeConfiguration {
             ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties,
             PlatformOpsDetectionProperties platformOpsDetectionProperties,
             ArchDoxWorkerRuntimeProperties archDoxWorkerRuntimeProperties,
-            LegalSyncProperties legalSyncProperties,
-            LegalDigestAiProperties legalDigestAiProperties
+            LegalSyncProperties legalSyncProperties
     ) {
         return Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
@@ -103,7 +101,7 @@ public class ArchDoxRuntimeConfiguration {
                         .intervalMillis(legalSyncProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(LEGAL_DIGEST_AI_WORKER)
-                        .intervalMillis(legalDigestAiProperties.safeWorkerIntervalMs())
+                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
                         .build())
                 .build();
     }

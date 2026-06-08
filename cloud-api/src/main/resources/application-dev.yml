@@ -21,15 +21,3 @@ archdox:
   documents:
     storage:
       local-root: ${DOCUMENT_LOCAL_ROOT:build/document-storage}
-  platform-admin:
-    ops:
-      ai-diagnosis:
-        enabled: ${PLATFORM_OPS_AI_DIAGNOSIS_ENABLED:true}
-        provider-code: ${PLATFORM_OPS_AI_PROVIDER_CODE:fake-ops}
-        model: ${PLATFORM_OPS_AI_MODEL:fake-ops-model}
-  legal:
-    ai:
-      digest:
-        enabled: ${LEGAL_DIGEST_AI_ENABLED:true}
-        provider-code: ${LEGAL_DIGEST_AI_PROVIDER_CODE:fake-legal}
-        model: ${LEGAL_DIGEST_AI_MODEL:fake-legal-model}

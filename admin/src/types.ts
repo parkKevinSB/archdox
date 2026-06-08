@@ -823,6 +823,26 @@ export type AiProviderConnectionTestResult = {
   testedAt: string;
 };
 
+export type AiHarnessPolicy = {
+  id?: number | null;
+  policyKey: string;
+  displayName: string;
+  description?: string | null;
+  enabled: boolean;
+  providerCredentialId?: number | null;
+  providerCode?: string | null;
+  providerDisplayName?: string | null;
+  providerType?: string | null;
+  modelName?: string | null;
+  effectiveModelName?: string | null;
+  maxAttempts: number;
+  timeoutSeconds: number;
+  policyVersion: number;
+  effectiveEnabled: boolean;
+  effectiveMessage?: string | null;
+  updatedAt?: string | null;
+};
+
 export type OfficeAiPolicy = {
   officeId: number;
   officeCode: string;

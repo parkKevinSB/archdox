@@ -4,15 +4,20 @@ import com.archdox.cloud.agent.application.AgentOutboundMessage;
 import com.archdox.cloud.agent.application.ArchDoxAgentSessionRegistry;
 import com.archdox.cloud.agent.infra.ArchDoxAgentRepository;
 import com.archdox.cloud.aipolicy.domain.AiCredentialDeliveryMode;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicy;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredentialStatus;
 import com.archdox.cloud.aipolicy.domain.AiProviderType;
 import com.archdox.cloud.aipolicy.domain.OfficeAiPolicy;
+import com.archdox.cloud.aipolicy.dto.AiHarnessPolicyResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderCredentialResponse;
 import com.archdox.cloud.aipolicy.dto.CreateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.OfficeAiPolicyResponse;
+import com.archdox.cloud.aipolicy.dto.UpdateAiHarnessPolicyRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateOfficeAiPolicyRequest;
+import com.archdox.cloud.aipolicy.infra.AiHarnessPolicyRepository;
 import com.archdox.cloud.aipolicy.infra.AiProviderCredentialRepository;
 import com.archdox.cloud.aipolicy.infra.OfficeAiPolicyRepository;
 import com.archdox.cloud.global.api.BadRequestException;
@@ -46,6 +51,7 @@ public class AiPolicyManagementService {
 
     private final PlatformAdminService platformAdminService;
     private final AiProviderCredentialRepository providerRepository;
+    private final AiHarnessPolicyRepository harnessPolicyRepository;
     private final OfficeAiPolicyRepository officePolicyRepository;
     private final OfficeRepository officeRepository;
     private final ArchDoxAgentRepository agentRepository;
@@ -56,6 +62,7 @@ public class AiPolicyManagementService {
     public AiPolicyManagementService(
             PlatformAdminService platformAdminService,
             AiProviderCredentialRepository providerRepository,
+            AiHarnessPolicyRepository harnessPolicyRepository,
             OfficeAiPolicyRepository officePolicyRepository,
             OfficeRepository officeRepository,
             ArchDoxAgentRepository agentRepository,
@@ -65,6 +72,7 @@ public class AiPolicyManagementService {
     ) {
         this.platformAdminService = platformAdminService;
         this.providerRepository = providerRepository;
+        this.harnessPolicyRepository = harnessPolicyRepository;
         this.officePolicyRepository = officePolicyRepository;
         this.officeRepository = officeRepository;
         this.agentRepository = agentRepository;
@@ -157,6 +165,51 @@ public class AiPolicyManagementService {
         return offices.stream()
                 .map(office -> toOfficePolicyResponse(office, policiesByOfficeId.get(office.id()), providersById))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AiHarnessPolicyResponse> harnessPolicies(UserPrincipal principal) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var policiesByKey = harnessPolicyRepository.findAllByOrderByPolicyKeyAsc()
+                .stream()
+                .collect(Collectors.toMap(AiHarnessPolicy::policyKey, Function.identity()));
+        var providersById = providerRepository.findAll()
+                .stream()
+                .collect(Collectors.toMap(AiProviderCredential::id, Function.identity()));
+        return java.util.Arrays.stream(AiHarnessPolicyKey.values())
+                .map(key -> toHarnessPolicyResponse(policiesByKey.get(key), key, providersById))
+                .toList();
+    }
+
+    @Transactional
+    public AiHarnessPolicyResponse updateHarnessPolicy(
+            UserPrincipal principal,
+            String policyKey,
+            UpdateAiHarnessPolicyRequest request
+    ) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var key = harnessPolicyKey(policyKey);
+        var providerId = request.providerCredentialId();
+        var provider = providerId == null ? null : requireProvider(providerId);
+        if (provider != null && provider.status() == AiProviderCredentialStatus.DISABLED) {
+            throw new BadRequestException("Disabled AI provider credential cannot be assigned");
+        }
+        var now = OffsetDateTime.now();
+        var policy = harnessPolicyRepository.findByPolicyKey(key)
+                .orElseGet(() -> harnessPolicyRepository.save(new AiHarnessPolicy(key, principal.userId(), now)));
+        policy.update(
+                request.enabled(),
+                provider == null ? null : provider.id(),
+                request.modelName(),
+                request.maxAttempts(),
+                request.timeoutSeconds(),
+                principal.userId(),
+                now);
+        recordHarnessPolicyEvent(principal, policy, provider);
+        var providersById = providerRepository.findAll()
+                .stream()
+                .collect(Collectors.toMap(AiProviderCredential::id, Function.identity()));
+        return toHarnessPolicyResponse(policy, key, providersById);
     }
 
     @Transactional
@@ -321,6 +374,62 @@ public class AiPolicyManagementService {
                 policy == null ? null : policy.updatedAt());
     }
 
+    private AiHarnessPolicyResponse toHarnessPolicyResponse(
+            AiHarnessPolicy policy,
+            AiHarnessPolicyKey key,
+            Map<Long, AiProviderCredential> providersById
+    ) {
+        var provider = policy == null || policy.providerCredentialId() == null
+                ? null
+                : providersById.get(policy.providerCredentialId());
+        var modelName = policy == null ? null : blankToNull(policy.modelName());
+        var effectiveModel = modelName != null
+                ? modelName
+                : provider == null ? null : blankToNull(provider.defaultModel());
+        var effective = effectiveHarnessPolicy(policy, provider, effectiveModel);
+        return new AiHarnessPolicyResponse(
+                policy == null ? null : policy.id(),
+                key.name(),
+                key.displayName(),
+                key.description(),
+                policy != null && policy.enabled(),
+                policy == null ? null : policy.providerCredentialId(),
+                provider == null ? null : provider.providerCode(),
+                provider == null ? null : provider.displayName(),
+                provider == null ? null : provider.providerType().name(),
+                modelName,
+                effectiveModel,
+                policy == null ? 2 : policy.maxAttempts(),
+                policy == null ? 90 : policy.timeoutSeconds(),
+                policy == null ? 0 : policy.policyVersion(),
+                effective.enabled(),
+                effective.message(),
+                policy == null ? null : policy.updatedAt());
+    }
+
+    private EffectiveHarnessPolicy effectiveHarnessPolicy(
+            AiHarnessPolicy policy,
+            AiProviderCredential provider,
+            String effectiveModel
+    ) {
+        if (policy == null) {
+            return new EffectiveHarnessPolicy(false, "AI 작업 정책이 아직 생성되지 않았습니다.");
+        }
+        if (!policy.enabled()) {
+            return new EffectiveHarnessPolicy(false, "AI 작업 정책이 꺼져 있습니다.");
+        }
+        if (provider == null) {
+            return new EffectiveHarnessPolicy(false, "AI 제공자가 지정되지 않았습니다.");
+        }
+        if (provider.status() != AiProviderCredentialStatus.ACTIVE) {
+            return new EffectiveHarnessPolicy(false, "지정된 AI 제공자가 활성 상태가 아닙니다.");
+        }
+        if (effectiveModel == null || effectiveModel.isBlank()) {
+            return new EffectiveHarnessPolicy(false, "모델명이 설정되지 않았습니다.");
+        }
+        return new EffectiveHarnessPolicy(true, "이 AI 작업은 지정된 provider/model로 실행됩니다.");
+    }
+
     private EffectiveAgentAiPolicy effectivePolicyFromLoaded(OfficeAiPolicy policy, AiProviderCredential provider) {
         if (!policy.aiEnabled()) {
             return EffectiveAgentAiPolicy.disabled("AI is disabled for this office.");
@@ -392,9 +501,47 @@ public class AiPolicyManagementService {
                 payload);
     }
 
+    private void recordHarnessPolicyEvent(
+            UserPrincipal principal,
+            AiHarnessPolicy policy,
+            AiProviderCredential provider
+    ) {
+        operationEventService.record(
+                null,
+                OperationEventSeverity.INFO,
+                "AI_HARNESS_POLICY_UPDATED",
+                "ai-policy-management",
+                "ai-harness-policy:" + policy.policyKey().name(),
+                "AI_HARNESS_POLICY",
+                policy.id(),
+                principal.userId(),
+                null,
+                "AI harness policy updated.",
+                Map.of(
+                        "policyKey", policy.policyKey().name(),
+                        "enabled", policy.enabled(),
+                        "providerCredentialId", policy.providerCredentialId() == null ? "" : policy.providerCredentialId(),
+                        "providerCode", provider == null ? "" : provider.providerCode(),
+                        "modelName", policy.modelName() == null ? "" : policy.modelName(),
+                        "maxAttempts", policy.maxAttempts(),
+                        "timeoutSeconds", policy.timeoutSeconds(),
+                        "policyVersion", policy.policyVersion()));
+    }
+
     private AiProviderType providerType(String providerType) {
         var normalized = required(providerType, "providerType").trim().toUpperCase(Locale.ROOT);
         return AiProviderType.valueOf(normalized);
+    }
+
+    private AiHarnessPolicyKey harnessPolicyKey(String policyKey) {
+        try {
+            return AiHarnessPolicyKey.valueOf(required(policyKey, "policyKey").trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(
+                    "AI_HARNESS_POLICY_UNKNOWN",
+                    "error.aiHarnessPolicy.unknown",
+                    "Unknown AI harness policy key.");
+        }
     }
 
     private AiCredentialDeliveryMode credentialDeliveryMode(String credentialDeliveryMode) {
@@ -453,6 +600,9 @@ public class AiPolicyManagementService {
             return null;
         }
         return value.trim();
+    }
+
+    private record EffectiveHarnessPolicy(boolean enabled, String message) {
     }
 
     private String validateApiKey(AiProviderType providerType, String apiKey, boolean create) {

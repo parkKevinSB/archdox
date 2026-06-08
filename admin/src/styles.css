@@ -1850,6 +1850,53 @@ button {
   padding: 16px;
 }
 
+.ai-harness-policy-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-harness-policy-form {
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.ai-harness-policy-heading,
+.ai-harness-policy-state {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ai-harness-policy-heading {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+}
+
+.ai-harness-policy-heading > div:first-child,
+.ai-harness-policy-state {
+  display: grid;
+  gap: 4px;
+}
+
+.ai-harness-policy-heading strong {
+  color: #172322;
+  font-size: 15px;
+}
+
+.ai-harness-policy-heading span,
+.ai-harness-policy-heading small,
+.ai-harness-policy-state span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-harness-policy-form .policy-note,
+.ai-harness-policy-form .button {
+  grid-column: 1 / -1;
+}
+
 .engine-key-grid {
   display: grid;
   grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.72fr);
@@ -2846,8 +2893,13 @@ tbody tr:hover {
   .override-form,
   .member-form,
   .project-form,
-  .project-assignment-form {
+  .project-assignment-form,
+  .ai-policy-form {
     grid-template-columns: 1fr;
+  }
+
+  .ai-harness-policy-heading {
+    display: grid;
   }
 
   .legal-diff-preview-grid {

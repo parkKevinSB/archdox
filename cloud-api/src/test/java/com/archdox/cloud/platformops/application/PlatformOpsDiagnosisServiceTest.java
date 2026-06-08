@@ -11,6 +11,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEvent;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
@@ -43,7 +46,7 @@ class PlatformOpsDiagnosisServiceTest {
     private final PlatformOpsFindingRepository findingRepository = mock(PlatformOpsFindingRepository.class);
     private final OperationEventRepository operationEventRepository = mock(OperationEventRepository.class);
     private final OperationEventService operationEventService = mock(OperationEventService.class);
-    private final PlatformOpsAiDiagnosisProperties aiDiagnosisProperties = new PlatformOpsAiDiagnosisProperties();
+    private final AiHarnessPolicyExecutionService policyExecutionService = mock(AiHarnessPolicyExecutionService.class);
     private final PlatformOpsAiDiagnosisRunStore aiDiagnosisRunStore = mock(PlatformOpsAiDiagnosisRunStore.class);
     private final PlatformOpsAiDiagnosisFindingSink aiDiagnosisFindingSink = mock(PlatformOpsAiDiagnosisFindingSink.class);
     private final AiModelGateway aiModelGateway = mock(AiModelGateway.class);
@@ -159,6 +162,10 @@ class PlatformOpsDiagnosisServiceTest {
 
         when(runRepository.findById(77L)).thenReturn(Optional.of(run));
         when(incidentRepository.findById(55L)).thenReturn(Optional.of(incident));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS,
+                        "DISABLED_OR_NOT_CONFIGURED"));
 
         var flow = service.createAiDiagnosisHarnessFlow(77L);
 
@@ -176,7 +183,7 @@ class PlatformOpsDiagnosisServiceTest {
                 findingRepository,
                 operationEventRepository,
                 operationEventService,
-                aiDiagnosisProperties,
+                policyExecutionService,
                 aiDiagnosisRunStore,
                 aiDiagnosisFindingSink,
                 aiModelGateway,

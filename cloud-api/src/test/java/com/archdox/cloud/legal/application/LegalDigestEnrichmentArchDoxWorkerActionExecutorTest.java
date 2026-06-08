@@ -5,6 +5,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.archdox.cloud.aipolicy.application.AiHarnessExecutionPlan;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.legal.flow.LegalDigestAiWorker;
 import com.archdox.legalai.LegalDigestArticleChange;
 import com.archdox.legalai.LegalDigestInput;
@@ -35,7 +40,7 @@ import org.junit.jupiter.api.Test;
 
 class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
     private final LegalDigestAiInputService inputService = mock(LegalDigestAiInputService.class);
-    private final LegalDigestAiProperties properties = enabledProperties();
+    private final AiHarnessPolicyExecutionService policyExecutionService = mock(AiHarnessPolicyExecutionService.class);
 
     @Test
     void rejectsNonDryRunExecution() {
@@ -85,9 +90,16 @@ class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
             AiModelGateway gateway,
             LegalDigestAiWorker worker
     ) {
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT))
+                .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
+                        AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT,
+                        mock(AiProviderCredential.class),
+                        new ModelId("fake-legal", "fake-legal-model"),
+                        1,
+                        Duration.ofSeconds(10))));
         return new LegalDigestEnrichmentArchDoxWorkerActionExecutor(
                 inputService,
-                properties,
+                policyExecutionService,
                 worker,
                 gateway,
                 new ObjectMapper(),
@@ -129,16 +141,6 @@ class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
                         "0018232025082621035",
                         "2026-02-27",
                         "https://www.law.go.kr")));
-    }
-
-    private LegalDigestAiProperties enabledProperties() {
-        var value = new LegalDigestAiProperties();
-        value.setEnabled(true);
-        value.setProviderCode("fake-legal");
-        value.setModel("fake-legal-model");
-        value.setTimeoutSeconds(10);
-        value.setMaxAttempts(1);
-        return value;
     }
 
     private AiModelGateway fakeGateway(String rawText) {

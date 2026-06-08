@@ -12,12 +12,14 @@ import com.archdox.cloud.aipolicy.dto.AiModelCallLogResponse;
 import com.archdox.cloud.aipolicy.dto.AiModelPricingRuleResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationModeResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationResponse;
+import com.archdox.cloud.aipolicy.dto.AiHarnessPolicyResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderConnectionTestResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderCredentialResponse;
 import com.archdox.cloud.aipolicy.dto.AiUsageSummaryResponse;
 import com.archdox.cloud.aipolicy.dto.CreateAiModelPricingRuleRequest;
 import com.archdox.cloud.aipolicy.dto.CreateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.OfficeAiPolicyResponse;
+import com.archdox.cloud.aipolicy.dto.UpdateAiHarnessPolicyRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateAiObservationModeRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateAiProviderCredentialRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateOfficeAiPolicyRequest;
@@ -112,6 +114,20 @@ public class PlatformAiPolicyController {
             @RequestParam(required = false) Integer limit
     ) {
         return service.officePolicies(principal(authentication), limit);
+    }
+
+    @GetMapping("/harness-policies")
+    public List<AiHarnessPolicyResponse> harnessPolicies(Authentication authentication) {
+        return service.harnessPolicies(principal(authentication));
+    }
+
+    @PutMapping("/harness-policies/{policyKey}")
+    public AiHarnessPolicyResponse updateHarnessPolicy(
+            Authentication authentication,
+            @PathVariable String policyKey,
+            @RequestBody UpdateAiHarnessPolicyRequest request
+    ) {
+        return service.updateHarnessPolicy(principal(authentication), policyKey, request);
     }
 
     @GetMapping("/call-logs")

@@ -11,14 +11,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEvent;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisFindingSink;
-import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisRunStore;
 import com.archdox.cloud.platformops.application.PlatformOpsDiagnosisService;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
@@ -58,7 +59,7 @@ class PlatformOpsDiagnosisNoKeyFlowTest {
         var aiFindingSink = mock(PlatformOpsAiDiagnosisFindingSink.class);
         var aiModelGateway = mock(AiModelGateway.class);
         var aiWorker = mock(PlatformOpsAiDiagnosisWorker.class);
-        var aiProperties = new PlatformOpsAiDiagnosisProperties();
+        var policyExecutionService = mock(AiHarnessPolicyExecutionService.class);
         var now = OffsetDateTime.parse("2026-05-29T10:00:00+09:00");
         var incident = incident(55L, now.minusMinutes(10));
         var run = new PlatformOpsRun(
@@ -79,6 +80,10 @@ class PlatformOpsDiagnosisNoKeyFlowTest {
                 .thenReturn(List.of(event));
         when(findingRepository.save(any(PlatformOpsFinding.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(findingRepository.countByRunIdAndSource(77L, PlatformOpsFindingSource.AI_HARNESS)).thenReturn(0L);
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS,
+                        "DISABLED_OR_NOT_CONFIGURED"));
 
         var service = new PlatformOpsDiagnosisService(
                 platformAdminService,
@@ -87,7 +92,7 @@ class PlatformOpsDiagnosisNoKeyFlowTest {
                 findingRepository,
                 operationEventRepository,
                 operationEventService,
-                aiProperties,
+                policyExecutionService,
                 aiRunStore,
                 aiFindingSink,
                 aiModelGateway,

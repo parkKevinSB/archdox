@@ -1,5 +1,7 @@
 package com.archdox.cloud.legal.application;
 
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -64,7 +66,7 @@ public class LegalPlatformAdminService {
     private final LegalChangeDigestService changeDigestService;
     private final ArchDoxWorkerExecutionFlowFactory workerFlowFactory;
     private final ArchDoxWorkerServiceWorker workerServiceWorker;
-    private final LegalDigestAiProperties legalDigestAiProperties;
+    private final AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService;
     private final LegalDigestAiDraftRepository aiDraftRepository;
     private final OperationEventService operationEventService;
 
@@ -83,7 +85,7 @@ public class LegalPlatformAdminService {
             LegalChangeDigestService changeDigestService,
             ArchDoxWorkerExecutionFlowFactory workerFlowFactory,
             ArchDoxWorkerServiceWorker workerServiceWorker,
-            LegalDigestAiProperties legalDigestAiProperties,
+            AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService,
             LegalDigestAiDraftRepository aiDraftRepository,
             OperationEventService operationEventService
     ) {
@@ -101,7 +103,7 @@ public class LegalPlatformAdminService {
         this.changeDigestService = changeDigestService;
         this.workerFlowFactory = workerFlowFactory;
         this.workerServiceWorker = workerServiceWorker;
-        this.legalDigestAiProperties = legalDigestAiProperties;
+        this.aiHarnessPolicyExecutionService = aiHarnessPolicyExecutionService;
         this.aiDraftRepository = aiDraftRepository;
         this.operationEventService = operationEventService;
     }
@@ -237,7 +239,7 @@ public class LegalPlatformAdminService {
                 1.0d,
                 ArchDoxWorkerActionOrigin.USER);
         var handle = workerFlowFactory.createHandle(request, action);
-        var timeout = Duration.ofSeconds(legalDigestAiProperties.safeTimeoutSeconds() + 5);
+        var timeout = legalDigestAiDraftTimeout();
         if (!workerServiceWorker.submitAndAwait(handle.flow(), timeout)) {
             throw new BadRequestException(
                     "LEGAL_DIGEST_AI_DRAFT_TIMEOUT",
@@ -268,6 +270,14 @@ public class LegalPlatformAdminService {
                 saved,
                 principal);
         return toAiDraftResponse(saved);
+    }
+
+    private Duration legalDigestAiDraftTimeout() {
+        var policy = aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT);
+        if (policy.runnable()) {
+            return policy.plan().timeout().plusSeconds(5);
+        }
+        return Duration.ofSeconds(15);
     }
 
     public List<LegalDigestAiDraftResponse> digestAiDrafts(UserPrincipal principal, Long digestId) {

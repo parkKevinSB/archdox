@@ -19,13 +19,17 @@ import com.archdox.cloud.aipolicy.application.AiCredentialCipher;
 import com.archdox.cloud.aipolicy.application.AiCredentialProperties;
 import com.archdox.cloud.aipolicy.application.AiFakeProviderProperties;
 import com.archdox.cloud.aipolicy.application.AiFakeResponseFactory;
+import com.archdox.cloud.aipolicy.application.AiHarnessExecutionPlan;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
 import com.archdox.cloud.aipolicy.application.AiSpringAiAdapterProperties;
 import com.archdox.cloud.aipolicy.application.AiModelCallLogService;
 import com.archdox.cloud.aipolicy.application.ArchDoxProviderAiModelGateway;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.aipolicy.infra.AiProviderCredentialRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisFindingSink;
-import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsAiDiagnosisRunStore;
 import com.archdox.cloud.platformops.application.PlatformOpsDiagnosisService;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
@@ -42,8 +46,10 @@ import com.archdox.cloud.platformops.infra.PlatformOpsRunRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelRequest;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelResponse;
+import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import io.github.parkkevinsb.flower.core.engine.Engine;
 import io.github.parkkevinsb.flower.core.worker.Worker;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +69,14 @@ class PlatformOpsDiagnosisFakeAiHarnessFlowTest {
         var operationEventRepository = mock(OperationEventRepository.class);
         var operationEventService = mock(OperationEventService.class);
         var objectMapper = new ObjectMapper();
-        var aiProperties = enabledFakeAiProperties();
+        var policyExecutionService = mock(AiHarnessPolicyExecutionService.class);
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS))
+                .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
+                        AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS,
+                        mock(AiProviderCredential.class),
+                        new ModelId("fake-ops", "fake-ops-model"),
+                        1,
+                        Duration.ofSeconds(30))));
         var providerRepository = mock(AiProviderCredentialRepository.class);
         var callLogService = mock(AiModelCallLogService.class);
         var credentialProperties = new AiCredentialProperties();
@@ -94,7 +107,7 @@ class PlatformOpsDiagnosisFakeAiHarnessFlowTest {
                 findingRepository,
                 operationEventRepository,
                 operationEventService,
-                aiProperties,
+                policyExecutionService,
                 aiRunStore,
                 aiFindingSink,
                 fakeGateway,
@@ -172,16 +185,6 @@ class PlatformOpsDiagnosisFakeAiHarnessFlowTest {
                 isNull(),
                 eq("Platform ops diagnosis flow submitted the AI harness."),
                 anyMap());
-    }
-
-    private PlatformOpsAiDiagnosisProperties enabledFakeAiProperties() {
-        var properties = new PlatformOpsAiDiagnosisProperties();
-        properties.setEnabled(true);
-        properties.setProviderCode("fake-ops");
-        properties.setModel("fake-ops-model");
-        properties.setMaxAttempts(1);
-        properties.setTimeoutSeconds(30);
-        return properties;
     }
 
     private PlatformOpsIncident incident(Long id, OffsetDateTime now) {

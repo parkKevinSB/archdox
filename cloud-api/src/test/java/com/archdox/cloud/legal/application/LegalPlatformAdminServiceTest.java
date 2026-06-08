@@ -8,6 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.archdox.cloud.aipolicy.application.AiHarnessExecutionPlan;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.legal.domain.LegalAct;
 import com.archdox.cloud.legal.domain.LegalChangeDigest;
@@ -36,6 +41,7 @@ import com.archdox.worker.application.ArchDoxWorkerTraceSink;
 import com.archdox.worker.domain.ArchDoxWorkerActionResult;
 import com.archdox.worker.domain.ArchDoxWorkerActionType;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionFlowFactory;
+import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import io.github.parkkevinsb.flower.core.engine.Engine;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import io.github.parkkevinsb.flower.core.worker.Worker;
@@ -65,7 +71,7 @@ class LegalPlatformAdminServiceTest {
     private final LegalChangeDigestService changeDigestService = mock(LegalChangeDigestService.class);
     private final ArchDoxWorkerExecutionFlowFactory workerFlowFactory = mock(ArchDoxWorkerExecutionFlowFactory.class);
     private final ArchDoxWorkerServiceWorker workerServiceWorker = mock(ArchDoxWorkerServiceWorker.class);
-    private final LegalDigestAiProperties legalDigestAiProperties = new LegalDigestAiProperties();
+    private final AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService = mock(AiHarnessPolicyExecutionService.class);
     private final LegalDigestAiDraftRepository aiDraftRepository = mock(LegalDigestAiDraftRepository.class);
     private final OperationEventService operationEventService = mock(OperationEventService.class);
     private final LegalPlatformAdminService service = new LegalPlatformAdminService(
@@ -83,7 +89,7 @@ class LegalPlatformAdminServiceTest {
             changeDigestService,
             workerFlowFactory,
             workerServiceWorker,
-            legalDigestAiProperties,
+            aiHarnessPolicyExecutionService,
             aiDraftRepository,
             operationEventService);
 
@@ -164,13 +170,19 @@ class LegalPlatformAdminServiceTest {
         var digest = digest(10L, LegalChangeDigestSource.DETERMINISTIC, now);
         setId(digest, 1L);
         when(changeDigestRepository.findById(1L)).thenReturn(Optional.of(digest));
-        var properties = new LegalDigestAiProperties();
-        properties.setTimeoutSeconds(10);
         when(aiDraftRepository.save(any(LegalDigestAiDraft.class))).thenAnswer(invocation -> {
             var draft = invocation.<LegalDigestAiDraft>getArgument(0);
             setId(draft, 99L);
             return draft;
         });
+        var aiHarnessPolicyExecutionService = mock(AiHarnessPolicyExecutionService.class);
+        when(aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT))
+                .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
+                        AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT,
+                        mock(AiProviderCredential.class),
+                        new ModelId("fake-legal", "fake-legal-model"),
+                        1,
+                        Duration.ofSeconds(10))));
         var draftService = new LegalPlatformAdminService(
                 platformAdminService,
                 syncService,
@@ -189,7 +201,7 @@ class LegalPlatformAdminServiceTest {
                         ArchDoxWorkerPolicyGate.allowAll(),
                         ArchDoxWorkerTraceSink.noop()),
                 new DirectWorker(),
-                properties,
+                aiHarnessPolicyExecutionService,
                 aiDraftRepository,
                 operationEventService);
 

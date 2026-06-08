@@ -71,6 +71,7 @@ import {
   getPlatformAdminMe,
   getPlatformAgents,
   getPlatformAiCallLogs,
+  getPlatformAiHarnessPolicies,
   getPlatformAiHarnessTraces,
   getPlatformAiObservationMode,
   getPlatformAiObservations,
@@ -116,6 +117,7 @@ import {
   testPlatformAiProvider,
   updateProject,
   updatePlatformAiObservationMode,
+  updatePlatformAiHarnessPolicy,
   updatePlatformAiProvider,
   updatePlatformOfficeAiPolicy,
   updateOfficeMemberRole,
@@ -128,6 +130,7 @@ import type {
   AgentCommand,
   AgentSession,
   AiModelCallLog,
+  AiHarnessPolicy,
   AiHarnessTraceEvent,
   AiModelPricingRule,
   AiObservation,
@@ -285,6 +288,7 @@ type PlatformOpsData = {
   workerApprovals: WorkerApprovalRequest[];
   flowerRuntimeDump: FlowerRuntimeDump | null;
   aiProviders: AiProviderCredential[];
+  aiHarnessPolicies: AiHarnessPolicy[];
   officeAiPolicies: OfficeAiPolicy[];
   aiCallLogs: AiModelCallLog[];
   aiHarnessTraces: AiHarnessTraceEvent[];
@@ -333,6 +337,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   workerApprovals: [],
   flowerRuntimeDump: null,
   aiProviders: [],
+  aiHarnessPolicies: [],
   officeAiPolicies: [],
   aiCallLogs: [],
   aiHarnessTraces: [],
@@ -501,6 +506,8 @@ const codeLabels: Record<string, string> = {
   AGENT_COMMAND: "Agent 명령",
   AI: "AI 보강",
   AI_REVIEW: "AI 검토",
+  LEGAL_DIGEST_ENRICHMENT: "법령 변경 게시글 AI 초안",
+  PLATFORM_OPS_DIAGNOSIS: "플랫폼 운영 진단 AI",
   API_LOCAL: "API 로컬 저장소",
   ARCHDOX_AGENT: "ArchDox Agent",
   CLOUD_MANAGED: "클라우드 관리형",
@@ -856,14 +863,15 @@ export default function App() {
       } else if (view === "platform-flower-runtime") {
         next.flowerRuntimeDump = await getPlatformFlowerRuntimeDump(token);
       } else if (view === "ai-overview") {
-        const [aiProviders, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings] = await Promise.all([
+        const [aiProviders, aiHarnessPolicies, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings] = await Promise.all([
           getPlatformAiProviders(token),
+          getPlatformAiHarnessPolicies(token),
           getPlatformOfficeAiPolicies(token, 100),
           getPlatformAiUsageSummary(token),
           getPlatformAiCallLogs(token, 100),
           getPlatformAiPreflightFindings(token, 100)
         ]);
-        Object.assign(next, { aiProviders, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings });
+        Object.assign(next, { aiProviders, aiHarnessPolicies, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings });
       } else if (view === "ai-providers") {
         const [aiProviders, aiPricingRules, aiUsageSummary] = await Promise.all([
           getPlatformAiProviders(token),
@@ -872,11 +880,12 @@ export default function App() {
         ]);
         Object.assign(next, { aiProviders, aiPricingRules, aiUsageSummary });
       } else if (view === "ai-policies") {
-        const [aiProviders, officeAiPolicies] = await Promise.all([
+        const [aiProviders, aiHarnessPolicies, officeAiPolicies] = await Promise.all([
           getPlatformAiProviders(token),
+          getPlatformAiHarnessPolicies(token),
           getPlatformOfficeAiPolicies(token, 100)
         ]);
-        Object.assign(next, { aiProviders, officeAiPolicies });
+        Object.assign(next, { aiProviders, aiHarnessPolicies, officeAiPolicies });
       } else if (view === "ai-observer") {
         const [aiObservationMode, aiObservations, aiHarnessTraces, aiCallLogs, aiPreflightFindings] = await Promise.all([
           getPlatformAiObservationMode(token),
@@ -1276,6 +1285,31 @@ export default function App() {
     }
   }
 
+  async function handleSaveAiHarnessPolicy(
+    policyKey: string,
+    body: {
+      enabled: boolean;
+      providerCredentialId?: number | null;
+      modelName?: string | null;
+      maxAttempts?: number | null;
+      timeoutSeconds?: number | null;
+    }
+  ) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformAiHarnessPolicy(auth.accessToken, policyKey, body);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 작업 정책을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSaveOfficeAiPolicy(
     officeId: number,
     body: {
@@ -1637,6 +1671,7 @@ export default function App() {
               preflightFindings={platformData.aiPreflightFindings}
               pricingRules={platformData.aiPricingRules}
               providers={platformData.aiProviders}
+              harnessPolicies={platformData.aiHarnessPolicies}
               policies={platformData.officeAiPolicies}
               usageSummary={platformData.aiUsageSummary}
               onCreatePricingRule={handleCreateAiPricingRule}
@@ -1648,6 +1683,7 @@ export default function App() {
               onUpdateObservationMode={handleUpdateAiObservationMode}
               onClearObservations={handleClearAiObservations}
               onRefresh={refreshPlatform}
+              onSaveHarnessPolicy={handleSaveAiHarnessPolicy}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
               providerTestResults={aiProviderTestResults}
             />
@@ -5809,6 +5845,7 @@ function AiManagementView({
   preflightFindings,
   pricingRules,
   providers,
+  harnessPolicies,
   policies,
   usageSummary,
   onCreatePricingRule,
@@ -5820,6 +5857,7 @@ function AiManagementView({
   onUpdateObservationMode,
   onClearObservations,
   onRefresh,
+  onSaveHarnessPolicy,
   providerTestResults,
   onSaveOfficePolicy
 }: {
@@ -5832,6 +5870,7 @@ function AiManagementView({
   preflightFindings: PlatformReportPreflightFinding[];
   pricingRules: AiModelPricingRule[];
   providers: AiProviderCredential[];
+  harnessPolicies: AiHarnessPolicy[];
   policies: OfficeAiPolicy[];
   usageSummary: AiUsageSummary | null;
   onCreatePricingRule: (body: {
@@ -5865,6 +5904,16 @@ function AiManagementView({
   onUpdateObservationMode: (enabled: boolean) => Promise<void>;
   onClearObservations: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  onSaveHarnessPolicy: (
+    policyKey: string,
+    body: {
+      enabled: boolean;
+      providerCredentialId?: number | null;
+      modelName?: string | null;
+      maxAttempts?: number | null;
+      timeoutSeconds?: number | null;
+    }
+  ) => Promise<void>;
   providerTestResults: Record<number, AiProviderConnectionTestResult>;
   onSaveOfficePolicy: (
     officeId: number,
@@ -5897,6 +5946,7 @@ function AiManagementView({
   const activeProviderCount = providers.filter((provider) => provider.status === "ACTIVE").length;
   const fakeProviderCount = providers.filter((provider) => isFakeAiProvider(provider.providerCode)).length;
   const aiEnabledOfficeCount = policies.filter((policy) => policy.effectiveAiEnabled).length;
+  const runnableHarnessCount = harnessPolicies.filter((policy) => policy.effectiveEnabled).length;
   const showOverview = view === "ai-overview";
   const showProviders = view === "ai-providers";
   const showPolicies = view === "ai-policies";
@@ -5917,6 +5967,7 @@ function AiManagementView({
       {showOverview ? (
         <div className="metric-grid">
         <MetricCard label="활성 Provider" value={activeProviderCount} detail={`Fake ${fakeProviderCount}개`} icon={<KeyRound size={18} />} tone={activeProviderCount > 0 ? "green" : "amber"} />
+        <MetricCard label="AI 작업 정책" value={runnableHarnessCount} detail={`${harnessPolicies.length}개 중 실행 가능`} icon={<Command size={18} />} tone={runnableHarnessCount > 0 ? "green" : "amber"} />
         <MetricCard label="AI 사용 사무소" value={aiEnabledOfficeCount} detail="정책상 활성" icon={<ShieldCheck size={18} />} tone={aiEnabledOfficeCount > 0 ? "green" : "slate"} />
         <MetricCard label="AI 호출" value={usageSummary?.callCount ?? 0} detail="이번 달" icon={<Activity size={18} />} tone="blue" />
         <MetricCard label="AI 토큰" value={(usageSummary?.inputTokens ?? 0) + (usageSummary?.outputTokens ?? 0)} detail="입력 + 출력" icon={<Gauge size={18} />} tone="amber" />
@@ -5982,6 +6033,14 @@ function AiManagementView({
         ) : null}
         {showPolicies ? (
           <>
+        <Panel title="AI 작업 정책" icon={<Command size={18} />} count={harnessPolicies.length}>
+          <AiHarnessPolicyPanel
+            busy={loading}
+            policies={harnessPolicies}
+            providers={providers}
+            onSubmit={onSaveHarnessPolicy}
+          />
+        </Panel>
         <Panel title="사무소 AI 권한" icon={<ShieldCheck size={18} />}>
           <OfficeAiPolicyForm
             busy={loading}
@@ -7044,6 +7103,155 @@ function AiBudgetPolicyForm({
       <button className="button primary" disabled={busy} type="submit">
         {busy ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
         예산 저장
+      </button>
+    </form>
+  );
+}
+
+function AiHarnessPolicyPanel({
+  busy,
+  policies,
+  providers,
+  onSubmit
+}: {
+  busy: boolean;
+  policies: AiHarnessPolicy[];
+  providers: AiProviderCredential[];
+  onSubmit: (
+    policyKey: string,
+    body: {
+      enabled: boolean;
+      providerCredentialId?: number | null;
+      modelName?: string | null;
+      maxAttempts?: number | null;
+      timeoutSeconds?: number | null;
+    }
+  ) => Promise<void>;
+}) {
+  if (policies.length === 0) {
+    return <EmptyState message="등록된 AI 작업 정책이 없습니다." />;
+  }
+  return (
+    <div className="ai-harness-policy-list">
+      {policies.map((policy) => (
+        <AiHarnessPolicyForm
+          busy={busy}
+          key={policy.policyKey}
+          policy={policy}
+          providers={providers}
+          onSubmit={onSubmit}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AiHarnessPolicyForm({
+  busy,
+  policy,
+  providers,
+  onSubmit
+}: {
+  busy: boolean;
+  policy: AiHarnessPolicy;
+  providers: AiProviderCredential[];
+  onSubmit: (
+    policyKey: string,
+    body: {
+      enabled: boolean;
+      providerCredentialId?: number | null;
+      modelName?: string | null;
+      maxAttempts?: number | null;
+      timeoutSeconds?: number | null;
+    }
+  ) => Promise<void>;
+}) {
+  const [enabled, setEnabled] = useState(policy.enabled);
+  const [providerId, setProviderId] = useState<number | null>(policy.providerCredentialId ?? null);
+  const [modelName, setModelName] = useState(policy.modelName ?? policy.effectiveModelName ?? "");
+  const [maxAttempts, setMaxAttempts] = useState(String(policy.maxAttempts ?? 2));
+  const [timeoutSeconds, setTimeoutSeconds] = useState(String(policy.timeoutSeconds ?? 90));
+  const selectedProvider = providers.find((provider) => provider.id === providerId) ?? null;
+
+  useEffect(() => {
+    setEnabled(policy.enabled);
+    setProviderId(policy.providerCredentialId ?? null);
+    setModelName(policy.modelName ?? policy.effectiveModelName ?? "");
+    setMaxAttempts(String(policy.maxAttempts ?? 2));
+    setTimeoutSeconds(String(policy.timeoutSeconds ?? 90));
+  }, [policy.policyKey, policy.policyVersion]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit(policy.policyKey, {
+      enabled,
+      providerCredentialId: providerId,
+      modelName: normalizeFormValue(modelName),
+      maxAttempts: optionalNumber(maxAttempts),
+      timeoutSeconds: optionalNumber(timeoutSeconds)
+    });
+  }
+
+  return (
+    <form className="ai-policy-form ai-harness-policy-form" onSubmit={submit}>
+      <div className="ai-harness-policy-heading">
+        <div>
+          <strong>{policy.displayName}</strong>
+          <span>{displayLabel(policy.policyKey)}</span>
+          {policy.description ? <small>{policy.description}</small> : null}
+        </div>
+        <div className="ai-harness-policy-state">
+          <StatusBadge status={policy.effectiveEnabled ? "ACTIVE" : "WARN"} />
+          <span>{policy.effectiveMessage ?? "-"}</span>
+        </div>
+      </div>
+      <label className="toggle-row">
+        <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+        이 AI 작업 사용
+      </label>
+      <label>
+        제공자
+        <select
+          value={providerId ?? ""}
+          onChange={(event) => {
+            const nextProviderId = event.target.value ? Number(event.target.value) : null;
+            const provider = providers.find((item) => item.id === nextProviderId);
+            setProviderId(nextProviderId);
+            if (provider?.defaultModel && !modelName.trim()) {
+              setModelName(provider.defaultModel);
+            }
+          }}
+        >
+          <option value="">선택 안 함</option>
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.displayName} / {provider.providerCode} / {displayLabel(provider.status)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        모델
+        <input
+          placeholder={selectedProvider?.defaultModel ?? "예: gpt-4.1-mini"}
+          value={modelName}
+          onChange={(event) => setModelName(event.target.value)}
+        />
+      </label>
+      <label>
+        재시도
+        <input min={1} type="number" value={maxAttempts} onChange={(event) => setMaxAttempts(event.target.value)} />
+      </label>
+      <label>
+        Timeout 초
+        <input min={10} type="number" value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(event.target.value)} />
+      </label>
+      <div className="policy-note">
+        실제 실행 모델: {policy.providerCode ?? selectedProvider?.providerCode ?? "미지정"} / {modelName || policy.effectiveModelName || "미지정"}
+      </div>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+        작업 정책 저장
       </button>
     </form>
   );

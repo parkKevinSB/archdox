@@ -1,6 +1,8 @@
 package com.archdox.cloud.legal.application;
 
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.legal.flow.LegalDigestAiWorker;
 import com.archdox.legalai.LegalDigestHarnessFactory;
 import com.archdox.legalai.LegalDigestResult;
@@ -11,7 +13,6 @@ import com.archdox.worker.domain.ArchDoxWorkerActionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlowFactory;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
-import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import io.github.parkkevinsb.flower.ai.harness.refine.MaxAttemptsRefinePolicy;
 import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunStatus;
 import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunStore;
@@ -31,7 +32,7 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
     private static final Duration WAIT_GRACE = Duration.ofSeconds(3);
 
     private final LegalDigestAiInputService inputService;
-    private final LegalDigestAiProperties properties;
+    private final AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService;
     private final LegalDigestAiWorker aiWorker;
     private final AiModelGateway aiModelGateway;
     private final ObjectMapper objectMapper;
@@ -39,14 +40,14 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
 
     public LegalDigestEnrichmentArchDoxWorkerActionExecutor(
             LegalDigestAiInputService inputService,
-            LegalDigestAiProperties properties,
+            AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService,
             LegalDigestAiWorker aiWorker,
             AiModelGateway aiModelGateway,
             ObjectMapper objectMapper,
             TraceListener aiHarnessTraceListener
     ) {
         this.inputService = inputService;
-        this.properties = properties;
+        this.aiHarnessPolicyExecutionService = aiHarnessPolicyExecutionService;
         this.aiWorker = aiWorker;
         this.aiModelGateway = aiModelGateway;
         this.objectMapper = objectMapper;
@@ -67,10 +68,11 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
                     "LEGAL_DIGEST_AI_DRAFT_DRY_RUN_REQUIRED",
                     "Legal digest AI enrichment is currently available only as a dry-run draft.");
         }
-        if (!properties.runnable()) {
+        var policy = aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT);
+        if (!policy.runnable()) {
             return ArchDoxWorkerActionResult.failed(
                     "LEGAL_DIGEST_AI_NOT_CONFIGURED",
-                    "Legal digest AI draft generation is disabled or missing provider configuration.");
+                    "Legal digest AI draft generation is not runnable: " + policy.unavailableReason());
         }
         var changeSetId = longValue(payload.get("changeSetId"));
         if (changeSetId == null) {
@@ -80,17 +82,17 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
         }
 
         var input = inputService.buildInput(changeSetId);
-        var timeout = Duration.ofSeconds(properties.safeTimeoutSeconds());
+        var plan = policy.plan();
+        var timeout = plan.timeout();
         var spec = new LegalDigestHarnessFactory(objectMapper).spec(
                 (findings, ctx) -> {
                 },
                 AiHarnessRunStore.noop(),
-                new MaxAttemptsRefinePolicy(properties.safeMaxAttempts()),
+                new MaxAttemptsRefinePolicy(plan.maxAttempts()),
                 aiHarnessTraceListener);
-        var modelId = new ModelId(properties.providerCode(), properties.model());
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input, AiHarnessFlowFactory.RunOverrides.builder()
-                        .modelId(modelId)
+                        .modelId(plan.modelId())
                         .timeout(timeout)
                         .providerOptions(AiModelCallMetadata.options(
                                 context.request().context().officeId(),

@@ -2,6 +2,7 @@ import type {
   Agent,
   AgentCommand,
   AgentSession,
+  AiHarnessPolicy,
   AiModelCallLog,
   AiModelPricingRule,
   AiHarnessTraceEvent,
@@ -843,6 +844,28 @@ export function getPlatformOfficeAiPolicies(token: string, limit = 100) {
   return request<OfficeAiPolicy[]>("/api/v1/platform-admin/ai/office-policies", {
     token,
     query: { limit }
+  });
+}
+
+export function getPlatformAiHarnessPolicies(token: string) {
+  return request<AiHarnessPolicy[]>("/api/v1/platform-admin/ai/harness-policies", { token });
+}
+
+export function updatePlatformAiHarnessPolicy(
+  token: string,
+  policyKey: string,
+  body: {
+    enabled: boolean;
+    providerCredentialId?: number | null;
+    modelName?: string | null;
+    maxAttempts?: number | null;
+    timeoutSeconds?: number | null;
+  }
+) {
+  return request<AiHarnessPolicy>(`/api/v1/platform-admin/ai/harness-policies/${policyKey}`, {
+    token,
+    method: "PUT",
+    body
   });
 }
 

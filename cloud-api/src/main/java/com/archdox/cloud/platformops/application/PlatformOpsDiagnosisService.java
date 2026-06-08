@@ -2,7 +2,9 @@ package com.archdox.cloud.platformops.application;
 
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
+import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEvent;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
@@ -24,12 +26,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlowFactory;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
-import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import io.github.parkkevinsb.flower.ai.harness.refine.MaxAttemptsRefinePolicy;
 import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunStatus;
 import io.github.parkkevinsb.flower.ai.harness.spec.AiHarnessSpec;
 import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -51,7 +51,7 @@ public class PlatformOpsDiagnosisService {
     private final PlatformOpsFindingRepository findingRepository;
     private final OperationEventRepository operationEventRepository;
     private final OperationEventService operationEventService;
-    private final PlatformOpsAiDiagnosisProperties aiDiagnosisProperties;
+    private final AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService;
     private final PlatformOpsAiDiagnosisRunStore aiDiagnosisRunStore;
     private final PlatformOpsAiDiagnosisFindingSink aiDiagnosisFindingSink;
     private final AiModelGateway aiModelGateway;
@@ -65,7 +65,7 @@ public class PlatformOpsDiagnosisService {
             PlatformOpsFindingRepository findingRepository,
             OperationEventRepository operationEventRepository,
             OperationEventService operationEventService,
-            PlatformOpsAiDiagnosisProperties aiDiagnosisProperties,
+            AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService,
             PlatformOpsAiDiagnosisRunStore aiDiagnosisRunStore,
             PlatformOpsAiDiagnosisFindingSink aiDiagnosisFindingSink,
             AiModelGateway aiModelGateway,
@@ -78,7 +78,7 @@ public class PlatformOpsDiagnosisService {
         this.findingRepository = findingRepository;
         this.operationEventRepository = operationEventRepository;
         this.operationEventService = operationEventService;
-        this.aiDiagnosisProperties = aiDiagnosisProperties;
+        this.aiHarnessPolicyExecutionService = aiHarnessPolicyExecutionService;
         this.aiDiagnosisRunStore = aiDiagnosisRunStore;
         this.aiDiagnosisFindingSink = aiDiagnosisFindingSink;
         this.aiModelGateway = aiModelGateway;
@@ -133,10 +133,12 @@ public class PlatformOpsDiagnosisService {
     public Optional<AiHarnessFlow> createAiDiagnosisHarnessFlow(Long runId) {
         var run = runRepository.findById(runId)
                 .orElseThrow(() -> new NotFoundException("Platform ops run not found"));
-        if (!aiDiagnosisProperties.runnable()) {
-            markAiHarnessSkipped(run, "DISABLED_OR_NOT_CONFIGURED");
+        var policy = aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS);
+        if (!policy.runnable()) {
+            markAiHarnessSkipped(run, policy.unavailableReason());
             return Optional.empty();
         }
+        var plan = policy.plan();
         var incident = run.incidentId() == null
                 ? null
                 : incidentRepository.findById(run.incidentId())
@@ -146,12 +148,11 @@ public class PlatformOpsDiagnosisService {
                 new OpsDiagnosisHarnessFactory(objectMapper).spec(
                         aiDiagnosisFindingSink,
                         aiDiagnosisRunStore,
-                        new MaxAttemptsRefinePolicy(aiDiagnosisProperties.safeMaxAttempts()),
+                        new MaxAttemptsRefinePolicy(plan.maxAttempts()),
                         aiHarnessTraceListener);
-        var modelId = new ModelId(aiDiagnosisProperties.providerCode(), aiDiagnosisProperties.model());
         var overrides = AiHarnessFlowFactory.RunOverrides.builder()
-                .modelId(modelId)
-                .timeout(Duration.ofSeconds(aiDiagnosisProperties.safeTimeoutSeconds()))
+                .modelId(plan.modelId())
+                .timeout(plan.timeout())
                 .providerOptions(AiModelCallMetadata.options(
                         incident == null ? null : incident.officeId(),
                         "PLATFORM_OPS_DIAGNOSIS",
@@ -166,7 +167,7 @@ public class PlatformOpsDiagnosisService {
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input(run, incident), overrides);
         run.attachAiHarnessRun(flow.context().runId().value());
-        run.replaceSnapshot(withNextAiHarness(run.inputSnapshotJson(), "QUEUED", flow.context().runId().value(), modelId.asString()));
+        run.replaceSnapshot(withNextAiHarness(run.inputSnapshotJson(), "QUEUED", flow.context().runId().value(), plan.modelId().asString()));
         return Optional.of(flow);
     }
 
@@ -177,9 +178,14 @@ public class PlatformOpsDiagnosisService {
                     run.inputSnapshotJson(),
                     "SUBMITTED",
                     run.aiHarnessRunId(),
-                    aiDiagnosisProperties.providerCode() + ":" + aiDiagnosisProperties.model()));
+                    modelIdFromHarnessPolicy()));
             recordAiHarnessSubmitted(run);
         });
+    }
+
+    private String modelIdFromHarnessPolicy() {
+        var policy = aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS);
+        return policy.runnable() ? policy.plan().modelId().asString() : policy.unavailableReason();
     }
 
     @Transactional(readOnly = true)
