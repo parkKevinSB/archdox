@@ -1850,9 +1850,59 @@ button {
   padding: 16px;
 }
 
-.ai-harness-policy-list {
+.ai-harness-manager {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(420px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.ai-harness-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-harness-list-item {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172322;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-harness-list-item:hover,
+.ai-harness-list-item.active {
+  border-color: #1e8a68;
+  background: #f4fbf8;
+}
+
+.ai-harness-list-item span {
+  display: grid;
+  gap: 3px;
+}
+
+.ai-harness-list-item strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ai-harness-list-item small,
+.ai-harness-list-item em {
+  color: #60746f;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ai-harness-detail {
+  min-width: 0;
 }
 
 .ai-harness-policy-form {
@@ -2880,6 +2930,7 @@ tbody tr:hover {
   .config-grid,
   .member-grid,
   .engine-key-grid,
+  .ai-harness-manager,
   .project-management-grid,
   .revision-grid,
   .template-preset-list,

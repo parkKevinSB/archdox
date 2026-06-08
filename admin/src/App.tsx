@@ -218,6 +218,7 @@ type ViewKey =
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
+  | "ai-harnesses"
   | "ai-policies"
   | "ai-observer";
 
@@ -243,7 +244,7 @@ type PlatformViewKey = Extract<
   | "platform-flower-runtime"
   | "platform-events"
 >;
-type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-policies" | "ai-observer">;
+type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 type EngineUsageEventFilter = "ALL" | "ENGINE" | "MCP" | "LEGAL" | "FAILED";
 
@@ -374,16 +375,17 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-templates", label: "템플릿/문서설정" },
   { key: "platform-legal", label: "법령" },
   { key: "platform-engine-keys", label: "Engine API Key" },
-  { key: "platform-worker-governance", label: "Worker 통제" },
+  { key: "platform-worker-governance", label: "Worker Action Registry" },
   { key: "platform-worker-approvals", label: "Worker 승인" },
   { key: "platform-flower-runtime", label: "Flower Runtime" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
   { key: "ai-overview", label: "개요" },
-  { key: "ai-providers", label: "Provider/요금" },
-  { key: "ai-policies", label: "사무소 정책" },
-  { key: "ai-observer", label: "관측/검토" }
+  { key: "ai-providers", label: "AI 제공자" },
+  { key: "ai-harnesses", label: "AI 하네스 관리" },
+  { key: "ai-policies", label: "사무소 AI 권한" },
+  { key: "ai-observer", label: "AI 관측/검토" }
 ];
 
 const aiObserverTabs: Array<{ key: AiObserverTabKey; label: string }> = [
@@ -879,13 +881,18 @@ export default function App() {
           getPlatformAiUsageSummary(token)
         ]);
         Object.assign(next, { aiProviders, aiPricingRules, aiUsageSummary });
-      } else if (view === "ai-policies") {
-        const [aiProviders, aiHarnessPolicies, officeAiPolicies] = await Promise.all([
+      } else if (view === "ai-harnesses") {
+        const [aiProviders, aiHarnessPolicies] = await Promise.all([
           getPlatformAiProviders(token),
-          getPlatformAiHarnessPolicies(token),
+          getPlatformAiHarnessPolicies(token)
+        ]);
+        Object.assign(next, { aiProviders, aiHarnessPolicies });
+      } else if (view === "ai-policies") {
+        const [aiProviders, officeAiPolicies] = await Promise.all([
+          getPlatformAiProviders(token),
           getPlatformOfficeAiPolicies(token, 100)
         ]);
-        Object.assign(next, { aiProviders, aiHarnessPolicies, officeAiPolicies });
+        Object.assign(next, { aiProviders, officeAiPolicies });
       } else if (view === "ai-observer") {
         const [aiObservationMode, aiObservations, aiHarnessTraces, aiCallLogs, aiPreflightFindings] = await Promise.all([
           getPlatformAiObservationMode(token),
@@ -1304,7 +1311,7 @@ export default function App() {
       await updatePlatformAiHarnessPolicy(auth.accessToken, policyKey, body);
       await refreshPlatform();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI 작업 정책을 저장하지 못했습니다.");
+      setError(err instanceof Error ? err.message : "AI 하네스 실행 정책을 저장하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1446,7 +1453,7 @@ export default function App() {
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="AI 운영">
+                <optgroup label="AI 관리">
                   {aiNavItems.map((item) => (
                     <option key={item.key} value={item.key}>
                       {item.label}
@@ -1514,7 +1521,7 @@ export default function App() {
               >
                 <span className="nav-group-main">
                   <KeyRound size={18} />
-                  AI 운영
+                  AI 관리
                 </span>
                 <ChevronDown className={expandedNavGroups.ai ? "nav-group-chevron open" : "nav-group-chevron"} size={15} />
               </button>
@@ -5949,6 +5956,7 @@ function AiManagementView({
   const runnableHarnessCount = harnessPolicies.filter((policy) => policy.effectiveEnabled).length;
   const showOverview = view === "ai-overview";
   const showProviders = view === "ai-providers";
+  const showHarnesses = view === "ai-harnesses";
   const showPolicies = view === "ai-policies";
   const showObserver = view === "ai-observer";
   const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
@@ -5967,7 +5975,7 @@ function AiManagementView({
       {showOverview ? (
         <div className="metric-grid">
         <MetricCard label="활성 Provider" value={activeProviderCount} detail={`Fake ${fakeProviderCount}개`} icon={<KeyRound size={18} />} tone={activeProviderCount > 0 ? "green" : "amber"} />
-        <MetricCard label="AI 작업 정책" value={runnableHarnessCount} detail={`${harnessPolicies.length}개 중 실행 가능`} icon={<Command size={18} />} tone={runnableHarnessCount > 0 ? "green" : "amber"} />
+        <MetricCard label="AI 하네스 실행 정책" value={runnableHarnessCount} detail={`${harnessPolicies.length}개 중 실행 가능`} icon={<Command size={18} />} tone={runnableHarnessCount > 0 ? "green" : "amber"} />
         <MetricCard label="AI 사용 사무소" value={aiEnabledOfficeCount} detail="정책상 활성" icon={<ShieldCheck size={18} />} tone={aiEnabledOfficeCount > 0 ? "green" : "slate"} />
         <MetricCard label="AI 호출" value={usageSummary?.callCount ?? 0} detail="이번 달" icon={<Activity size={18} />} tone="blue" />
         <MetricCard label="AI 토큰" value={(usageSummary?.inputTokens ?? 0) + (usageSummary?.outputTokens ?? 0)} detail="입력 + 출력" icon={<Gauge size={18} />} tone="amber" />
@@ -6031,16 +6039,18 @@ function AiManagementView({
         </Panel>
           </>
         ) : null}
+        {showHarnesses ? (
+          <Panel title="AI 하네스 실행 정책" icon={<Command size={18} />} count={harnessPolicies.length}>
+            <AiHarnessPolicyPanel
+              busy={loading}
+              policies={harnessPolicies}
+              providers={providers}
+              onSubmit={onSaveHarnessPolicy}
+            />
+          </Panel>
+        ) : null}
         {showPolicies ? (
           <>
-        <Panel title="AI 작업 정책" icon={<Command size={18} />} count={harnessPolicies.length}>
-          <AiHarnessPolicyPanel
-            busy={loading}
-            policies={harnessPolicies}
-            providers={providers}
-            onSubmit={onSaveHarnessPolicy}
-          />
-        </Panel>
         <Panel title="사무소 AI 권한" icon={<ShieldCheck size={18} />}>
           <OfficeAiPolicyForm
             busy={loading}
@@ -6351,7 +6361,7 @@ function AiObserverSummaryPanel({
                 ? "호출/비용 탭에서 실패한 Provider 호출을 먼저 확인하세요."
                 : harnessFailureCount > 0
                   ? "하네스 실행 탭에서 실패 이벤트와 실행 ID를 확인하세요."
-                  : "현재는 치명적인 AI 운영 이슈가 보이지 않습니다."}
+                  : "현재는 치명적인 AI 관리 이슈가 보이지 않습니다."}
           </span>
         </div>
         <div className="ai-observer-guide-list">
@@ -7128,20 +7138,58 @@ function AiHarnessPolicyPanel({
     }
   ) => Promise<void>;
 }) {
+  const [selectedPolicyKey, setSelectedPolicyKey] = useState(policies[0]?.policyKey ?? "");
+  const selectedPolicy = policies.find((policy) => policy.policyKey === selectedPolicyKey) ?? policies[0] ?? null;
+
+  useEffect(() => {
+    if (policies.length === 0) {
+      if (selectedPolicyKey) {
+        setSelectedPolicyKey("");
+      }
+      return;
+    }
+    if (!policies.some((policy) => policy.policyKey === selectedPolicyKey)) {
+      setSelectedPolicyKey(policies[0].policyKey);
+    }
+  }, [policies, selectedPolicyKey]);
+
   if (policies.length === 0) {
-    return <EmptyState message="등록된 AI 작업 정책이 없습니다." />;
+    return <EmptyState message="등록된 AI 하네스 실행 정책이 없습니다." />;
   }
+
   return (
-    <div className="ai-harness-policy-list">
+    <div className="ai-harness-manager">
+      <div className="ai-harness-list" role="listbox" aria-label="AI 하네스 실행 정책">
       {policies.map((policy) => (
-        <AiHarnessPolicyForm
-          busy={busy}
+        <button
+          aria-selected={selectedPolicy?.policyKey === policy.policyKey}
+          className={selectedPolicy?.policyKey === policy.policyKey ? "ai-harness-list-item active" : "ai-harness-list-item"}
           key={policy.policyKey}
-          policy={policy}
-          providers={providers}
-          onSubmit={onSubmit}
-        />
+          onClick={() => setSelectedPolicyKey(policy.policyKey)}
+          role="option"
+          type="button"
+        >
+          <span>
+            <strong>{policy.displayName}</strong>
+            <small>{displayLabel(policy.policyKey)}</small>
+          </span>
+          <em>{policy.providerCode ?? "제공자 미지정"} / {policy.effectiveModelName ?? "모델 미지정"}</em>
+          <StatusBadge status={policy.effectiveEnabled ? "ACTIVE" : "WARN"} />
+        </button>
       ))}
+      </div>
+      <div className="ai-harness-detail">
+        {selectedPolicy ? (
+          <AiHarnessPolicyForm
+            busy={busy}
+            policy={selectedPolicy}
+            providers={providers}
+            onSubmit={onSubmit}
+          />
+        ) : (
+          <EmptyState message="선택된 AI 하네스 실행 정책이 없습니다." />
+        )}
+      </div>
     </div>
   );
 }
@@ -7207,7 +7255,7 @@ function AiHarnessPolicyForm({
       </div>
       <label className="toggle-row">
         <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-        이 AI 작업 사용
+        이 AI 하네스 실행 허용
       </label>
       <label>
         제공자
@@ -7251,7 +7299,7 @@ function AiHarnessPolicyForm({
       </div>
       <button className="button primary" disabled={busy} type="submit">
         {busy ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
-        작업 정책 저장
+        하네스 정책 저장
       </button>
     </form>
   );
@@ -7514,7 +7562,7 @@ function FullScreenCenter({ children }: { children: ReactNode }) {
 function viewTitle(view: ViewKey) {
   if (isAiView(view)) {
     const item = aiNavItems.find((candidate) => candidate.key === view);
-    return item ? `AI 운영 / ${item.label}` : "AI 운영";
+    return item ? `AI 관리 / ${item.label}` : "AI 관리";
   }
   if (isPlatformView(view)) {
     const item = platformNavItems.find((candidate) => candidate.key === view);
