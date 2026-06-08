@@ -460,6 +460,8 @@ const statusLabels: Record<string, string> = {
   EXPIRED: "만료",
   FAILED: "실패",
   GENERATED: "생성 완료",
+  NEEDS_HUMAN_REVIEW: "검토 필요",
+  APPLIED: "적용됨",
   GENERATING: "생성 중",
   SUCCEEDED: "성공",
   HIGH: "높음",
@@ -505,6 +507,9 @@ const codeLabels: Record<string, string> = {
   CLOUD_OFFICE: "클라우드 사무소",
   CUSTOM_HTTP: "사용자 HTTP",
   CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",
+  CONSTRUCTION_SUPERVISION_REPORT: "감리보고서",
+  CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT: "공사감리 법령 컨텍스트",
+  SOURCE_BACKED_SAMPLE: "제공된 법령 근거 샘플",
   DETERMINISTIC: "규칙 생성",
   DOCUMENT_GENERATION: "문서 생성 AI",
   DOCUMENT_REVIEW: "문서 검토 AI",
@@ -987,7 +992,7 @@ export default function App() {
       const drafts = await getPlatformLegalDigestAiDrafts(auth.accessToken, digestId);
       setLegalDigestAiDrafts((current) => ({ ...current, [digestId]: drafts }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "踰뺣졊 蹂寃쎌궗??AI 珥덉븞 ?대젰???쎌뼱?ㅼ? 紐삵뻽?듬땲??");
+      setError(err instanceof Error ? err.message : "법령 변경사항 AI 초안 이력을 불러오지 못했습니다.");
     }
   }
 
@@ -995,7 +1000,7 @@ export default function App() {
     if (!auth || !platformAdmin) {
       return;
     }
-    if (!window.confirm("??AI 珥덉븞???ъ슜?먯슜 寃뚯떆 ?붿빟???곸슜?좉퉴?? 踰뺣졊 ?먮Ц怨?corpus???섏젙?섏? ?딆뒿?덈떎.")) {
+    if (!window.confirm("AI 초안을 사용자용 게시 요약에 적용할까요? 법령 원문과 corpus는 수정하지 않습니다.")) {
       return;
     }
     setLoading(true);
@@ -1009,7 +1014,7 @@ export default function App() {
       const legalChangeDigests = await getPlatformLegalChangeDigests(auth.accessToken, 50);
       setPlatformData((current) => ({ ...current, legalChangeDigests }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI 珥덉븞???寃뚯떆 ?붿빟???곸슜?섏? 紐삵뻽?듬땲??");
+      setError(err instanceof Error ? err.message : "AI 초안을 게시 요약에 적용하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -4033,29 +4038,29 @@ function LegalDigestDetail({
           <div className="legal-ai-draft-header">
             <div>
               <h3>AI 초안</h3>
-              <strong>{aiDraft.title}</strong>
+              <strong>{legalAiDraftText(aiDraft.title)}</strong>
             </div>
             <div className="legal-ai-draft-badges">
               <StatusBadge status={aiDraft.digestDraftStatus} />
               <StatusBadge status={aiDraft.confidence} />
             </div>
           </div>
-          <p>{aiDraft.summary}</p>
-          <p>{aiDraft.impactSummary}</p>
+          <p>{legalAiDraftText(aiDraft.summary)}</p>
+          <p>{legalAiDraftText(aiDraft.impactSummary)}</p>
           <div className="legal-ai-draft-meta">
-            <span>Harness {aiDraft.aiHarnessRunId || "-"}</span>
-            <span>Worker {aiDraft.workerStatus}</span>
+            <span>하네스 {aiDraft.aiHarnessRunId || "-"}</span>
+            <span>워커 {displayLabel(aiDraft.workerStatus)}</span>
             <span>{aiDraft.publicationApplied ? "게시 반영됨" : "미게시"}</span>
           </div>
           <LegalDigestDraftList label="관련 문서" values={aiDraft.affectedReportTypes} />
           <LegalDigestDraftList label="관련 카탈로그" values={aiDraft.affectedCatalogItems} />
           <LegalDigestDraftList label="근거 조문" values={aiDraft.keyArticles} />
-          {aiDraft.reviewNotes ? <p>{aiDraft.reviewNotes}</p> : null}
+          {aiDraft.reviewNotes ? <p>{legalAiDraftText(aiDraft.reviewNotes)}</p> : null}
           {aiDraft.status === "GENERATED" ? (
             <div className="legal-ai-draft-actions">
               <button className="button compact primary" disabled={loading} onClick={() => onApplyAiDraft(aiDraft.id)} type="button">
                 {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                寃뚯떆 ?붿빟???곸슜
+                게시 요약에 적용
               </button>
             </div>
           ) : null}
@@ -4110,29 +4115,29 @@ function LegalDigestAiDraftHistory({
   }
   return (
     <div className="legal-ai-draft-history">
-      <strong>AI draft history</strong>
+      <strong>AI 초안 이력</strong>
       {drafts.slice(1).map((draft) => (
         <div className="legal-ai-draft-entry" key={draft.id}>
           <div className="legal-ai-draft-entry-head">
             <div>
-              <span>Draft #{draft.id} / {formatDate(draft.generatedAt)}</span>
-              <small>{draft.title}</small>
+              <span>초안 #{draft.id} / {formatDate(draft.generatedAt)}</span>
+              <small>{legalAiDraftText(draft.title)}</small>
             </div>
             <div className="legal-ai-draft-badges">
               <StatusBadge status={draft.status} />
               <StatusBadge status={draft.confidence} />
             </div>
           </div>
-          <p>{draft.summary}</p>
+          <p>{legalAiDraftText(draft.summary)}</p>
           <div className="legal-ai-draft-meta">
-            <span>Harness {draft.aiHarnessRunId || "-"}</span>
-            <span>{draft.appliedAt ? `Applied ${formatDate(draft.appliedAt)}` : "Not applied"}</span>
+            <span>하네스 {draft.aiHarnessRunId || "-"}</span>
+            <span>{draft.appliedAt ? `적용됨 ${formatDate(draft.appliedAt)}` : "미적용"}</span>
           </div>
           {draft.status === "GENERATED" ? (
             <div className="legal-ai-draft-actions">
               <button className="button compact" disabled={loading} onClick={() => onApply(draft.id)} type="button">
                 {loading ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
-                寃뚯떆 ?붿빟???곸슜
+                게시 요약에 적용
               </button>
             </div>
           ) : null}
@@ -4151,11 +4156,22 @@ function LegalDigestDraftList({ label, values }: { label: string; values: string
       <span>{label}</span>
       <div>
         {values.map((value) => (
-          <em key={value}>{value}</em>
+          <em key={value}>{displayLabel(value)}</em>
         ))}
       </div>
     </div>
   );
+}
+
+function legalAiDraftText(value?: string | null) {
+  const text = value ?? "";
+  const legacyFakeDraftText: Record<string, string> = {
+    "Development legal change digest draft": "법령 변경 AI 초안(개발용)",
+    "Development fake AI summarized the legal change set using only the provided legal corpus context.": "제공된 법령 변경 근거만 사용해 사용자용 변경사항 게시글 초안을 생성했습니다.",
+    "Review whether construction supervision report templates, checklist catalog items, and site evidence guidance need an update.": "공사감리일지, 감리보고서 템플릿, 체크리스트 카탈로그, 현장 증빙 안내의 수정 필요 여부를 관리자가 검토해야 합니다.",
+    "Development-only draft. A platform admin must review and approve before publishing.": "개발용 fake AI 초안입니다. 플랫폼 관리자가 검토한 뒤 게시 요약에 적용해야 사용자에게 반영됩니다."
+  };
+  return legacyFakeDraftText[text] ?? text;
 }
 
 type AdminLegalTextBlock =

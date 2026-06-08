@@ -109,14 +109,14 @@ public class AiFakeResponseFactory {
         return """
                 {
                   "status": "NEEDS_HUMAN_REVIEW",
-                  "title": "Development legal change digest draft",
-                  "summary": "Development fake AI summarized the legal change set using only the provided legal corpus context.",
-                  "impactSummary": "Review whether construction supervision report templates, checklist catalog items, and site evidence guidance need an update.",
+                  "title": "법령 변경 AI 초안(개발용)",
+                  "summary": "제공된 법령 변경 근거만 사용해 사용자용 변경사항 게시글 초안을 생성했습니다.",
+                  "impactSummary": "공사감리일지, 감리보고서 템플릿, 체크리스트 카탈로그, 현장 증빙 안내의 수정 필요 여부를 관리자가 검토해야 합니다.",
                   "confidence": "MEDIUM",
                   "affectedReportTypes": ["CONSTRUCTION_DAILY_SUPERVISION_LOG", "CONSTRUCTION_SUPERVISION_REPORT"],
                   "affectedCatalogItems": ["CONSTRUCTION_SUPERVISION_LEGAL_CONTEXT"],
-                  "keyArticles": ["SOURCE_BACKED_SAMPLE"],
-                  "reviewNotes": "Development-only draft. A platform admin must review and approve before publishing."
+                  "keyArticles": ["제공된 법령 변경 근거 샘플"],
+                  "reviewNotes": "이 응답은 개발용 fake-legal provider에서 생성되었습니다. 법령 원문이나 corpus는 자동으로 바꾸지 않으며, 플랫폼 관리자가 검토 후 게시 요약에 적용해야 사용자에게 반영됩니다."
                 }
                 """;
     }
