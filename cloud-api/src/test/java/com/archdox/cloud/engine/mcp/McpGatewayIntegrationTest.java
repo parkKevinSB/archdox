@@ -189,6 +189,8 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.structuredContent.count").value(1))
                 .andExpect(jsonPath("$.result.structuredContent.items[0].actCode").value("BUILDING_ACT_MCP"))
                 .andExpect(jsonPath("$.result.structuredContent.items[0].articleNo").value("25의2"))
+                .andExpect(jsonPath("$.result.structuredContent.items[0].referenceId").value("BUILDING_ACT_MCP:0025001@001823:20260701"))
+                .andExpect(jsonPath("$.result.structuredContent.items[0].publicSourceUrl").value("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95"))
                 .andExpect(jsonPath("$.result.structuredContent.items[0].snippet").value(org.hamcrest.Matchers.containsString("감리")));
 
         mockMvc.perform(post("/api/v1/mcp")
@@ -211,13 +213,34 @@ class McpGatewayIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.isError").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.articleVersionId").value(legalArticleVersionId))
+                .andExpect(jsonPath("$.result.structuredContent.referenceId").value("BUILDING_ACT_MCP:0025001@001823:20260701"))
+                .andExpect(jsonPath("$.result.structuredContent.publicSourceUrl").value("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95"))
                 .andExpect(jsonPath("$.result.structuredContent.articleText").value(org.hamcrest.Matchers.containsString("감리자는")));
+
+        mockMvc.perform(get("/api/v1/engine/external/legal/search")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .queryParam("query", "감리")
+                        .queryParam("actCode", "BUILDING_ACT_MCP")
+                        .queryParam("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(1))
+                .andExpect(jsonPath("$.items[0].referenceId").value("BUILDING_ACT_MCP:0025001@001823:20260701"))
+                .andExpect(jsonPath("$.items[0].contentHash").value("article-hash"))
+                .andExpect(jsonPath("$.items[0].publicSourceUrl").value("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95"));
+
+        mockMvc.perform(get("/api/v1/engine/external/legal/articles")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .queryParam("articleVersionId", String.valueOf(legalArticleVersionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.referenceId").value("BUILDING_ACT_MCP:0025001@001823:20260701"))
+                .andExpect(jsonPath("$.articleText").value(org.hamcrest.Matchers.containsString("감리자는")))
+                .andExpect(jsonPath("$.publicSourceUrl").value("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95"));
 
         assertThat(usageEventRepository.findAll())
                 .filteredOn(event -> EngineApiUsageService.CAPABILITY_LEGAL_SEARCH.equals(event.capability()))
                 .filteredOn(event -> EngineApiUsageService.STATUS_SUCCEEDED.equals(event.status()))
                 .extracting(EngineApiUsageEvent::operation)
-                .contains("MCP_SEARCH_LAW", "MCP_GET_LAW_ARTICLE");
+                .contains("MCP_SEARCH_LAW", "MCP_GET_LAW_ARTICLE", "REST_SEARCH_LAW", "REST_GET_LAW_ARTICLE");
 
         var updatesOnlyKey = issueApiKey(user, List.of(EngineApiKeyManagementService.SCOPE_LEGAL_UPDATES), 1000);
         mockMvc.perform(post("/api/v1/mcp")
@@ -472,7 +495,7 @@ class McpGatewayIntegrationTest {
                 returning id
                 """, Long.class,
                 actId,
-                "25-2",
+                "0025001",
                 "25의2",
                 "공사감리",
                 null,
@@ -489,7 +512,7 @@ class McpGatewayIntegrationTest {
                 """, Long.class,
                 articleId,
                 versionId,
-                "25-2",
+                "0025001",
                 "25의2",
                 "공사감리",
                 "감리자는 건축법에 따라 공사감리 업무를 수행한다.",

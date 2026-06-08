@@ -18,7 +18,7 @@ import org.springframework.data.domain.Pageable;
 
 class LegalCorpusReadServiceTest {
     private final LegalArticleVersionRepository repository = mock(LegalArticleVersionRepository.class);
-    private final LegalCorpusReadService service = new LegalCorpusReadService(repository);
+    private final LegalCorpusReadService service = new LegalCorpusReadService(repository, new LegalPublicSourceUrlFactory());
 
     @Test
     void searchReturnsSourceBackedArticleSnippets() {
@@ -45,8 +45,11 @@ class LegalCorpusReadServiceTest {
         assertThat(response.items()).singleElement()
                 .satisfies(item -> {
                     assertThat(item.sourceCode()).isEqualTo("NATIONAL_LAW_OPEN_DATA");
+                    assertThat(item.referenceId()).isEqualTo("BUILDING_ACT:25-2@001823:20260701");
+                    assertThat(item.evidenceType()).isEqualTo("LEGAL_ARTICLE");
                     assertThat(item.actCode()).isEqualTo("BUILDING_ACT");
                     assertThat(item.articleVersionId()).isEqualTo(400L);
+                    assertThat(item.publicSourceUrl()).isEqualTo("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95");
                     assertThat(item.snippet()).contains("감리");
                     assertThat(item.snippet()).doesNotContain("second paragraph");
                 });
@@ -85,7 +88,9 @@ class LegalCorpusReadServiceTest {
 
         assertThat(response.articleText()).contains("감리자는");
         assertThat(response.articleText()).contains("second paragraph");
+        assertThat(response.referenceId()).isEqualTo("BUILDING_ACT:25-2@001823:20260701");
         assertThat(response.sourceUrl()).isEqualTo("https://www.law.go.kr/DRF/lawService.do?ID=001823");
+        assertThat(response.publicSourceUrl()).isEqualTo("https://www.law.go.kr/%EB%B2%95%EB%A0%B9/%EA%B1%B4%EC%B6%95%EB%B2%95");
     }
 
     private LegalArticleCorpusRow row() {

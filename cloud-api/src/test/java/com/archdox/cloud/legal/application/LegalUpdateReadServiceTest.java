@@ -40,7 +40,8 @@ class LegalUpdateReadServiceTest {
             articleDiffRepository,
             articleVersionRepository,
             versionRepository,
-            actRepository);
+            actRepository,
+            new LegalPublicSourceUrlFactory());
 
     @Test
     void recentExcludesFakeLegalSource() throws Exception {

@@ -22,11 +22,17 @@ public class LegalCorpusReadService {
     private static final int MAX_LIMIT = 50;
     private static final int MAX_SNIPPET_LENGTH = 240;
     private static final int SNIPPET_CONTEXT_LENGTH = 80;
+    private static final String EVIDENCE_TYPE_LEGAL_ARTICLE = "LEGAL_ARTICLE";
 
     private final LegalArticleVersionRepository articleVersionRepository;
+    private final LegalPublicSourceUrlFactory publicSourceUrlFactory;
 
-    public LegalCorpusReadService(LegalArticleVersionRepository articleVersionRepository) {
+    public LegalCorpusReadService(
+            LegalArticleVersionRepository articleVersionRepository,
+            LegalPublicSourceUrlFactory publicSourceUrlFactory
+    ) {
         this.articleVersionRepository = articleVersionRepository;
+        this.publicSourceUrlFactory = publicSourceUrlFactory;
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +130,8 @@ public class LegalCorpusReadService {
 
     private LegalLawSearchResultResponse toSearchResult(LegalArticleCorpusRow row, String query) {
         return new LegalLawSearchResultResponse(
+                referenceId(row),
+                EVIDENCE_TYPE_LEGAL_ARTICLE,
                 row.sourceCode(),
                 row.actId(),
                 row.actCode(),
@@ -133,6 +141,7 @@ public class LegalCorpusReadService {
                 row.sourceVersionKey(),
                 row.effectiveDate(),
                 row.sourceUrl(),
+                publicSourceUrlFactory.publicSourceUrl(row.sourceUrl(), row.actType(), row.actName()),
                 row.articleId(),
                 row.articleVersionId(),
                 row.articleKey(),
@@ -144,6 +153,8 @@ public class LegalCorpusReadService {
 
     private LegalLawArticleResponse toArticleResponse(LegalArticleCorpusRow row) {
         return new LegalLawArticleResponse(
+                referenceId(row),
+                EVIDENCE_TYPE_LEGAL_ARTICLE,
                 row.sourceCode(),
                 row.actId(),
                 row.actCode(),
@@ -153,6 +164,7 @@ public class LegalCorpusReadService {
                 row.sourceVersionKey(),
                 row.effectiveDate(),
                 row.sourceUrl(),
+                publicSourceUrlFactory.publicSourceUrl(row.sourceUrl(), row.actType(), row.actName()),
                 row.articleId(),
                 row.articleVersionId(),
                 row.articleKey(),
@@ -160,6 +172,16 @@ public class LegalCorpusReadService {
                 row.articleTitle(),
                 row.articleText(),
                 row.contentHash());
+    }
+
+    private String referenceId(LegalArticleCorpusRow row) {
+        var actCode = blankToNull(row.actCode());
+        var articleKey = firstNonBlank(row.articleKey(), row.articleNo());
+        var sourceVersionKey = blankToNull(row.sourceVersionKey());
+        if (actCode == null || articleKey == null || sourceVersionKey == null) {
+            return "";
+        }
+        return actCode + ":" + articleKey + "@" + sourceVersionKey;
     }
 
     private NotFoundException articleNotFound(Map<String, Object> params) {
@@ -249,5 +271,10 @@ public class LegalCorpusReadService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        var normalizedFirst = blankToNull(first);
+        return normalizedFirst == null ? blankToNull(second) : normalizedFirst;
     }
 }

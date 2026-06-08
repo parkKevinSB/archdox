@@ -11,9 +11,6 @@ import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalArticleVersionRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalVersionRepository;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,19 +34,22 @@ public class LegalUpdateReadService {
     private final LegalArticleVersionRepository articleVersionRepository;
     private final LegalVersionRepository versionRepository;
     private final LegalActRepository actRepository;
+    private final LegalPublicSourceUrlFactory publicSourceUrlFactory;
 
     public LegalUpdateReadService(
             LegalChangeDigestRepository repository,
             LegalArticleDiffRepository articleDiffRepository,
             LegalArticleVersionRepository articleVersionRepository,
             LegalVersionRepository versionRepository,
-            LegalActRepository actRepository
+            LegalActRepository actRepository,
+            LegalPublicSourceUrlFactory publicSourceUrlFactory
     ) {
         this.repository = repository;
         this.articleDiffRepository = articleDiffRepository;
         this.articleVersionRepository = articleVersionRepository;
         this.versionRepository = versionRepository;
         this.actRepository = actRepository;
+        this.publicSourceUrlFactory = publicSourceUrlFactory;
     }
 
     @Transactional(readOnly = true)
@@ -155,53 +155,12 @@ public class LegalUpdateReadService {
                 legalVersion == null ? "" : text(legalVersion.sourceVersionKey()),
                 display == null ? null : display.effectiveDate(),
                 legalVersion == null ? "" : text(legalVersion.sourceUrl()),
-                publicSourceUrl(legalVersion, act),
+                publicSourceUrlFactory.publicSourceUrl(
+                        legalVersion == null ? "" : legalVersion.sourceUrl(),
+                        act == null ? "" : act.actType(),
+                        act == null ? "" : act.actName()),
                 diff.diffSummary(),
                 diff.createdAt());
-    }
-
-    private String publicSourceUrl(LegalVersion legalVersion, LegalAct act) {
-        if (legalVersion == null) {
-            return "";
-        }
-        var sourceUrl = text(legalVersion.sourceUrl());
-        var target = queryParam(sourceUrl, "target");
-        var sourceId = queryParam(sourceUrl, "ID");
-        if ("admrul".equalsIgnoreCase(target) && !sourceId.isBlank()) {
-            return "https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq="
-                    + encode(sourceId)
-                    + "&chrClsCd=010201";
-        }
-        if (act != null && !text(act.actName()).isBlank()) {
-            var category = "ADMINISTRATIVE_RULE".equalsIgnoreCase(text(act.actType())) ? "행정규칙" : "법령";
-            return "https://www.law.go.kr/" + encode(category) + "/" + encode(act.actName());
-        }
-        return "";
-    }
-
-    private String queryParam(String url, String name) {
-        if (url.isBlank()) {
-            return "";
-        }
-        try {
-            var query = URI.create(url).getRawQuery();
-            if (query == null || query.isBlank()) {
-                return "";
-            }
-            for (var pair : query.split("&")) {
-                var parts = pair.split("=", 2);
-                if (parts.length == 2 && name.equalsIgnoreCase(parts[0])) {
-                    return parts[1].trim();
-                }
-            }
-        } catch (IllegalArgumentException ignored) {
-            return "";
-        }
-        return "";
-    }
-
-    private String encode(String value) {
-        return URLEncoder.encode(text(value), StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private String preview(String value) {
