@@ -223,6 +223,7 @@ type ViewKey =
   | "ai-overview"
   | "ai-providers"
   | "ai-harnesses"
+  | "ai-evaluation"
   | "ai-policies"
   | "ai-observer";
 
@@ -248,7 +249,7 @@ type PlatformViewKey = Extract<
   | "platform-flower-runtime"
   | "platform-events"
 >;
-type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-policies" | "ai-observer">;
+type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 type EngineUsageEventFilter = "ALL" | "ENGINE" | "MCP" | "LEGAL" | "FAILED";
 
@@ -390,6 +391,7 @@ const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
   { key: "ai-overview", label: "개요" },
   { key: "ai-providers", label: "AI 제공자" },
   { key: "ai-harnesses", label: "AI 하네스 관리" },
+  { key: "ai-evaluation", label: "AI/Worker 평가" },
   { key: "ai-policies", label: "사무소 AI 권한" },
   { key: "ai-observer", label: "AI 관측/검토" }
 ];
@@ -884,16 +886,14 @@ export default function App() {
           officeAiPolicies,
           aiUsageSummary,
           aiCallLogs,
-          aiPreflightFindings,
-          aiWorkerEvaluationSummary
+          aiPreflightFindings
         ] = await Promise.all([
           getPlatformAiProviders(token),
           getPlatformAiHarnessPolicies(token),
           getPlatformOfficeAiPolicies(token, 100),
           getPlatformAiUsageSummary(token),
           getPlatformAiCallLogs(token, 100),
-          getPlatformAiPreflightFindings(token, 100),
-          getPlatformAiWorkerEvaluationSummary(token)
+          getPlatformAiPreflightFindings(token, 100)
         ]);
         Object.assign(next, {
           aiProviders,
@@ -901,8 +901,7 @@ export default function App() {
           officeAiPolicies,
           aiUsageSummary,
           aiCallLogs,
-          aiPreflightFindings,
-          aiWorkerEvaluationSummary
+          aiPreflightFindings
         });
       } else if (view === "ai-providers") {
         const [aiProviders, aiPricingRules, aiUsageSummary] = await Promise.all([
@@ -917,6 +916,8 @@ export default function App() {
           getPlatformAiHarnessPolicies(token)
         ]);
         Object.assign(next, { aiProviders, aiHarnessPolicies });
+      } else if (view === "ai-evaluation") {
+        next.aiWorkerEvaluationSummary = await getPlatformAiWorkerEvaluationSummary(token);
       } else if (view === "ai-policies") {
         const [aiProviders, officeAiPolicies] = await Promise.all([
           getPlatformAiProviders(token),
@@ -6104,6 +6105,7 @@ function AiManagementView({
   const showOverview = view === "ai-overview";
   const showProviders = view === "ai-providers";
   const showHarnesses = view === "ai-harnesses";
+  const showEvaluation = view === "ai-evaluation";
   const showPolicies = view === "ai-policies";
   const showObserver = view === "ai-observer";
   const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
@@ -6133,8 +6135,8 @@ function AiManagementView({
         </div>
       ) : null}
 
-      {showOverview ? <AiWorkerEvaluationSummaryPanel summary={workerEvaluationSummary} /> : null}
       {showOverview ? <AiProviderStatusPanel callLogs={callLogs} policies={policies} providers={providers} /> : null}
+      {showEvaluation ? <AiWorkerEvaluationControlPanel summary={workerEvaluationSummary} /> : null}
       {showObserver ? (
         <>
           <AiObserverTabBar
@@ -6388,21 +6390,30 @@ function AiManagementView({
   );
 }
 
-function AiWorkerEvaluationSummaryPanel({ summary }: { summary: AiWorkerEvaluationSummary | null }) {
+function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluationSummary | null }) {
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+
   if (!summary) {
     return (
-      <Panel title="AI/Worker 평가 점수판" icon={<ShieldCheck size={18} />}>
-        <EmptyState message="평가 점수판을 불러오지 못했습니다." />
+      <Panel title="AI/Worker 평가" icon={<ShieldCheck size={18} />}>
+        <EmptyState message="평가 결과를 불러오지 못했습니다." />
       </Panel>
     );
   }
+
   const warningSignals = summary.signals.filter((signal) => signal.status === "WARN").length;
   const failedSignals = summary.signals.filter((signal) => signal.status === "FAILED").length;
   const signalPassCount = summary.signals.filter((signal) => signal.status === "PASS").length;
+  const selectedGroup = summary.groups.find((group) => group.groupKey === selectedGroupKey) ?? summary.groups[0] ?? null;
+  const groupsNeedingAttention = summary.groups.filter((group) => group.failedCases > 0 || group.warningCases > 0).length;
+  const selectedSignals = selectedGroup
+    ? summary.signals.filter((signal) => signal.layer === selectedGroup.layer || signal.status !== "PASS")
+    : summary.signals.filter((signal) => signal.status !== "PASS");
+  const verdict = evaluationVerdict(summary, failedSignals, warningSignals);
 
   return (
     <Panel
-      title="AI/Worker 평가 점수판"
+      title="AI/Worker 평가"
       icon={<ShieldCheck size={18} />}
       count={summary.totalCases}
       action={
@@ -6413,20 +6424,36 @@ function AiWorkerEvaluationSummaryPanel({ summary }: { summary: AiWorkerEvaluati
         </div>
       }
     >
-      <div className="metric-grid ai-observer-metrics">
+      <div className="evaluation-hero">
+        <div>
+          <p className="eyebrow">핵심 판단</p>
+          <h3>{verdict.title}</h3>
+          <span>{verdict.description}</span>
+        </div>
+        <StatusBadge status={verdict.status} />
+      </div>
+
+      <div className="evaluation-decision-grid">
         <MetricCard
-          label="평가 케이스"
-          value={summary.totalCases}
-          detail={`${summary.automatedCases}개 자동화`}
+          label="자동 평가"
+          value={`${summary.passedCases}/${summary.totalCases}`}
+          detail={`${summary.automatedCases}개 자동 검증`}
           icon={<Command size={18} />}
-          tone="blue"
+          tone={summary.failedCases > 0 ? "red" : summary.warningCases > 0 ? "amber" : "green"}
         />
         <MetricCard
           label="통과율"
           value={`${summary.passRatePercent}%`}
-          detail={`${summary.passedCases}/${summary.totalCases} 통과`}
+          detail={`실패 ${summary.failedCases} / 주의 ${summary.warningCases}`}
           icon={<CheckCircle2 size={18} />}
           tone={summary.failedCases > 0 ? "red" : summary.warningCases > 0 ? "amber" : "green"}
+        />
+        <MetricCard
+          label="문제 그룹"
+          value={groupsNeedingAttention}
+          detail={`${summary.groups.length}개 그룹 중`}
+          icon={<AlertTriangle size={18} />}
+          tone={groupsNeedingAttention > 0 ? "amber" : "green"}
         />
         <MetricCard
           label="제어 신호"
@@ -6436,7 +6463,7 @@ function AiWorkerEvaluationSummaryPanel({ summary }: { summary: AiWorkerEvaluati
           tone={failedSignals > 0 ? "red" : warningSignals > 0 ? "amber" : "green"}
         />
         <MetricCard
-          label="검증 모드"
+          label="검증 범위"
           value={summary.evaluationMode}
           detail={formatDate(summary.generatedAt)}
           icon={<Activity size={18} />}
@@ -6444,59 +6471,209 @@ function AiWorkerEvaluationSummaryPanel({ summary }: { summary: AiWorkerEvaluati
         />
       </div>
 
-      <div className="dashboard-grid">
-        <section className="evaluation-section">
-          <h3>평가 그룹</h3>
-          <Table
-            columns={["그룹", "계층", "케이스", "자동화", "통과율", "상태"]}
-            empty="평가 그룹이 없습니다."
-            rows={summary.groups.map((group) => [
-              <CellTitle key="group" title={group.displayName} subtitle={group.groupKey} />,
-              group.layer,
-              `${group.passedCases}/${group.totalCases}`,
-              group.automatedCases,
-              `${group.passRatePercent}%`,
-              <StatusBadge key="status" status={group.failedCases > 0 ? "FAILED" : group.warningCases > 0 ? "WARN" : "PASS"} />
-            ])}
-          />
-        </section>
-        <section className="evaluation-section">
-          <h3>제어 신호</h3>
-          <Table
-            columns={["항목", "계층", "상태", "근거"]}
-            empty="제어 신호가 없습니다."
-            rows={summary.signals.map((signal) => [
-              <CellTitle key="signal" title={signal.displayName} subtitle={signal.signalKey} />,
-              signal.layer,
-              <StatusBadge key="status" status={signal.status} />,
-              signal.evidence
-            ])}
-          />
-        </section>
-      </div>
-
       <section className="evaluation-section">
-        <h3>평가 케이스 상세</h3>
-        <Table
-          columns={["ID", "케이스", "계층", "상태", "검증", "근거"]}
-          empty="평가 케이스가 없습니다."
-          rows={summary.groups.flatMap((group) =>
-            group.cases.map((item) => [
+        <h3>평가 그룹</h3>
+        <div className="evaluation-group-list">
+          {summary.groups.map((group) => (
+            <button
+              className={selectedGroup?.groupKey === group.groupKey ? "evaluation-group-button active" : "evaluation-group-button"}
+              key={group.groupKey}
+              onClick={() => setSelectedGroupKey(group.groupKey)}
+              type="button"
+            >
+              <div>
+                <strong>{evaluationGroupLabel(group.groupKey, group.displayName)}</strong>
+                <span>{evaluationGroupDescription(group.groupKey)}</span>
+              </div>
+              <small>{group.passedCases}/{group.totalCases} 통과</small>
+              <StatusBadge status={group.failedCases > 0 ? "FAILED" : group.warningCases > 0 ? "WARN" : "PASS"} />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {selectedGroup ? (
+        <section className="evaluation-section">
+          <div className="evaluation-detail-head">
+            <div>
+              <p className="eyebrow">선택 그룹</p>
+              <h3>{evaluationGroupLabel(selectedGroup.groupKey, selectedGroup.displayName)}</h3>
+              <span>{evaluationGroupFocus(selectedGroup.groupKey)}</span>
+            </div>
+            <div className="panel-kpis compact">
+              <span>{selectedGroup.passedCases}/{selectedGroup.totalCases} 통과</span>
+              <span>{selectedGroup.passRatePercent}%</span>
+            </div>
+          </div>
+          <Table
+            columns={["ID", "검증 내용", "상태", "검증 방식", "근거"]}
+            empty="선택한 그룹의 평가 케이스가 없습니다."
+            rows={selectedGroup.cases.map((item) => [
               item.caseId,
-              item.name,
-              item.layer,
+              <CellTitle key="case" title={evaluationCaseLabel(item.caseId, item.name)} subtitle={item.name} />,
               <StatusBadge key="status" status={item.status} />,
               item.automated ? item.verification : "MANUAL",
               item.evidence
-            ])
-          )}
+            ])}
+          />
+        </section>
+      ) : null}
+
+      <section className="evaluation-section">
+        <h3>관련 제어 신호</h3>
+        <Table
+          columns={["신호", "영역", "상태", "근거"]}
+          empty="관련 제어 신호가 없습니다."
+          rows={selectedSignals.map((signal) => [
+            <CellTitle key="signal" title={evaluationSignalLabel(signal.signalKey, signal.displayName)} subtitle={signal.signalKey} />,
+            evaluationLayerLabel(signal.layer),
+            <StatusBadge key="status" status={signal.status} />,
+            signal.evidence
+          ])}
         />
       </section>
-      <div className="inline-notice">
-        {summary.dataPolicy}
-      </div>
+
+      <div className="inline-notice">{summary.dataPolicy}</div>
     </Panel>
   );
+}
+
+function evaluationVerdict(summary: AiWorkerEvaluationSummary, failedSignals: number, warningSignals: number) {
+  if (summary.failedCases > 0 || failedSignals > 0) {
+    return {
+      status: "FAILED",
+      title: "조치가 필요한 평가 실패가 있습니다.",
+      description: "실패한 케이스 또는 제어 신호를 먼저 확인해야 합니다."
+    };
+  }
+  if (summary.warningCases > 0 || warningSignals > 0) {
+    return {
+      status: "WARN",
+      title: "기본 제어선은 통과했고, 남은 주의 항목이 있습니다.",
+      description: "현재 WARN은 실제 모델 반복 평가가 아직 별도 단계라는 의미입니다."
+    };
+  }
+  return {
+    status: "PASS",
+    title: "기본 제어선이 정상입니다.",
+    description: "AI Harness, Worker, MCP, Legal, Governance 기준 평가가 모두 통과했습니다."
+  };
+}
+
+function evaluationGroupLabel(groupKey: string, fallback: string) {
+  const labels: Record<string, string> = {
+    AI_HARNESS_BASELINE: "AI Harness 판단 품질",
+    WORKER_CONTROL_BASELINE: "Worker 실행 제어",
+    MCP_ENGINE_BOUNDARY: "MCP / Engine 외부 경계",
+    LEGAL_DIGEST_PIPELINE: "법령 동기화 / 변경 게시글",
+    WORKER_POLICY_GOVERNANCE: "Worker 정책 / 승인 / 관측"
+  };
+  return labels[groupKey] ?? fallback;
+}
+
+function evaluationGroupDescription(groupKey: string) {
+  const descriptions: Record<string, string> = {
+    AI_HARNESS_BASELINE: "AI가 근거 밖으로 나가지 않고, 모르면 묻고, 결과 DTO를 지키는지 봅니다.",
+    WORKER_CONTROL_BASELINE: "Action 실행 전 정책, 승인, 취소, 실패 격리가 되는지 봅니다.",
+    MCP_ENGINE_BOUNDARY: "외부 Agent가 쓰는 MCP/API 경계에서 scope, quota, 오류 계약을 봅니다.",
+    LEGAL_DIGEST_PIPELINE: "법령 원문은 보존하고 AI는 초안까지만 만드는지 봅니다.",
+    WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다."
+  };
+  return descriptions[groupKey] ?? "선택한 영역의 자동 평가 결과입니다.";
+}
+
+function evaluationGroupFocus(groupKey: string) {
+  const focus: Record<string, string> = {
+    AI_HARNESS_BASELINE: "핵심은 hallucination 방지, 구조화된 출력, action 경계 준수입니다.",
+    WORKER_CONTROL_BASELINE: "핵심은 executor가 실행되기 전에 멈출 수 있고, 실패가 격리되는지입니다.",
+    MCP_ENGINE_BOUNDARY: "핵심은 외부 Agent가 실패 원인을 해석할 수 있는 응답 계약입니다.",
+    LEGAL_DIGEST_PIPELINE: "핵심은 AI가 법령 corpus를 바꾸지 않고 관리자 승인 전 초안에 머무는지입니다.",
+    WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다."
+  };
+  return focus[groupKey] ?? "이 그룹의 평가 케이스와 근거를 확인합니다.";
+}
+
+function evaluationLayerLabel(layer: string) {
+  const labels: Record<string, string> = {
+    AI_HARNESS: "AI Harness",
+    WORKER_CONTROL: "Worker Control",
+    MCP_ENGINE: "MCP / Engine",
+    LEGAL_DIGEST: "Legal Digest",
+    GOVERNANCE: "Governance",
+    OBSERVABILITY: "관측",
+    EVALUATION: "평가"
+  };
+  return labels[layer] ?? displayLabel(layer);
+}
+
+function evaluationSignalLabel(signalKey: string, fallback: string) {
+  const labels: Record<string, string> = {
+    MODEL_PROVIDER_SWITCHABLE: "하네스별 모델 교체 가능",
+    OUTPUT_SCHEMA_VALIDATION: "출력 스키마 검증",
+    REFINE_RETRY: "잘못된 응답 재시도",
+    ACTION_REGISTRY: "Worker Action Registry",
+    POLICY_GATE: "정책 게이트",
+    RUN_CONTROL_CANCEL: "실행 직전 취소",
+    MCP_SCOPE_AND_QUOTA: "MCP scope/quota 분리",
+    LEGAL_DRY_RUN_DRAFT: "법령 AI 초안 dry-run",
+    APPROVAL_INTERLOCK: "승인 interlock",
+    TRACE_AUDIT: "Trace / audit 관측",
+    REAL_MODEL_EVALUATION: "실제 모델 반복 평가"
+  };
+  return labels[signalKey] ?? fallback;
+}
+
+function evaluationCaseLabel(caseId: string, fallback: string) {
+  const labels: Record<string, string> = {
+    "AI-H-001": "법령 요약이 입력된 근거 조문만 사용",
+    "AI-H-002": "별표/서식 변경은 사람 검토로 분류",
+    "AI-H-003": "대화 플래너가 허용된 action만 제안",
+    "AI-H-004": "문맥 부족 시 억지 실행 대신 추가 확인",
+    "AI-H-005": "삭제된 체크리스트 항목은 사람 검토로 분류",
+    "AI-H-006": "복수 조문 변경에서도 모든 근거 key 유지",
+    "AI-H-007": "문서 생성 action이 가능할 때만 제안",
+    "AI-H-008": "단순 확인 응답은 action 없음으로 처리",
+    "AI-H-009": "사진 근거가 있으면 preflight PASS",
+    "AI-H-010": "사진 근거 누락 finding 유지",
+    "AI-H-011": "서명 슬롯 누락은 생성 차단",
+    "AI-H-012": "법령 근거 누락은 경고로 유지",
+    "WK-C-001": "허용된 action은 한 번만 실행",
+    "WK-C-002": "정의 없는 action은 정책 전 거절",
+    "WK-C-003": "정책 거절 시 executor 미실행",
+    "WK-C-004": "승인 필요 시 pending으로 정지",
+    "WK-C-005": "run-control cancel 시 실행 직전 취소",
+    "WK-C-006": "executor 실패는 실패 결과로 격리",
+    "WK-C-007": "executor 거절 결과를 거절 trace로 기록",
+    "WK-C-008": "executor 승인 필요 결과를 승인 trace로 기록",
+    "WK-C-009": "executor 취소 결과를 거절과 분리",
+    "WK-C-010": "executor 예외를 실패 결과로 포착",
+    "MCP-E-001": "Engine API Key 없이는 MCP 차단",
+    "MCP-E-002": "MCP initialize 응답 계약 유지",
+    "MCP-E-003": "알 수 없는 MCP method 구분",
+    "MCP-E-004": "invalid params와 unknown tool 구분",
+    "MCP-E-005": "get_legal_updates 사용량 기록",
+    "MCP-E-006": "법령 검색/조문 조회 사용량 기록",
+    "MCP-E-007": "scope 부족 오류 구분",
+    "MCP-E-008": "quota 초과 오류 구분",
+    "MCP-E-009": "Engine 응답 DTO 계약 유지",
+    "LEG-D-001": "fake 법령 source를 운영 목록에서 제외",
+    "LEG-D-002": "deterministic digest refresh 대상 분리",
+    "LEG-D-003": "추가/수정/삭제 diff 분리",
+    "LEG-D-004": "사용자 변경사항에서 fake source 제외",
+    "LEG-D-005": "변경 상세에서 fake source 제외",
+    "LEG-D-006": "법령 AI worker는 non-dry-run 거절",
+    "LEG-D-007": "AI 초안 생성이 원문/digest를 변경하지 않음",
+    "LEG-D-008": "관리자 AI 초안 생성은 Worker dry-run 경유",
+    "GOV-W-001": "필수 문맥이 있는 UI action 허용",
+    "GOV-W-002": "비활성 action 정의 차단",
+    "GOV-W-003": "허용되지 않은 요청 source 차단",
+    "GOV-W-004": "필수 context 누락 차단",
+    "GOV-W-005": "승인 필요 action은 승인 전 차단",
+    "GOV-W-006": "승인된 실행만 unlock",
+    "GOV-W-007": "preflight 미통과 문서 생성 차단",
+    "GOV-W-008": "취소/실패/차단/승인 지표 분리"
+  };
+  return labels[caseId] ?? fallback;
 }
 
 function AiObserverTabBar({
