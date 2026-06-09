@@ -936,6 +936,29 @@ export type AiWorkerEvaluationSummary = {
   signals: AiWorkerEvaluationSignal[];
 };
 
+export type AiWorkerEvaluationRun = {
+  id: number;
+  runKey: string;
+  triggerType: string;
+  status: string;
+  evaluationMode: string;
+  totalCases: number;
+  automatedCases: number;
+  passedCases: number;
+  warningCases: number;
+  failedCases: number;
+  passRatePercent: number;
+  groupCount: number;
+  signalCount: number;
+  warningSignalCount: number;
+  failedSignalCount: number;
+  triggeredByUserId?: number | null;
+  triggeredByEmail?: string | null;
+  createdAt: string;
+  completedAt: string;
+  summary: AiWorkerEvaluationSummary;
+};
+
 export type AiHarnessTraceEvent = {
   id: number;
   officeId?: number | null;

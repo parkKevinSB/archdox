@@ -724,6 +724,56 @@ button {
   gap: 8px;
 }
 
+.evaluation-run-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evaluation-run-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  min-height: 62px;
+  padding: 11px;
+  border: 1px solid #d8e1df;
+  border-radius: 7px;
+  color: #14211f;
+  background: #ffffff;
+  text-align: left;
+}
+
+.evaluation-run-button.active {
+  border-color: #193f3a;
+  background: #eef7f5;
+  box-shadow: inset 0 0 0 1px #193f3a;
+}
+
+.evaluation-run-button div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.evaluation-run-button strong {
+  overflow: hidden;
+  color: #14211f;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evaluation-run-button span,
+.evaluation-run-button small {
+  color: #627673;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .evaluation-group-button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -3222,13 +3272,15 @@ tbody tr:hover {
   }
 
   .evaluation-decision-grid,
-  .evaluation-group-list {
+  .evaluation-group-list,
+  .evaluation-run-list {
     grid-template-columns: 1fr;
   }
 
   .evaluation-hero,
   .evaluation-detail-head,
-  .evaluation-group-button {
+  .evaluation-group-button,
+  .evaluation-run-button {
     align-items: stretch;
     grid-template-columns: 1fr;
     flex-direction: column;

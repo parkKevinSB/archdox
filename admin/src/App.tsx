@@ -40,6 +40,7 @@ import {
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
+  createPlatformAiWorkerEvaluationRun,
   createPlatformEngineApiKey,
   createPlatformAiPricingRule,
   createPlatformAiProvider,
@@ -80,6 +81,7 @@ import {
   getPlatformAiProviders,
   getPlatformAiPricingRules,
   getPlatformAiUsageSummary,
+  getPlatformAiWorkerEvaluationRuns,
   getPlatformAiWorkerEvaluationSummary,
   getPlatformCommands,
   getPlatformDeliveries,
@@ -141,6 +143,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiWorkerEvaluationRun,
   AiWorkerEvaluationSummary,
   ConfigDefinition,
   CreateEngineApiKeyResponse,
@@ -304,6 +307,7 @@ type PlatformOpsData = {
   aiPricingRules: AiModelPricingRule[];
   aiUsageSummary: AiUsageSummary | null;
   aiWorkerEvaluationSummary: AiWorkerEvaluationSummary | null;
+  aiWorkerEvaluationRuns: AiWorkerEvaluationRun[];
 };
 
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
@@ -353,7 +357,8 @@ const emptyPlatformOpsData: PlatformOpsData = {
   aiPreflightFindings: [],
   aiPricingRules: [],
   aiUsageSummary: null,
-  aiWorkerEvaluationSummary: null
+  aiWorkerEvaluationSummary: null,
+  aiWorkerEvaluationRuns: []
 };
 
 const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -917,7 +922,11 @@ export default function App() {
         ]);
         Object.assign(next, { aiProviders, aiHarnessPolicies });
       } else if (view === "ai-evaluation") {
-        next.aiWorkerEvaluationSummary = await getPlatformAiWorkerEvaluationSummary(token);
+        const [aiWorkerEvaluationSummary, aiWorkerEvaluationRuns] = await Promise.all([
+          getPlatformAiWorkerEvaluationSummary(token),
+          getPlatformAiWorkerEvaluationRuns(token, 20)
+        ]);
+        Object.assign(next, { aiWorkerEvaluationSummary, aiWorkerEvaluationRuns });
       } else if (view === "ai-policies") {
         const [aiProviders, officeAiPolicies] = await Promise.all([
           getPlatformAiProviders(token),
@@ -1289,6 +1298,29 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI provider 연결 테스트를 실행하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateAiWorkerEvaluationRun() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const run = await createPlatformAiWorkerEvaluationRun(auth.accessToken);
+      setPlatformData((current) => ({
+        ...current,
+        aiWorkerEvaluationSummary: run.summary,
+        aiWorkerEvaluationRuns: [
+          run,
+          ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
+        ].slice(0, 20)
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI/Worker 평가 기록을 생성하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1756,6 +1788,7 @@ export default function App() {
               policies={platformData.officeAiPolicies}
               usageSummary={platformData.aiUsageSummary}
               workerEvaluationSummary={platformData.aiWorkerEvaluationSummary}
+              workerEvaluationRuns={platformData.aiWorkerEvaluationRuns}
               onCreatePricingRule={handleCreateAiPricingRule}
               onDisablePricingRule={handleDisableAiPricingRule}
               onCreateProvider={handleCreateAiProvider}
@@ -1765,6 +1798,7 @@ export default function App() {
               onUpdateObservationMode={handleUpdateAiObservationMode}
               onClearObservations={handleClearAiObservations}
               onRefresh={refreshPlatform}
+              onCreateWorkerEvaluationRun={handleCreateAiWorkerEvaluationRun}
               onSaveHarnessPolicy={handleSaveAiHarnessPolicy}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
               providerTestResults={aiProviderTestResults}
@@ -6002,6 +6036,7 @@ function AiManagementView({
   policies,
   usageSummary,
   workerEvaluationSummary,
+  workerEvaluationRuns,
   onCreatePricingRule,
   onDisablePricingRule,
   onCreateProvider,
@@ -6011,6 +6046,7 @@ function AiManagementView({
   onUpdateObservationMode,
   onClearObservations,
   onRefresh,
+  onCreateWorkerEvaluationRun,
   onSaveHarnessPolicy,
   providerTestResults,
   onSaveOfficePolicy
@@ -6028,6 +6064,7 @@ function AiManagementView({
   policies: OfficeAiPolicy[];
   usageSummary: AiUsageSummary | null;
   workerEvaluationSummary: AiWorkerEvaluationSummary | null;
+  workerEvaluationRuns: AiWorkerEvaluationRun[];
   onCreatePricingRule: (body: {
     providerCode: string;
     modelName: string;
@@ -6059,6 +6096,7 @@ function AiManagementView({
   onUpdateObservationMode: (enabled: boolean) => Promise<void>;
   onClearObservations: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  onCreateWorkerEvaluationRun: () => Promise<void>;
   onSaveHarnessPolicy: (
     policyKey: string,
     body: {
@@ -6136,7 +6174,14 @@ function AiManagementView({
       ) : null}
 
       {showOverview ? <AiProviderStatusPanel callLogs={callLogs} policies={policies} providers={providers} /> : null}
-      {showEvaluation ? <AiWorkerEvaluationControlPanel summary={workerEvaluationSummary} /> : null}
+      {showEvaluation ? (
+        <AiWorkerEvaluationControlPanel
+          busy={loading}
+          runs={workerEvaluationRuns}
+          summary={workerEvaluationSummary}
+          onCreateRun={onCreateWorkerEvaluationRun}
+        />
+      ) : null}
       {showObserver ? (
         <>
           <AiObserverTabBar
@@ -6390,8 +6435,33 @@ function AiManagementView({
   );
 }
 
-function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluationSummary | null }) {
+function AiWorkerEvaluationControlPanel({
+  busy,
+  runs,
+  summary: currentSummary,
+  onCreateRun
+}: {
+  busy: boolean;
+  runs: AiWorkerEvaluationRun[];
+  summary: AiWorkerEvaluationSummary | null;
+  onCreateRun: () => Promise<void>;
+}) {
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
+  const summary = selectedRun?.summary ?? currentSummary;
+
+  useEffect(() => {
+    if (selectedRunId != null && !runs.some((run) => run.id === selectedRunId)) {
+      setSelectedRunId(null);
+    }
+  }, [runs, selectedRunId]);
+
+  useEffect(() => {
+    if (summary && selectedGroupKey && !summary.groups.some((group) => group.groupKey === selectedGroupKey)) {
+      setSelectedGroupKey(null);
+    }
+  }, [selectedGroupKey, summary]);
 
   if (!summary) {
     return (
@@ -6410,6 +6480,12 @@ function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluati
     ? summary.signals.filter((signal) => signal.layer === selectedGroup.layer || signal.status !== "PASS")
     : summary.signals.filter((signal) => signal.status !== "PASS");
   const verdict = evaluationVerdict(summary, failedSignals, warningSignals);
+  const currentWarningSignals = currentSummary?.signals.filter((signal) => signal.status === "WARN").length ?? warningSignals;
+  const currentFailedSignals = currentSummary?.signals.filter((signal) => signal.status === "FAILED").length ?? failedSignals;
+  const currentVerdictStatus = currentSummary
+    ? evaluationVerdict(currentSummary, currentFailedSignals, currentWarningSignals).status
+    : verdict.status;
+  const runLabel = selectedRun ? `Run #${selectedRun.id}` : "현재 기준";
 
   return (
     <Panel
@@ -6421,6 +6497,10 @@ function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluati
           <span>Pass {summary.passedCases}</span>
           <span>Warn {summary.warningCases + warningSignals}</span>
           <span>Fail {summary.failedCases + failedSignals}</span>
+          <button className="button compact" disabled={busy} onClick={onCreateRun} type="button">
+            {busy ? <Loader2 className="spin" size={14} /> : <Plus size={14} />}
+            현재 기준 기록
+          </button>
         </div>
       }
     >
@@ -6428,7 +6508,7 @@ function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluati
         <div>
           <p className="eyebrow">핵심 판단</p>
           <h3>{verdict.title}</h3>
-          <span>{verdict.description}</span>
+          <span>{runLabel} · {verdict.description}</span>
         </div>
         <StatusBadge status={verdict.status} />
       </div>
@@ -6465,11 +6545,48 @@ function AiWorkerEvaluationControlPanel({ summary }: { summary: AiWorkerEvaluati
         <MetricCard
           label="검증 범위"
           value={summary.evaluationMode}
-          detail={formatDate(summary.generatedAt)}
+          detail={selectedRun ? formatDate(selectedRun.completedAt) : formatDate(summary.generatedAt)}
           icon={<Activity size={18} />}
           tone="slate"
         />
       </div>
+
+      <section className="evaluation-section">
+        <div className="evaluation-detail-head">
+          <div>
+            <h3>최근 평가 Run</h3>
+            <span>기록 버튼은 지금 화면의 정적 평가 기준을 스냅샷으로 남깁니다. 실제 모델 반복 평가는 이후 같은 Run 구조에 붙습니다.</span>
+          </div>
+        </div>
+        <div className="evaluation-run-list">
+          <button
+            className={selectedRunId == null ? "evaluation-run-button active" : "evaluation-run-button"}
+            onClick={() => setSelectedRunId(null)}
+            type="button"
+          >
+            <div>
+              <strong>현재 기준</strong>
+              <span>{formatDate(currentSummary?.generatedAt ?? summary.generatedAt)}</span>
+            </div>
+            <StatusBadge status={currentVerdictStatus} />
+          </button>
+          {runs.map((run) => (
+            <button
+              className={selectedRunId === run.id ? "evaluation-run-button active" : "evaluation-run-button"}
+              key={run.id}
+              onClick={() => setSelectedRunId(run.id)}
+              type="button"
+            >
+              <div>
+                <strong>Run #{run.id}</strong>
+                <span>{formatDate(run.completedAt)} · {run.triggeredByEmail ?? `User #${run.triggeredByUserId ?? "-"}`}</span>
+              </div>
+              <small>{run.passedCases}/{run.totalCases} 통과 · 신호 WARN {run.warningSignalCount}</small>
+              <StatusBadge status={run.status} />
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="evaluation-section">
         <h3>평가 그룹</h3>

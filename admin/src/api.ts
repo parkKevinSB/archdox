@@ -11,6 +11,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiWorkerEvaluationRun,
   AiWorkerEvaluationSummary,
   AuthTokenResponse,
   ConfigDefinition,
@@ -897,6 +898,20 @@ export function getPlatformAiUsageSummary(token: string) {
 
 export function getPlatformAiWorkerEvaluationSummary(token: string) {
   return request<AiWorkerEvaluationSummary>("/api/v1/platform-admin/ai/evaluation-summary", { token });
+}
+
+export function getPlatformAiWorkerEvaluationRuns(token: string, limit = 20) {
+  return request<AiWorkerEvaluationRun[]>("/api/v1/platform-admin/ai/evaluation-runs", {
+    token,
+    query: { limit }
+  });
+}
+
+export function createPlatformAiWorkerEvaluationRun(token: string) {
+  return request<AiWorkerEvaluationRun>("/api/v1/platform-admin/ai/evaluation-runs", {
+    token,
+    method: "POST"
+  });
 }
 
 export function getPlatformAiHarnessTraces(token: string, limit = 100, harnessRunId?: string) {
