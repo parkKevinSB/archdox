@@ -19,9 +19,11 @@ class AiWorkerEvaluationRunServiceTest {
     private final AiWorkerEvaluationRunRepository repository = mock(AiWorkerEvaluationRunRepository.class);
     private final PlatformAdminService platformAdminService = mock(PlatformAdminService.class);
     private final AiWorkerEvaluationReadService readService = new AiWorkerEvaluationReadService(platformAdminService);
+    private final AiWorkerEvaluationRuntimeProbeService runtimeProbeService = mock(AiWorkerEvaluationRuntimeProbeService.class);
     private final AiWorkerEvaluationRunService service = new AiWorkerEvaluationRunService(
             repository,
             readService,
+            runtimeProbeService,
             platformAdminService,
             JsonMapper.builder().addModule(new JavaTimeModule()).build());
 
@@ -56,5 +58,22 @@ class AiWorkerEvaluationRunServiceTest {
             assertThat(signal.status()).isEqualTo("WARN");
         });
         verify(platformAdminService).requirePlatformAdmin(principal);
+    }
+
+    @Test
+    void createRuntimeProbeStoresRuntimeEvaluationSummaryAsRun() {
+        var principal = new UserPrincipal(7L, "platform@test.co.kr");
+        var runtimeSummary = readService.summary(principal);
+        when(runtimeProbeService.runtimeProbe(principal)).thenReturn(runtimeSummary);
+        when(repository.save(any(AiWorkerEvaluationRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.createRuntimeProbe(principal);
+
+        var captor = ArgumentCaptor.forClass(AiWorkerEvaluationRun.class);
+        verify(repository).save(captor.capture());
+        var saved = captor.getValue();
+        assertThat(saved.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
+        assertThat(saved.evaluationMode()).isEqualTo("STATIC_BASELINE");
+        assertThat(response.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
     }
 }

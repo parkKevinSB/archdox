@@ -34,6 +34,11 @@ public class PlatformAiWorkerEvaluationRunController {
         return service.createSnapshot((UserPrincipal) authentication.getPrincipal());
     }
 
+    @PostMapping("/runtime-probe")
+    public AiWorkerEvaluationRunResponse createRuntimeProbe(Authentication authentication) {
+        return service.createRuntimeProbe((UserPrincipal) authentication.getPrincipal());
+    }
+
     @GetMapping("/{runId}")
     public AiWorkerEvaluationRunResponse run(
             Authentication authentication,

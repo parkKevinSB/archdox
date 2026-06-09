@@ -41,6 +41,7 @@ import {
   clearPlatformAiObservations,
   configureTokenRefresh,
   createPlatformAiWorkerEvaluationRun,
+  createPlatformAiWorkerRuntimeEvaluationRun,
   createPlatformEngineApiKey,
   createPlatformAiPricingRule,
   createPlatformAiProvider,
@@ -1326,6 +1327,32 @@ export default function App() {
     }
   }
 
+  async function handleCreateAiWorkerRuntimeEvaluationRun() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("런타임 연결 평가는 실제 AI provider에 짧은 연결 테스트를 보낼 수 있습니다. 진행할까요?")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const run = await createPlatformAiWorkerRuntimeEvaluationRun(auth.accessToken);
+      setPlatformData((current) => ({
+        ...current,
+        aiWorkerEvaluationSummary: run.summary,
+        aiWorkerEvaluationRuns: [
+          run,
+          ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
+        ].slice(0, 20)
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI/Worker 런타임 평가를 실행하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleUpdateAiObservationMode(enabled: boolean) {
     if (!auth || !platformAdmin) {
       return;
@@ -1799,6 +1826,7 @@ export default function App() {
               onClearObservations={handleClearAiObservations}
               onRefresh={refreshPlatform}
               onCreateWorkerEvaluationRun={handleCreateAiWorkerEvaluationRun}
+              onCreateWorkerRuntimeEvaluationRun={handleCreateAiWorkerRuntimeEvaluationRun}
               onSaveHarnessPolicy={handleSaveAiHarnessPolicy}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
               providerTestResults={aiProviderTestResults}
@@ -6047,6 +6075,7 @@ function AiManagementView({
   onClearObservations,
   onRefresh,
   onCreateWorkerEvaluationRun,
+  onCreateWorkerRuntimeEvaluationRun,
   onSaveHarnessPolicy,
   providerTestResults,
   onSaveOfficePolicy
@@ -6097,6 +6126,7 @@ function AiManagementView({
   onClearObservations: () => Promise<void>;
   onRefresh: () => Promise<void>;
   onCreateWorkerEvaluationRun: () => Promise<void>;
+  onCreateWorkerRuntimeEvaluationRun: () => Promise<void>;
   onSaveHarnessPolicy: (
     policyKey: string,
     body: {
@@ -6180,6 +6210,7 @@ function AiManagementView({
           runs={workerEvaluationRuns}
           summary={workerEvaluationSummary}
           onCreateRun={onCreateWorkerEvaluationRun}
+          onCreateRuntimeRun={onCreateWorkerRuntimeEvaluationRun}
         />
       ) : null}
       {showObserver ? (
@@ -6439,12 +6470,14 @@ function AiWorkerEvaluationControlPanel({
   busy,
   runs,
   summary: currentSummary,
-  onCreateRun
+  onCreateRun,
+  onCreateRuntimeRun
 }: {
   busy: boolean;
   runs: AiWorkerEvaluationRun[];
   summary: AiWorkerEvaluationSummary | null;
   onCreateRun: () => Promise<void>;
+  onCreateRuntimeRun: () => Promise<void>;
 }) {
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
@@ -6501,6 +6534,10 @@ function AiWorkerEvaluationControlPanel({
             {busy ? <Loader2 className="spin" size={14} /> : <Plus size={14} />}
             현재 기준 기록
           </button>
+          <button className="button compact" disabled={busy} onClick={onCreateRuntimeRun} type="button">
+            {busy ? <Loader2 className="spin" size={14} /> : <Activity size={14} />}
+            런타임 연결 평가
+          </button>
         </div>
       }
     >
@@ -6555,7 +6592,7 @@ function AiWorkerEvaluationControlPanel({
         <div className="evaluation-detail-head">
           <div>
             <h3>최근 평가 Run</h3>
-            <span>기록 버튼은 지금 화면의 정적 평가 기준을 스냅샷으로 남깁니다. 실제 모델 반복 평가는 이후 같은 Run 구조에 붙습니다.</span>
+            <span>현재 기준 기록은 정적 평가를 저장하고, 런타임 연결 평가는 하네스 정책과 실제 provider 연결성을 확인합니다.</span>
           </div>
         </div>
         <div className="evaluation-run-list">
@@ -6578,7 +6615,7 @@ function AiWorkerEvaluationControlPanel({
               type="button"
             >
               <div>
-                <strong>Run #{run.id}</strong>
+                <strong>{evaluationRunTriggerLabel(run.triggerType)} #{run.id}</strong>
                 <span>{formatDate(run.completedAt)} · {run.triggeredByEmail ?? `User #${run.triggeredByUserId ?? "-"}`}</span>
               </div>
               <small>{run.passedCases}/{run.totalCases} 통과 · 신호 WARN {run.warningSignalCount}</small>
@@ -6683,7 +6720,8 @@ function evaluationGroupLabel(groupKey: string, fallback: string) {
     WORKER_CONTROL_BASELINE: "Worker 실행 제어",
     MCP_ENGINE_BOUNDARY: "MCP / Engine 외부 경계",
     LEGAL_DIGEST_PIPELINE: "법령 동기화 / 변경 게시글",
-    WORKER_POLICY_GOVERNANCE: "Worker 정책 / 승인 / 관측"
+    WORKER_POLICY_GOVERNANCE: "Worker 정책 / 승인 / 관측",
+    RUNTIME_AI_PROVIDER_PROBE: "런타임 AI provider 연결"
   };
   return labels[groupKey] ?? fallback;
 }
@@ -6694,7 +6732,8 @@ function evaluationGroupDescription(groupKey: string) {
     WORKER_CONTROL_BASELINE: "Action 실행 전 정책, 승인, 취소, 실패 격리가 되는지 봅니다.",
     MCP_ENGINE_BOUNDARY: "외부 Agent가 쓰는 MCP/API 경계에서 scope, quota, 오류 계약을 봅니다.",
     LEGAL_DIGEST_PIPELINE: "법령 원문은 보존하고 AI는 초안까지만 만드는지 봅니다.",
-    WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다."
+    WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다.",
+    RUNTIME_AI_PROVIDER_PROBE: "운영 설정에서 하네스 정책과 provider 연결이 실제로 가능한지 봅니다."
   };
   return descriptions[groupKey] ?? "선택한 영역의 자동 평가 결과입니다.";
 }
@@ -6705,9 +6744,18 @@ function evaluationGroupFocus(groupKey: string) {
     WORKER_CONTROL_BASELINE: "핵심은 executor가 실행되기 전에 멈출 수 있고, 실패가 격리되는지입니다.",
     MCP_ENGINE_BOUNDARY: "핵심은 외부 Agent가 실패 원인을 해석할 수 있는 응답 계약입니다.",
     LEGAL_DIGEST_PIPELINE: "핵심은 AI가 법령 corpus를 바꾸지 않고 관리자 승인 전 초안에 머무는지입니다.",
-    WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다."
+    WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다.",
+    RUNTIME_AI_PROVIDER_PROBE: "핵심은 fake provider와 실제 provider를 구분하고, 실제 연결 실패를 분리해 보는 것입니다."
   };
   return focus[groupKey] ?? "이 그룹의 평가 케이스와 근거를 확인합니다.";
+}
+
+function evaluationRunTriggerLabel(triggerType: string) {
+  const labels: Record<string, string> = {
+    PLATFORM_ADMIN_SNAPSHOT: "기준 기록",
+    PLATFORM_ADMIN_RUNTIME_PROBE: "런타임 평가"
+  };
+  return labels[triggerType] ?? displayLabel(triggerType);
 }
 
 function evaluationLayerLabel(layer: string) {
@@ -6735,12 +6783,20 @@ function evaluationSignalLabel(signalKey: string, fallback: string) {
     LEGAL_DRY_RUN_DRAFT: "법령 AI 초안 dry-run",
     APPROVAL_INTERLOCK: "승인 interlock",
     TRACE_AUDIT: "Trace / audit 관측",
-    REAL_MODEL_EVALUATION: "실제 모델 반복 평가"
+    REAL_MODEL_EVALUATION: "실제 모델 반복 평가",
+    RUNTIME_HARNESS_POLICY: "런타임 하네스 정책 해석",
+    RUNTIME_PROVIDER_CONNECTIVITY: "런타임 provider 연결성"
   };
   return labels[signalKey] ?? fallback;
 }
 
 function evaluationCaseLabel(caseId: string, fallback: string) {
+  if (caseId.startsWith("RUN-AI-POLICY-")) {
+    return "하네스 실행 정책 확인";
+  }
+  if (caseId.startsWith("RUN-AI-PROVIDER-")) {
+    return "provider 연결 평가";
+  }
   const labels: Record<string, string> = {
     "AI-H-001": "법령 요약이 입력된 근거 조문만 사용",
     "AI-H-002": "별표/서식 변경은 사람 검토로 분류",

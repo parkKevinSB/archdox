@@ -23,23 +23,27 @@ public class AiWorkerEvaluationRunService {
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 100;
     private static final String TRIGGER_PLATFORM_ADMIN_SNAPSHOT = "PLATFORM_ADMIN_SNAPSHOT";
+    private static final String TRIGGER_PLATFORM_ADMIN_RUNTIME_PROBE = "PLATFORM_ADMIN_RUNTIME_PROBE";
     private static final String STATUS_PASS = "PASS";
     private static final String STATUS_WARN = "WARN";
     private static final String STATUS_FAILED = "FAILED";
 
     private final AiWorkerEvaluationRunRepository repository;
     private final AiWorkerEvaluationReadService readService;
+    private final AiWorkerEvaluationRuntimeProbeService runtimeProbeService;
     private final PlatformAdminService platformAdminService;
     private final ObjectMapper objectMapper;
 
     public AiWorkerEvaluationRunService(
             AiWorkerEvaluationRunRepository repository,
             AiWorkerEvaluationReadService readService,
+            AiWorkerEvaluationRuntimeProbeService runtimeProbeService,
             PlatformAdminService platformAdminService,
             ObjectMapper objectMapper
     ) {
         this.repository = repository;
         this.readService = readService;
+        this.runtimeProbeService = runtimeProbeService;
         this.platformAdminService = platformAdminService;
         this.objectMapper = objectMapper;
     }
@@ -47,12 +51,25 @@ public class AiWorkerEvaluationRunService {
     @Transactional
     public AiWorkerEvaluationRunResponse createSnapshot(UserPrincipal principal) {
         var summary = readService.summary(principal);
+        return saveRun(principal, summary, TRIGGER_PLATFORM_ADMIN_SNAPSHOT);
+    }
+
+    public AiWorkerEvaluationRunResponse createRuntimeProbe(UserPrincipal principal) {
+        var summary = runtimeProbeService.runtimeProbe(principal);
+        return saveRun(principal, summary, TRIGGER_PLATFORM_ADMIN_RUNTIME_PROBE);
+    }
+
+    private AiWorkerEvaluationRunResponse saveRun(
+            UserPrincipal principal,
+            AiWorkerEvaluationSummaryResponse summary,
+            String triggerType
+    ) {
         var now = OffsetDateTime.now();
         var warningSignals = countSignals(summary, STATUS_WARN);
         var failedSignals = countSignals(summary, STATUS_FAILED);
         var run = new AiWorkerEvaluationRun(
                 "aiw_eval_" + UUID.randomUUID(),
-                TRIGGER_PLATFORM_ADMIN_SNAPSHOT,
+                triggerType,
                 status(summary, warningSignals, failedSignals),
                 summary.evaluationMode(),
                 summary.totalCases(),
