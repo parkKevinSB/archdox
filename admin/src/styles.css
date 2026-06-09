@@ -718,6 +718,54 @@ button {
   padding: 0 16px 14px;
 }
 
+.evaluation-operator-brief {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evaluation-operator-brief > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #d8e1df;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.evaluation-operator-primary {
+  background: #f8fbfa !important;
+}
+
+.evaluation-operator-brief h3,
+.evaluation-operator-brief p,
+.evaluation-operator-brief ul {
+  margin: 0;
+}
+
+.evaluation-operator-brief h3,
+.evaluation-operator-brief strong {
+  color: #13211f;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.evaluation-operator-brief span,
+.evaluation-operator-brief li {
+  color: #627673;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.48;
+}
+
+.evaluation-operator-brief ul {
+  display: grid;
+  gap: 6px;
+  padding-left: 16px;
+}
+
 .evaluation-group-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3313,7 +3361,8 @@ tbody tr:hover {
 
   .evaluation-decision-grid,
   .evaluation-group-list,
-  .evaluation-run-list {
+  .evaluation-run-list,
+  .evaluation-operator-brief {
     grid-template-columns: 1fr;
   }
 

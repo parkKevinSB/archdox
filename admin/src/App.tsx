@@ -6527,6 +6527,7 @@ function AiWorkerEvaluationControlPanel({
   const selectedRunDescription = selectedRun
     ? "아래 평가 그룹과 제어 신호는 이 Run에 저장된 결과입니다."
     : "현재 기준은 지금 코드 기준으로 계산한 상태입니다. 기록 버튼을 누르면 Run으로 저장됩니다.";
+  const operatorBrief = evaluationOperatorBrief(summary, selectedRun);
   async function createAndSelectRun(creator: () => Promise<AiWorkerEvaluationRun | null>) {
     const run = await creator();
     if (run) {
@@ -6570,6 +6571,35 @@ function AiWorkerEvaluationControlPanel({
         </div>
         <StatusBadge status={verdict.status} />
       </div>
+
+      <section className="evaluation-section">
+        <div className="evaluation-operator-brief">
+          <div className="evaluation-operator-primary">
+            <p className="eyebrow">운영 판정</p>
+            <h3>{operatorBrief.decision}</h3>
+            <span>{operatorBrief.description}</span>
+            <StatusBadge status={operatorBrief.status} />
+          </div>
+          <div>
+            <strong>확인할 일</strong>
+            <ul>
+              {operatorBrief.checks.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+          <div>
+            <strong>문제 원인</strong>
+            <ul>
+              {operatorBrief.causes.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+          <div>
+            <strong>다음 조치</strong>
+            <ul>
+              {operatorBrief.actions.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        </div>
+      </section>
 
       <div className="evaluation-decision-grid">
         <MetricCard
@@ -6740,6 +6770,97 @@ function evaluationVerdict(summary: AiWorkerEvaluationSummary, failedSignals: nu
     title: "기본 제어선이 정상입니다.",
     description: "AI Harness, Worker, MCP, Legal, Governance 기준 평가가 모두 통과했습니다."
   };
+}
+
+function evaluationOperatorBrief(summary: AiWorkerEvaluationSummary, selectedRun: AiWorkerEvaluationRun | null) {
+  const failedSignals = summary.signals.filter((signal) => signal.status === "FAILED");
+  const warningSignals = summary.signals.filter((signal) => signal.status === "WARN");
+  const failedGroups = summary.groups.filter((group) => group.failedCases > 0);
+  const warningGroups = summary.groups.filter((group) => group.warningCases > 0);
+  const realModelSignal = summary.signals.find((signal) => signal.signalKey === "REAL_MODEL_EVALUATION");
+  const providerSignal = summary.signals.find((signal) => signal.signalKey === "RUNTIME_PROVIDER_CONNECTIVITY");
+  const runtimeProviderGroup = summary.groups.find((group) => group.groupKey === "RUNTIME_AI_PROVIDER_PROBE");
+  const runtimeWarnings = runtimeProviderGroup?.cases.filter((item) => item.status === "WARN") ?? [];
+  const runtimeFailures = runtimeProviderGroup?.cases.filter((item) => item.status === "FAILED") ?? [];
+  const selectedRunLabel = selectedRun ? evaluationRunTriggerLabel(selectedRun.triggerType) : "현재 기준";
+
+  if (failedSignals.length > 0 || failedGroups.length > 0) {
+    return {
+      status: "FAILED",
+      decision: "실행 전에 조치가 필요합니다.",
+      description: `${selectedRunLabel}에 실패 항목이 있습니다. 실패 원인을 먼저 해결한 뒤 다시 평가해야 합니다.`,
+      checks: unique([
+        ...failedSignals.map((signal) => `${evaluationSignalLabel(signal.signalKey, signal.displayName)} 신호`),
+        ...failedGroups.map((group) => `${evaluationGroupLabel(group.groupKey, group.displayName)} 그룹`),
+        "실패 항목의 근거 문구"
+      ]).slice(0, 4),
+      causes: evidenceList([
+        ...failedSignals.map((signal) => signal.evidence),
+        ...runtimeFailures.map((item) => item.evidence)
+      ], "실패 신호 또는 실패 케이스가 기록되었습니다."),
+      actions: unique([
+        providerSignal?.status === "FAILED" ? "AI 제공자 화면에서 실제 provider 연결 테스트를 먼저 통과시키세요." : null,
+        "실패한 평가 그룹을 열어 케이스 근거를 확인하세요.",
+        "설정 또는 정책을 수정한 뒤 런타임 연결 평가를 다시 실행하세요."
+      ])
+    };
+  }
+
+  if (warningSignals.length > 0 || warningGroups.length > 0) {
+    const fakeProviderWarning = runtimeWarnings.some((item) => item.evidence.toLowerCase().includes("fake"));
+    const realModelPassed = realModelSignal?.status === "PASS";
+    return {
+      status: "WARN",
+      decision: "운영은 가능하지만 확인할 경고가 있습니다.",
+      description: realModelPassed
+        ? "실제 모델 연결은 통과했습니다. 남은 경고는 설정 정리나 fake provider 잔존 여부를 확인하는 성격입니다."
+        : `${selectedRunLabel}에 주의 항목이 있습니다. 치명적 실패는 아니지만 운영 기준을 명확히 해야 합니다.`,
+      checks: unique([
+        realModelSignal ? `${evaluationSignalLabel(realModelSignal.signalKey, realModelSignal.displayName)}: ${realModelSignal.status}` : null,
+        providerSignal ? `${evaluationSignalLabel(providerSignal.signalKey, providerSignal.displayName)}: ${providerSignal.status}` : null,
+        ...warningGroups.map((group) => `${evaluationGroupLabel(group.groupKey, group.displayName)} 그룹`)
+      ]).slice(0, 4),
+      causes: evidenceList([
+        fakeProviderWarning ? "일부 하네스 정책이 fake provider를 사용하거나 fake provider가 평가 대상에 남아 있습니다." : null,
+        providerSignal?.evidence,
+        realModelSignal?.status === "WARN" ? realModelSignal.evidence : null,
+        ...runtimeWarnings.map((item) => item.evidence)
+      ], "주의 신호가 남아 있습니다."),
+      actions: unique([
+        fakeProviderWarning ? "AI 하네스 관리에서 fake provider가 필요한 개발용 설정인지, 실제 provider로 바꿀 대상인지 결정하세요." : null,
+        realModelPassed ? "실제 provider 연결은 성공했으므로 fake provider 잔존 항목만 정리하면 됩니다." : "AI 하네스 관리에서 실제 provider 배정을 확인하세요.",
+        "정리 후 런타임 연결 평가를 다시 실행하세요."
+      ])
+    };
+  }
+
+  return {
+    status: "PASS",
+    decision: "현재 평가 기준에서 즉시 조치할 항목은 없습니다.",
+    description: `${selectedRunLabel}의 실패와 경고가 없습니다. 다음에는 필요한 평가 케이스를 늘려 검증 범위를 넓히면 됩니다.`,
+    checks: [
+      "최근 런타임 평가 시각",
+      "실제 provider 연결 신호",
+      "새로 추가할 업무 평가 케이스"
+    ],
+    causes: [
+      "실패/경고 신호가 없습니다.",
+      "현재 평가 범위 안에서는 정책과 연결성이 정상입니다."
+    ],
+    actions: [
+      "운영 전환 범위에 맞는 새 평가 케이스를 추가하세요.",
+      "중요 설정 변경 후 런타임 연결 평가를 다시 실행하세요."
+    ]
+  };
+}
+
+function evidenceList(items: Array<string | null | undefined>, fallback: string) {
+  const values = unique(items.map((item) => item?.trim()).filter(Boolean) as string[]);
+  return values.length > 0 ? values.slice(0, 4) : [fallback];
+}
+
+function unique<T>(items: Array<T | null | undefined>) {
+  return Array.from(new Set(items.filter((item): item is T => item != null && item !== "")));
 }
 
 function evaluationGroupLabel(groupKey: string, fallback: string) {
