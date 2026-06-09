@@ -110,6 +110,10 @@ export type ReportPreflightReviewFindingResponse = {
   message: string;
   evidence?: string | null;
   attributes: Record<string, string>;
+  engineRunId?: string | null;
+  engineStatus?: string | null;
+  legalReferences: string[];
+  nextActions: string[];
   resolutionStatus: ReportPreflightFindingResolutionStatus;
   resolutionNote?: string | null;
   resolvedBy?: number | null;

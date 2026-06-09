@@ -40,6 +40,7 @@ import {
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
+  createPlatformLegalDomainBinding,
   createPlatformAiUserBudgetOverride,
   createPlatformAiWorkerEvaluationRun,
   createPlatformAiWorkerRuntimeEvaluationRun,
@@ -52,6 +53,7 @@ import {
   createOfficeInvitation,
   createProject,
   deactivateOfficeMember,
+  deactivatePlatformLegalDomainBinding,
   deleteProject,
   diagnosePlatformOpsIncident,
   detectPlatformStuckHealth,
@@ -99,6 +101,7 @@ import {
   getPlatformFlowerRuntimeDump,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
+  getPlatformLegalDomainBindings,
   getPlatformLegalDigestAiDrafts,
   getPlatformLegalOpenApiStatus,
   getPlatformLegalSyncRuns,
@@ -123,6 +126,7 @@ import {
   rejectPlatformWorkerApproval,
   rejectPlatformLegalDigestAiDraft,
   revokePlatformEngineApiKey,
+  searchPlatformLegalCorpus,
   signup,
   startPlatformLegalOpenDataSync,
   testPlatformAiProvider,
@@ -130,6 +134,7 @@ import {
   updatePlatformAiObservationMode,
   updatePlatformAiHarnessPolicy,
   updatePlatformAiProvider,
+  updatePlatformLegalDomainBinding,
   updatePlatformOfficeAiPolicy,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
@@ -168,6 +173,8 @@ import type {
   LegalArticleDiff,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDomainBinding,
+  LegalLawSearchResult,
   LegalDigestAiDraft,
   LegalOpenApiStatus,
   LegalSyncRun,
@@ -299,6 +306,7 @@ type PlatformOpsData = {
   legalSyncRuns: LegalSyncRun[];
   legalChangeSets: LegalChangeSet[];
   legalChangeDigests: LegalChangeDigest[];
+  legalDomainBindings: LegalDomainBinding[];
   legalOpenApiStatus: LegalOpenApiStatus | null;
   engineApiKeys: EngineApiKey[];
   engineApiUsageSummary: EngineApiUsageSummary | null;
@@ -320,6 +328,23 @@ type PlatformOpsData = {
   aiUserBudgetOverrides: AiUserBudgetOverride[];
   aiWorkerEvaluationSummary: AiWorkerEvaluationSummary | null;
   aiWorkerEvaluationRuns: AiWorkerEvaluationRun[];
+};
+
+type LegalDomainBindingPayload = {
+  bindingScope: string;
+  bindingKey?: string | null;
+  actId: number;
+  articleId?: number | null;
+  reportType?: string | null;
+  catalogCode?: string | null;
+  catalogVersion?: number | null;
+  checklistItemCode?: string | null;
+  relevance: string;
+  status?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  notes?: string | null;
+  metadataJson?: Record<string, unknown>;
 };
 
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
@@ -352,6 +377,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   legalSyncRuns: [],
   legalChangeSets: [],
   legalChangeDigests: [],
+  legalDomainBindings: [],
   legalOpenApiStatus: null,
   engineApiKeys: [],
   engineApiUsageSummary: null,
@@ -877,13 +903,14 @@ export default function App() {
         ]);
         Object.assign(next, { summary, offices });
       } else if (view === "platform-legal") {
-        const [legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests] = await Promise.all([
+        const [legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests, legalDomainBindings] = await Promise.all([
           getPlatformLegalOpenApiStatus(token),
           getPlatformLegalSyncRuns(token, 50),
           getPlatformLegalChangeSets(token, 50),
-          getPlatformLegalChangeDigests(token, 50)
+          getPlatformLegalChangeDigests(token, 50),
+          getPlatformLegalDomainBindings(token, 100)
         ]);
-        Object.assign(next, { legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests });
+        Object.assign(next, { legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests, legalDomainBindings });
       } else if (view === "platform-engine-keys") {
         const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users] = await Promise.all([
           getPlatformEngineApiKeys(token),
@@ -1041,6 +1068,60 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 변경사항 요약을 재생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createLegalDomainBindingFromUi(body: LegalDomainBindingPayload) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createPlatformLegalDomainBinding(auth.accessToken, body);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateLegalDomainBindingFromUi(bindingId: number, body: LegalDomainBindingPayload) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformLegalDomainBinding(auth.accessToken, bindingId, body);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 수정하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deactivateLegalDomainBindingFromUi(bindingId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("이 법령 도메인 바인딩을 비활성화할까요? Engine 검토에서 더 이상 우선 근거로 사용하지 않습니다.")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await deactivatePlatformLegalDomainBinding(auth.accessToken, bindingId);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 비활성화하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1877,6 +1958,7 @@ export default function App() {
           {isPlatformView(activeView) && (
             <PlatformView
               view={activeView}
+              accessToken={auth.accessToken}
               data={platformData}
               platformAdmin={platformAdmin}
               loading={loading}
@@ -1892,6 +1974,9 @@ export default function App() {
               onApplyLegalDigestAiDraft={applyPlatformLegalDigestAiDraftFromUi}
               onLegalOpenDataSync={runPlatformLegalOpenDataSync}
               onLegalDigestRefresh={runPlatformLegalDigestRefresh}
+              onCreateLegalDomainBinding={createLegalDomainBindingFromUi}
+              onUpdateLegalDomainBinding={updateLegalDomainBindingFromUi}
+              onDeactivateLegalDomainBinding={deactivateLegalDomainBindingFromUi}
               issuedEngineApiKey={issuedEngineApiKey}
               onCreateEngineApiKey={handleCreateEngineApiKey}
               onRevokeEngineApiKey={handleRevokeEngineApiKey}
@@ -4097,10 +4182,11 @@ function StatusBars({ groups }: { groups: Array<[string, Record<string, number>]
   );
 }
 
-type LegalAdminTabKey = "SYNC" | "DIGESTS" | "CHANGE_SETS";
+type LegalAdminTabKey = "SYNC" | "DIGESTS" | "CHANGE_SETS" | "BINDINGS";
 
 function PlatformLegalAdminPanel({
   data,
+  accessToken,
   legalDigestAiDrafts,
   loading,
   onLegalDigestAiDraft,
@@ -4109,9 +4195,13 @@ function PlatformLegalAdminPanel({
   onRejectLegalDigestAiDraft,
   onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
-  onLegalDigestRefresh
+  onLegalDigestRefresh,
+  onCreateLegalDomainBinding,
+  onUpdateLegalDomainBinding,
+  onDeactivateLegalDomainBinding
 }: {
   data: PlatformOpsData;
+  accessToken: string;
   legalDigestAiDrafts: Record<number, LegalDigestAiDraft[]>;
   loading: boolean;
   onLegalDigestAiDraft: (digestId: number) => void;
@@ -4121,6 +4211,9 @@ function PlatformLegalAdminPanel({
   onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
+  onCreateLegalDomainBinding: (body: LegalDomainBindingPayload) => Promise<void>;
+  onUpdateLegalDomainBinding: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
 }) {
   const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
   const selectedDigest = data.legalChangeDigests.find((digest) => digest.id === selectedDigestId) ?? null;
@@ -4133,7 +4226,8 @@ function PlatformLegalAdminPanel({
   const tabs: Array<{ key: LegalAdminTabKey; label: string; count?: number }> = [
     { key: "SYNC", label: "동기화", count: data.legalSyncRuns.length },
     { key: "DIGESTS", label: "사용자용 변경사항", count: data.legalChangeDigests.length },
-    { key: "CHANGE_SETS", label: "원천 기록", count: data.legalChangeSets.length }
+    { key: "CHANGE_SETS", label: "원천 기록", count: data.legalChangeSets.length },
+    { key: "BINDINGS", label: "도메인 바인딩", count: data.legalDomainBindings.length }
   ];
 
   return (
@@ -4307,7 +4401,332 @@ function PlatformLegalAdminPanel({
           />
         </Panel>
       ) : null}
+
+      {activeTab === "BINDINGS" ? (
+        <LegalDomainBindingPanel
+          accessToken={accessToken}
+          bindings={data.legalDomainBindings}
+          busy={loading}
+          onCreate={onCreateLegalDomainBinding}
+          onUpdate={onUpdateLegalDomainBinding}
+          onDeactivate={onDeactivateLegalDomainBinding}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function LegalDomainBindingPanel({
+  accessToken,
+  bindings,
+  busy,
+  onCreate,
+  onUpdate,
+  onDeactivate
+}: {
+  accessToken: string;
+  bindings: LegalDomainBinding[];
+  busy: boolean;
+  onCreate: (body: LegalDomainBindingPayload) => Promise<void>;
+  onUpdate: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onDeactivate: (bindingId: number) => Promise<void>;
+}) {
+  const [selectedBindingId, setSelectedBindingId] = useState<number | null>(null);
+  const activeCount = bindings.filter((binding) => binding.status === "ACTIVE").length;
+  const selectedBinding = bindings.find((binding) => binding.id === selectedBindingId) ?? null;
+  useEffect(() => {
+    if (selectedBindingId && !selectedBinding) {
+      setSelectedBindingId(null);
+    }
+  }, [selectedBinding, selectedBindingId]);
+  return (
+    <div className="view-stack">
+      <Panel title="바인딩 목록" icon={<FileText size={18} />} count={bindings.length}>
+        <InlineNotice message="Engine은 활성 도메인 바인딩을 법령 corpus 자동 후보보다 먼저 사용합니다. 여기서는 법령 원문을 수정하지 않고 업무 카탈로그와 조문 연결만 관리합니다." />
+        <Table
+          columns={["바인딩", "법령/조문", "업무 연결", "관련도", "상태", "기간", "작업"]}
+          empty="등록된 법령 도메인 바인딩이 없습니다."
+          rows={bindings.map((binding) => [
+            <CellTitle key="binding" title={binding.bindingKey} subtitle={`${binding.bindingScope} / #${binding.id}`} />,
+            <CellTitle
+              key="law"
+              title={`${binding.actName ?? binding.actCode ?? `Act #${binding.actId}`}`}
+              subtitle={binding.articleNo ? `${binding.articleNo} ${binding.articleTitle ?? ""}` : "법령 전체"}
+            />,
+            <CellTitle
+              key="domain"
+              title={binding.checklistItemCode ?? binding.reportType ?? "-"}
+              subtitle={[binding.catalogCode, binding.catalogVersion ? `v${binding.catalogVersion}` : null].filter(Boolean).join(" / ") || "-"}
+            />,
+            displayLabel(binding.relevance),
+            <StatusBadge key="status" status={binding.status} />,
+            `${binding.effectiveFrom ?? "-"} ~ ${binding.effectiveTo ?? "-"}`,
+            <div className="table-action-group" key="actions">
+              <button className="button compact" disabled={busy} onClick={() => setSelectedBindingId(binding.id)} type="button">
+                수정
+              </button>
+              {binding.status === "ACTIVE" ? (
+                <button className="button compact danger" disabled={busy} onClick={() => onDeactivate(binding.id)} type="button">
+                  비활성화
+                </button>
+              ) : null}
+            </div>
+          ])}
+        />
+      </Panel>
+      <Panel
+        title={selectedBinding ? "선택한 바인딩 수정" : "새 바인딩 추가"}
+        icon={<ShieldCheck size={18} />}
+        count={selectedBinding ? selectedBinding.id : activeCount}
+      >
+        {selectedBinding ? (
+          <InlineNotice message={`선택한 바인딩 #${selectedBinding.id}을 수정합니다. 수정 후 다음 Engine 검토부터 새 연결이 적용됩니다.`} />
+        ) : (
+          <InlineNotice message="카탈로그 항목이나 리포트 유형을 synchronized 법령 조문에 연결합니다. 생성된 연결은 preflight/Engine 근거 후보로 사용됩니다." />
+        )}
+        <LegalDomainBindingForm
+          accessToken={accessToken}
+          busy={busy}
+          initialBinding={selectedBinding}
+          key={selectedBinding?.id ?? "new"}
+          onCancel={selectedBinding ? () => setSelectedBindingId(null) : undefined}
+          onSubmit={(body) => selectedBinding ? onUpdate(selectedBinding.id, body) : onCreate(body)}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function LegalDomainBindingForm({
+  accessToken,
+  busy,
+  initialBinding,
+  onCancel,
+  onSubmit
+}: {
+  accessToken: string;
+  busy: boolean;
+  initialBinding?: LegalDomainBinding | null;
+  onCancel?: () => void;
+  onSubmit: (body: LegalDomainBindingPayload) => Promise<void>;
+}) {
+  const defaultCatalogCode = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
+  const defaultCatalogVersion = "2";
+  const [bindingScope, setBindingScope] = useState("CATALOG_ITEM");
+  const [bindingKey, setBindingKey] = useState("");
+  const [actId, setActId] = useState("");
+  const [articleId, setArticleId] = useState("");
+  const [reportType, setReportType] = useState("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+  const [catalogCode, setCatalogCode] = useState(defaultCatalogCode);
+  const [catalogVersion, setCatalogVersion] = useState(defaultCatalogVersion);
+  const [checklistItemCode, setChecklistItemCode] = useState("");
+  const [relevance, setRelevance] = useState("PRIMARY");
+  const [status, setStatus] = useState("ACTIVE");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveTo, setEffectiveTo] = useState("");
+  const [notes, setNotes] = useState("");
+  const [lawQuery, setLawQuery] = useState("감리");
+  const [lawResults, setLawResults] = useState<LegalLawSearchResult[]>([]);
+  const [lawSearchBusy, setLawSearchBusy] = useState(false);
+  const [selectedLaw, setSelectedLaw] = useState<LegalLawSearchResult | null>(null);
+
+  useEffect(() => {
+    if (!initialBinding) {
+      setBindingScope("CATALOG_ITEM");
+      setBindingKey("");
+      setActId("");
+      setArticleId("");
+      setReportType("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+      setCatalogCode(defaultCatalogCode);
+      setCatalogVersion(defaultCatalogVersion);
+      setChecklistItemCode("");
+      setRelevance("PRIMARY");
+      setStatus("ACTIVE");
+      setEffectiveFrom("");
+      setEffectiveTo("");
+      setNotes("");
+      setSelectedLaw(null);
+      return;
+    }
+    setBindingScope(initialBinding.bindingScope || "CATALOG_ITEM");
+    setBindingKey(initialBinding.bindingKey || "");
+    setActId(String(initialBinding.actId));
+    setArticleId(initialBinding.articleId ? String(initialBinding.articleId) : "");
+    setReportType(initialBinding.reportType ?? "");
+    setCatalogCode(initialBinding.catalogCode ?? "");
+    setCatalogVersion(initialBinding.catalogVersion ? String(initialBinding.catalogVersion) : "");
+    setChecklistItemCode(initialBinding.checklistItemCode ?? "");
+    setRelevance(initialBinding.relevance || "REFERENCE");
+    setStatus(initialBinding.status || "ACTIVE");
+    setEffectiveFrom(initialBinding.effectiveFrom ?? "");
+    setEffectiveTo(initialBinding.effectiveTo ?? "");
+    setNotes(initialBinding.notes ?? "");
+    setSelectedLaw(null);
+  }, [defaultCatalogCode, defaultCatalogVersion, initialBinding]);
+
+  async function searchLaw() {
+    if (!lawQuery.trim()) {
+      return;
+    }
+    setLawSearchBusy(true);
+    try {
+      const response = await searchPlatformLegalCorpus(accessToken, {
+        query: lawQuery,
+        limit: 8
+      });
+      setLawResults(response.items);
+    } finally {
+      setLawSearchBusy(false);
+    }
+  }
+
+  function selectLaw(result: LegalLawSearchResult) {
+    setSelectedLaw(result);
+    setActId(String(result.actId));
+    setArticleId(String(result.articleId));
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsedActId = Number(actId);
+    if (!Number.isFinite(parsedActId) || parsedActId <= 0) {
+      return;
+    }
+    const parsedArticleId = articleId ? Number(articleId) : null;
+    const parsedCatalogVersion = catalogVersion ? Number(catalogVersion) : null;
+    await onSubmit({
+      bindingScope,
+      bindingKey: bindingKey || null,
+      actId: parsedActId,
+      articleId: parsedArticleId && Number.isFinite(parsedArticleId) && parsedArticleId > 0 ? parsedArticleId : null,
+      reportType: reportType || null,
+      catalogCode: catalogCode || null,
+      catalogVersion: parsedCatalogVersion && Number.isFinite(parsedCatalogVersion) ? parsedCatalogVersion : null,
+      checklistItemCode: checklistItemCode || null,
+      relevance,
+      status,
+      effectiveFrom: effectiveFrom || null,
+      effectiveTo: effectiveTo || null,
+      notes: notes || null,
+      metadataJson: initialBinding?.metadataJson ?? {}
+    });
+    if (!initialBinding) {
+      setBindingKey("");
+      setArticleId("");
+      setChecklistItemCode("");
+      setNotes("");
+    }
+  }
+
+  const selectedReferenceLabel = selectedLaw
+    ? `${selectedLaw.actName} ${selectedLaw.articleNo} ${selectedLaw.articleTitle ?? ""}`
+    : initialBinding
+      ? `${initialBinding.actName ?? initialBinding.actCode ?? `Act #${initialBinding.actId}`} ${initialBinding.articleNo ?? ""} ${initialBinding.articleTitle ?? ""}`
+      : "";
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <div className="wide stack-panel subtle">
+        <label>
+          법령 조문 검색
+          <div className="inline-form-row">
+            <input onChange={(event) => setLawQuery(event.target.value)} placeholder="예: 감리, 사진, 제25조" value={lawQuery} />
+            <button className="button" disabled={lawSearchBusy || !lawQuery.trim()} onClick={searchLaw} type="button">
+              {lawSearchBusy ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+              검색
+            </button>
+          </div>
+        </label>
+        {selectedReferenceLabel ? (
+          <InlineNotice message={`선택된 근거: ${selectedReferenceLabel}`} />
+        ) : null}
+        {lawResults.length > 0 ? (
+          <div className="legal-admin-digest-list compact-list">
+            {lawResults.map((result) => (
+              <button className="legal-admin-digest-item" key={result.referenceId} onClick={() => selectLaw(result)} type="button">
+                <span>{result.actCode} / {result.effectiveDate ?? "시행일 미상"}</span>
+                <strong>{result.actName} {result.articleNo} {result.articleTitle ?? ""}</strong>
+                <small>{result.snippet}</small>
+                <em>act #{result.actId} / article #{result.articleId} / version #{result.articleVersionId}</em>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <label>
+        Scope
+        <select value={bindingScope} onChange={(event) => setBindingScope(event.target.value)}>
+          <option value="CATALOG_ITEM">CATALOG_ITEM</option>
+          <option value="REPORT_TYPE">REPORT_TYPE</option>
+        </select>
+      </label>
+      <label>
+        Binding Key
+        <input onChange={(event) => setBindingKey(event.target.value)} placeholder="비우면 catalog/report 기준 자동 생성" value={bindingKey} />
+      </label>
+      <label>
+        Act ID
+        <input min="1" onChange={(event) => setActId(event.target.value)} required type="number" value={actId} />
+      </label>
+      <label>
+        Article ID
+        <input min="1" onChange={(event) => setArticleId(event.target.value)} placeholder="선택" type="number" value={articleId} />
+      </label>
+      <label>
+        Report Type
+        <input onChange={(event) => setReportType(event.target.value)} value={reportType} />
+      </label>
+      <label>
+        Catalog Code
+        <input onChange={(event) => setCatalogCode(event.target.value)} value={catalogCode} />
+      </label>
+      <label>
+        Version
+        <input min="1" onChange={(event) => setCatalogVersion(event.target.value)} type="number" value={catalogVersion} />
+      </label>
+      <label>
+        Checklist Item
+        <input onChange={(event) => setChecklistItemCode(event.target.value)} placeholder="inspectionItemCode" value={checklistItemCode} />
+      </label>
+      <label>
+        Relevance
+        <select value={relevance} onChange={(event) => setRelevance(event.target.value)}>
+          <option value="PRIMARY">PRIMARY</option>
+          <option value="SUPPORTING">SUPPORTING</option>
+          <option value="REFERENCE">REFERENCE</option>
+        </select>
+      </label>
+      <label>
+        Status
+        <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+      </label>
+      <label>
+        Effective From
+        <input onChange={(event) => setEffectiveFrom(event.target.value)} type="date" value={effectiveFrom} />
+      </label>
+      <label>
+        Effective To
+        <input onChange={(event) => setEffectiveTo(event.target.value)} type="date" value={effectiveTo} />
+      </label>
+      <label className="wide">
+        Notes
+        <input onChange={(event) => setNotes(event.target.value)} value={notes} />
+      </label>
+      <div className="form-actions">
+        {onCancel ? (
+          <button className="button" disabled={busy} onClick={onCancel} type="button">
+            취소
+          </button>
+        ) : null}
+        <button className="button primary" disabled={busy || !actId} type="submit">
+          {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+          {initialBinding ? "바인딩 수정" : "바인딩 추가"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -4689,6 +5108,7 @@ function isAdminLegalBullet(line: string) {
 
 function PlatformView({
   view,
+  accessToken,
   data,
   platformAdmin,
   loading,
@@ -4704,6 +5124,9 @@ function PlatformView({
   onApplyLegalDigestAiDraft,
   onLegalOpenDataSync,
   onLegalDigestRefresh,
+  onCreateLegalDomainBinding,
+  onUpdateLegalDomainBinding,
+  onDeactivateLegalDomainBinding,
   issuedEngineApiKey,
   onCreateEngineApiKey,
   onRevokeEngineApiKey,
@@ -4713,6 +5136,7 @@ function PlatformView({
   onRejectWorkerApproval
 }: {
   view: PlatformViewKey;
+  accessToken: string;
   data: PlatformOpsData;
   platformAdmin: PlatformAdminMe | null;
   loading: boolean;
@@ -4728,6 +5152,9 @@ function PlatformView({
   onApplyLegalDigestAiDraft: (digestId: number, draftId: number) => void;
   onLegalOpenDataSync: () => void;
   onLegalDigestRefresh: () => void;
+  onCreateLegalDomainBinding: (body: LegalDomainBindingPayload) => Promise<void>;
+  onUpdateLegalDomainBinding: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
   onCreateEngineApiKey: (body: {
     displayName: string;
@@ -4810,6 +5237,7 @@ function PlatformView({
       {showLegal ? (
         <PlatformLegalAdminPanel
           data={data}
+          accessToken={accessToken}
           legalDigestAiDrafts={legalDigestAiDrafts}
           loading={loading}
           onLegalDigestAiDraft={onLegalDigestAiDraft}
@@ -4819,6 +5247,9 @@ function PlatformView({
           onApplyLegalDigestAiDraft={onApplyLegalDigestAiDraft}
           onLegalDigestRefresh={onLegalDigestRefresh}
           onLegalOpenDataSync={onLegalOpenDataSync}
+          onCreateLegalDomainBinding={onCreateLegalDomainBinding}
+          onUpdateLegalDomainBinding={onUpdateLegalDomainBinding}
+          onDeactivateLegalDomainBinding={onDeactivateLegalDomainBinding}
         />
       ) : null}
 

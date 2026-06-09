@@ -26,6 +26,8 @@ import type {
   FlowerRuntimeDump,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDomainBinding,
+  LegalLawSearchResponse,
   LegalDigestAiDraft,
   LegalDigestRefreshResult,
   LegalOpenApiStatus,
@@ -762,6 +764,90 @@ export function rejectPlatformLegalDigestAiDraft(token: string, digestId: number
 
 export function getPlatformLegalOpenApiStatus(token: string) {
   return request<LegalOpenApiStatus>("/api/v1/platform-admin/legal/open-api/status", { token });
+}
+
+export function getPlatformLegalDomainBindings(token: string, limit = 100) {
+  return request<LegalDomainBinding[]>("/api/v1/platform-admin/legal/domain-bindings", {
+    token,
+    query: { limit }
+  });
+}
+
+export function searchPlatformLegalCorpus(
+  token: string,
+  query: {
+    query?: string | null;
+    actCode?: string | null;
+    actName?: string | null;
+    articleNo?: string | null;
+    effectiveDate?: string | null;
+    limit?: number;
+  }
+) {
+  return request<LegalLawSearchResponse>("/api/v1/platform-admin/legal/law-search", {
+    token,
+    query
+  });
+}
+
+export function createPlatformLegalDomainBinding(
+  token: string,
+  body: {
+    bindingScope: string;
+    bindingKey?: string | null;
+    actId: number;
+    articleId?: number | null;
+    reportType?: string | null;
+    catalogCode?: string | null;
+    catalogVersion?: number | null;
+    checklistItemCode?: string | null;
+    relevance: string;
+    status?: string | null;
+    effectiveFrom?: string | null;
+    effectiveTo?: string | null;
+    notes?: string | null;
+    metadataJson?: Record<string, unknown>;
+  }
+) {
+  return request<LegalDomainBinding>("/api/v1/platform-admin/legal/domain-bindings", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function updatePlatformLegalDomainBinding(
+  token: string,
+  bindingId: number,
+  body: {
+    bindingScope: string;
+    bindingKey?: string | null;
+    actId: number;
+    articleId?: number | null;
+    reportType?: string | null;
+    catalogCode?: string | null;
+    catalogVersion?: number | null;
+    checklistItemCode?: string | null;
+    relevance: string;
+    status?: string | null;
+    effectiveFrom?: string | null;
+    effectiveTo?: string | null;
+    notes?: string | null;
+    metadataJson?: Record<string, unknown>;
+  }
+) {
+  return request<LegalDomainBinding>(`/api/v1/platform-admin/legal/domain-bindings/${bindingId}`, {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function deactivatePlatformLegalDomainBinding(token: string, bindingId: number) {
+  return request<LegalDomainBinding>(`/api/v1/platform-admin/legal/domain-bindings/${bindingId}/deactivate`, {
+    token,
+    method: "POST"
+  });
 }
 
 export function getPlatformEngineApiKeys(token: string) {

@@ -734,6 +734,23 @@ function PreflightReviewPanel({
                   {preflightSourceLabel(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
                 </small>
                 <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
+                {finding.legalReferences.length > 0 ? (
+                  <span className="preflight-legal-context">
+                    <strong>법령 근거</strong>
+                    {finding.legalReferences.slice(0, 3).map((reference) => (
+                      <em key={reference}>{legalReferenceDisplay(reference)}</em>
+                    ))}
+                    {finding.legalReferences.length > 3 ? <em>외 {finding.legalReferences.length - 3}건</em> : null}
+                  </span>
+                ) : null}
+                {finding.nextActions.length > 0 ? (
+                  <span className="preflight-next-actions">
+                    <strong>다음 조치</strong>
+                    {finding.nextActions.map((action) => (
+                      <em key={action}>{preflightNextActionLabel(action)}</em>
+                    ))}
+                  </span>
+                ) : null}
               </span>
               {run && !stale && isOpenBlockingFinding(finding) ? (
                 <div className="preflight-finding-actions">
@@ -1202,6 +1219,28 @@ function preflightStatusLabel(run: ReportPreflightReviewRunResponse | null, stal
     return "검토 실패";
   }
   return "검토 중";
+}
+
+function legalReferenceDisplay(reference: string) {
+  const [left, version] = reference.split("@");
+  const [actCode, articleKey] = left.split(":");
+  const actLabel: Record<string, string> = {
+    BUILDING_ACT: "건축법",
+    BUILDING_ACT_ENFORCEMENT_DECREE: "건축법 시행령",
+    BUILDING_ACT_ENFORCEMENT_RULE: "건축법 시행규칙",
+    CONSTRUCTION_SUPERVISION_DETAILED_STANDARD: "건축공사 감리세부기준"
+  };
+  const readableAct = actLabel[actCode] ?? actCode;
+  return version ? `${readableAct} ${articleKey} / ${version}` : `${readableAct} ${articleKey ?? ""}`.trim();
+}
+
+function preflightNextActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    ADD_SUPERVISION_EVIDENCE_CONTEXT: "감리 내용, 작업 위치, 사진/증빙 맥락을 보강",
+    FIX_CATALOG_SELECTION: "공종/공정/검사항목 선택값 수정",
+    REVIEW_LEGAL_EVIDENCE_CONTEXT: "법령 근거와 현장 증빙 연결 검토"
+  };
+  return labels[action] ?? action;
 }
 
 function preflightSourceLabel(finding: ReportPreflightReviewFindingResponse) {

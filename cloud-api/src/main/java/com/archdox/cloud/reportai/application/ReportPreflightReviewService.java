@@ -43,6 +43,7 @@ import io.github.parkkevinsb.flower.ai.harness.spec.AiHarnessSpec;
 import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -234,6 +235,10 @@ public class ReportPreflightReviewService {
                 finding.message(),
                 finding.evidence(),
                 finding.attributesJson(),
+                finding.attributesJson().get("engineRunId"),
+                finding.attributesJson().get("engineStatus"),
+                csvList(finding.attributesJson().get("legalReferences")),
+                csvList(finding.attributesJson().get("engine.nextActions")),
                 finding.resolutionStatus().name(),
                 finding.resolutionNote(),
                 finding.resolvedBy(),
@@ -272,6 +277,16 @@ public class ReportPreflightReviewService {
 
     private boolean isBlockingSeverity(String severity) {
         return "HIGH".equals(severity) || "CRITICAL".equals(severity);
+    }
+
+    private static List<String> csvList(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
     }
 
     private AiHarnessFlow createAiHarnessFlow(InspectionReport report, ReportPreflightReviewRun run) {

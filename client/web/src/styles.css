@@ -1088,6 +1088,42 @@ button {
   margin-top: 3px;
 }
 
+.preflight-legal-context,
+.preflight-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.preflight-legal-context strong,
+.preflight-next-actions strong {
+  flex-basis: 100%;
+  color: #36534e;
+  font-size: 11px;
+}
+
+.preflight-legal-context em,
+.preflight-next-actions em {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid #d7e8e4;
+  border-radius: 999px;
+  color: #2f6259;
+  background: #f1faf7;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.preflight-next-actions em {
+  border-color: #eadca7;
+  color: #725c14;
+  background: #fff9df;
+}
+
 .preflight-finding-actions {
   display: flex;
   flex-wrap: wrap;

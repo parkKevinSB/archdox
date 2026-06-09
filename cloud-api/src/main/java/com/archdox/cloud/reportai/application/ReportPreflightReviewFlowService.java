@@ -315,6 +315,9 @@ public class ReportPreflightReviewFlowService {
         if (!finding.legalReferences().isEmpty()) {
             attributes.put("legalReferences", String.join(",", finding.legalReferences()));
         }
+        if (!engineResult.nextActions().isEmpty()) {
+            attributes.put("engine.nextActions", String.join(",", engineResult.nextActions()));
+        }
         finding.metadata().forEach((key, value) -> attributes.put("engine." + key, String.valueOf(value)));
         return new ReportPreflightFinding(
                 "DETERMINISTIC",

@@ -790,6 +790,64 @@ export type LegalOpenApiStatus = {
   targets: LegalOpenApiTarget[];
 };
 
+export type LegalDomainBinding = {
+  id: number;
+  bindingScope: string;
+  bindingKey: string;
+  actId: number;
+  actCode?: string | null;
+  actName?: string | null;
+  actType?: string | null;
+  articleId?: number | null;
+  articleNo?: string | null;
+  articleTitle?: string | null;
+  reportType?: string | null;
+  catalogCode?: string | null;
+  catalogVersion?: number | null;
+  checklistItemCode?: string | null;
+  relevance: string;
+  status: string;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  notes?: string | null;
+  metadataJson: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LegalLawSearchResult = {
+  referenceId: string;
+  evidenceType: string;
+  sourceCode: string;
+  actId: number;
+  actCode: string;
+  actName: string;
+  actType: string;
+  legalVersionId: number;
+  sourceVersionKey: string;
+  effectiveDate?: string | null;
+  sourceUrl?: string | null;
+  publicSourceUrl?: string | null;
+  articleId: number;
+  articleVersionId: number;
+  articleKey: string;
+  articleNo: string;
+  articleTitle?: string | null;
+  snippet: string;
+  contentHash: string;
+};
+
+export type LegalLawSearchResponse = {
+  items: LegalLawSearchResult[];
+  count: number;
+  query?: string | null;
+  actCode?: string | null;
+  actName?: string | null;
+  articleNo?: string | null;
+  effectiveDate?: string | null;
+  limit: number;
+};
+
 export type AiProviderType = "OPENAI" | "OLLAMA" | "GEMINI" | "ANTHROPIC" | "CUSTOM_HTTP";
 export type AiProviderCredentialStatus = "DRAFT" | "ACTIVE" | "DISABLED";
 export type AiCredentialDeliveryMode = "PROXY_ONLY" | "EPHEMERAL_TOKEN" | "DIRECT_SECRET";

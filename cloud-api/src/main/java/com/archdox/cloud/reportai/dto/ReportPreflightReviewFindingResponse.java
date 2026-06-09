@@ -1,6 +1,7 @@
 package com.archdox.cloud.reportai.dto;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 
 public record ReportPreflightReviewFindingResponse(
@@ -12,6 +13,10 @@ public record ReportPreflightReviewFindingResponse(
         String message,
         String evidence,
         Map<String, String> attributes,
+        String engineRunId,
+        String engineStatus,
+        List<String> legalReferences,
+        List<String> nextActions,
         String resolutionStatus,
         String resolutionNote,
         Long resolvedBy,

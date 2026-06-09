@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -71,6 +72,80 @@ public class LegalDomainBinding {
     protected LegalDomainBinding() {
     }
 
+    public LegalDomainBinding(
+            String bindingScope,
+            String bindingKey,
+            Long actId,
+            Long articleId,
+            String reportType,
+            String catalogCode,
+            Integer catalogVersion,
+            String checklistItemCode,
+            String relevance,
+            String status,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String notes,
+            Map<String, Object> metadataJson,
+            OffsetDateTime now
+    ) {
+        this.bindingScope = required(bindingScope, "bindingScope");
+        this.bindingKey = required(bindingKey, "bindingKey");
+        this.actId = requiredId(actId, "actId");
+        this.articleId = articleId;
+        this.reportType = blankToNull(reportType);
+        this.catalogCode = blankToNull(catalogCode);
+        this.catalogVersion = catalogVersion;
+        this.checklistItemCode = blankToNull(checklistItemCode);
+        this.relevance = required(relevance, "relevance");
+        this.status = required(status, "status");
+        this.effectiveFrom = effectiveFrom;
+        this.effectiveTo = effectiveTo;
+        this.notes = blankToNull(notes);
+        this.metadataJson = safeMetadata(metadataJson);
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    public void update(
+            String bindingScope,
+            String bindingKey,
+            Long actId,
+            Long articleId,
+            String reportType,
+            String catalogCode,
+            Integer catalogVersion,
+            String checklistItemCode,
+            String relevance,
+            String status,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String notes,
+            Map<String, Object> metadataJson,
+            OffsetDateTime now
+    ) {
+        this.bindingScope = required(bindingScope, "bindingScope");
+        this.bindingKey = required(bindingKey, "bindingKey");
+        this.actId = requiredId(actId, "actId");
+        this.articleId = articleId;
+        this.reportType = blankToNull(reportType);
+        this.catalogCode = blankToNull(catalogCode);
+        this.catalogVersion = catalogVersion;
+        this.checklistItemCode = blankToNull(checklistItemCode);
+        this.relevance = required(relevance, "relevance");
+        this.status = required(status, "status");
+        this.effectiveFrom = effectiveFrom;
+        this.effectiveTo = effectiveTo;
+        this.notes = blankToNull(notes);
+        this.metadataJson = safeMetadata(metadataJson);
+        this.updatedAt = now;
+    }
+
+    public void deactivate(OffsetDateTime now) {
+        this.status = "INACTIVE";
+        this.updatedAt = now;
+    }
+
     public Long id() {
         return id;
     }
@@ -129,5 +204,39 @@ public class LegalDomainBinding {
 
     public Map<String, Object> metadataJson() {
         return metadataJson == null ? Map.of() : Map.copyOf(metadataJson);
+    }
+
+    public OffsetDateTime createdAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime updatedAt() {
+        return updatedAt;
+    }
+
+    private static Long requiredId(Long value, String fieldName) {
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        return value;
+    }
+
+    private static String required(String value, String fieldName) {
+        var normalized = blankToNull(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        return normalized;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static Map<String, Object> safeMetadata(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        return Map.copyOf(new LinkedHashMap<>(value));
     }
 }
