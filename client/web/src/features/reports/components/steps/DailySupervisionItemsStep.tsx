@@ -253,7 +253,7 @@ export function DailySupervisionItemsStep({
         <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오는 중입니다.</p>
       ) : null}
       {catalogQuery.error ? (
-        <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오지 못했습니다. 직접 입력은 가능합니다.</p>
+        <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오지 못했습니다. 법령 근거 연결을 위해 카탈로그가 필요합니다.</p>
       ) : null}
       {catalog?.source ? (
         <p className="daily-supervision-muted">
@@ -325,19 +325,38 @@ export function DailySupervisionItemsStep({
                 </label>
                 <label>
                   세부공정
-                  <input
-                    disabled={!canWriteReports}
-                    list={`daily-process-options-${group.id}`}
-                    onChange={(event) => {
-                      const selectedProcess = processGroupByName(group, trades, event.target.value);
-                      updateGroup(group.id, {
-                        processCode: selectedProcess?.code,
-                        processName: event.target.value
-                      });
-                    }}
-                    placeholder="예: 기초, 지하층 바닥"
-                    value={group.processName}
-                  />
+                  {selectedTrade(group, trades)?.processGroups?.length ? (
+                    <select
+                      disabled={!canWriteReports || !group.tradeCode}
+                      onChange={(event) => {
+                        const selectedProcess = selectedTrade(group, trades)?.processGroups?.find((processGroup) => processGroup.code === event.target.value);
+                        updateGroup(group.id, {
+                          processCode: selectedProcess?.code,
+                          processName: selectedProcess?.name ?? ""
+                        });
+                      }}
+                      value={group.processCode ?? ""}
+                    >
+                      <option value="">세부공정 선택</option>
+                      {selectedTrade(group, trades)?.processGroups?.map((processGroup) => (
+                        <option key={processGroup.code} value={processGroup.code}>{processGroup.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      disabled={!canWriteReports}
+                      list={`daily-process-options-${group.id}`}
+                      onChange={(event) => {
+                        const selectedProcess = processGroupByName(group, trades, event.target.value);
+                        updateGroup(group.id, {
+                          processCode: selectedProcess?.code,
+                          processName: event.target.value
+                        });
+                      }}
+                      placeholder="예: 기초, 지하층 바닥"
+                      value={group.processName}
+                    />
+                  )}
                 </label>
               </div>
 
@@ -351,7 +370,9 @@ export function DailySupervisionItemsStep({
               <div className="daily-supervision-items">
                 {group.entries.length === 0 ? (
                   <p className="daily-supervision-muted">검사항목을 추가하세요.</p>
-                ) : group.entries.map((entry, entryIndex) => (
+                ) : group.entries.map((entry, entryIndex) => {
+                  const itemOptions = suggestedItems(group, trades);
+                  return (
                   <div className="daily-supervision-item" key={entry.id}>
                     <div className="daily-supervision-item-head">
                       <span>항목 {entryIndex + 1}</span>
@@ -367,23 +388,36 @@ export function DailySupervisionItemsStep({
                     </div>
                     <label>
                       검사항목
-                      <input
-                        disabled={!canWriteReports}
-                        list={`daily-item-options-${group.id}`}
-                        onChange={(event) => {
-                          const catalogItem = itemByName(group, trades, event.target.value);
-                          updateEntry(group.id, entry.id, {
-                            inspectionItemCode: catalogItem?.code,
-                            inspectionItemName: event.target.value
-                          });
-                        }}
-                        placeholder="예: 철근 개수·지름·피치"
-                        value={entry.inspectionItemName}
-                      />
+                      {itemOptions.length > 0 ? (
+                        <select
+                          disabled={!canWriteReports}
+                          onChange={(event) => {
+                            const catalogItem = itemOptions.find((item) => item.code === event.target.value);
+                            updateEntry(group.id, entry.id, {
+                              inspectionItemCode: catalogItem?.code,
+                              inspectionItemName: catalogItem?.name ?? ""
+                            });
+                          }}
+                          value={entry.inspectionItemCode ?? ""}
+                        >
+                          <option value="">검사항목 선택</option>
+                          {itemOptions.map((item) => (
+                            <option key={item.code} value={item.code}>{item.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          disabled
+                          placeholder="공종과 세부공정을 먼저 선택하세요."
+                          value={entry.inspectionItemName}
+                        />
+                      )}
                     </label>
                     {entry.inspectionItemCode ? (
                       <span className="daily-supervision-muted">검사항목 코드: {entry.inspectionItemCode}</span>
-                    ) : null}
+                    ) : (
+                      <span className="daily-supervision-warning">카탈로그 검사항목을 선택해야 법령 근거가 연결됩니다.</span>
+                    )}
                     <label>
                       감리내용
                       <textarea
@@ -434,7 +468,7 @@ export function DailySupervisionItemsStep({
                       </label>
                     </div>
                   </div>
-                ))}
+                );})}
               </div>
 
               <datalist id={`daily-item-options-${group.id}`}>
@@ -485,12 +519,12 @@ function DailyItemPicker({
 
   useEffect(() => {
     setSelected(items[0]?.code ?? "");
-  }, [group.tradeCode, items]);
+  }, [group.tradeCode, group.processCode, items]);
 
   return (
     <div className="daily-supervision-item-picker">
-      <select disabled={!canWriteReports} onChange={(event) => setSelected(event.target.value)} value={selected}>
-        <option value="">검사항목 선택</option>
+      <select disabled={!canWriteReports || items.length === 0} onChange={(event) => setSelected(event.target.value)} value={selected}>
+        <option value="">{items.length === 0 ? "공종/세부공정 선택 필요" : "검사항목 선택"}</option>
         {items.map((item) => (
           <option key={item.code} value={item.code}>{item.name}</option>
         ))}
@@ -503,9 +537,6 @@ function DailyItemPicker({
       >
         <Plus size={16} />
         검사항목 추가
-      </button>
-      <button className="secondary-button" disabled={!canWriteReports} onClick={() => onAdd(undefined)} type="button">
-        직접 입력
       </button>
     </div>
   );

@@ -130,6 +130,35 @@ class ReportPreflightDeterministicValidatorTest {
     }
 
     @Test
+    void dailySupervisionBlocksNameOnlyLegacyCatalogData() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of(Map.of(
+                        "floor", "전층",
+                        "tradeName", "철근콘크리트공사",
+                        "processName", "기초",
+                        "entries", List.of(Map.of(
+                                "inspectionItemName", "철근 배근 상태",
+                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
+                                "photoIds", List.of(1)
+                        ))
+                )))
+        ))));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+                .validate(report);
+
+        assertTrue(result.blocksGeneration());
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_TRADE_CODE_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_PROCESS_CODE_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_INSPECTION_ITEM_CODE_REQUIRED".equals(finding.code())));
+    }
+
+    @Test
     void dailySupervisionAcceptsJsonStringDailyItemsPayload() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
         var targetRepository = mock(InspectionReportTargetRepository.class);
@@ -138,7 +167,7 @@ class ReportPreflightDeterministicValidatorTest {
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
                 "dailyItems", """
-                        {"groups":[{"floor":"전층","tradeName":"철근콘크리트공사","processName":"기초","entries":[{"inspectionItemName":"철근 배근 상태","supervisionContent":"철근 배근 상태를 확인했습니다.","photoIds":[1]}]}]}
+                        {"groups":[{"floor":"전층","tradeCode":"REINFORCED_CONCRETE","tradeName":"철근콘크리트공사","processCode":"REBAR_ASSEMBLY","processName":"철근 조립","entries":[{"inspectionItemCode":"RC_REBAR_COUNT_DIAMETER_PITCH","inspectionItemName":"철근 개수·지름·피치","supervisionContent":"철근 배근 상태를 확인했습니다.","photoIds":[1]}]}]}
                         """
         ))));
 

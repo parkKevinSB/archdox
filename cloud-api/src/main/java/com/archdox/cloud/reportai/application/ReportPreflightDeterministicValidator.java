@@ -159,6 +159,14 @@ public class ReportPreflightDeterministicValidator {
                         "groups[" + groupIndex + "].tradeName",
                         groupNo,
                         null));
+            } else if (isBlank(stringValue(group.get("tradeCode")))) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_GROUP_TRADE_CODE_REQUIRED",
+                        "HIGH",
+                        "공종을 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다.",
+                        "groups[" + groupIndex + "].tradeCode",
+                        groupNo,
+                        null));
             }
             if (isBlank(stringValue(group.get("processName"))) && isBlank(stringValue(group.get("processCode")))) {
                 findings.add(dailyFinding(
@@ -166,6 +174,14 @@ public class ReportPreflightDeterministicValidator {
                         "HIGH",
                         "세부공정을 입력해야 합니다.",
                         "groups[" + groupIndex + "].processName",
+                        groupNo,
+                        null));
+            } else if (isBlank(stringValue(group.get("processCode")))) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_GROUP_PROCESS_CODE_REQUIRED",
+                        "HIGH",
+                        "세부공정을 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다.",
+                        "groups[" + groupIndex + "].processCode",
                         groupNo,
                         null));
             }
@@ -191,6 +207,14 @@ public class ReportPreflightDeterministicValidator {
                             "HIGH",
                             "검사항목을 선택하거나 입력해야 합니다.",
                             "groups[" + groupIndex + "].entries[" + entryIndex + "].inspectionItemName",
+                            groupNo,
+                            entryNo));
+                } else if (isBlank(stringValue(entry.get("inspectionItemCode")))) {
+                    findings.add(dailyFinding(
+                            "DAILY_LOG_INSPECTION_ITEM_CODE_REQUIRED",
+                            "HIGH",
+                            "검사항목을 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다.",
+                            "groups[" + groupIndex + "].entries[" + entryIndex + "].inspectionItemCode",
                             groupNo,
                             entryNo));
                 }

@@ -2290,6 +2290,7 @@ button {
 .daily-supervision-group-fields input,
 .daily-supervision-group-fields select,
 .daily-supervision-item input,
+.daily-supervision-item select,
 .daily-supervision-item textarea,
 .daily-supervision-item-picker select {
   width: 100%;
@@ -2306,10 +2307,17 @@ button {
 .daily-supervision-group-fields input:focus,
 .daily-supervision-group-fields select:focus,
 .daily-supervision-item input:focus,
+.daily-supervision-item select:focus,
 .daily-supervision-item textarea:focus,
 .daily-supervision-item-picker select:focus {
   border-color: #2a7f70;
   box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.daily-supervision-warning {
+  color: #a05710;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .daily-supervision-item-picker {
