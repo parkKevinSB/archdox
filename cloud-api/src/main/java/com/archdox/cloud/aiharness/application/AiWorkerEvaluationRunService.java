@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiWorkerEvaluationRunService {
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 100;
+    private static final int RETAINED_RUN_COUNT = 30;
     private static final String TRIGGER_PLATFORM_ADMIN_SNAPSHOT = "PLATFORM_ADMIN_SNAPSHOT";
     private static final String TRIGGER_PLATFORM_ADMIN_RUNTIME_PROBE = "PLATFORM_ADMIN_RUNTIME_PROBE";
     private static final String STATUS_PASS = "PASS";
@@ -86,7 +87,9 @@ public class AiWorkerEvaluationRunService {
                 principal.userId(),
                 principal.email(),
                 now);
-        return toResponse(repository.save(run));
+        var saved = repository.save(run);
+        repository.deleteAllButMostRecent(RETAINED_RUN_COUNT);
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)

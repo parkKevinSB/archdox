@@ -144,6 +144,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiWorkerEvaluationCase,
   AiWorkerEvaluationRun,
   AiWorkerEvaluationSummary,
   ConfigDefinition,
@@ -6658,7 +6659,7 @@ function AiWorkerEvaluationControlPanel({
         <div className="evaluation-detail-head">
           <div>
             <h3>평가 Run 기록</h3>
-            <span>Run은 한 번 저장된 평가 결과입니다. Run을 선택하면 아래 상세 영역이 그 기록 기준으로 바뀝니다.</span>
+            <span>Run은 한 번 저장된 평가 결과입니다. 최근 30개만 보관하며, Run을 선택하면 아래 상세 영역이 그 기록 기준으로 바뀝니다.</span>
           </div>
         </div>
         {runs.length === 0 ? <EmptyState message="저장된 평가 Run이 없습니다." /> : null}
@@ -6724,8 +6725,8 @@ function AiWorkerEvaluationControlPanel({
               item.caseId,
               <CellTitle key="case" title={evaluationCaseLabel(item.caseId, item.name)} subtitle={item.name} />,
               <StatusBadge key="status" status={item.status} />,
-              item.automated ? item.verification : "MANUAL",
-              item.evidence
+              item.automated ? evaluationVerificationLabel(item.verification) : "수동 확인",
+              evaluationEvidenceText(item)
             ])}
           />
         </section>
@@ -6996,6 +6997,35 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
     "GOV-W-008": "취소/실패/차단/승인 지표 분리"
   };
   return labels[caseId] ?? fallback;
+}
+
+function evaluationVerificationLabel(verification: string) {
+  const labels: Record<string, string> = {
+    GRADLE_TEST: "자동 테스트",
+    RUNTIME_PROBE: "런타임 설정 점검",
+    PROVIDER_CONNECTION_TEST: "Provider 연결 테스트"
+  };
+  return labels[verification] ?? displayLabel(verification);
+}
+
+function evaluationEvidenceText(item: AiWorkerEvaluationCase) {
+  const evidence = item.evidence ?? "";
+  if (item.caseId.startsWith("RUN-AI-PROVIDER-") && evidence.toLowerCase().includes("fake")) {
+    return "개발용 Fake provider라 실제 외부 모델 호출은 하지 않았습니다. AI 하네스 관리에서 이 provider를 계속 개발용으로 둘지, 실제 provider로 바꿀지 확인하세요.";
+  }
+  if (item.caseId.startsWith("RUN-AI-POLICY-") && evidence.includes("Harness policy is not runnable")) {
+    return evidence
+      .replace("Harness policy is not runnable:", "하네스 정책이 아직 실행 가능 상태가 아닙니다:")
+      .replace("PROVIDER_NOT_ASSIGNED", "provider 미배정")
+      .replace("POLICY_NOT_CONFIGURED", "정책 미설정")
+      .replace("POLICY_DISABLED", "정책 비활성화")
+      .replace("PROVIDER_NOT_ACTIVE", "provider 비활성화")
+      .replace("MODEL_NOT_CONFIGURED", "모델 미설정");
+  }
+  if (item.caseId.startsWith("RUN-AI-POLICY-") && evidence.includes("Harness policy resolves to provider")) {
+    return evidence.replace("Harness policy resolves to provider", "하네스 정책이 다음 provider로 해석됐습니다:");
+  }
+  return evidence;
 }
 
 function AiObserverTabBar({

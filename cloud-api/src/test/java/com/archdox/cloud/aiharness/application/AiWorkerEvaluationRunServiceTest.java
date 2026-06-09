@@ -57,6 +57,7 @@ class AiWorkerEvaluationRunServiceTest {
             assertThat(signal.signalKey()).isEqualTo("REAL_MODEL_EVALUATION");
             assertThat(signal.status()).isEqualTo("WARN");
         });
+        verify(repository).deleteAllButMostRecent(30);
         verify(platformAdminService).requirePlatformAdmin(principal);
     }
 
@@ -75,5 +76,6 @@ class AiWorkerEvaluationRunServiceTest {
         assertThat(saved.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
         assertThat(saved.evaluationMode()).isEqualTo("STATIC_BASELINE");
         assertThat(response.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
+        verify(repository).deleteAllButMostRecent(30);
     }
 }
