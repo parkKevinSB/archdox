@@ -37,6 +37,7 @@ import {
   approvePlatformLegalDigestAiDraft,
   archiveProject,
   approvePlatformWorkerApproval,
+  autoGeneratePlatformConstructionSupervisionLegalBindings,
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
@@ -173,6 +174,7 @@ import type {
   LegalArticleDiff,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDomainBindingAutoGenerateResponse,
   LegalDomainBinding,
   LegalLawSearchResult,
   LegalDigestAiDraft,
@@ -615,6 +617,8 @@ export default function App() {
   const [platformData, setPlatformData] = useState<PlatformOpsData>(emptyPlatformOpsData);
   const [lastPlatformDetection, setLastPlatformDetection] = useState<PlatformHealthDetection | null>(null);
   const [legalDigestAiDrafts, setLegalDigestAiDrafts] = useState<Record<number, LegalDigestAiDraft[]>>({});
+  const [legalBindingAutoGenerateResult, setLegalBindingAutoGenerateResult] =
+    useState<LegalDomainBindingAutoGenerateResponse | null>(null);
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -908,7 +912,7 @@ export default function App() {
           getPlatformLegalSyncRuns(token, 50),
           getPlatformLegalChangeSets(token, 50),
           getPlatformLegalChangeDigests(token, 50),
-          getPlatformLegalDomainBindings(token, 100)
+          getPlatformLegalDomainBindings(token, 500)
         ]);
         Object.assign(next, { legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests, legalDomainBindings });
       } else if (view === "platform-engine-keys") {
@@ -1081,7 +1085,7 @@ export default function App() {
     setError(null);
     try {
       await createPlatformLegalDomainBinding(auth.accessToken, body);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
       setPlatformData((current) => ({ ...current, legalDomainBindings }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 저장하지 못했습니다.");
@@ -1098,10 +1102,31 @@ export default function App() {
     setError(null);
     try {
       await updatePlatformLegalDomainBinding(auth.accessToken, bindingId, body);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
       setPlatformData((current) => ({ ...current, legalDomainBindings }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 수정하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function autoGenerateConstructionSupervisionLegalBindingsFromUi() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    if (!window.confirm("공사감리 카탈로그 전체에 기본 법령 바인딩을 자동 생성할까요? 기존 바인딩은 유지하고 없는 항목만 추가합니다.")) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await autoGeneratePlatformConstructionSupervisionLegalBindings(auth.accessToken);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
+      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+      setLegalBindingAutoGenerateResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "공사감리 기본 법령 바인딩을 자동 생성하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -1118,7 +1143,7 @@ export default function App() {
     setError(null);
     try {
       await deactivatePlatformLegalDomainBinding(auth.accessToken, bindingId);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 100);
+      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
       setPlatformData((current) => ({ ...current, legalDomainBindings }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 비활성화하지 못했습니다.");
@@ -1966,6 +1991,7 @@ export default function App() {
               lastDetection={lastPlatformDetection}
               onDetectStuck={runPlatformDetection}
               legalDigestAiDrafts={legalDigestAiDrafts}
+              legalBindingAutoGenerateResult={legalBindingAutoGenerateResult}
               onFlowerRuntimeRefresh={refreshPlatformFlowerRuntime}
               onLegalDigestAiDraft={runPlatformLegalDigestAiDraft}
               onLoadLegalDigestAiDrafts={loadPlatformLegalDigestAiDrafts}
@@ -1976,6 +2002,7 @@ export default function App() {
               onLegalDigestRefresh={runPlatformLegalDigestRefresh}
               onCreateLegalDomainBinding={createLegalDomainBindingFromUi}
               onUpdateLegalDomainBinding={updateLegalDomainBindingFromUi}
+              onAutoGenerateConstructionSupervisionLegalBindings={autoGenerateConstructionSupervisionLegalBindingsFromUi}
               onDeactivateLegalDomainBinding={deactivateLegalDomainBindingFromUi}
               issuedEngineApiKey={issuedEngineApiKey}
               onCreateEngineApiKey={handleCreateEngineApiKey}
@@ -4188,6 +4215,7 @@ function PlatformLegalAdminPanel({
   data,
   accessToken,
   legalDigestAiDrafts,
+  legalBindingAutoGenerateResult,
   loading,
   onLegalDigestAiDraft,
   onLoadLegalDigestAiDrafts,
@@ -4198,11 +4226,13 @@ function PlatformLegalAdminPanel({
   onLegalDigestRefresh,
   onCreateLegalDomainBinding,
   onUpdateLegalDomainBinding,
+  onAutoGenerateConstructionSupervisionLegalBindings,
   onDeactivateLegalDomainBinding
 }: {
   data: PlatformOpsData;
   accessToken: string;
   legalDigestAiDrafts: Record<number, LegalDigestAiDraft[]>;
+  legalBindingAutoGenerateResult: LegalDomainBindingAutoGenerateResponse | null;
   loading: boolean;
   onLegalDigestAiDraft: (digestId: number) => void;
   onLoadLegalDigestAiDrafts: (digestId: number) => void;
@@ -4213,6 +4243,7 @@ function PlatformLegalAdminPanel({
   onLegalDigestRefresh: () => void;
   onCreateLegalDomainBinding: (body: LegalDomainBindingPayload) => Promise<void>;
   onUpdateLegalDomainBinding: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onAutoGenerateConstructionSupervisionLegalBindings: () => Promise<void>;
   onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
 }) {
   const [selectedDigestId, setSelectedDigestId] = useState<number | null>(null);
@@ -4407,8 +4438,10 @@ function PlatformLegalAdminPanel({
           accessToken={accessToken}
           bindings={data.legalDomainBindings}
           busy={loading}
+          autoGenerateResult={legalBindingAutoGenerateResult}
           onCreate={onCreateLegalDomainBinding}
           onUpdate={onUpdateLegalDomainBinding}
+          onAutoGenerate={onAutoGenerateConstructionSupervisionLegalBindings}
           onDeactivate={onDeactivateLegalDomainBinding}
         />
       ) : null}
@@ -4420,15 +4453,19 @@ function LegalDomainBindingPanel({
   accessToken,
   bindings,
   busy,
+  autoGenerateResult,
   onCreate,
   onUpdate,
+  onAutoGenerate,
   onDeactivate
 }: {
   accessToken: string;
   bindings: LegalDomainBinding[];
   busy: boolean;
+  autoGenerateResult: LegalDomainBindingAutoGenerateResponse | null;
   onCreate: (body: LegalDomainBindingPayload) => Promise<void>;
   onUpdate: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onAutoGenerate: () => Promise<void>;
   onDeactivate: (bindingId: number) => Promise<void>;
 }) {
   const [selectedBindingId, setSelectedBindingId] = useState<number | null>(null);
@@ -4442,7 +4479,26 @@ function LegalDomainBindingPanel({
   return (
     <div className="view-stack">
       <Panel title="바인딩 목록" icon={<FileText size={18} />} count={bindings.length}>
-        <InlineNotice message="Engine은 활성 도메인 바인딩을 법령 corpus 자동 후보보다 먼저 사용합니다. 여기서는 법령 원문을 수정하지 않고 업무 카탈로그와 조문 연결만 관리합니다." />
+        <InlineNotice message="수동 바인딩은 예외/정정용입니다. 기본 공사감리 카탈로그 연결은 자동 생성으로 깔고, 운영자는 중요한 항목만 수정합니다." />
+        <div className="legal-binding-toolbar">
+          <button className="button primary" disabled={busy} onClick={onAutoGenerate} type="button">
+            {busy ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
+            공사감리 기본 바인딩 자동 생성
+          </button>
+          <span className="muted">기존 바인딩은 유지하고 없는 카탈로그 항목만 추가합니다.</span>
+        </div>
+        {autoGenerateResult ? (
+          <div className="legal-binding-result">
+            <strong>{autoGenerateResult.message}</strong>
+            <span>
+              생성 {autoGenerateResult.createdCount.toLocaleString()}건 · 건너뜀 {autoGenerateResult.skippedCount.toLocaleString()}건 ·
+              카탈로그 {autoGenerateResult.catalogItemCount.toLocaleString()}개
+            </span>
+            <small>
+              대표 근거: {autoGenerateResult.primaryReference || "-"} / {autoGenerateResult.supportingReference || "-"}
+            </small>
+          </div>
+        ) : null}
         <Table
           columns={["바인딩", "법령/조문", "업무 연결", "관련도", "상태", "기간", "작업"]}
           empty="등록된 법령 도메인 바인딩이 없습니다."
@@ -5116,6 +5172,7 @@ function PlatformView({
   lastDetection,
   onDetectStuck,
   legalDigestAiDrafts,
+  legalBindingAutoGenerateResult,
   onFlowerRuntimeRefresh,
   onLegalDigestAiDraft,
   onLoadLegalDigestAiDrafts,
@@ -5126,6 +5183,7 @@ function PlatformView({
   onLegalDigestRefresh,
   onCreateLegalDomainBinding,
   onUpdateLegalDomainBinding,
+  onAutoGenerateConstructionSupervisionLegalBindings,
   onDeactivateLegalDomainBinding,
   issuedEngineApiKey,
   onCreateEngineApiKey,
@@ -5144,6 +5202,7 @@ function PlatformView({
   lastDetection: PlatformHealthDetection | null;
   onDetectStuck: () => void;
   legalDigestAiDrafts: Record<number, LegalDigestAiDraft[]>;
+  legalBindingAutoGenerateResult: LegalDomainBindingAutoGenerateResponse | null;
   onFlowerRuntimeRefresh: (silent?: boolean) => Promise<void>;
   onLegalDigestAiDraft: (digestId: number) => void;
   onLoadLegalDigestAiDrafts: (digestId: number) => void;
@@ -5154,6 +5213,7 @@ function PlatformView({
   onLegalDigestRefresh: () => void;
   onCreateLegalDomainBinding: (body: LegalDomainBindingPayload) => Promise<void>;
   onUpdateLegalDomainBinding: (bindingId: number, body: LegalDomainBindingPayload) => Promise<void>;
+  onAutoGenerateConstructionSupervisionLegalBindings: () => Promise<void>;
   onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
   onCreateEngineApiKey: (body: {
@@ -5239,6 +5299,7 @@ function PlatformView({
           data={data}
           accessToken={accessToken}
           legalDigestAiDrafts={legalDigestAiDrafts}
+          legalBindingAutoGenerateResult={legalBindingAutoGenerateResult}
           loading={loading}
           onLegalDigestAiDraft={onLegalDigestAiDraft}
           onLoadLegalDigestAiDrafts={onLoadLegalDigestAiDrafts}
@@ -5249,6 +5310,7 @@ function PlatformView({
           onLegalOpenDataSync={onLegalOpenDataSync}
           onCreateLegalDomainBinding={onCreateLegalDomainBinding}
           onUpdateLegalDomainBinding={onUpdateLegalDomainBinding}
+          onAutoGenerateConstructionSupervisionLegalBindings={onAutoGenerateConstructionSupervisionLegalBindings}
           onDeactivateLegalDomainBinding={onDeactivateLegalDomainBinding}
         />
       ) : null}

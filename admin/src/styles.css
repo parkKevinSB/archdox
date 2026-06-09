@@ -2478,6 +2478,34 @@ button {
   gap: 6px;
 }
 
+.legal-binding-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.legal-binding-result {
+  background: #eef8f4;
+  border: 1px solid #b7d9cb;
+  border-radius: 8px;
+  color: #1d4c3b;
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 14px;
+  padding: 12px;
+}
+
+.legal-binding-result strong {
+  font-size: 14px;
+}
+
+.legal-binding-result small {
+  color: #3f6b5b;
+  font-weight: 700;
+}
+
 .stack-panel {
   display: grid;
   gap: 10px;

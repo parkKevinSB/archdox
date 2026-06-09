@@ -6,6 +6,7 @@ import com.archdox.cloud.legal.application.LegalPlatformAdminService;
 import com.archdox.cloud.legal.dto.CreateLegalDomainBindingRequest;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
+import com.archdox.cloud.legal.dto.LegalDomainBindingAutoGenerateResponse;
 import com.archdox.cloud.legal.dto.LegalDomainBindingResponse;
 import com.archdox.cloud.legal.dto.LegalDigestAiDraftResponse;
 import com.archdox.cloud.legal.dto.LegalDigestRefreshResponse;
@@ -198,6 +199,13 @@ public class PlatformLegalController {
             @RequestBody CreateLegalDomainBindingRequest request
     ) {
         return bindingAdminService.createBinding(principal(authentication), request);
+    }
+
+    @PostMapping("/domain-bindings/auto-generate/construction-supervision")
+    public LegalDomainBindingAutoGenerateResponse autoGenerateConstructionSupervisionDomainBindings(
+            Authentication authentication
+    ) {
+        return bindingAdminService.autoGenerateConstructionSupervisionBindings(principal(authentication));
     }
 
     @PostMapping("/domain-bindings/{bindingId}")

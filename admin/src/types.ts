@@ -815,6 +815,21 @@ export type LegalDomainBinding = {
   updatedAt: string;
 };
 
+export type LegalDomainBindingAutoGenerateResponse = {
+  mode: string;
+  catalogCode: string;
+  catalogVersion: number;
+  catalogItemCount: number;
+  createdCount: number;
+  skippedCount: number;
+  reportTypeCreatedCount: number;
+  reportTypeSkippedCount: number;
+  primaryReference?: string | null;
+  supportingReference?: string | null;
+  createdSamples: LegalDomainBinding[];
+  message: string;
+};
+
 export type LegalLawSearchResult = {
   referenceId: string;
   evidenceType: string;

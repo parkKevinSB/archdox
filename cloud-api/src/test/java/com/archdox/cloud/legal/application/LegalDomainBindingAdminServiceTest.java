@@ -3,6 +3,7 @@ package com.archdox.cloud.legal.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,8 @@ import com.archdox.cloud.legal.domain.LegalAct;
 import com.archdox.cloud.legal.domain.LegalArticle;
 import com.archdox.cloud.legal.domain.LegalDomainBinding;
 import com.archdox.cloud.legal.dto.CreateLegalDomainBindingRequest;
+import com.archdox.cloud.legal.dto.LegalLawSearchResponse;
+import com.archdox.cloud.legal.dto.LegalLawSearchResultResponse;
 import com.archdox.cloud.legal.dto.UpdateLegalDomainBindingRequest;
 import com.archdox.cloud.legal.infra.LegalActRepository;
 import com.archdox.cloud.legal.infra.LegalArticleRepository;
@@ -21,7 +24,11 @@ import com.archdox.cloud.legal.infra.LegalDomainBindingRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
+import com.archdox.cloud.supervisioncatalog.application.SupervisionDomainCatalogService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -34,13 +41,15 @@ class LegalDomainBindingAdminServiceTest {
     private final LegalArticleRepository articleRepository = mock(LegalArticleRepository.class);
     private final OperationEventService operationEventService = mock(OperationEventService.class);
     private final LegalCorpusReadService legalCorpusReadService = mock(LegalCorpusReadService.class);
+    private final SupervisionDomainCatalogService catalogService = new SupervisionDomainCatalogService(new ObjectMapper());
     private final LegalDomainBindingAdminService service = new LegalDomainBindingAdminService(
             platformAdminService,
             bindingRepository,
             actRepository,
             articleRepository,
             operationEventService,
-            legalCorpusReadService);
+            legalCorpusReadService,
+            catalogService);
 
     @Test
     void createBindingGeneratesCatalogBindingKeyAndRecordsAudit() {
@@ -190,6 +199,53 @@ class LegalDomainBindingAdminServiceTest {
                 any());
     }
 
+    @Test
+    void autoGenerateConstructionSupervisionBindingsCreatesMissingCatalogBindings() {
+        var principal = new UserPrincipal(7L, "platform@test.co.kr");
+        when(legalCorpusReadService.search("공사감리", "BUILDING_ACT", null, null, null, 1))
+                .thenReturn(searchResponse(reference(
+                        10L,
+                        "BUILDING_ACT",
+                        "건축법",
+                        20L,
+                        "0025001",
+                        "제25조",
+                        "건축물의 공사감리")));
+        when(legalCorpusReadService.search("단계별 감리 체크리스트", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD", null, null, null, 1))
+                .thenReturn(searchResponse(reference(
+                        11L,
+                        "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD",
+                        "건축공사 감리세부기준",
+                        21L,
+                        "000100",
+                        "제1조",
+                        "목적")));
+        when(bindingRepository.search(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        when(bindingRepository.save(any(LegalDomainBinding.class))).thenAnswer(invocation -> {
+            var binding = invocation.getArgument(0, LegalDomainBinding.class);
+            if (binding.id() == null) {
+                ReflectionTestUtils.setField(binding, "id", Math.abs(binding.bindingKey().hashCode()) + 1L);
+            }
+            return binding;
+        });
+        when(actRepository.findById(any())).thenAnswer(invocation ->
+                Optional.of(act(invocation.getArgument(0, Long.class), OffsetDateTime.now())));
+        when(articleRepository.findById(any())).thenAnswer(invocation ->
+                Optional.of(article(invocation.getArgument(0, Long.class), 11L, OffsetDateTime.now())));
+
+        var response = service.autoGenerateConstructionSupervisionBindings(principal);
+
+        assertThat(response.catalogCode()).isEqualTo("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24");
+        assertThat(response.catalogVersion()).isEqualTo(2);
+        assertThat(response.catalogItemCount()).isGreaterThan(100);
+        assertThat(response.createdCount()).isEqualTo(response.catalogItemCount() + response.reportTypeCreatedCount());
+        assertThat(response.skippedCount()).isZero();
+        assertThat(response.supportingReference()).contains("건축공사 감리세부기준");
+        verify(platformAdminService).requirePlatformAdmin(principal);
+        verify(bindingRepository, atLeastOnce()).save(any(LegalDomainBinding.class));
+    }
+
     private LegalAct act(Long id, OffsetDateTime now) {
         var act = new LegalAct(1L, "BUILDING_ACT", "Building Act", "LAW", "KR", "001823", now);
         ReflectionTestUtils.setField(act, "id", id);
@@ -200,5 +256,48 @@ class LegalDomainBindingAdminServiceTest {
         var article = new LegalArticle(actId, "0025001", "25", "Construction supervision", null, 25, now);
         ReflectionTestUtils.setField(article, "id", id);
         return article;
+    }
+
+    private LegalLawSearchResponse searchResponse(LegalLawSearchResultResponse reference) {
+        return new LegalLawSearchResponse(
+                List.of(reference),
+                1,
+                "감리",
+                reference.actCode(),
+                null,
+                null,
+                null,
+                1);
+    }
+
+    private LegalLawSearchResultResponse reference(
+            Long actId,
+            String actCode,
+            String actName,
+            Long articleId,
+            String articleKey,
+            String articleNo,
+            String articleTitle
+    ) {
+        return new LegalLawSearchResultResponse(
+                actCode + ":" + articleKey + "@version",
+                "LEGAL_ARTICLE",
+                "NATIONAL_LAW_OPEN_DATA",
+                actId,
+                actCode,
+                actName,
+                "LAW",
+                100L,
+                "version",
+                LocalDate.of(2026, 1, 1),
+                "https://www.law.go.kr",
+                "https://www.law.go.kr",
+                articleId,
+                200L,
+                articleKey,
+                articleNo,
+                articleTitle,
+                articleTitle + " 본문",
+                "hash");
     }
 }

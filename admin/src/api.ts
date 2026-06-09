@@ -26,6 +26,7 @@ import type {
   FlowerRuntimeDump,
   LegalChangeDigest,
   LegalChangeSet,
+  LegalDomainBindingAutoGenerateResponse,
   LegalDomainBinding,
   LegalLawSearchResponse,
   LegalDigestAiDraft,
@@ -841,6 +842,16 @@ export function updatePlatformLegalDomainBinding(
     method: "POST",
     body
   });
+}
+
+export function autoGeneratePlatformConstructionSupervisionLegalBindings(token: string) {
+  return request<LegalDomainBindingAutoGenerateResponse>(
+    "/api/v1/platform-admin/legal/domain-bindings/auto-generate/construction-supervision",
+    {
+      token,
+      method: "POST"
+    }
+  );
 }
 
 export function deactivatePlatformLegalDomainBinding(token: string, bindingId: number) {
