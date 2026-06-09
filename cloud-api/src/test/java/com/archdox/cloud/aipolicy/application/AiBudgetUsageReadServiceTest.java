@@ -22,6 +22,7 @@ import com.archdox.cloud.aipolicy.infra.AiHarnessPolicyRepository;
 import com.archdox.cloud.aipolicy.infra.AiModelCallLogRepository;
 import com.archdox.cloud.aipolicy.infra.AiModelPricingRuleRepository;
 import com.archdox.cloud.aipolicy.infra.AiProviderCredentialRepository;
+import com.archdox.cloud.aipolicy.infra.AiUserBudgetOverrideRepository;
 import com.archdox.cloud.aipolicy.infra.AiUserUsageGroupProjection;
 import com.archdox.cloud.aipolicy.infra.OfficeAiPolicyRepository;
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -42,6 +43,7 @@ class AiBudgetUsageReadServiceTest {
     private final AiHarnessPolicyRepository harnessPolicyRepository = mock(AiHarnessPolicyRepository.class);
     private final AiProviderCredentialRepository providerRepository = mock(AiProviderCredentialRepository.class);
     private final AiModelPricingRuleRepository pricingRuleRepository = mock(AiModelPricingRuleRepository.class);
+    private final AiUserBudgetOverrideRepository userBudgetOverrideRepository = mock(AiUserBudgetOverrideRepository.class);
     private final OfficeRepository officeRepository = mock(OfficeRepository.class);
     private final UserAccountRepository userRepository = mock(UserAccountRepository.class);
     private final PlatformAdminService platformAdminService = mock(PlatformAdminService.class);
@@ -51,6 +53,7 @@ class AiBudgetUsageReadServiceTest {
             harnessPolicyRepository,
             providerRepository,
             pricingRuleRepository,
+            userBudgetOverrideRepository,
             officeRepository,
             userRepository,
             platformAdminService);
@@ -113,6 +116,7 @@ class AiBudgetUsageReadServiceTest {
         when(officePolicyRepository.findAll()).thenReturn(List.of(policy));
         when(providerRepository.findAll()).thenReturn(List.of(provider));
         when(harnessPolicyRepository.findAllByOrderByPolicyKeyAsc()).thenReturn(List.of(harnessPolicy));
+        when(userBudgetOverrideRepository.findActiveAt(any(), any())).thenReturn(List.of());
         when(userRepository.findAllById(any())).thenReturn(List.of(user));
         when(callLogRepository.countByOfficeIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(eq(10L), any(), any()))
                 .thenReturn(10L);
@@ -159,6 +163,7 @@ class AiBudgetUsageReadServiceTest {
                 });
         assertThat(response.users()).hasSize(1);
         assertThat(response.users().get(0).monthlyTokens()).isEqualTo(150L);
+        assertThat(response.activeUserOverrideCount()).isZero();
         assertThat(response.pricingCoverage())
                 .anySatisfy(row -> {
                     assertThat(row.providerCode()).isEqualTo("openai-main");

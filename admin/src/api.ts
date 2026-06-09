@@ -6,6 +6,7 @@ import type {
   AiHarnessPolicy,
   AiModelCallLog,
   AiModelPricingRule,
+  AiUserBudgetOverride,
   AiHarnessTraceEvent,
   AiObservation,
   AiObservationMode,
@@ -905,6 +906,41 @@ export function getPlatformAiUsageSummary(token: string) {
 
 export function getPlatformAiBudgetUsageSummary(token: string) {
   return request<AiBudgetUsageSummary>("/api/v1/platform-admin/ai/budget-usage-summary", { token });
+}
+
+export function getPlatformAiUserBudgetOverrides(token: string, limit = 100) {
+  return request<AiUserBudgetOverride[]>("/api/v1/platform-admin/ai/user-budget-overrides", {
+    token,
+    query: { limit }
+  });
+}
+
+export function createPlatformAiUserBudgetOverride(
+  token: string,
+  body: {
+    officeId: number;
+    userId: number;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    expiresAt?: string | null;
+    reason: string;
+  }
+) {
+  return request<AiUserBudgetOverride>("/api/v1/platform-admin/ai/user-budget-overrides", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function disablePlatformAiUserBudgetOverride(token: string, overrideId: number, reason?: string | null) {
+  return request<AiUserBudgetOverride>(`/api/v1/platform-admin/ai/user-budget-overrides/${overrideId}/disable`, {
+    token,
+    method: "POST",
+    body: { reason: reason ?? null }
+  });
 }
 
 export function getPlatformAiWorkerEvaluationSummary(token: string) {

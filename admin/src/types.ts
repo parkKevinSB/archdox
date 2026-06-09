@@ -950,6 +950,12 @@ export type AiUserBudgetUsage = {
   dailyCallCount: number;
   monthlyTokenLimit?: number | null;
   monthlyTokens: number;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency?: string | null;
+  monthlyEstimatedCost?: number | null;
+  activeOverrideId?: number | null;
+  activeOverrideReason?: string | null;
+  activeOverrideExpiresAt?: string | null;
   status: string;
   message: string;
 };
@@ -975,11 +981,34 @@ export type AiBudgetUsageSummary = {
   harnessPolicyCount: number;
   harnessesWithBudgetGuard: number;
   userUsageCount: number;
+  activeUserOverrideCount: number;
   missingPricingRuleCount: number;
   offices: AiOfficeBudgetUsage[];
   harnesses: AiHarnessBudgetUsage[];
   users: AiUserBudgetUsage[];
   pricingCoverage: AiPricingCoverage[];
+};
+
+export type AiUserBudgetOverride = {
+  id: number;
+  officeId: number;
+  officeCode?: string | null;
+  officeName?: string | null;
+  userId: number;
+  userEmail?: string | null;
+  userName?: string | null;
+  dailyCallLimit?: number | null;
+  monthlyTokenLimit?: number | null;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency: string;
+  reason: string;
+  active: boolean;
+  expiresAt?: string | null;
+  createdByUserId?: number | null;
+  createdAt: string;
+  disabledByUserId?: number | null;
+  disableReason?: string | null;
+  disabledAt?: string | null;
 };
 
 export type AiWorkerEvaluationCase = {

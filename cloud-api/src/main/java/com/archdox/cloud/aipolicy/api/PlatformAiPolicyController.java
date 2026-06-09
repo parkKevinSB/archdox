@@ -9,17 +9,21 @@ import com.archdox.cloud.aipolicy.application.AiObservationBufferService;
 import com.archdox.cloud.aipolicy.application.AiPolicyManagementService;
 import com.archdox.cloud.aipolicy.application.AiProviderConnectionTestService;
 import com.archdox.cloud.aipolicy.application.AiUsageReadService;
+import com.archdox.cloud.aipolicy.application.AiUserBudgetOverrideService;
 import com.archdox.cloud.aipolicy.dto.AiModelCallLogResponse;
 import com.archdox.cloud.aipolicy.dto.AiModelPricingRuleResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationModeResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationResponse;
 import com.archdox.cloud.aipolicy.dto.AiHarnessPolicyResponse;
 import com.archdox.cloud.aipolicy.dto.AiBudgetUsageSummaryResponse;
+import com.archdox.cloud.aipolicy.dto.AiUserBudgetOverrideResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderConnectionTestResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderCredentialResponse;
 import com.archdox.cloud.aipolicy.dto.AiUsageSummaryResponse;
 import com.archdox.cloud.aipolicy.dto.CreateAiModelPricingRuleRequest;
 import com.archdox.cloud.aipolicy.dto.CreateAiProviderCredentialRequest;
+import com.archdox.cloud.aipolicy.dto.CreateAiUserBudgetOverrideRequest;
+import com.archdox.cloud.aipolicy.dto.DisableAiUserBudgetOverrideRequest;
 import com.archdox.cloud.aipolicy.dto.OfficeAiPolicyResponse;
 import com.archdox.cloud.aipolicy.dto.UpdateAiHarnessPolicyRequest;
 import com.archdox.cloud.aipolicy.dto.UpdateAiObservationModeRequest;
@@ -48,6 +52,7 @@ public class PlatformAiPolicyController {
     private final AiModelPricingRuleService pricingRuleService;
     private final AiUsageReadService usageReadService;
     private final AiBudgetUsageReadService budgetUsageReadService;
+    private final AiUserBudgetOverrideService userBudgetOverrideService;
     private final ReportPreflightFindingOpsService preflightFindingOpsService;
     private final AiHarnessTraceEventService traceEventService;
     private final AiProviderConnectionTestService connectionTestService;
@@ -59,6 +64,7 @@ public class PlatformAiPolicyController {
             AiModelPricingRuleService pricingRuleService,
             AiUsageReadService usageReadService,
             AiBudgetUsageReadService budgetUsageReadService,
+            AiUserBudgetOverrideService userBudgetOverrideService,
             ReportPreflightFindingOpsService preflightFindingOpsService,
             AiHarnessTraceEventService traceEventService,
             AiProviderConnectionTestService connectionTestService,
@@ -69,6 +75,7 @@ public class PlatformAiPolicyController {
         this.pricingRuleService = pricingRuleService;
         this.usageReadService = usageReadService;
         this.budgetUsageReadService = budgetUsageReadService;
+        this.userBudgetOverrideService = userBudgetOverrideService;
         this.preflightFindingOpsService = preflightFindingOpsService;
         this.traceEventService = traceEventService;
         this.connectionTestService = connectionTestService;
@@ -152,6 +159,31 @@ public class PlatformAiPolicyController {
     @GetMapping("/budget-usage-summary")
     public AiBudgetUsageSummaryResponse budgetUsageSummary(Authentication authentication) {
         return budgetUsageReadService.monthlySummary(principal(authentication));
+    }
+
+    @GetMapping("/user-budget-overrides")
+    public List<AiUserBudgetOverrideResponse> userBudgetOverrides(
+            Authentication authentication,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return userBudgetOverrideService.overrides(principal(authentication), limit);
+    }
+
+    @PostMapping("/user-budget-overrides")
+    public AiUserBudgetOverrideResponse createUserBudgetOverride(
+            Authentication authentication,
+            @RequestBody CreateAiUserBudgetOverrideRequest request
+    ) {
+        return userBudgetOverrideService.createOverride(principal(authentication), request);
+    }
+
+    @PostMapping("/user-budget-overrides/{overrideId}/disable")
+    public AiUserBudgetOverrideResponse disableUserBudgetOverride(
+            Authentication authentication,
+            @PathVariable Long overrideId,
+            @RequestBody(required = false) DisableAiUserBudgetOverrideRequest request
+    ) {
+        return userBudgetOverrideService.disableOverride(principal(authentication), overrideId, request);
     }
 
     @GetMapping("/harness-traces")

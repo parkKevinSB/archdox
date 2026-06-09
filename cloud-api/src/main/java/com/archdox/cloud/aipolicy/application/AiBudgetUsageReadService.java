@@ -9,6 +9,7 @@ import com.archdox.cloud.aipolicy.domain.AiModelPricingRuleStatus;
 import com.archdox.cloud.aipolicy.domain.AiPolicyDefaults;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredentialStatus;
+import com.archdox.cloud.aipolicy.domain.AiUserBudgetOverride;
 import com.archdox.cloud.aipolicy.domain.OfficeAiPolicy;
 import com.archdox.cloud.aipolicy.dto.AiBudgetUsageSummaryResponse;
 import com.archdox.cloud.aipolicy.dto.AiHarnessBudgetUsageResponse;
@@ -19,6 +20,7 @@ import com.archdox.cloud.aipolicy.infra.AiHarnessPolicyRepository;
 import com.archdox.cloud.aipolicy.infra.AiModelCallLogRepository;
 import com.archdox.cloud.aipolicy.infra.AiModelPricingRuleRepository;
 import com.archdox.cloud.aipolicy.infra.AiProviderCredentialRepository;
+import com.archdox.cloud.aipolicy.infra.AiUserBudgetOverrideRepository;
 import com.archdox.cloud.aipolicy.infra.OfficeAiPolicyRepository;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.office.domain.Office;
@@ -27,7 +29,6 @@ import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -49,6 +50,7 @@ public class AiBudgetUsageReadService {
     private final AiHarnessPolicyRepository harnessPolicyRepository;
     private final AiProviderCredentialRepository providerRepository;
     private final AiModelPricingRuleRepository pricingRuleRepository;
+    private final AiUserBudgetOverrideRepository userBudgetOverrideRepository;
     private final OfficeRepository officeRepository;
     private final UserAccountRepository userRepository;
     private final PlatformAdminService platformAdminService;
@@ -59,6 +61,7 @@ public class AiBudgetUsageReadService {
             AiHarnessPolicyRepository harnessPolicyRepository,
             AiProviderCredentialRepository providerRepository,
             AiModelPricingRuleRepository pricingRuleRepository,
+            AiUserBudgetOverrideRepository userBudgetOverrideRepository,
             OfficeRepository officeRepository,
             UserAccountRepository userRepository,
             PlatformAdminService platformAdminService
@@ -68,6 +71,7 @@ public class AiBudgetUsageReadService {
         this.harnessPolicyRepository = harnessPolicyRepository;
         this.providerRepository = providerRepository;
         this.pricingRuleRepository = pricingRuleRepository;
+        this.userBudgetOverrideRepository = userBudgetOverrideRepository;
         this.officeRepository = officeRepository;
         this.userRepository = userRepository;
         this.platformAdminService = platformAdminService;
@@ -112,9 +116,11 @@ public class AiBudgetUsageReadService {
                         monthEnd))
                 .toList();
 
+        var activeUserOverrides = userBudgetOverrideRepository.findActiveAt(now, PageRequest.of(0, USER_USAGE_LIMIT));
         var userRows = userBudgetRows(
                 policiesByOfficeId,
                 offices.stream().collect(Collectors.toMap(Office::id, Function.identity())),
+                activeUserOverrides,
                 dayStart,
                 dayEnd,
                 monthStart,
@@ -132,6 +138,7 @@ public class AiBudgetUsageReadService {
                 harnessRows.size(),
                 (int) harnessRows.stream().filter(AiHarnessBudgetUsageResponse::budgetEnforcementEnabled).count(),
                 userRows.size(),
+                activeUserOverrides.size(),
                 missingPricing,
                 officeRows,
                 harnessRows,
@@ -262,48 +269,84 @@ public class AiBudgetUsageReadService {
     private List<AiUserBudgetUsageResponse> userBudgetRows(
             Map<Long, OfficeAiPolicy> policiesByOfficeId,
             Map<Long, Office> officesById,
+            List<AiUserBudgetOverride> activeUserOverrides,
             OffsetDateTime dayStart,
             OffsetDateTime dayEnd,
             OffsetDateTime monthStart,
             OffsetDateTime monthEnd
     ) {
         var groups = callLogRepository.usageByOfficeAndUser(monthStart, monthEnd, PageRequest.of(0, USER_USAGE_LIMIT));
-        var userIds = groups.stream()
-                .map(group -> group.getUserId())
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        var groupByKey = groups.stream()
+                .collect(Collectors.toMap(
+                        group -> userBudgetKey(group.getOfficeId(), group.getUserId()),
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new));
+        var overrideByKey = activeUserOverrides.stream()
+                .collect(Collectors.toMap(
+                        override -> userBudgetKey(override.officeId(), override.userId()),
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new));
+        var keys = new LinkedHashSet<String>();
+        keys.addAll(groupByKey.keySet());
+        keys.addAll(overrideByKey.keySet());
+        var userIds = new LinkedHashSet<Long>();
+        keys.forEach(key -> userIds.add(userIdFromBudgetKey(key)));
         var usersById = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(UserAccount::id, Function.identity()));
-        return groups.stream()
-                .map(group -> {
-                    var policy = policiesByOfficeId.get(group.getOfficeId());
-                    var office = officesById.get(group.getOfficeId());
-                    var user = usersById.get(group.getUserId());
-                    var dailyLimit = policy == null
-                            ? AiPolicyDefaults.USER_DAILY_CALL_LIMIT
-                            : policy.perUserDailyCallLimit();
-                    var tokenLimit = policy == null
-                            ? AiPolicyDefaults.USER_MONTHLY_TOKEN_LIMIT
-                            : policy.perUserMonthlyTokenLimit();
+        return keys.stream()
+                .map(key -> {
+                    var group = groupByKey.get(key);
+                    var override = overrideByKey.get(key);
+                    var officeId = group == null ? override.officeId() : group.getOfficeId();
+                    var userId = group == null ? override.userId() : group.getUserId();
+                    var policy = policiesByOfficeId.get(officeId);
+                    var office = officesById.get(officeId);
+                    var user = usersById.get(userId);
+                    var dailyLimit = override != null && override.dailyCallLimit() != null
+                            ? override.dailyCallLimit()
+                            : policy == null ? AiPolicyDefaults.USER_DAILY_CALL_LIMIT : policy.perUserDailyCallLimit();
+                    var tokenLimit = override != null && override.monthlyTokenLimit() != null
+                            ? override.monthlyTokenLimit()
+                            : policy == null ? AiPolicyDefaults.USER_MONTHLY_TOKEN_LIMIT : policy.perUserMonthlyTokenLimit();
                     var dailyCalls = callLogRepository.countByOfficeIdAndUserIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
-                            group.getOfficeId(),
-                            group.getUserId(),
+                            officeId,
+                            userId,
                             dayStart,
                             dayEnd);
-                    var monthlyTokens = number(group.getInputTokens()) + number(group.getOutputTokens());
-                    var status = strongest(limitStatus(dailyCalls, dailyLimit), limitStatus(monthlyTokens, tokenLimit));
+                    var monthlyTokens = group == null ? 0L : number(group.getInputTokens()) + number(group.getOutputTokens());
+                    var budgetCurrency = override == null
+                            ? AiPolicyDefaults.DEFAULT_BUDGET_CURRENCY
+                            : currency(override.budgetCurrency());
+                    var monthlyCost = money(callLogRepository.sumEstimatedCostByOfficeIdAndUserIdAndCurrencyAndCompletedAtRange(
+                            officeId,
+                            userId,
+                            budgetCurrency,
+                            monthStart,
+                            monthEnd));
+                    var status = strongest(
+                            limitStatus(dailyCalls, dailyLimit),
+                            limitStatus(monthlyTokens, tokenLimit),
+                            moneyStatus(monthlyCost, override == null ? null : override.monthlyBudgetAmount()));
                     return new AiUserBudgetUsageResponse(
-                            group.getOfficeId(),
+                            officeId,
                             office == null ? null : office.officeCode(),
-                            group.getUserId(),
+                            userId,
                             user == null ? null : user.email(),
                             user == null ? null : user.name(),
                             dailyLimit,
                             dailyCalls,
                             tokenLimit,
                             monthlyTokens,
+                            override == null ? null : override.monthlyBudgetAmount(),
+                            budgetCurrency,
+                            monthlyCost,
+                            override == null ? null : override.id(),
+                            override == null ? null : override.reason(),
+                            override == null ? null : override.expiresAt(),
                             status,
-                            userMessage(status));
+                            userMessage(status, override));
                 })
                 .toList();
     }
@@ -428,11 +471,12 @@ public class AiBudgetUsageReadService {
         };
     }
 
-    private String userMessage(String status) {
+    private String userMessage(String status, AiUserBudgetOverride override) {
+        var suffix = override == null ? "" : " Active user-specific override is applied.";
         return switch (status) {
-            case "BLOCKED" -> "User AI budget or token limit is exhausted.";
-            case "WARN" -> "User AI usage is near a configured limit.";
-            default -> "User AI usage is within configured limits.";
+            case "BLOCKED" -> "User AI budget or token limit is exhausted." + suffix;
+            case "WARN" -> "User AI usage is near a configured limit." + suffix;
+            default -> "User AI usage is within configured limits." + suffix;
         };
     }
 
@@ -491,6 +535,15 @@ public class AiBudgetUsageReadService {
 
     private BigDecimal money(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String userBudgetKey(Long officeId, Long userId) {
+        return officeId + ":" + userId;
+    }
+
+    private Long userIdFromBudgetKey(String key) {
+        var separator = key.indexOf(':');
+        return Long.parseLong(key.substring(separator + 1));
     }
 
     private record PricingCheck(String sourceType, String sourceKey, String providerCode, String modelName) {

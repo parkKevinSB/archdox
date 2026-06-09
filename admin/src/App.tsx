@@ -40,6 +40,7 @@ import {
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
+  createPlatformAiUserBudgetOverride,
   createPlatformAiWorkerEvaluationRun,
   createPlatformAiWorkerRuntimeEvaluationRun,
   createPlatformAiWorkerRuntimeScenarioRun,
@@ -55,6 +56,7 @@ import {
   diagnosePlatformOpsIncident,
   detectPlatformStuckHealth,
   disablePlatformAiPricingRule,
+  disablePlatformAiUserBudgetOverride,
   downloadDocumentTemplateRevisionContent,
   generatePlatformLegalDigestAiDraft,
   getAgentCommands,
@@ -84,6 +86,7 @@ import {
   getPlatformAiProviders,
   getPlatformAiPricingRules,
   getPlatformAiUsageSummary,
+  getPlatformAiUserBudgetOverrides,
   getPlatformAiWorkerEvaluationRuns,
   getPlatformAiWorkerEvaluationSummary,
   getPlatformCommands,
@@ -147,6 +150,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiUserBudgetOverride,
   AiWorkerEvaluationCase,
   AiWorkerEvaluationRun,
   AiWorkerEvaluationSummary,
@@ -313,6 +317,7 @@ type PlatformOpsData = {
   aiPricingRules: AiModelPricingRule[];
   aiUsageSummary: AiUsageSummary | null;
   aiBudgetUsageSummary: AiBudgetUsageSummary | null;
+  aiUserBudgetOverrides: AiUserBudgetOverride[];
   aiWorkerEvaluationSummary: AiWorkerEvaluationSummary | null;
   aiWorkerEvaluationRuns: AiWorkerEvaluationRun[];
 };
@@ -365,6 +370,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   aiPricingRules: [],
   aiUsageSummary: null,
   aiBudgetUsageSummary: null,
+  aiUserBudgetOverrides: [],
   aiWorkerEvaluationSummary: null,
   aiWorkerEvaluationRuns: []
 };
@@ -937,11 +943,13 @@ export default function App() {
         ]);
         Object.assign(next, { aiWorkerEvaluationSummary, aiWorkerEvaluationRuns });
       } else if (view === "ai-budgets") {
-        const [aiBudgetUsageSummary, aiPricingRules] = await Promise.all([
+        const [aiBudgetUsageSummary, aiPricingRules, aiUserBudgetOverrides, users] = await Promise.all([
           getPlatformAiBudgetUsageSummary(token),
-          getPlatformAiPricingRules(token, 100)
+          getPlatformAiPricingRules(token, 100),
+          getPlatformAiUserBudgetOverrides(token, 100),
+          getPlatformUsers(token, 100)
         ]);
-        Object.assign(next, { aiBudgetUsageSummary, aiPricingRules });
+        Object.assign(next, { aiBudgetUsageSummary, aiPricingRules, aiUserBudgetOverrides, users });
       } else if (view === "ai-policies") {
         const [aiProviders, officeAiPolicies] = await Promise.all([
           getPlatformAiProviders(token),
@@ -1530,6 +1538,47 @@ export default function App() {
     }
   }
 
+  async function handleCreateAiUserBudgetOverride(body: {
+    officeId: number;
+    userId: number;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    expiresAt?: string | null;
+    reason: string;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createPlatformAiUserBudgetOverride(auth.accessToken, body);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "사용자 AI 한도 상향을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDisableAiUserBudgetOverride(overrideId: number, reason?: string | null) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await disablePlatformAiUserBudgetOverride(auth.accessToken, overrideId, reason);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "사용자 AI 한도 상향을 해제하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleAuthenticated(nextAuth: AdminState) {
     const firstOffice = firstConsoleOffice(nextAuth.user.offices);
     setAuth(nextAuth);
@@ -1867,6 +1916,8 @@ export default function App() {
               policies={platformData.officeAiPolicies}
               usageSummary={platformData.aiUsageSummary}
               budgetUsageSummary={platformData.aiBudgetUsageSummary}
+              userBudgetOverrides={platformData.aiUserBudgetOverrides}
+              users={platformData.users}
               workerEvaluationSummary={platformData.aiWorkerEvaluationSummary}
               workerEvaluationRuns={platformData.aiWorkerEvaluationRuns}
               onCreatePricingRule={handleCreateAiPricingRule}
@@ -1883,6 +1934,8 @@ export default function App() {
               onCreateWorkerRuntimeScenarioRun={handleCreateAiWorkerRuntimeScenarioRun}
               onSaveHarnessPolicy={handleSaveAiHarnessPolicy}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
+              onCreateUserBudgetOverride={handleCreateAiUserBudgetOverride}
+              onDisableUserBudgetOverride={handleDisableAiUserBudgetOverride}
               providerTestResults={aiProviderTestResults}
             />
           )}
@@ -2068,6 +2121,39 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
 
   return (
     <div className="view-stack">
+      <Panel title="사용자 AI 한도 상향" icon={<UserPlus size={18} />} count={activeOverrides.length}>
+        <>
+          <AiUserBudgetOverrideForm
+            busy={busy}
+            offices={summary.offices}
+            users={users}
+            onSubmit={onCreateOverride}
+          />
+          <Table
+            columns={["사용자", "사무소", "한도", "월 예산", "만료", "사유", "작업"]}
+            empty="현재 적용 중인 사용자별 AI 한도 상향이 없습니다."
+            rows={activeOverrides.map((override) => [
+              <CellTitle key="user" title={override.userName ?? `User #${override.userId}`} subtitle={override.userEmail ?? `#${override.userId}`} />,
+              override.officeName ?? override.officeCode ?? `#${override.officeId}`,
+              `${override.dailyCallLimit ?? "-"} calls/day · ${override.monthlyTokenLimit ?? "-"} tokens/month`,
+              override.monthlyBudgetAmount == null ? "-" : `${override.budgetCurrency} ${formatMoney(override.monthlyBudgetAmount)}`,
+              formatDate(override.expiresAt),
+              override.reason,
+              <button
+                className="button compact"
+                disabled={busy}
+                key="disable"
+                onClick={() => onDisableOverride(override.id, "Disabled from AI budget usage screen.")}
+                type="button"
+              >
+                <XCircle size={14} />
+                해제
+              </button>
+            ])}
+          />
+        </>
+      </Panel>
+
       <div className="metric-grid">
         <MetricCard icon={<Server size={20} />} label="에이전트" value={summary?.agents.total ?? 0} detail={`${summary?.agents.byStatus.ONLINE ?? 0} 온라인`} tone="green" />
         <MetricCard icon={<Wifi size={20} />} label="활성 세션" value={summary?.activeAgentSessions ?? 0} detail="WebSocket 연결" tone="blue" />
@@ -6118,6 +6204,8 @@ function AiManagementView({
   policies,
   usageSummary,
   budgetUsageSummary,
+  userBudgetOverrides,
+  users,
   workerEvaluationSummary,
   workerEvaluationRuns,
   onCreatePricingRule,
@@ -6134,7 +6222,9 @@ function AiManagementView({
   onCreateWorkerRuntimeScenarioRun,
   onSaveHarnessPolicy,
   providerTestResults,
-  onSaveOfficePolicy
+  onSaveOfficePolicy,
+  onCreateUserBudgetOverride,
+  onDisableUserBudgetOverride
 }: {
   view: AiViewKey;
   loading: boolean;
@@ -6149,6 +6239,8 @@ function AiManagementView({
   policies: OfficeAiPolicy[];
   usageSummary: AiUsageSummary | null;
   budgetUsageSummary: AiBudgetUsageSummary | null;
+  userBudgetOverrides: AiUserBudgetOverride[];
+  users: PlatformUserOps[];
   workerEvaluationSummary: AiWorkerEvaluationSummary | null;
   workerEvaluationRuns: AiWorkerEvaluationRun[];
   onCreatePricingRule: (body: {
@@ -6220,6 +6312,17 @@ function AiManagementView({
       perUserMonthlyTokenLimit?: number | null;
     }
   ) => Promise<void>;
+  onCreateUserBudgetOverride: (body: {
+    officeId: number;
+    userId: number;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    expiresAt?: string | null;
+    reason: string;
+  }) => Promise<void>;
+  onDisableUserBudgetOverride: (overrideId: number, reason?: string | null) => Promise<void>;
 }) {
   const [findingResolutionFilter, setFindingResolutionFilter] = useState("ALL");
   const [findingSeverityFilter, setFindingSeverityFilter] = useState("ALL");
@@ -6282,7 +6385,17 @@ function AiManagementView({
           onCreateRuntimeScenarioRun={onCreateWorkerRuntimeScenarioRun}
         />
       ) : null}
-      {showBudgets ? <AiBudgetUsagePanel summary={budgetUsageSummary} pricingRules={pricingRules} /> : null}
+      {showBudgets ? (
+        <AiBudgetUsagePanel
+          busy={loading}
+          overrides={userBudgetOverrides}
+          pricingRules={pricingRules}
+          summary={budgetUsageSummary}
+          users={users}
+          onCreateOverride={onCreateUserBudgetOverride}
+          onDisableOverride={onDisableUserBudgetOverride}
+        />
+      ) : null}
       {showObserver ? (
         <>
           <AiObserverTabBar
@@ -6536,18 +6649,156 @@ function AiManagementView({
   );
 }
 
-function AiBudgetUsagePanel({
-  summary,
-  pricingRules
+function AiUserBudgetOverrideForm({
+  busy,
+  offices,
+  users,
+  onSubmit
 }: {
+  busy: boolean;
+  offices: AiBudgetUsageSummary["offices"];
+  users: PlatformUserOps[];
+  onSubmit: (body: {
+    officeId: number;
+    userId: number;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    expiresAt?: string | null;
+    reason: string;
+  }) => Promise<void>;
+}) {
+  const [officeId, setOfficeId] = useState(offices[0]?.officeId ?? 0);
+  const [userId, setUserId] = useState(users[0]?.id ?? 0);
+  const [dailyCallLimit, setDailyCallLimit] = useState("");
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState("");
+  const [monthlyBudgetAmount, setMonthlyBudgetAmount] = useState("");
+  const [budgetCurrency, setBudgetCurrency] = useState("USD");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (!officeId && offices[0]?.officeId) {
+      setOfficeId(offices[0].officeId);
+    }
+  }, [officeId, offices]);
+
+  useEffect(() => {
+    if (!userId && users[0]?.id) {
+      setUserId(users[0].id);
+    }
+  }, [userId, users]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!officeId || !userId) {
+      return;
+    }
+    await onSubmit({
+      officeId,
+      userId,
+      dailyCallLimit: optionalNumber(dailyCallLimit),
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit),
+      monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
+      budgetCurrency: normalizeFormValue(budgetCurrency),
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      reason: normalizeFormValue(reason) ?? "Temporary AI usage limit override"
+    });
+    setDailyCallLimit("");
+    setMonthlyTokenLimit("");
+    setMonthlyBudgetAmount("");
+    setExpiresAt("");
+    setReason("");
+  }
+
+  return (
+    <form className="ai-policy-form" onSubmit={submit}>
+      <label>
+        사무소
+        <select value={officeId || ""} onChange={(event) => setOfficeId(Number(event.target.value))}>
+          {offices.map((office) => (
+            <option key={office.officeId} value={office.officeId}>
+              {office.officeName} / {office.officeCode}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        사용자
+        <select value={userId || ""} onChange={(event) => setUserId(Number(event.target.value))}>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name} / {user.email}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        일일 호출 한도
+        <input min="0" step="1" type="number" value={dailyCallLimit} onChange={(event) => setDailyCallLimit(event.target.value)} />
+      </label>
+      <label>
+        월간 토큰 한도
+        <input min="0" step="1" type="number" value={monthlyTokenLimit} onChange={(event) => setMonthlyTokenLimit(event.target.value)} />
+      </label>
+      <label>
+        월 예산
+        <input min="0" step="0.00000001" type="number" value={monthlyBudgetAmount} onChange={(event) => setMonthlyBudgetAmount(event.target.value)} />
+      </label>
+      <label>
+        통화
+        <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+      </label>
+      <label>
+        만료
+        <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+      </label>
+      <label>
+        사유
+        <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="예: 이번 달 법령 검토 작업량 증가" />
+      </label>
+      <div className="policy-note">비워둔 한도는 사무소 기본 사용자 한도를 그대로 사용합니다. 선택한 사용자가 해당 사무소의 활성 멤버가 아니면 저장되지 않습니다.</div>
+      <button className="button primary" disabled={busy || offices.length === 0 || users.length === 0} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <UserPlus size={16} />}
+        상향 저장
+      </button>
+    </form>
+  );
+}
+
+function AiBudgetUsagePanel({
+  busy,
+  overrides,
+  summary,
+  pricingRules,
+  users,
+  onCreateOverride,
+  onDisableOverride
+}: {
+  busy: boolean;
+  overrides: AiUserBudgetOverride[];
   summary: AiBudgetUsageSummary | null;
   pricingRules: AiModelPricingRule[];
+  users: PlatformUserOps[];
+  onCreateOverride: (body: {
+    officeId: number;
+    userId: number;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    expiresAt?: string | null;
+    reason: string;
+  }) => Promise<void>;
+  onDisableOverride: (overrideId: number, reason?: string | null) => Promise<void>;
 }) {
   const blockedOffices = summary?.offices.filter((item) => item.status === "BLOCKED").length ?? 0;
   const warningOffices = summary?.offices.filter((item) => item.status === "WARN").length ?? 0;
   const blockedHarnesses = summary?.harnesses.filter((item) => item.status === "BLOCKED").length ?? 0;
   const missingPricing = summary?.missingPricingRuleCount ?? 0;
   const activePricingRules = pricingRules.filter((rule) => rule.status === "ACTIVE").length;
+  const activeOverrides = overrides.filter((override) => override.active);
 
   if (!summary) {
     return <EmptyState message="AI 예산/사용량 정보를 불러오지 않았습니다." />;
@@ -8722,13 +8973,13 @@ function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
 }
 
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED", "PASS"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED", "PASS", "OK"].includes(status)) {
     return "green";
   }
   if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW", "NEEDS_HUMAN_REVIEW"].includes(status)) {
     return "amber";
   }
-  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL", "REJECTED"].includes(status)) {
+  if (["FAILED", "EXPIRED", "CANCELLED", "OFFLINE", "ERROR", "SUSPENDED", "LEFT", "DISABLED", "HIGH", "CRITICAL", "REJECTED", "BLOCKED"].includes(status)) {
     return "red";
   }
   return "slate";

@@ -12,6 +12,7 @@ public record AiBudgetUsageSummaryResponse(
         int harnessPolicyCount,
         int harnessesWithBudgetGuard,
         int userUsageCount,
+        int activeUserOverrideCount,
         int missingPricingRuleCount,
         List<AiOfficeBudgetUsageResponse> offices,
         List<AiHarnessBudgetUsageResponse> harnesses,

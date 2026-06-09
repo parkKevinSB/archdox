@@ -86,6 +86,22 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
     @Query("""
             select coalesce(sum(log.estimatedTotalCost), 0)
             from AiModelCallLog log
+            where log.officeId = :officeId
+              and log.userId = :userId
+              and log.costCurrency = :currency
+              and log.completedAt >= :from
+              and log.completedAt < :to
+            """)
+    BigDecimal sumEstimatedCostByOfficeIdAndUserIdAndCurrencyAndCompletedAtRange(
+            @Param("officeId") Long officeId,
+            @Param("userId") Long userId,
+            @Param("currency") String currency,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
+    @Query("""
+            select coalesce(sum(log.estimatedTotalCost), 0)
+            from AiModelCallLog log
             where log.feature = :feature
               and log.costCurrency = :currency
               and log.completedAt >= :from

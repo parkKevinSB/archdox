@@ -4,6 +4,7 @@ import com.archdox.cloud.aipolicy.domain.AiModelPricingRuleStatus;
 import com.archdox.cloud.aipolicy.domain.OfficeAiPolicy;
 import com.archdox.cloud.aipolicy.infra.AiModelCallLogRepository;
 import com.archdox.cloud.aipolicy.infra.AiModelPricingRuleRepository;
+import com.archdox.cloud.aipolicy.infra.AiUserBudgetOverrideRepository;
 import com.archdox.cloud.global.api.BadRequestException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -15,13 +16,16 @@ import org.springframework.stereotype.Service;
 public class AiBudgetGuardService {
     private final AiModelCallLogRepository callLogRepository;
     private final AiModelPricingRuleRepository pricingRuleRepository;
+    private final AiUserBudgetOverrideRepository userBudgetOverrideRepository;
 
     public AiBudgetGuardService(
             AiModelCallLogRepository callLogRepository,
-            AiModelPricingRuleRepository pricingRuleRepository
+            AiModelPricingRuleRepository pricingRuleRepository,
+            AiUserBudgetOverrideRepository userBudgetOverrideRepository
     ) {
         this.callLogRepository = callLogRepository;
         this.pricingRuleRepository = pricingRuleRepository;
+        this.userBudgetOverrideRepository = userBudgetOverrideRepository;
     }
 
     public void requireWithinBudget(OfficeAiPolicy policy, String providerCode, String modelName, OffsetDateTime now) {
@@ -63,25 +67,53 @@ public class AiBudgetGuardService {
             }
         }
 
-        if (userId != null && policy.perUserDailyCallLimit() >= 0) {
+        var userOverride = userId == null
+                ? null
+                : userBudgetOverrideRepository.findActiveByOfficeIdAndUserId(policy.officeId(), userId, now)
+                .stream()
+                .findFirst()
+                .orElse(null);
+        var userDailyCallLimit = userOverride != null && userOverride.dailyCallLimit() != null
+                ? userOverride.dailyCallLimit()
+                : policy.perUserDailyCallLimit();
+        var userMonthlyTokenLimit = userOverride != null && userOverride.monthlyTokenLimit() != null
+                ? userOverride.monthlyTokenLimit()
+                : policy.perUserMonthlyTokenLimit();
+
+        if (userId != null && userDailyCallLimit >= 0) {
             var userDailyCalls = callLogRepository.countByOfficeIdAndUserIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
                     policy.officeId(),
                     userId,
                     dayStart,
                     dayEnd);
-            if (userDailyCalls >= policy.perUserDailyCallLimit()) {
+            if (userDailyCalls >= userDailyCallLimit) {
                 throw budgetExceeded("Daily AI call limit exceeded for this user");
             }
         }
 
-        if (userId != null && policy.perUserMonthlyTokenLimit() >= 0) {
+        if (userId != null && userMonthlyTokenLimit >= 0) {
             var userMonthlyTokens = callLogRepository.sumTokensByOfficeIdAndUserIdAndCompletedAtRange(
                     policy.officeId(),
                     userId,
                     monthStart,
                     monthEnd);
-            if (userMonthlyTokens != null && userMonthlyTokens >= policy.perUserMonthlyTokenLimit()) {
+            if (userMonthlyTokens != null && userMonthlyTokens >= userMonthlyTokenLimit) {
                 throw budgetExceeded("Monthly AI token limit exceeded for this user");
+            }
+        }
+
+        if (userId != null && userOverride != null && userOverride.monthlyBudgetAmount() != null) {
+            if (!hasPricingRule(providerCode, modelName)) {
+                throw budgetExceeded("AI pricing rule is required before user budget-enforced execution");
+            }
+            var userMonthlyCost = callLogRepository.sumEstimatedCostByOfficeIdAndUserIdAndCurrencyAndCompletedAtRange(
+                    policy.officeId(),
+                    userId,
+                    currency(userOverride.budgetCurrency()),
+                    monthStart,
+                    monthEnd);
+            if (userMonthlyCost != null && userMonthlyCost.compareTo(userOverride.monthlyBudgetAmount()) >= 0) {
+                throw budgetExceeded("Monthly AI budget exceeded for this user");
             }
         }
 
