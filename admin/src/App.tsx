@@ -75,6 +75,7 @@ import {
   getPlatformAdminMe,
   getPlatformAgents,
   getPlatformAiCallLogs,
+  getPlatformAiBudgetUsageSummary,
   getPlatformAiHarnessPolicies,
   getPlatformAiHarnessTraces,
   getPlatformAiObservationMode,
@@ -136,6 +137,7 @@ import type {
   Agent,
   AgentCommand,
   AgentSession,
+  AiBudgetUsageSummary,
   AiModelCallLog,
   AiHarnessPolicy,
   AiHarnessTraceEvent,
@@ -230,6 +232,7 @@ type ViewKey =
   | "ai-providers"
   | "ai-harnesses"
   | "ai-evaluation"
+  | "ai-budgets"
   | "ai-policies"
   | "ai-observer";
 
@@ -255,7 +258,7 @@ type PlatformViewKey = Extract<
   | "platform-flower-runtime"
   | "platform-events"
 >;
-type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-policies" | "ai-observer">;
+type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-budgets" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 type EngineUsageEventFilter = "ALL" | "ENGINE" | "MCP" | "LEGAL" | "FAILED";
 
@@ -309,6 +312,7 @@ type PlatformOpsData = {
   aiPreflightFindings: PlatformReportPreflightFinding[];
   aiPricingRules: AiModelPricingRule[];
   aiUsageSummary: AiUsageSummary | null;
+  aiBudgetUsageSummary: AiBudgetUsageSummary | null;
   aiWorkerEvaluationSummary: AiWorkerEvaluationSummary | null;
   aiWorkerEvaluationRuns: AiWorkerEvaluationRun[];
 };
@@ -360,6 +364,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   aiPreflightFindings: [],
   aiPricingRules: [],
   aiUsageSummary: null,
+  aiBudgetUsageSummary: null,
   aiWorkerEvaluationSummary: null,
   aiWorkerEvaluationRuns: []
 };
@@ -400,6 +405,7 @@ const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
   { key: "ai-providers", label: "AI 제공자" },
   { key: "ai-harnesses", label: "AI 하네스 관리" },
   { key: "ai-evaluation", label: "AI/Worker 평가" },
+  { key: "ai-budgets", label: "AI 예산/사용량" },
   { key: "ai-policies", label: "사무소 AI 권한" },
   { key: "ai-observer", label: "AI 관측/검토" }
 ];
@@ -930,6 +936,12 @@ export default function App() {
           getPlatformAiWorkerEvaluationRuns(token, 30)
         ]);
         Object.assign(next, { aiWorkerEvaluationSummary, aiWorkerEvaluationRuns });
+      } else if (view === "ai-budgets") {
+        const [aiBudgetUsageSummary, aiPricingRules] = await Promise.all([
+          getPlatformAiBudgetUsageSummary(token),
+          getPlatformAiPricingRules(token, 100)
+        ]);
+        Object.assign(next, { aiBudgetUsageSummary, aiPricingRules });
       } else if (view === "ai-policies") {
         const [aiProviders, officeAiPolicies] = await Promise.all([
           getPlatformAiProviders(token),
@@ -1854,6 +1866,7 @@ export default function App() {
               harnessPolicies={platformData.aiHarnessPolicies}
               policies={platformData.officeAiPolicies}
               usageSummary={platformData.aiUsageSummary}
+              budgetUsageSummary={platformData.aiBudgetUsageSummary}
               workerEvaluationSummary={platformData.aiWorkerEvaluationSummary}
               workerEvaluationRuns={platformData.aiWorkerEvaluationRuns}
               onCreatePricingRule={handleCreateAiPricingRule}
@@ -6104,6 +6117,7 @@ function AiManagementView({
   harnessPolicies,
   policies,
   usageSummary,
+  budgetUsageSummary,
   workerEvaluationSummary,
   workerEvaluationRuns,
   onCreatePricingRule,
@@ -6134,6 +6148,7 @@ function AiManagementView({
   harnessPolicies: AiHarnessPolicy[];
   policies: OfficeAiPolicy[];
   usageSummary: AiUsageSummary | null;
+  budgetUsageSummary: AiBudgetUsageSummary | null;
   workerEvaluationSummary: AiWorkerEvaluationSummary | null;
   workerEvaluationRuns: AiWorkerEvaluationRun[];
   onCreatePricingRule: (body: {
@@ -6226,6 +6241,7 @@ function AiManagementView({
   const showProviders = view === "ai-providers";
   const showHarnesses = view === "ai-harnesses";
   const showEvaluation = view === "ai-evaluation";
+  const showBudgets = view === "ai-budgets";
   const showPolicies = view === "ai-policies";
   const showObserver = view === "ai-observer";
   const [editingProviderId, setEditingProviderId] = useState<number | null>(null);
@@ -6266,6 +6282,7 @@ function AiManagementView({
           onCreateRuntimeScenarioRun={onCreateWorkerRuntimeScenarioRun}
         />
       ) : null}
+      {showBudgets ? <AiBudgetUsagePanel summary={budgetUsageSummary} pricingRules={pricingRules} /> : null}
       {showObserver ? (
         <>
           <AiObserverTabBar
@@ -6517,6 +6534,124 @@ function AiManagementView({
       ) : null}
     </div>
   );
+}
+
+function AiBudgetUsagePanel({
+  summary,
+  pricingRules
+}: {
+  summary: AiBudgetUsageSummary | null;
+  pricingRules: AiModelPricingRule[];
+}) {
+  const blockedOffices = summary?.offices.filter((item) => item.status === "BLOCKED").length ?? 0;
+  const warningOffices = summary?.offices.filter((item) => item.status === "WARN").length ?? 0;
+  const blockedHarnesses = summary?.harnesses.filter((item) => item.status === "BLOCKED").length ?? 0;
+  const missingPricing = summary?.missingPricingRuleCount ?? 0;
+  const activePricingRules = pricingRules.filter((rule) => rule.status === "ACTIVE").length;
+
+  if (!summary) {
+    return <EmptyState message="AI 예산/사용량 정보를 불러오지 않았습니다." />;
+  }
+
+  return (
+    <div className="view-stack">
+      <div className="metric-grid">
+        <MetricCard label="차단 상태" value={blockedOffices + blockedHarnesses} detail="사무소 + 하네스" icon={<AlertTriangle size={18} />} tone={blockedOffices + blockedHarnesses > 0 ? "red" : "green"} />
+        <MetricCard label="주의 상태" value={warningOffices} detail="한도 80% 이상" icon={<Gauge size={18} />} tone={warningOffices > 0 ? "amber" : "green"} />
+        <MetricCard label="사무소 Guard" value={`${summary.officesWithBudgetGuard}/${summary.officePolicyCount}`} detail="예산 통제 적용" icon={<ShieldCheck size={18} />} tone={summary.officesWithBudgetGuard === summary.officePolicyCount ? "green" : "amber"} />
+        <MetricCard label="하네스 Guard" value={`${summary.harnessesWithBudgetGuard}/${summary.harnessPolicyCount}`} detail="플랫폼 하네스 통제" icon={<Command size={18} />} tone={summary.harnessesWithBudgetGuard === summary.harnessPolicyCount ? "green" : "amber"} />
+        <MetricCard label="단가 누락" value={missingPricing} detail={`활성 규칙 ${activePricingRules}개`} icon={<KeyRound size={18} />} tone={missingPricing > 0 ? "amber" : "green"} />
+        <MetricCard label="사용자 사용량" value={summary.userUsageCount} detail="이번 달 호출 사용자" icon={<Users size={18} />} tone="blue" />
+      </div>
+
+      <Panel title="사무소 예산/토큰 사용량" icon={<ShieldCheck size={18} />} count={summary.offices.length}>
+        <Table
+          columns={["사무소", "상태", "일일 호출", "월간 토큰", "월 예산", "출력 상한", "사용자 기본 한도", "메시지"]}
+          empty="사무소 AI 예산 정책이 없습니다."
+          rows={summary.offices.map((office) => [
+            <CellTitle key="office" title={office.officeName} subtitle={`${office.officeCode} / #${office.officeId}`} />,
+            <StatusBadge key="status" status={office.status} />,
+            limitLabel(office.dailyCallCount, office.dailyCallLimit, "calls"),
+            limitLabel(office.monthlyTokens, office.monthlyTokenLimit, "tokens"),
+            moneyLimitLabel(office.monthlyEstimatedCost, office.monthlyBudgetAmount, office.budgetCurrency),
+            `${office.maxOutputTokens ?? "-"} tokens`,
+            `${office.perUserDailyCallLimit ?? "-"} calls/day · ${office.perUserMonthlyTokenLimit ?? "-"} tokens/month`,
+            office.message
+          ])}
+        />
+      </Panel>
+
+      <Panel title="하네스 예산/토큰 사용량" icon={<Command size={18} />} count={summary.harnesses.length}>
+        <Table
+          columns={["하네스", "상태", "Provider / Model", "일일 호출", "월간 토큰", "월 예산", "출력 상한", "단가", "메시지"]}
+          empty="AI 하네스 예산 정책이 없습니다."
+          rows={summary.harnesses.map((harness) => [
+            <CellTitle key="harness" title={harness.displayName} subtitle={displayLabel(harness.policyKey)} />,
+            <StatusBadge key="status" status={harness.status} />,
+            `${harness.providerCode ?? "-"} / ${harness.modelName ?? "-"}`,
+            limitLabel(harness.dailyCallCount, harness.dailyCallLimit, "calls"),
+            limitLabel(harness.monthlyTokens, harness.monthlyTokenLimit, "tokens"),
+            moneyLimitLabel(harness.monthlyEstimatedCost, harness.monthlyBudgetAmount, harness.budgetCurrency),
+            `${harness.maxOutputTokens ?? "-"} tokens`,
+            <StatusBadge key="pricing" status={harness.pricingRuleConfigured ? "OK" : "WARN"} />,
+            harness.message
+          ])}
+        />
+      </Panel>
+
+      <Panel title="사용자별 AI 사용량" icon={<Users size={18} />} count={summary.users.length}>
+        <Table
+          columns={["사용자", "상태", "사무소", "일일 호출", "월간 토큰", "메시지"]}
+          empty="이번 달 사용자별 AI 사용량이 없습니다."
+          rows={summary.users.map((user) => [
+            <CellTitle key="user" title={user.userName ?? `User #${user.userId ?? "-"}`} subtitle={user.userEmail ?? `#${user.userId ?? "-"}`} />,
+            <StatusBadge key="status" status={user.status} />,
+            user.officeCode ?? (user.officeId ? `#${user.officeId}` : "-"),
+            limitLabel(user.dailyCallCount, user.dailyCallLimit, "calls"),
+            limitLabel(user.monthlyTokens, user.monthlyTokenLimit, "tokens"),
+            user.message
+          ])}
+        />
+      </Panel>
+
+      <Panel title="모델 단가 Coverage" icon={<KeyRound size={18} />} count={summary.pricingCoverage.length}>
+        <Table
+          columns={["대상", "상태", "Provider", "Model", "매칭", "규칙", "메시지"]}
+          empty="점검할 provider/model 조합이 없습니다."
+          rows={summary.pricingCoverage.map((coverage) => [
+            <CellTitle key="source" title={coverage.sourceType} subtitle={coverage.sourceKey} />,
+            <StatusBadge key="status" status={coverage.status} />,
+            coverage.providerCode ?? "-",
+            coverage.modelName ?? "-",
+            coverage.matchedBy,
+            coverage.pricingRuleId ? `#${coverage.pricingRuleId}` : "-",
+            coverage.message
+          ])}
+        />
+      </Panel>
+    </div>
+  );
+}
+
+function limitLabel(used: number, limit?: number | null, unit = "") {
+  if (limit == null) {
+    return `${used.toLocaleString()}${unit ? ` ${unit}` : ""} / no limit`;
+  }
+  return `${used.toLocaleString()} / ${limit.toLocaleString()}${unit ? ` ${unit}` : ""} (${usagePercent(used, limit)})`;
+}
+
+function moneyLimitLabel(used: number, limit?: number | null, currency = "USD") {
+  if (limit == null) {
+    return `${currency} ${formatMoney(used)} / no cap`;
+  }
+  return `${currency} ${formatMoney(used)} / ${formatMoney(limit)} (${usagePercent(used, limit)})`;
+}
+
+function usagePercent(used: number, limit: number) {
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return "100%";
+  }
+  return `${Math.min(999, Math.round((used / limit) * 100)).toLocaleString()}%`;
 }
 
 function AiWorkerEvaluationControlPanel({

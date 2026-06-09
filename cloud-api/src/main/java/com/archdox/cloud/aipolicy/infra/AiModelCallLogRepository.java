@@ -117,4 +117,22 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
             @Param("to") OffsetDateTime to,
             @Param("succeeded") AiModelCallLogStatus succeeded,
             @Param("failed") AiModelCallLogStatus failed);
+
+    @Query("""
+            select log.officeId as officeId,
+                   log.userId as userId,
+                   count(log.id) as callCount,
+                   coalesce(sum(log.inputTokens), 0) as inputTokens,
+                   coalesce(sum(log.outputTokens), 0) as outputTokens
+            from AiModelCallLog log
+            where log.completedAt >= :from
+              and log.completedAt < :to
+              and log.userId is not null
+            group by log.officeId, log.userId
+            order by count(log.id) desc
+            """)
+    List<AiUserUsageGroupProjection> usageByOfficeAndUser(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            Pageable pageable);
 }

@@ -58,10 +58,18 @@ public class AiModelPricingRuleService {
     public AiModelPricingRuleResponse createPricingRule(UserPrincipal principal, CreateAiModelPricingRuleRequest request) {
         platformAdminService.requirePlatformAdmin(principal);
         var now = OffsetDateTime.now();
+        var providerCode = providerCode(request.providerCode());
+        var modelName = modelName(request.modelName());
+        var currency = currency(request.currency());
+        repository.findByProviderCodeAndModelNameAndStatusOrderByCreatedAtDesc(
+                        providerCode,
+                        modelName,
+                        AiModelPricingRuleStatus.ACTIVE)
+                .forEach(existing -> existing.disable(now));
         var rule = repository.save(new AiModelPricingRule(
-                providerCode(request.providerCode()),
-                modelName(request.modelName()),
-                currency(request.currency()),
+                providerCode,
+                modelName,
+                currency,
                 price(request.inputTokenPricePerMillion(), "inputTokenPricePerMillion"),
                 price(request.outputTokenPricePerMillion(), "outputTokenPricePerMillion"),
                 principal.userId(),
@@ -82,8 +90,8 @@ public class AiModelPricingRuleService {
                         "providerCode", rule.providerCode(),
                         "modelName", rule.modelName(),
                         "currency", rule.currency(),
-                        "inputTokenPricePerMillion", rule.inputTokenPricePerMillion(),
-                        "outputTokenPricePerMillion", rule.outputTokenPricePerMillion()));
+                        "inputTokenPricePerMillion", rule.inputTokenPricePerMillion().toPlainString(),
+                        "outputTokenPricePerMillion", rule.outputTokenPricePerMillion().toPlainString()));
         return toResponse(rule);
     }
 

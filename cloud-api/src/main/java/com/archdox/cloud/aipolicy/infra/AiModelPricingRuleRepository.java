@@ -19,6 +19,11 @@ public interface AiModelPricingRuleRepository extends JpaRepository<AiModelPrici
             String modelName,
             AiModelPricingRuleStatus status);
 
+    List<AiModelPricingRule> findByProviderCodeAndModelNameAndStatusOrderByCreatedAtDesc(
+            String providerCode,
+            String modelName,
+            AiModelPricingRuleStatus status);
+
     boolean existsByProviderCodeAndModelNameAndStatus(
             String providerCode,
             String modelName,

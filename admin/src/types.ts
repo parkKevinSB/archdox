@@ -900,6 +900,88 @@ export type AiUsageSummary = {
   groups: AiUsageGroup[];
 };
 
+export type AiOfficeBudgetUsage = {
+  officeId: number;
+  officeCode: string;
+  officeName: string;
+  aiEnabled: boolean;
+  budgetEnforcementEnabled: boolean;
+  dailyCallLimit?: number | null;
+  dailyCallCount: number;
+  monthlyTokenLimit?: number | null;
+  monthlyTokens: number;
+  maxOutputTokens?: number | null;
+  perUserDailyCallLimit?: number | null;
+  perUserMonthlyTokenLimit?: number | null;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency: string;
+  monthlyEstimatedCost: number;
+  status: string;
+  message: string;
+};
+
+export type AiHarnessBudgetUsage = {
+  policyKey: string;
+  displayName: string;
+  effectiveEnabled: boolean;
+  providerCode?: string | null;
+  modelName?: string | null;
+  maxOutputTokens?: number | null;
+  budgetEnforcementEnabled: boolean;
+  dailyCallLimit?: number | null;
+  dailyCallCount: number;
+  monthlyTokenLimit?: number | null;
+  monthlyTokens: number;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency: string;
+  monthlyEstimatedCost: number;
+  pricingRuleConfigured: boolean;
+  status: string;
+  message: string;
+};
+
+export type AiUserBudgetUsage = {
+  officeId?: number | null;
+  officeCode?: string | null;
+  userId?: number | null;
+  userEmail?: string | null;
+  userName?: string | null;
+  dailyCallLimit?: number | null;
+  dailyCallCount: number;
+  monthlyTokenLimit?: number | null;
+  monthlyTokens: number;
+  status: string;
+  message: string;
+};
+
+export type AiPricingCoverage = {
+  sourceType: string;
+  sourceKey: string;
+  providerCode?: string | null;
+  modelName?: string | null;
+  configured: boolean;
+  matchedBy: string;
+  pricingRuleId?: number | null;
+  status: string;
+  message: string;
+};
+
+export type AiBudgetUsageSummary = {
+  periodFrom: string;
+  periodTo: string;
+  currency: string;
+  officePolicyCount: number;
+  officesWithBudgetGuard: number;
+  harnessPolicyCount: number;
+  harnessesWithBudgetGuard: number;
+  userUsageCount: number;
+  missingPricingRuleCount: number;
+  offices: AiOfficeBudgetUsage[];
+  harnesses: AiHarnessBudgetUsage[];
+  users: AiUserBudgetUsage[];
+  pricingCoverage: AiPricingCoverage[];
+};
+
 export type AiWorkerEvaluationCase = {
   caseId: string;
   name: string;

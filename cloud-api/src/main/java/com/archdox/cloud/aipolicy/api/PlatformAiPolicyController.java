@@ -2,6 +2,7 @@ package com.archdox.cloud.aipolicy.api;
 
 import com.archdox.cloud.aiharness.application.AiHarnessTraceEventService;
 import com.archdox.cloud.aiharness.dto.AiHarnessTraceEventResponse;
+import com.archdox.cloud.aipolicy.application.AiBudgetUsageReadService;
 import com.archdox.cloud.aipolicy.application.AiModelCallLogService;
 import com.archdox.cloud.aipolicy.application.AiModelPricingRuleService;
 import com.archdox.cloud.aipolicy.application.AiObservationBufferService;
@@ -13,6 +14,7 @@ import com.archdox.cloud.aipolicy.dto.AiModelPricingRuleResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationModeResponse;
 import com.archdox.cloud.aipolicy.dto.AiObservationResponse;
 import com.archdox.cloud.aipolicy.dto.AiHarnessPolicyResponse;
+import com.archdox.cloud.aipolicy.dto.AiBudgetUsageSummaryResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderConnectionTestResponse;
 import com.archdox.cloud.aipolicy.dto.AiProviderCredentialResponse;
 import com.archdox.cloud.aipolicy.dto.AiUsageSummaryResponse;
@@ -45,6 +47,7 @@ public class PlatformAiPolicyController {
     private final AiModelCallLogService callLogService;
     private final AiModelPricingRuleService pricingRuleService;
     private final AiUsageReadService usageReadService;
+    private final AiBudgetUsageReadService budgetUsageReadService;
     private final ReportPreflightFindingOpsService preflightFindingOpsService;
     private final AiHarnessTraceEventService traceEventService;
     private final AiProviderConnectionTestService connectionTestService;
@@ -55,6 +58,7 @@ public class PlatformAiPolicyController {
             AiModelCallLogService callLogService,
             AiModelPricingRuleService pricingRuleService,
             AiUsageReadService usageReadService,
+            AiBudgetUsageReadService budgetUsageReadService,
             ReportPreflightFindingOpsService preflightFindingOpsService,
             AiHarnessTraceEventService traceEventService,
             AiProviderConnectionTestService connectionTestService,
@@ -64,6 +68,7 @@ public class PlatformAiPolicyController {
         this.callLogService = callLogService;
         this.pricingRuleService = pricingRuleService;
         this.usageReadService = usageReadService;
+        this.budgetUsageReadService = budgetUsageReadService;
         this.preflightFindingOpsService = preflightFindingOpsService;
         this.traceEventService = traceEventService;
         this.connectionTestService = connectionTestService;
@@ -142,6 +147,11 @@ public class PlatformAiPolicyController {
     @GetMapping("/usage-summary")
     public AiUsageSummaryResponse usageSummary(Authentication authentication) {
         return usageReadService.monthlySummary(principal(authentication));
+    }
+
+    @GetMapping("/budget-usage-summary")
+    public AiBudgetUsageSummaryResponse budgetUsageSummary(Authentication authentication) {
+        return budgetUsageReadService.monthlySummary(principal(authentication));
     }
 
     @GetMapping("/harness-traces")
