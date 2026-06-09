@@ -1,6 +1,8 @@
 package com.archdox.cloud.office.application;
 
 import com.archdox.cloud.account.infra.UserAccountRepository;
+import com.archdox.cloud.aipolicy.domain.OfficeAiPolicy;
+import com.archdox.cloud.aipolicy.infra.OfficeAiPolicyRepository;
 import com.archdox.cloud.global.api.ConflictException;
 import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.api.NotFoundException;
@@ -32,6 +34,7 @@ public class OfficeManagementService {
     private final UserAccountRepository userRepository;
     private final OfficeRepository officeRepository;
     private final OfficeMembershipRepository membershipRepository;
+    private final OfficeAiPolicyRepository officeAiPolicyRepository;
     private final OperationEventService operationEventService;
     private final PlatformAdminService platformAdminService;
 
@@ -39,12 +42,14 @@ public class OfficeManagementService {
             UserAccountRepository userRepository,
             OfficeRepository officeRepository,
             OfficeMembershipRepository membershipRepository,
+            OfficeAiPolicyRepository officeAiPolicyRepository,
             OperationEventService operationEventService,
             PlatformAdminService platformAdminService
     ) {
         this.userRepository = userRepository;
         this.officeRepository = officeRepository;
         this.membershipRepository = membershipRepository;
+        this.officeAiPolicyRepository = officeAiPolicyRepository;
         this.operationEventService = operationEventService;
         this.platformAdminService = platformAdminService;
     }
@@ -67,6 +72,7 @@ public class OfficeManagementService {
                 OfficeType.OFFICE,
                 "FREE",
                 now));
+        officeAiPolicyRepository.save(new OfficeAiPolicy(office.id(), userId, now));
         var membership = membershipRepository.save(new OfficeMembership(user, office, MembershipRole.OWNER, now));
         return toOfficeResponse(membership);
     }

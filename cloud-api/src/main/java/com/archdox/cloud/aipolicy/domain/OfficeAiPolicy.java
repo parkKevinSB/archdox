@@ -38,19 +38,28 @@ public class OfficeAiPolicy {
     private AiCredentialDeliveryMode credentialDeliveryMode = AiCredentialDeliveryMode.PROXY_ONLY;
 
     @Column(name = "budget_enforcement_enabled", nullable = false)
-    private boolean budgetEnforcementEnabled;
+    private boolean budgetEnforcementEnabled = true;
 
     @Column(name = "monthly_budget_amount")
     private BigDecimal monthlyBudgetAmount;
 
     @Column(name = "budget_currency", nullable = false)
-    private String budgetCurrency = "USD";
+    private String budgetCurrency = AiPolicyDefaults.DEFAULT_BUDGET_CURRENCY;
 
     @Column(name = "daily_call_limit")
-    private Integer dailyCallLimit;
+    private Integer dailyCallLimit = AiPolicyDefaults.OFFICE_DAILY_CALL_LIMIT;
 
     @Column(name = "monthly_token_limit")
-    private Long monthlyTokenLimit;
+    private Long monthlyTokenLimit = AiPolicyDefaults.OFFICE_MONTHLY_TOKEN_LIMIT;
+
+    @Column(name = "max_output_tokens", nullable = false)
+    private int maxOutputTokens = AiPolicyDefaults.OFFICE_MAX_OUTPUT_TOKENS;
+
+    @Column(name = "per_user_daily_call_limit", nullable = false)
+    private int perUserDailyCallLimit = AiPolicyDefaults.USER_DAILY_CALL_LIMIT;
+
+    @Column(name = "per_user_monthly_token_limit", nullable = false)
+    private long perUserMonthlyTokenLimit = AiPolicyDefaults.USER_MONTHLY_TOKEN_LIMIT;
 
     @Column(name = "policy_version", nullable = false)
     private long policyVersion = 1;
@@ -88,6 +97,41 @@ public class OfficeAiPolicy {
             Long updatedByUserId,
             OffsetDateTime now
     ) {
+        update(
+                aiEnabled,
+                documentReviewAiEnabled,
+                documentGenerationAiEnabled,
+                preferredProviderCredentialId,
+                credentialDeliveryMode,
+                budgetEnforcementEnabled,
+                monthlyBudgetAmount,
+                budgetCurrency,
+                dailyCallLimit,
+                monthlyTokenLimit,
+                null,
+                null,
+                null,
+                updatedByUserId,
+                now);
+    }
+
+    public void update(
+            Boolean aiEnabled,
+            Boolean documentReviewAiEnabled,
+            Boolean documentGenerationAiEnabled,
+            Long preferredProviderCredentialId,
+            AiCredentialDeliveryMode credentialDeliveryMode,
+            Boolean budgetEnforcementEnabled,
+            BigDecimal monthlyBudgetAmount,
+            String budgetCurrency,
+            Integer dailyCallLimit,
+            Long monthlyTokenLimit,
+            Integer maxOutputTokens,
+            Integer perUserDailyCallLimit,
+            Long perUserMonthlyTokenLimit,
+            Long updatedByUserId,
+            OffsetDateTime now
+    ) {
         if (aiEnabled != null) {
             this.aiEnabled = aiEnabled;
         }
@@ -110,6 +154,15 @@ public class OfficeAiPolicy {
         }
         this.dailyCallLimit = dailyCallLimit;
         this.monthlyTokenLimit = monthlyTokenLimit;
+        if (maxOutputTokens != null) {
+            this.maxOutputTokens = Math.max(1, maxOutputTokens);
+        }
+        if (perUserDailyCallLimit != null) {
+            this.perUserDailyCallLimit = Math.max(0, perUserDailyCallLimit);
+        }
+        if (perUserMonthlyTokenLimit != null) {
+            this.perUserMonthlyTokenLimit = Math.max(0L, perUserMonthlyTokenLimit);
+        }
         this.updatedByUserId = updatedByUserId;
         this.policyVersion++;
         this.updatedAt = now;
@@ -161,6 +214,18 @@ public class OfficeAiPolicy {
 
     public Long monthlyTokenLimit() {
         return monthlyTokenLimit;
+    }
+
+    public int maxOutputTokens() {
+        return Math.max(1, maxOutputTokens);
+    }
+
+    public int perUserDailyCallLimit() {
+        return Math.max(0, perUserDailyCallLimit);
+    }
+
+    public long perUserMonthlyTokenLimit() {
+        return Math.max(0L, perUserMonthlyTokenLimit);
     }
 
     public long policyVersion() {

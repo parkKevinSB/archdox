@@ -24,6 +24,9 @@ public class AiModelCallLog {
     @Column(name = "office_id")
     private Long officeId;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "provider_credential_id")
     private Long providerCredentialId;
 
@@ -106,6 +109,7 @@ public class AiModelCallLog {
     public AiModelCallLog(
             String callId,
             Long officeId,
+            Long userId,
             Long providerCredentialId,
             String providerCode,
             String providerType,
@@ -134,6 +138,7 @@ public class AiModelCallLog {
     ) {
         this.callId = callId;
         this.officeId = officeId;
+        this.userId = userId;
         this.providerCredentialId = providerCredentialId;
         this.providerCode = providerCode;
         this.providerType = providerType;
@@ -171,6 +176,10 @@ public class AiModelCallLog {
 
     public Long officeId() {
         return officeId;
+    }
+
+    public Long userId() {
+        return userId;
     }
 
     public Long providerCredentialId() {

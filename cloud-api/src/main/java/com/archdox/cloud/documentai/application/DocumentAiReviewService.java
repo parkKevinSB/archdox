@@ -98,7 +98,10 @@ public class DocumentAiReviewService {
         }
         var report = reportRepository.findByIdAndOfficeId(job.reportId(), officeId)
                 .orElseThrow(() -> new NotFoundException("Inspection report not found"));
-        var aiPlan = aiPolicyExecutionService.requireAllowed(officeId, AiFeature.DOCUMENT_REVIEW);
+        var aiPlan = aiPolicyExecutionService.requireAllowed(
+                officeId,
+                principal == null ? null : principal.userId(),
+                AiFeature.DOCUMENT_REVIEW);
         AiHarnessSpec<DocumentQaInput, DocumentQaResult> spec =
                 new DocumentQaHarnessFactory(objectMapper).spec(
                         findingSink,
@@ -109,12 +112,14 @@ public class DocumentAiReviewService {
                 .modelId(aiPlan.modelId())
                 .providerOptions(AiModelCallMetadata.options(
                         officeId,
+                        aiPlan.userId(),
                         AiFeature.DOCUMENT_REVIEW.name(),
                         "document-ai-review",
                         "document-job:" + job.id() + ":document-ai-review",
                         "DOCUMENT_JOB",
                         job.id(),
-                        Map.of("archdox.reportId", job.reportId())))
+                        Map.of("archdox.reportId", job.reportId()),
+                        aiPlan.maxOutputTokens()))
                 .build();
         var flow = new AiHarnessFlowFactory<>(gateway, spec, Instant::now)
                 .createFlow(input(job, report.reportType(), report.title()), overrides);

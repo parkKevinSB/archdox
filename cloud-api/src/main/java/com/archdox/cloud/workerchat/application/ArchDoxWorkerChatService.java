@@ -1139,6 +1139,7 @@ public class ArchDoxWorkerChatService {
         try {
             var result = conversationPlannerService.plan(
                     session.officeId(),
+                    session.userId(),
                     session.id(),
                     conversationPlannerInput(session, userMessage));
             if (result.isEmpty()) {

@@ -20,6 +20,17 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
             OffsetDateTime from,
             OffsetDateTime to);
 
+    long countByOfficeIdAndUserIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
+            Long officeId,
+            Long userId,
+            OffsetDateTime from,
+            OffsetDateTime to);
+
+    long countByFeatureAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
+            String feature,
+            OffsetDateTime from,
+            OffsetDateTime to);
+
     @Query("""
             select coalesce(sum(coalesce(log.inputTokens, 0) + coalesce(log.outputTokens, 0)), 0)
             from AiModelCallLog log
@@ -33,6 +44,32 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
             @Param("to") OffsetDateTime to);
 
     @Query("""
+            select coalesce(sum(coalesce(log.inputTokens, 0) + coalesce(log.outputTokens, 0)), 0)
+            from AiModelCallLog log
+            where log.officeId = :officeId
+              and log.userId = :userId
+              and log.completedAt >= :from
+              and log.completedAt < :to
+            """)
+    Long sumTokensByOfficeIdAndUserIdAndCompletedAtRange(
+            @Param("officeId") Long officeId,
+            @Param("userId") Long userId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
+    @Query("""
+            select coalesce(sum(coalesce(log.inputTokens, 0) + coalesce(log.outputTokens, 0)), 0)
+            from AiModelCallLog log
+            where log.feature = :feature
+              and log.completedAt >= :from
+              and log.completedAt < :to
+            """)
+    Long sumTokensByFeatureAndCompletedAtRange(
+            @Param("feature") String feature,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
+    @Query("""
             select coalesce(sum(log.estimatedTotalCost), 0)
             from AiModelCallLog log
             where log.officeId = :officeId
@@ -42,6 +79,20 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
             """)
     BigDecimal sumEstimatedCostByOfficeIdAndCurrencyAndCompletedAtRange(
             @Param("officeId") Long officeId,
+            @Param("currency") String currency,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
+    @Query("""
+            select coalesce(sum(log.estimatedTotalCost), 0)
+            from AiModelCallLog log
+            where log.feature = :feature
+              and log.costCurrency = :currency
+              and log.completedAt >= :from
+              and log.completedAt < :to
+            """)
+    BigDecimal sumEstimatedCostByFeatureAndCurrencyAndCompletedAtRange(
+            @Param("feature") String feature,
             @Param("currency") String currency,
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to);

@@ -46,12 +46,12 @@ public class WorkerConversationPlannerService {
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public Optional<ConversationPlannerResult> plan(Long officeId, Long sessionId, ConversationPlannerInput input) {
+    public Optional<ConversationPlannerResult> plan(Long officeId, Long userId, Long sessionId, ConversationPlannerInput input) {
         if (input == null || input.userMessage().isBlank() || input.availableActions().isEmpty()) {
             return Optional.empty();
         }
-        var aiPlan = aiPolicyExecutionService.findAllowed(officeId, AiFeature.DOCUMENT_GENERATION)
-                .or(() -> aiPolicyExecutionService.findAllowed(officeId, AiFeature.DOCUMENT_REVIEW));
+        var aiPlan = aiPolicyExecutionService.findAllowed(officeId, userId, AiFeature.DOCUMENT_GENERATION)
+                .or(() -> aiPolicyExecutionService.findAllowed(officeId, userId, AiFeature.DOCUMENT_REVIEW));
         if (aiPlan.isEmpty()) {
             return Optional.empty();
         }
@@ -66,12 +66,14 @@ public class WorkerConversationPlannerService {
                 .timeout(PLANNER_TIMEOUT)
                 .providerOptions(AiModelCallMetadata.options(
                         officeId,
+                        aiPlan.get().userId(),
                         "WORKER_CONVERSATION_PLANNER",
                         "archdox-worker-chat-planner",
                         "worker-chat-session:" + sessionId,
                         "ARCHDOX_WORKER_CHAT_SESSION",
                         sessionId,
-                        Map.of("archdox.projectId", input.projectId())))
+                        Map.of("archdox.projectId", input.projectId()),
+                        aiPlan.get().maxOutputTokens()))
                 .build();
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input, overrides);

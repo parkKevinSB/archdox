@@ -839,6 +839,12 @@ export type AiHarnessPolicy = {
   effectiveModelName?: string | null;
   maxAttempts: number;
   timeoutSeconds: number;
+  maxOutputTokens: number;
+  budgetEnforcementEnabled: boolean;
+  monthlyBudgetAmount?: number | null;
+  budgetCurrency: string;
+  dailyCallLimit: number;
+  monthlyTokenLimit: number;
   policyVersion: number;
   effectiveEnabled: boolean;
   effectiveMessage?: string | null;
@@ -861,6 +867,9 @@ export type OfficeAiPolicy = {
   budgetCurrency: string;
   dailyCallLimit?: number | null;
   monthlyTokenLimit?: number | null;
+  maxOutputTokens: number;
+  perUserDailyCallLimit: number;
+  perUserMonthlyTokenLimit: number;
   policyVersion: number;
   effectiveAiEnabled: boolean;
   effectiveMessage?: string | null;
@@ -1109,6 +1118,7 @@ export type AiModelCallLog = {
   id: number;
   callId: string;
   officeId?: number | null;
+  userId?: number | null;
   providerCredentialId?: number | null;
   providerCode: string;
   providerType: string;

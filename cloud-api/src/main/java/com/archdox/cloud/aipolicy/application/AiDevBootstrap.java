@@ -1,6 +1,7 @@
 package com.archdox.cloud.aipolicy.application;
 
 import com.archdox.cloud.aipolicy.domain.AiCredentialDeliveryMode;
+import com.archdox.cloud.aipolicy.domain.AiPolicyDefaults;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredentialStatus;
 import com.archdox.cloud.aipolicy.domain.AiProviderType;
@@ -104,11 +105,14 @@ public class AiDevBootstrap implements ApplicationRunner {
                     properties.isDocumentGenerationAiEnabled(),
                     provider.id(),
                     AiCredentialDeliveryMode.PROXY_ONLY,
-                    false,
+                    true,
                     null,
                     "USD",
-                    null,
-                    null,
+                    AiPolicyDefaults.OFFICE_DAILY_CALL_LIMIT,
+                    AiPolicyDefaults.OFFICE_MONTHLY_TOKEN_LIMIT,
+                    AiPolicyDefaults.OFFICE_MAX_OUTPUT_TOKENS,
+                    AiPolicyDefaults.USER_DAILY_CALL_LIMIT,
+                    AiPolicyDefaults.USER_MONTHLY_TOKEN_LIMIT,
                     null,
                     now);
             changedOfficeIds.add(office.id());

@@ -30,6 +30,11 @@ public class AiPolicyExecutionService {
 
     @Transactional(readOnly = true)
     public AiExecutionPlan requireAllowed(Long officeId, AiFeature feature) {
+        return requireAllowed(officeId, null, feature);
+    }
+
+    @Transactional(readOnly = true)
+    public AiExecutionPlan requireAllowed(Long officeId, Long userId, AiFeature feature) {
         var policy = officePolicyRepository.findByOfficeId(officeId)
                 .orElseThrow(() -> disabled("AI policy is not configured for this office"));
         if (!policy.aiEnabled()) {
@@ -50,18 +55,25 @@ public class AiPolicyExecutionService {
         if (model == null || model.isBlank()) {
             throw disabled("Assigned AI provider default model is not configured");
         }
-        budgetGuardService.requireWithinBudget(policy, provider.providerCode(), model.trim(), OffsetDateTime.now());
+        budgetGuardService.requireWithinBudget(policy, userId, provider.providerCode(), model.trim(), OffsetDateTime.now());
         return new AiExecutionPlan(
                 officeId,
+                userId,
                 feature,
                 provider,
-                new ModelId(provider.providerCode(), model.trim()));
+                new ModelId(provider.providerCode(), model.trim()),
+                policy.maxOutputTokens());
     }
 
     @Transactional(readOnly = true)
     public Optional<AiExecutionPlan> findAllowed(Long officeId, AiFeature feature) {
+        return findAllowed(officeId, null, feature);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AiExecutionPlan> findAllowed(Long officeId, Long userId, AiFeature feature) {
         try {
-            return Optional.of(requireAllowed(officeId, feature));
+            return Optional.of(requireAllowed(officeId, userId, feature));
         } catch (BadRequestException ex) {
             return Optional.empty();
         }

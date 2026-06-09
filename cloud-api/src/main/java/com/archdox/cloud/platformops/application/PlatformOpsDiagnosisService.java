@@ -1,6 +1,7 @@
 package com.archdox.cloud.platformops.application;
 
 import com.archdox.cloud.global.api.NotFoundException;
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
@@ -139,6 +140,12 @@ public class PlatformOpsDiagnosisService {
             return Optional.empty();
         }
         var plan = policy.plan();
+        try {
+            aiHarnessPolicyExecutionService.requireWithinBudget(plan);
+        } catch (BadRequestException ex) {
+            markAiHarnessSkipped(run, ex.code() + ": " + ex.getMessage());
+            return Optional.empty();
+        }
         var incident = run.incidentId() == null
                 ? null
                 : incidentRepository.findById(run.incidentId())
@@ -155,6 +162,7 @@ public class PlatformOpsDiagnosisService {
                 .timeout(plan.timeout())
                 .providerOptions(AiModelCallMetadata.options(
                         incident == null ? null : incident.officeId(),
+                        run.startedByUserId(),
                         "PLATFORM_OPS_DIAGNOSIS",
                         "platform-ops-diagnosis",
                         String.valueOf(run.id()),
@@ -162,7 +170,8 @@ public class PlatformOpsDiagnosisService {
                         run.incidentId(),
                         Map.of(
                                 "archdox.opsRunId", run.id(),
-                                "archdox.incidentId", run.incidentId() == null ? "" : run.incidentId())))
+                                "archdox.incidentId", run.incidentId() == null ? "" : run.incidentId()),
+                        plan.maxOutputTokens()))
                 .build();
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input(run, incident), overrides);

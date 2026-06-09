@@ -35,6 +35,8 @@ public class AiWorkerEvaluationTokenControlService {
     private static final int FAIL_MAX_ATTEMPTS = 6;
     private static final long SAFE_TIMEOUT_SECONDS = 180;
     private static final long FAIL_TIMEOUT_SECONDS = 600;
+    private static final int SAFE_MAX_OUTPUT_TOKENS = 4_000;
+    private static final int FAIL_MAX_OUTPUT_TOKENS = 16_000;
     private static final int RECENT_LOG_LIMIT = 200;
     private static final int SINGLE_CALL_WARN_TOKENS = 50_000;
     private static final int SINGLE_CALL_FAIL_TOKENS = 100_000;
@@ -68,6 +70,7 @@ public class AiWorkerEvaluationTokenControlService {
                 harnessRetryBudgetCase(),
                 pricingCoverageCase(),
                 officeBudgetCoverageCase(),
+                harnessBudgetCoverageCase(),
                 monthlyUsageTelemetryCase(now, recentLogs),
                 recentBurstCase(now, recentLogs));
         return List.of(group(GROUP_KEY, "AI token/cost control", "EVALUATION", cases));
@@ -102,16 +105,21 @@ public class AiWorkerEvaluationTokenControlService {
             runnableCount++;
             var plan = resolution.plan();
             var timeoutSeconds = plan.timeout().toSeconds();
-            if (plan.maxAttempts() >= FAIL_MAX_ATTEMPTS || timeoutSeconds >= FAIL_TIMEOUT_SECONDS) {
+            if (plan.maxAttempts() >= FAIL_MAX_ATTEMPTS
+                    || timeoutSeconds >= FAIL_TIMEOUT_SECONDS
+                    || plan.maxOutputTokens() >= FAIL_MAX_OUTPUT_TOKENS) {
                 failedCount++;
-            } else if (plan.maxAttempts() > SAFE_MAX_ATTEMPTS || timeoutSeconds > SAFE_TIMEOUT_SECONDS) {
+            } else if (plan.maxAttempts() > SAFE_MAX_ATTEMPTS
+                    || timeoutSeconds > SAFE_TIMEOUT_SECONDS
+                    || plan.maxOutputTokens() > SAFE_MAX_OUTPUT_TOKENS) {
                 warningCount++;
             }
             evidence.add(key.name()
                     + ": provider=" + plan.provider().providerCode()
                     + ", model=" + plan.modelId().name()
                     + ", maxAttempts=" + plan.maxAttempts()
-                    + ", timeoutSeconds=" + timeoutSeconds);
+                    + ", timeoutSeconds=" + timeoutSeconds
+                    + ", maxOutputTokens=" + plan.maxOutputTokens());
         }
         var status = failedCount > 0 ? FAILED : (warningCount > 0 || runnableCount == 0 ? WARN : PASS);
         return testCase(
@@ -165,23 +173,84 @@ public class AiWorkerEvaluationTokenControlService {
         var dailyLimit = budgetEnabled.stream().filter(policy -> policy.dailyCallLimit() != null).count();
         var monthlyTokenLimit = budgetEnabled.stream().filter(policy -> policy.monthlyTokenLimit() != null).count();
         var monthlyBudget = budgetEnabled.stream().filter(policy -> policy.monthlyBudgetAmount() != null).count();
+        var maxOutputTokenLimit = active.stream().filter(policy -> policy.maxOutputTokens() > 0).count();
+        var perUserDailyLimit = budgetEnabled.stream().filter(policy -> policy.perUserDailyCallLimit() >= 0).count();
+        var perUserMonthlyTokenLimit = budgetEnabled.stream().filter(policy -> policy.perUserMonthlyTokenLimit() >= 0).count();
         var status = PASS;
         if (active.isEmpty() || budgetEnabled.isEmpty()) {
             status = WARN;
-        } else if (dailyLimit < budgetEnabled.size() || monthlyTokenLimit < budgetEnabled.size()) {
+        } else if (dailyLimit < budgetEnabled.size()
+                || monthlyTokenLimit < budgetEnabled.size()
+                || perUserDailyLimit < budgetEnabled.size()
+                || perUserMonthlyTokenLimit < budgetEnabled.size()
+                || maxOutputTokenLimit < active.size()) {
             status = WARN;
         }
         return testCase(
                 "RUN-TOKEN-003",
-                "Office AI budget guard coverage",
+                "Office and user AI budget guard coverage",
                 status,
                 "TOKEN_COST_POLICY",
                 "activeOfficePolicies=" + active.size()
                         + ", budgetEnabled=" + budgetEnabled.size()
                         + ", dailyCallLimit=" + dailyLimit
                         + ", monthlyTokenLimit=" + monthlyTokenLimit
+                        + ", maxOutputTokens=" + maxOutputTokenLimit
+                        + ", perUserDailyCallLimit=" + perUserDailyLimit
+                        + ", perUserMonthlyTokenLimit=" + perUserMonthlyTokenLimit
                         + ", monthlyBudget=" + monthlyBudget
-                        + ". Office user AI calls pass through AiBudgetGuardService before execution.");
+                        + ". Office and user AI calls pass through AiBudgetGuardService before execution.");
+    }
+
+    private AiWorkerEvaluationCaseResponse harnessBudgetCoverageCase() {
+        var runnableCount = 0;
+        var budgetEnabledCount = 0;
+        var dailyLimitCount = 0;
+        var monthlyTokenLimitCount = 0;
+        var monthlyBudgetCount = 0;
+        var evidence = new ArrayList<String>();
+        for (var key : AiHarnessPolicyKey.values()) {
+            var resolution = policyExecutionService.resolve(key);
+            if (!resolution.runnable()) {
+                continue;
+            }
+            runnableCount++;
+            var plan = resolution.plan();
+            if (plan.budgetEnforcementEnabled()) {
+                budgetEnabledCount++;
+            }
+            if (plan.dailyCallLimit() >= 0) {
+                dailyLimitCount++;
+            }
+            if (plan.monthlyTokenLimit() >= 0) {
+                monthlyTokenLimitCount++;
+            }
+            if (plan.monthlyBudgetAmount() != null) {
+                monthlyBudgetCount++;
+            }
+            evidence.add(key.name()
+                    + ": budget=" + plan.budgetEnforcementEnabled()
+                    + ", dailyCallLimit=" + plan.dailyCallLimit()
+                    + ", monthlyTokenLimit=" + plan.monthlyTokenLimit()
+                    + ", monthlyBudget=" + (plan.monthlyBudgetAmount() == null ? "not-set" : plan.monthlyBudgetAmount()));
+        }
+        var status = PASS;
+        if (runnableCount == 0 || budgetEnabledCount < runnableCount) {
+            status = WARN;
+        } else if (dailyLimitCount < runnableCount || monthlyTokenLimitCount < runnableCount) {
+            status = WARN;
+        }
+        return testCase(
+                "RUN-TOKEN-006",
+                "Platform harness budget guard coverage",
+                status,
+                "TOKEN_COST_POLICY",
+                "runnableHarnesses=" + runnableCount
+                        + ", budgetEnabled=" + budgetEnabledCount
+                        + ", dailyCallLimit=" + dailyLimitCount
+                        + ", monthlyTokenLimit=" + monthlyTokenLimitCount
+                        + ", monthlyBudget=" + monthlyBudgetCount
+                        + ". " + String.join(" | ", evidence));
     }
 
     private AiWorkerEvaluationCaseResponse monthlyUsageTelemetryCase(

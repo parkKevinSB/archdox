@@ -1462,6 +1462,12 @@ export default function App() {
       modelName?: string | null;
       maxAttempts?: number | null;
       timeoutSeconds?: number | null;
+      maxOutputTokens?: number | null;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
     }
   ) {
     if (!auth || !platformAdmin) {
@@ -1492,6 +1498,9 @@ export default function App() {
       budgetCurrency?: string | null;
       dailyCallLimit?: number | null;
       monthlyTokenLimit?: number | null;
+      maxOutputTokens?: number | null;
+      perUserDailyCallLimit?: number | null;
+      perUserMonthlyTokenLimit?: number | null;
     }
   ) {
     if (!auth || !platformAdmin) {
@@ -6169,6 +6178,12 @@ function AiManagementView({
       modelName?: string | null;
       maxAttempts?: number | null;
       timeoutSeconds?: number | null;
+      maxOutputTokens?: number | null;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
     }
   ) => Promise<void>;
   providerTestResults: Record<number, AiProviderConnectionTestResult>;
@@ -6185,6 +6200,9 @@ function AiManagementView({
       budgetCurrency?: string | null;
       dailyCallLimit?: number | null;
       monthlyTokenLimit?: number | null;
+      maxOutputTokens?: number | null;
+      perUserDailyCallLimit?: number | null;
+      perUserMonthlyTokenLimit?: number | null;
     }
   ) => Promise<void>;
 }) {
@@ -6925,7 +6943,7 @@ function evaluationGroupDescription(groupKey: string) {
     WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다.",
     RUNTIME_AI_PROVIDER_PROBE: "운영 설정에서 하네스 정책과 provider 연결이 실제로 가능한지 봅니다.",
     RUNTIME_WORKER_SCENARIO: "실제 Worker 실행 통로를 dry-run으로 지나가며 통제와 출력 안전성을 봅니다.",
-    TOKEN_COST_CONTROL: "하네스 반복 호출, 실제 토큰 사용량, 가격 규칙, 사무소 예산 제한, 최근 폭주 징후를 봅니다."
+    TOKEN_COST_CONTROL: "하네스 하드캡, 실제 토큰 사용량, 가격 규칙, 사무소/사용자/플랫폼 예산 제한, 최근 폭주 징후를 봅니다."
   };
   return descriptions[groupKey] ?? "선택한 영역의 자동 평가 결과입니다.";
 }
@@ -6939,7 +6957,7 @@ function evaluationGroupFocus(groupKey: string) {
     WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다.",
     RUNTIME_AI_PROVIDER_PROBE: "핵심은 fake provider와 실제 provider를 구분하고, 실제 연결 실패를 분리해 보는 것입니다.",
     RUNTIME_WORKER_SCENARIO: "핵심은 Worker flow, policy gate, run-control, executor, output safety가 실제 dry-run에서도 지켜지는지입니다.",
-    TOKEN_COST_CONTROL: "핵심은 특정 하네스나 Worker가 반복 호출로 토큰을 과소비하지 않도록 상한과 관측 지표가 있는지입니다."
+    TOKEN_COST_CONTROL: "핵심은 특정 하네스나 Worker가 반복 호출로 토큰을 과소비하지 않도록 실행 상한, 예산 Guard, 관측 지표가 함께 있는지입니다."
   };
   return focus[groupKey] ?? "이 그룹의 평가 케이스와 근거를 확인합니다.";
 }
@@ -7008,9 +7026,10 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
     const labels: Record<string, string> = {
       "RUN-TOKEN-001": "하네스 반복 호출 / timeout 상한",
       "RUN-TOKEN-002": "실제 provider 모델 가격 규칙",
-      "RUN-TOKEN-003": "사무소 예산 / 일일 호출 / 월간 토큰 제한",
+      "RUN-TOKEN-003": "사무소 / 사용자 예산 한도",
       "RUN-TOKEN-004": "월간 토큰 사용량 관측",
-      "RUN-TOKEN-005": "최근 1시간 반복 호출 / 토큰 폭주 징후"
+      "RUN-TOKEN-005": "최근 1시간 반복 호출 / 토큰 폭주 징후",
+      "RUN-TOKEN-006": "플랫폼 하네스 예산 Guard"
     };
     return labels[caseId] ?? "토큰 / 비용 통제 평가";
   }
@@ -7716,9 +7735,6 @@ function AiProviderEditForm({
 
   return (
     <form className="ai-policy-form provider-edit-form" onSubmit={submit}>
-      <div className="policy-note">
-        {provider.providerCode} / #{provider.id} 수정 중입니다. API 키를 비워두면 기존 키를 유지합니다.
-      </div>
       <label>
         표시명
         <input value={values.displayName} onChange={(event) => setValues({ ...values, displayName: event.target.value })} required />
@@ -7892,6 +7908,9 @@ function AiBudgetPolicyForm({
       budgetCurrency?: string | null;
       dailyCallLimit?: number | null;
       monthlyTokenLimit?: number | null;
+      maxOutputTokens?: number | null;
+      perUserDailyCallLimit?: number | null;
+      perUserMonthlyTokenLimit?: number | null;
     }
   ) => Promise<void>;
 }) {
@@ -7902,6 +7921,9 @@ function AiBudgetPolicyForm({
   const [budgetCurrency, setBudgetCurrency] = useState("USD");
   const [dailyCallLimit, setDailyCallLimit] = useState("");
   const [monthlyTokenLimit, setMonthlyTokenLimit] = useState("");
+  const [maxOutputTokens, setMaxOutputTokens] = useState("");
+  const [perUserDailyCallLimit, setPerUserDailyCallLimit] = useState("");
+  const [perUserMonthlyTokenLimit, setPerUserMonthlyTokenLimit] = useState("");
 
   useEffect(() => {
     if (!selectedPolicy) {
@@ -7913,6 +7935,9 @@ function AiBudgetPolicyForm({
     setBudgetCurrency(selectedPolicy.budgetCurrency ?? "USD");
     setDailyCallLimit(selectedPolicy.dailyCallLimit == null ? "" : String(selectedPolicy.dailyCallLimit));
     setMonthlyTokenLimit(selectedPolicy.monthlyTokenLimit == null ? "" : String(selectedPolicy.monthlyTokenLimit));
+    setMaxOutputTokens(String(selectedPolicy.maxOutputTokens ?? 2000));
+    setPerUserDailyCallLimit(String(selectedPolicy.perUserDailyCallLimit ?? 30));
+    setPerUserMonthlyTokenLimit(String(selectedPolicy.perUserMonthlyTokenLimit ?? 500000));
   }, [selectedPolicy?.officeId]);
 
   async function submit(event: FormEvent) {
@@ -7930,7 +7955,10 @@ function AiBudgetPolicyForm({
       monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
       budgetCurrency: normalizeFormValue(budgetCurrency),
       dailyCallLimit: optionalNumber(dailyCallLimit),
-      monthlyTokenLimit: optionalNumber(monthlyTokenLimit)
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit),
+      maxOutputTokens: optionalNumber(maxOutputTokens),
+      perUserDailyCallLimit: optionalNumber(perUserDailyCallLimit),
+      perUserMonthlyTokenLimit: optionalNumber(perUserMonthlyTokenLimit)
     });
   }
 
@@ -7969,6 +7997,18 @@ function AiBudgetPolicyForm({
       <label>
         월 토큰 한도
         <input min="0" step="1" type="number" value={monthlyTokenLimit} onChange={(event) => setMonthlyTokenLimit(event.target.value)} />
+      </label>
+      <label>
+        출력 토큰 상한
+        <input min="1" step="1" type="number" value={maxOutputTokens} onChange={(event) => setMaxOutputTokens(event.target.value)} />
+      </label>
+      <label>
+        사용자 일일 호출 한도
+        <input min="0" step="1" type="number" value={perUserDailyCallLimit} onChange={(event) => setPerUserDailyCallLimit(event.target.value)} />
+      </label>
+      <label>
+        사용자 월간 토큰 한도
+        <input min="0" step="1" type="number" value={perUserMonthlyTokenLimit} onChange={(event) => setPerUserMonthlyTokenLimit(event.target.value)} />
       </label>
       <div className="policy-note">월 예산을 적용하려면 모델별 단가나 제공자 "*" 기본 단가가 활성 상태여야 합니다.</div>
       <button className="button primary" disabled={busy} type="submit">
@@ -8080,6 +8120,12 @@ function AiHarnessPolicyForm({
   const [modelName, setModelName] = useState(policy.modelName ?? policy.effectiveModelName ?? "");
   const [maxAttempts, setMaxAttempts] = useState(String(policy.maxAttempts ?? 2));
   const [timeoutSeconds, setTimeoutSeconds] = useState(String(policy.timeoutSeconds ?? 90));
+  const [maxOutputTokens, setMaxOutputTokens] = useState(String(policy.maxOutputTokens ?? 1200));
+  const [budgetEnabled, setBudgetEnabled] = useState(policy.budgetEnforcementEnabled);
+  const [monthlyBudgetAmount, setMonthlyBudgetAmount] = useState(policy.monthlyBudgetAmount == null ? "" : String(policy.monthlyBudgetAmount));
+  const [budgetCurrency, setBudgetCurrency] = useState(policy.budgetCurrency ?? "USD");
+  const [dailyCallLimit, setDailyCallLimit] = useState(String(policy.dailyCallLimit ?? 30));
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState(String(policy.monthlyTokenLimit ?? 500000));
   const selectedProvider = providers.find((provider) => provider.id === providerId) ?? null;
 
   useEffect(() => {
@@ -8088,6 +8134,12 @@ function AiHarnessPolicyForm({
     setModelName(policy.modelName ?? policy.effectiveModelName ?? "");
     setMaxAttempts(String(policy.maxAttempts ?? 2));
     setTimeoutSeconds(String(policy.timeoutSeconds ?? 90));
+    setMaxOutputTokens(String(policy.maxOutputTokens ?? 1200));
+    setBudgetEnabled(policy.budgetEnforcementEnabled);
+    setMonthlyBudgetAmount(policy.monthlyBudgetAmount == null ? "" : String(policy.monthlyBudgetAmount));
+    setBudgetCurrency(policy.budgetCurrency ?? "USD");
+    setDailyCallLimit(String(policy.dailyCallLimit ?? 30));
+    setMonthlyTokenLimit(String(policy.monthlyTokenLimit ?? 500000));
   }, [policy.policyKey, policy.policyVersion]);
 
   async function submit(event: FormEvent) {
@@ -8097,7 +8149,13 @@ function AiHarnessPolicyForm({
       providerCredentialId: providerId,
       modelName: normalizeFormValue(modelName),
       maxAttempts: optionalNumber(maxAttempts),
-      timeoutSeconds: optionalNumber(timeoutSeconds)
+      timeoutSeconds: optionalNumber(timeoutSeconds),
+      maxOutputTokens: optionalNumber(maxOutputTokens),
+      budgetEnforcementEnabled: budgetEnabled,
+      monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
+      budgetCurrency: normalizeFormValue(budgetCurrency),
+      dailyCallLimit: optionalNumber(dailyCallLimit),
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit)
     });
   }
 
@@ -8155,6 +8213,30 @@ function AiHarnessPolicyForm({
         Timeout 초
         <input min={10} type="number" value={timeoutSeconds} onChange={(event) => setTimeoutSeconds(event.target.value)} />
       </label>
+      <label>
+        출력 토큰 상한
+        <input min={1} step={1} type="number" value={maxOutputTokens} onChange={(event) => setMaxOutputTokens(event.target.value)} />
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" checked={budgetEnabled} onChange={(event) => setBudgetEnabled(event.target.checked)} />
+        하네스 예산 한도 적용
+      </label>
+      <label>
+        월간 예산
+        <input min="0" step="0.00000001" type="number" value={monthlyBudgetAmount} onChange={(event) => setMonthlyBudgetAmount(event.target.value)} />
+      </label>
+      <label>
+        통화
+        <input value={budgetCurrency} onChange={(event) => setBudgetCurrency(event.target.value)} />
+      </label>
+      <label>
+        일일 호출 한도
+        <input min={0} step={1} type="number" value={dailyCallLimit} onChange={(event) => setDailyCallLimit(event.target.value)} />
+      </label>
+      <label>
+        월간 토큰 한도
+        <input min={0} step={1} type="number" value={monthlyTokenLimit} onChange={(event) => setMonthlyTokenLimit(event.target.value)} />
+      </label>
       <div className="policy-note">
         실제 실행 모델: {policy.providerCode ?? selectedProvider?.providerCode ?? "미지정"} / {modelName || policy.effectiveModelName || "미지정"}
       </div>
@@ -8183,6 +8265,14 @@ function OfficeAiPolicyForm({
       documentGenerationAiEnabled: boolean;
       preferredProviderCredentialId?: number | null;
       credentialDeliveryMode: string;
+      budgetEnforcementEnabled?: boolean;
+      monthlyBudgetAmount?: number | null;
+      budgetCurrency?: string | null;
+      dailyCallLimit?: number | null;
+      monthlyTokenLimit?: number | null;
+      maxOutputTokens?: number | null;
+      perUserDailyCallLimit?: number | null;
+      perUserMonthlyTokenLimit?: number | null;
     }
   ) => Promise<void>;
 }) {
@@ -8230,7 +8320,10 @@ function OfficeAiPolicyForm({
       monthlyBudgetAmount: optionalNumber(monthlyBudgetAmount),
       budgetCurrency: normalizeFormValue(budgetCurrency),
       dailyCallLimit: optionalNumber(dailyCallLimit),
-      monthlyTokenLimit: optionalNumber(monthlyTokenLimit)
+      monthlyTokenLimit: optionalNumber(monthlyTokenLimit),
+      maxOutputTokens: selectedPolicy.maxOutputTokens,
+      perUserDailyCallLimit: selectedPolicy.perUserDailyCallLimit,
+      perUserMonthlyTokenLimit: selectedPolicy.perUserMonthlyTokenLimit
     });
   }
 

@@ -6,6 +6,7 @@ import java.util.Map;
 
 public final class AiModelCallMetadata {
     public static final String OFFICE_ID = "archdox.officeId";
+    public static final String USER_ID = "archdox.userId";
     public static final String FEATURE = "archdox.feature";
     public static final String WORKFLOW_TYPE = "archdox.workflowType";
     public static final String WORKFLOW_KEY = "archdox.workflowKey";
@@ -25,8 +26,36 @@ public final class AiModelCallMetadata {
             Object resourceId,
             Map<String, Object> extras
     ) {
+        return options(officeId, null, feature, workflowType, workflowKey, resourceType, resourceId, extras, null);
+    }
+
+    public static ProviderOptions options(
+            Long officeId,
+            Long userId,
+            String feature,
+            String workflowType,
+            String workflowKey,
+            String resourceType,
+            Object resourceId,
+            Map<String, Object> extras
+    ) {
+        return options(officeId, userId, feature, workflowType, workflowKey, resourceType, resourceId, extras, null);
+    }
+
+    public static ProviderOptions options(
+            Long officeId,
+            Long userId,
+            String feature,
+            String workflowType,
+            String workflowKey,
+            String resourceType,
+            Object resourceId,
+            Map<String, Object> extras,
+            Integer maxOutputTokens
+    ) {
         var values = new LinkedHashMap<String, Object>();
         put(values, OFFICE_ID, officeId);
+        put(values, USER_ID, userId);
         put(values, FEATURE, feature);
         put(values, WORKFLOW_TYPE, workflowType);
         put(values, WORKFLOW_KEY, workflowKey);
@@ -35,6 +64,7 @@ public final class AiModelCallMetadata {
         if (extras != null) {
             extras.forEach((key, value) -> put(values, key, value));
         }
+        put(values, "maxTokens", maxOutputTokens);
         return values.isEmpty() ? ProviderOptions.empty() : ProviderOptions.of(values);
     }
 

@@ -242,6 +242,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             body.put("model", request.modelId().name());
             body.put("messages", promptMessages(request.prompt()));
             body.put("stream", false);
+            option(request, "maxTokens").ifPresent(value -> body.put("options", Map.of("num_predict", value)));
 
             var httpRequest = HttpRequest.newBuilder()
                     .uri(ollamaChatUri(provider))

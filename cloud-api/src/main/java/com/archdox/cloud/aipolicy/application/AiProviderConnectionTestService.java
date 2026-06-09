@@ -46,7 +46,7 @@ public class AiProviderConnectionTestService {
         var modelName = requiredModel(provider);
         var testedAt = OffsetDateTime.now();
         var startedAt = System.nanoTime();
-        var request = request(provider, modelName);
+        var request = request(provider, modelName, principal.userId());
         try {
             var response = await(aiModelGateway.submit(request), TEST_TIMEOUT.plusSeconds(2));
             var latencyMs = response.metadata().latency()
@@ -99,7 +99,7 @@ public class AiProviderConnectionTestService {
         return model.trim();
     }
 
-    private AiModelRequest request(AiProviderCredential provider, String modelName) {
+    private AiModelRequest request(AiProviderCredential provider, String modelName, Long userId) {
         return new AiModelRequest(
                 new ModelId(provider.providerCode(), modelName),
                 new RenderedPrompt(
@@ -113,12 +113,14 @@ public class AiProviderConnectionTestService {
                         new PromptVersion("archdox-provider-connection-test", "v1")),
                 AiModelCallMetadata.options(
                         null,
+                        userId,
                         "PROVIDER_CONNECTION_TEST",
                         "ai-provider-connection-test",
                         "ai-provider:" + provider.id(),
                         "AI_PROVIDER_CREDENTIAL",
                         provider.id(),
-                        Map.of(AiModelCallMetadata.PROVIDER_CONNECTION_TEST, true)),
+                        Map.of(AiModelCallMetadata.PROVIDER_CONNECTION_TEST, true),
+                        32),
                 TEST_TIMEOUT);
     }
 

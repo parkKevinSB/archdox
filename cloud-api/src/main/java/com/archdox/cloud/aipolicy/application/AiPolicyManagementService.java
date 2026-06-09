@@ -203,6 +203,12 @@ public class AiPolicyManagementService {
                 request.modelName(),
                 request.maxAttempts(),
                 request.timeoutSeconds(),
+                nonNegativeInteger(request.maxOutputTokens(), "maxOutputTokens"),
+                request.budgetEnforcementEnabled(),
+                nonNegativeAmount(request.monthlyBudgetAmount(), "monthlyBudgetAmount"),
+                request.budgetCurrency() == null ? policy.budgetCurrency() : budgetCurrency(request.budgetCurrency()),
+                nonNegativeInteger(request.dailyCallLimit(), "dailyCallLimit"),
+                nonNegativeLong(request.monthlyTokenLimit(), "monthlyTokenLimit"),
                 principal.userId(),
                 now);
         recordHarnessPolicyEvent(principal, policy, provider);
@@ -256,6 +262,9 @@ public class AiPolicyManagementService {
                 nextBudgetCurrency,
                 nonNegativeInteger(request.dailyCallLimit(), "dailyCallLimit"),
                 nonNegativeLong(request.monthlyTokenLimit(), "monthlyTokenLimit"),
+                nonNegativeInteger(request.maxOutputTokens(), "maxOutputTokens"),
+                nonNegativeInteger(request.perUserDailyCallLimit(), "perUserDailyCallLimit"),
+                nonNegativeLong(request.perUserMonthlyTokenLimit(), "perUserMonthlyTokenLimit"),
                 principal.userId(),
                 now);
         recordOfficePolicyEvent(principal, policy, "OFFICE_AI_POLICY_UPDATED", "Office AI policy updated.");
@@ -368,6 +377,9 @@ public class AiPolicyManagementService {
                 policy == null ? "USD" : policy.budgetCurrency(),
                 policy == null ? null : policy.dailyCallLimit(),
                 policy == null ? null : policy.monthlyTokenLimit(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.OFFICE_MAX_OUTPUT_TOKENS : policy.maxOutputTokens(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.USER_DAILY_CALL_LIMIT : policy.perUserDailyCallLimit(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.USER_MONTHLY_TOKEN_LIMIT : policy.perUserMonthlyTokenLimit(),
                 policy == null ? 0 : policy.policyVersion(),
                 effective.enabled(),
                 effective.message(),
@@ -401,6 +413,12 @@ public class AiPolicyManagementService {
                 effectiveModel,
                 policy == null ? 2 : policy.maxAttempts(),
                 policy == null ? 90 : policy.timeoutSeconds(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.HARNESS_MAX_OUTPUT_TOKENS : policy.maxOutputTokens(),
+                policy != null && policy.budgetEnforcementEnabled(),
+                policy == null ? null : policy.monthlyBudgetAmount(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.DEFAULT_BUDGET_CURRENCY : policy.budgetCurrency(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.HARNESS_DAILY_CALL_LIMIT : policy.dailyCallLimit(),
+                policy == null ? com.archdox.cloud.aipolicy.domain.AiPolicyDefaults.HARNESS_MONTHLY_TOKEN_LIMIT : policy.monthlyTokenLimit(),
                 policy == null ? 0 : policy.policyVersion(),
                 effective.enabled(),
                 effective.message(),
@@ -486,6 +504,9 @@ public class AiPolicyManagementService {
         payload.put("budgetCurrency", policy.budgetCurrency());
         payload.put("dailyCallLimit", policy.dailyCallLimit());
         payload.put("monthlyTokenLimit", policy.monthlyTokenLimit());
+        payload.put("maxOutputTokens", policy.maxOutputTokens());
+        payload.put("perUserDailyCallLimit", policy.perUserDailyCallLimit());
+        payload.put("perUserMonthlyTokenLimit", policy.perUserMonthlyTokenLimit());
         payload.put("policyVersion", policy.policyVersion());
         operationEventService.record(
                 policy.officeId(),
@@ -506,6 +527,19 @@ public class AiPolicyManagementService {
             AiHarnessPolicy policy,
             AiProviderCredential provider
     ) {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("policyKey", policy.policyKey().name());
+        payload.put("enabled", policy.enabled());
+        payload.put("providerCredentialId", policy.providerCredentialId() == null ? "" : policy.providerCredentialId());
+        payload.put("providerCode", provider == null ? "" : provider.providerCode());
+        payload.put("modelName", policy.modelName() == null ? "" : policy.modelName());
+        payload.put("maxAttempts", policy.maxAttempts());
+        payload.put("timeoutSeconds", policy.timeoutSeconds());
+        payload.put("maxOutputTokens", policy.maxOutputTokens());
+        payload.put("budgetEnforcementEnabled", policy.budgetEnforcementEnabled());
+        payload.put("dailyCallLimit", policy.dailyCallLimit());
+        payload.put("monthlyTokenLimit", policy.monthlyTokenLimit());
+        payload.put("policyVersion", policy.policyVersion());
         operationEventService.record(
                 null,
                 OperationEventSeverity.INFO,
@@ -517,15 +551,7 @@ public class AiPolicyManagementService {
                 principal.userId(),
                 null,
                 "AI harness policy updated.",
-                Map.of(
-                        "policyKey", policy.policyKey().name(),
-                        "enabled", policy.enabled(),
-                        "providerCredentialId", policy.providerCredentialId() == null ? "" : policy.providerCredentialId(),
-                        "providerCode", provider == null ? "" : provider.providerCode(),
-                        "modelName", policy.modelName() == null ? "" : policy.modelName(),
-                        "maxAttempts", policy.maxAttempts(),
-                        "timeoutSeconds", policy.timeoutSeconds(),
-                        "policyVersion", policy.policyVersion()));
+                payload);
     }
 
     private AiProviderType providerType(String providerType) {

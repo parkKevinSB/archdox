@@ -10,6 +10,8 @@ import com.archdox.cloud.auth.dto.OfficePermissionSummaryResponse;
 import com.archdox.cloud.auth.dto.OfficeSummaryResponse;
 import com.archdox.cloud.auth.dto.SignupAccountType;
 import com.archdox.cloud.auth.dto.SignupRequest;
+import com.archdox.cloud.aipolicy.domain.OfficeAiPolicy;
+import com.archdox.cloud.aipolicy.infra.OfficeAiPolicyRepository;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.ConflictException;
 import com.archdox.cloud.global.api.ForbiddenException;
@@ -44,6 +46,7 @@ public class AuthService {
     private final AuthRefreshTokenRepository refreshTokenRepository;
     private final OfficeRepository officeRepository;
     private final OfficeMembershipRepository membershipRepository;
+    private final OfficeAiPolicyRepository officeAiPolicyRepository;
     private final OfficeInvitationRepository invitationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -55,6 +58,7 @@ public class AuthService {
             AuthRefreshTokenRepository refreshTokenRepository,
             OfficeRepository officeRepository,
             OfficeMembershipRepository membershipRepository,
+            OfficeAiPolicyRepository officeAiPolicyRepository,
             OfficeInvitationRepository invitationRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
@@ -65,6 +69,7 @@ public class AuthService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.officeRepository = officeRepository;
         this.membershipRepository = membershipRepository;
+        this.officeAiPolicyRepository = officeAiPolicyRepository;
         this.invitationRepository = invitationRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -98,6 +103,7 @@ public class AuthService {
                 OfficeType.PERSONAL,
                 "PERSONAL_FREE",
                 now));
+        officeAiPolicyRepository.save(new OfficeAiPolicy(office.id(), user.id(), now));
         membershipRepository.save(new OfficeMembership(user, office, MembershipRole.OWNER, now));
         return issueTokens(user, now);
     }

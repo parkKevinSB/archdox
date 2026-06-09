@@ -15,13 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiHarnessPolicyExecutionService {
     private final AiHarnessPolicyRepository policyRepository;
     private final AiProviderCredentialRepository providerRepository;
+    private final AiBudgetGuardService budgetGuardService;
 
     public AiHarnessPolicyExecutionService(
             AiHarnessPolicyRepository policyRepository,
-            AiProviderCredentialRepository providerRepository
+            AiProviderCredentialRepository providerRepository,
+            AiBudgetGuardService budgetGuardService
     ) {
         this.policyRepository = policyRepository;
         this.providerRepository = providerRepository;
+        this.budgetGuardService = budgetGuardService;
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +55,17 @@ public class AiHarnessPolicyExecutionService {
                 provider,
                 new ModelId(provider.providerCode(), modelName),
                 policy.maxAttempts(),
-                Duration.ofSeconds(policy.timeoutSeconds())));
+                Duration.ofSeconds(policy.timeoutSeconds()),
+                policy.maxOutputTokens(),
+                policy.budgetEnforcementEnabled(),
+                policy.dailyCallLimit(),
+                policy.monthlyTokenLimit(),
+                policy.monthlyBudgetAmount(),
+                policy.budgetCurrency()));
+    }
+
+    public void requireWithinBudget(AiHarnessExecutionPlan plan) {
+        budgetGuardService.requireWithinHarnessBudget(plan, java.time.OffsetDateTime.now());
     }
 
     private String modelName(AiHarnessPolicy policy, AiProviderCredential provider) {

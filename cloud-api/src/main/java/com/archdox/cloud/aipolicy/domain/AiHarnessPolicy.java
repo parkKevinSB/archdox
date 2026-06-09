@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -42,6 +43,24 @@ public class AiHarnessPolicy {
     @Column(name = "timeout_seconds", nullable = false)
     private long timeoutSeconds = 90;
 
+    @Column(name = "max_output_tokens", nullable = false)
+    private int maxOutputTokens = AiPolicyDefaults.HARNESS_MAX_OUTPUT_TOKENS;
+
+    @Column(name = "budget_enforcement_enabled", nullable = false)
+    private boolean budgetEnforcementEnabled = true;
+
+    @Column(name = "monthly_budget_amount")
+    private BigDecimal monthlyBudgetAmount = AiPolicyDefaults.NO_MONTHLY_BUDGET_AMOUNT;
+
+    @Column(name = "budget_currency", nullable = false)
+    private String budgetCurrency = AiPolicyDefaults.DEFAULT_BUDGET_CURRENCY;
+
+    @Column(name = "daily_call_limit", nullable = false)
+    private int dailyCallLimit = AiPolicyDefaults.HARNESS_DAILY_CALL_LIMIT;
+
+    @Column(name = "monthly_token_limit", nullable = false)
+    private long monthlyTokenLimit = AiPolicyDefaults.HARNESS_MONTHLY_TOKEN_LIMIT;
+
     @Column(name = "policy_version", nullable = false)
     private long policyVersion = 1;
 
@@ -75,6 +94,37 @@ public class AiHarnessPolicy {
             Long updatedByUserId,
             OffsetDateTime now
     ) {
+        update(
+                enabled,
+                providerCredentialId,
+                modelName,
+                maxAttempts,
+                timeoutSeconds,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                updatedByUserId,
+                now);
+    }
+
+    public void update(
+            Boolean enabled,
+            Long providerCredentialId,
+            String modelName,
+            Integer maxAttempts,
+            Long timeoutSeconds,
+            Integer maxOutputTokens,
+            Boolean budgetEnforcementEnabled,
+            BigDecimal monthlyBudgetAmount,
+            String budgetCurrency,
+            Integer dailyCallLimit,
+            Long monthlyTokenLimit,
+            Long updatedByUserId,
+            OffsetDateTime now
+    ) {
         if (enabled != null) {
             this.enabled = enabled;
         }
@@ -85,6 +135,22 @@ public class AiHarnessPolicy {
         }
         if (timeoutSeconds != null) {
             this.timeoutSeconds = Math.max(10, timeoutSeconds);
+        }
+        if (maxOutputTokens != null) {
+            this.maxOutputTokens = Math.max(1, maxOutputTokens);
+        }
+        if (budgetEnforcementEnabled != null) {
+            this.budgetEnforcementEnabled = budgetEnforcementEnabled;
+        }
+        this.monthlyBudgetAmount = monthlyBudgetAmount;
+        if (budgetCurrency != null && !budgetCurrency.isBlank()) {
+            this.budgetCurrency = budgetCurrency.trim().toUpperCase(java.util.Locale.ROOT);
+        }
+        if (dailyCallLimit != null) {
+            this.dailyCallLimit = Math.max(0, dailyCallLimit);
+        }
+        if (monthlyTokenLimit != null) {
+            this.monthlyTokenLimit = Math.max(0L, monthlyTokenLimit);
         }
         this.displayName = policyKey.displayName();
         this.description = policyKey.description();
@@ -127,6 +193,32 @@ public class AiHarnessPolicy {
 
     public long timeoutSeconds() {
         return Math.max(10, timeoutSeconds);
+    }
+
+    public int maxOutputTokens() {
+        return Math.max(1, maxOutputTokens);
+    }
+
+    public boolean budgetEnforcementEnabled() {
+        return budgetEnforcementEnabled;
+    }
+
+    public BigDecimal monthlyBudgetAmount() {
+        return monthlyBudgetAmount;
+    }
+
+    public String budgetCurrency() {
+        return budgetCurrency == null || budgetCurrency.isBlank()
+                ? AiPolicyDefaults.DEFAULT_BUDGET_CURRENCY
+                : budgetCurrency;
+    }
+
+    public int dailyCallLimit() {
+        return Math.max(0, dailyCallLimit);
+    }
+
+    public long monthlyTokenLimit() {
+        return Math.max(0L, monthlyTokenLimit);
     }
 
     public long policyVersion() {

@@ -66,7 +66,7 @@ class AiWorkerEvaluationTokenControlServiceTest {
         assertThat(groups.getFirst().groupKey()).isEqualTo("TOKEN_COST_CONTROL");
         assertThat(groups.getFirst().failedCases()).isZero();
         assertThat(groups.getFirst().warningCases()).isZero();
-        assertThat(groups.getFirst().passedCases()).isEqualTo(5);
+        assertThat(groups.getFirst().passedCases()).isEqualTo(6);
         assertThat(signals).singleElement().satisfies(signal -> assertThat(signal.status()).isEqualTo("PASS"));
     }
 
@@ -146,6 +146,7 @@ class AiWorkerEvaluationTokenControlServiceTest {
         return new AiModelCallLog(
                 "call-" + completedAt.toInstant().toEpochMilli(),
                 3L,
+                11L,
                 4L,
                 "openai-main",
                 "OPENAI",

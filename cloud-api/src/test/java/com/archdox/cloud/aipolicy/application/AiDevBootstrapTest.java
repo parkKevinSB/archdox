@@ -96,7 +96,12 @@ class AiDevBootstrapTest {
         assertThat(policy.documentGenerationAiEnabled()).isFalse();
         assertThat(policy.preferredProviderCredentialId()).isEqualTo(100L);
         assertThat(policy.credentialDeliveryMode()).isEqualTo(AiCredentialDeliveryMode.PROXY_ONLY);
-        assertThat(policy.budgetEnforcementEnabled()).isFalse();
+        assertThat(policy.budgetEnforcementEnabled()).isTrue();
+        assertThat(policy.dailyCallLimit()).isEqualTo(100);
+        assertThat(policy.monthlyTokenLimit()).isEqualTo(2_000_000L);
+        assertThat(policy.maxOutputTokens()).isEqualTo(2_000);
+        assertThat(policy.perUserDailyCallLimit()).isEqualTo(30);
+        assertThat(policy.perUserMonthlyTokenLimit()).isEqualTo(500_000L);
     }
 
     @Test

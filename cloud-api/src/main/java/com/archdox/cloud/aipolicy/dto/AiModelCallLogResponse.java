@@ -7,6 +7,7 @@ public record AiModelCallLogResponse(
         Long id,
         String callId,
         Long officeId,
+        Long userId,
         Long providerCredentialId,
         String providerCode,
         String providerType,

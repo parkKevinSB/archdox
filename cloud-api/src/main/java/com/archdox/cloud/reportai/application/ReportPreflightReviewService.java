@@ -275,7 +275,7 @@ public class ReportPreflightReviewService {
     }
 
     private AiHarnessFlow createAiHarnessFlow(InspectionReport report, ReportPreflightReviewRun run) {
-        var aiPlan = resolveAiPlan(report.officeId());
+        var aiPlan = resolveAiPlan(report.officeId(), run.requestedBy());
         if (aiPlan.isEmpty()) {
             return null;
         }
@@ -289,6 +289,7 @@ public class ReportPreflightReviewService {
                 .modelId(aiPlan.get().modelId())
                 .providerOptions(AiModelCallMetadata.options(
                         report.officeId(),
+                        aiPlan.get().userId(),
                         AiFeature.DOCUMENT_REVIEW.name(),
                         "report-preflight-review",
                         "report:" + report.id() + ":preflight-run:" + run.id(),
@@ -296,7 +297,8 @@ public class ReportPreflightReviewService {
                         run.id(),
                         Map.of(
                                 "archdox.reportId", report.id(),
-                                "archdox.reviewRunId", run.id())))
+                                "archdox.reviewRunId", run.id()),
+                        aiPlan.get().maxOutputTokens()))
                 .build();
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input(report), overrides);
@@ -310,11 +312,11 @@ public class ReportPreflightReviewService {
         return flow;
     }
 
-    private Optional<com.archdox.cloud.aipolicy.application.AiExecutionPlan> resolveAiPlan(Long officeId) {
+    private Optional<com.archdox.cloud.aipolicy.application.AiExecutionPlan> resolveAiPlan(Long officeId, Long userId) {
         if (!aiReviewProperties.isEnabled()) {
             return Optional.empty();
         }
-        return aiPolicyExecutionService.findAllowed(officeId, AiFeature.DOCUMENT_REVIEW);
+        return aiPolicyExecutionService.findAllowed(officeId, userId, AiFeature.DOCUMENT_REVIEW);
     }
 
     private ReportPreflightInput input(InspectionReport report) {

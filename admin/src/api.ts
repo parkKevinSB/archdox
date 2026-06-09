@@ -876,6 +876,12 @@ export function updatePlatformAiHarnessPolicy(
     modelName?: string | null;
     maxAttempts?: number | null;
     timeoutSeconds?: number | null;
+    maxOutputTokens?: number | null;
+    budgetEnforcementEnabled?: boolean;
+    monthlyBudgetAmount?: number | null;
+    budgetCurrency?: string | null;
+    dailyCallLimit?: number | null;
+    monthlyTokenLimit?: number | null;
   }
 ) {
   return request<AiHarnessPolicy>(`/api/v1/platform-admin/ai/harness-policies/${policyKey}`, {
@@ -1018,6 +1024,9 @@ export function updatePlatformOfficeAiPolicy(
     budgetCurrency?: string | null;
     dailyCallLimit?: number | null;
     monthlyTokenLimit?: number | null;
+    maxOutputTokens?: number | null;
+    perUserDailyCallLimit?: number | null;
+    perUserMonthlyTokenLimit?: number | null;
   }
 ) {
   return request<OfficeAiPolicy>(`/api/v1/platform-admin/ai/office-policies/${officeId}`, {

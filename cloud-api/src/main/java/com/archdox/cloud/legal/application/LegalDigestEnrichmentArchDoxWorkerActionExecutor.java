@@ -3,6 +3,7 @@ package com.archdox.cloud.legal.application;
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
 import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
 import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.legal.flow.LegalDigestAiWorker;
 import com.archdox.legalai.LegalDigestHarnessFactory;
 import com.archdox.legalai.LegalDigestResult;
@@ -83,6 +84,11 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
 
         var input = inputService.buildInput(changeSetId);
         var plan = policy.plan();
+        try {
+            aiHarnessPolicyExecutionService.requireWithinBudget(plan);
+        } catch (BadRequestException ex) {
+            return ArchDoxWorkerActionResult.failed(ex.code(), ex.getMessage());
+        }
         var timeout = plan.timeout();
         var spec = new LegalDigestHarnessFactory(objectMapper).spec(
                 (findings, ctx) -> {
@@ -96,6 +102,7 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
                         .timeout(timeout)
                         .providerOptions(AiModelCallMetadata.options(
                                 context.request().context().officeId(),
+                                context.request().context().userId(),
                                 "LEGAL_DIGEST_ENRICHMENT",
                                 "legal-digest-ai-draft",
                                 "change-set:" + changeSetId,
@@ -103,7 +110,8 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
                                 changeSetId,
                                 Map.of(
                                         "archdox.workerRequestId", context.request().requestId().toString(),
-                                        "archdox.legalDigestId", text(payload.get("digestId")))))
+                                        "archdox.legalDigestId", text(payload.get("digestId"))),
+                                plan.maxOutputTokens()))
                         .build());
         var awaited = aiWorker.submitAndAwait(flow, timeout.plus(WAIT_GRACE));
         if (!awaited) {

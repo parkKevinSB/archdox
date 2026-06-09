@@ -12,6 +12,9 @@ public record UpdateOfficeAiPolicyRequest(
         BigDecimal monthlyBudgetAmount,
         String budgetCurrency,
         Integer dailyCallLimit,
-        Long monthlyTokenLimit
+        Long monthlyTokenLimit,
+        Integer maxOutputTokens,
+        Integer perUserDailyCallLimit,
+        Long perUserMonthlyTokenLimit
 ) {
 }

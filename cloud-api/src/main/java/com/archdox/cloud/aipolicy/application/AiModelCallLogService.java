@@ -56,6 +56,7 @@ public class AiModelCallLogService {
         repository.save(new AiModelCallLog(
                 bounded(callId, 160),
                 officeId(request),
+                userId(request),
                 provider == null ? null : provider.id(),
                 providerCode(provider, request),
                 providerType(provider),
@@ -95,6 +96,7 @@ public class AiModelCallLogService {
         repository.save(new AiModelCallLog(
                 bounded(callId, 160),
                 officeId(request),
+                userId(request),
                 provider == null ? null : provider.id(),
                 providerCode(provider, request),
                 providerType(provider),
@@ -138,6 +140,7 @@ public class AiModelCallLogService {
                 log.id(),
                 log.callId(),
                 log.officeId(),
+                log.userId(),
                 log.providerCredentialId(),
                 log.providerCode(),
                 log.providerType(),
@@ -167,6 +170,12 @@ public class AiModelCallLogService {
 
     private Long officeId(AiModelRequest request) {
         return request.options().get(AiModelCallMetadata.OFFICE_ID)
+                .map(this::asLong)
+                .orElse(null);
+    }
+
+    private Long userId(AiModelRequest request) {
+        return request.options().get(AiModelCallMetadata.USER_ID)
                 .map(this::asLong)
                 .orElse(null);
     }

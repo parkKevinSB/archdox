@@ -25,6 +25,16 @@ public class AiBudgetGuardService {
     }
 
     public void requireWithinBudget(OfficeAiPolicy policy, String providerCode, String modelName, OffsetDateTime now) {
+        requireWithinBudget(policy, null, providerCode, modelName, now);
+    }
+
+    public void requireWithinBudget(
+            OfficeAiPolicy policy,
+            Long userId,
+            String providerCode,
+            String modelName,
+            OffsetDateTime now
+    ) {
         if (policy == null || !policy.budgetEnforcementEnabled()) {
             return;
         }
@@ -53,6 +63,28 @@ public class AiBudgetGuardService {
             }
         }
 
+        if (userId != null && policy.perUserDailyCallLimit() >= 0) {
+            var userDailyCalls = callLogRepository.countByOfficeIdAndUserIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
+                    policy.officeId(),
+                    userId,
+                    dayStart,
+                    dayEnd);
+            if (userDailyCalls >= policy.perUserDailyCallLimit()) {
+                throw budgetExceeded("Daily AI call limit exceeded for this user");
+            }
+        }
+
+        if (userId != null && policy.perUserMonthlyTokenLimit() >= 0) {
+            var userMonthlyTokens = callLogRepository.sumTokensByOfficeIdAndUserIdAndCompletedAtRange(
+                    policy.officeId(),
+                    userId,
+                    monthStart,
+                    monthEnd);
+            if (userMonthlyTokens != null && userMonthlyTokens >= policy.perUserMonthlyTokenLimit()) {
+                throw budgetExceeded("Monthly AI token limit exceeded for this user");
+            }
+        }
+
         if (policy.monthlyBudgetAmount() != null) {
             if (!hasPricingRule(providerCode, modelName)) {
                 throw budgetExceeded("AI pricing rule is required before budget-enforced execution");
@@ -64,6 +96,51 @@ public class AiBudgetGuardService {
                     monthEnd);
             if (monthlyCost != null && monthlyCost.compareTo(policy.monthlyBudgetAmount()) >= 0) {
                 throw budgetExceeded("Monthly AI budget exceeded for this office");
+            }
+        }
+    }
+
+    public void requireWithinHarnessBudget(AiHarnessExecutionPlan plan, OffsetDateTime now) {
+        if (plan == null || !plan.budgetEnforcementEnabled()) {
+            return;
+        }
+        var dayStart = now.toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
+        var dayEnd = dayStart.plusDays(1);
+        var monthStart = YearMonth.from(now).atDay(1).atStartOfDay(now.getOffset()).toOffsetDateTime();
+        var monthEnd = monthStart.plusMonths(1);
+        var feature = plan.policyKey().name();
+
+        if (plan.dailyCallLimit() >= 0) {
+            var dailyCalls = callLogRepository.countByFeatureAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
+                    feature,
+                    dayStart,
+                    dayEnd);
+            if (dailyCalls >= plan.dailyCallLimit()) {
+                throw budgetExceeded("Daily AI call limit exceeded for this harness");
+            }
+        }
+
+        if (plan.monthlyTokenLimit() >= 0) {
+            var monthlyTokens = callLogRepository.sumTokensByFeatureAndCompletedAtRange(
+                    feature,
+                    monthStart,
+                    monthEnd);
+            if (monthlyTokens != null && monthlyTokens >= plan.monthlyTokenLimit()) {
+                throw budgetExceeded("Monthly AI token limit exceeded for this harness");
+            }
+        }
+
+        if (plan.monthlyBudgetAmount() != null) {
+            if (!hasPricingRule(plan.provider().providerCode(), plan.modelId().name())) {
+                throw budgetExceeded("AI pricing rule is required before budget-enforced harness execution");
+            }
+            var monthlyCost = callLogRepository.sumEstimatedCostByFeatureAndCurrencyAndCompletedAtRange(
+                    feature,
+                    currency(plan.budgetCurrency()),
+                    monthStart,
+                    monthEnd);
+            if (monthlyCost != null && monthlyCost.compareTo(plan.monthlyBudgetAmount()) >= 0) {
+                throw budgetExceeded("Monthly AI budget exceeded for this harness");
             }
         }
     }
