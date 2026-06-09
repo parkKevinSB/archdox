@@ -244,7 +244,8 @@ class DocxTemplateSmokeTest {
                                 "inspectionDayOfWeek", "Sunday",
                                 "weather", "맑음",
                                 "specialNotes", "3층 슬래브 철근 배근 상태를 확인했습니다.",
-                                "issueAndAction", "개구부 주변 안전난간 보강 완료"),
+                                "issueAndAction", "개구부 주변 안전난간 보강 완료",
+                                "nextAction", "콘크리트 타설 전 재점검 예정"),
                         "steps", Map.of(
                                 "DAILY_LOG", Map.of(
                                         "payload", Map.of(
@@ -298,6 +299,8 @@ class DocxTemplateSmokeTest {
         assertTrue(documentXml.contains("철근 콘크리트 공사"));
         assertTrue(documentXml.contains("철근 조립, 배근"));
         assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
+        assertTrue(documentXml.contains("다음 조치"));
+        assertTrue(documentXml.contains("콘크리트 타설 전 재점검 예정"));
         assertTrue(documentXml.contains(KO_SPECIAL_NOTES));
         assertTrue(documentXml.contains(KO_ISSUE_AND_ACTION));
         assertTrue(documentXml.contains("작성방법"));

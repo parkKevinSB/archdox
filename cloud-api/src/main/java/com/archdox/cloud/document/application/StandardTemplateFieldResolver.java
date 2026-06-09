@@ -104,17 +104,27 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.DAILY_LOG.payload.specialNotes",
                 "steps.REMARKS.payload.specialNotes",
+                "steps.REMARKS.payload.remarks",
                 "steps.NOTES.payload.specialNotes"));
         put(fields, "issueAndAction", readFirst(
                 snapshot,
                 "steps.DAILY_LOG.payload.issueAndAction",
                 "steps.DAILY_LOG.payload.issueAndActionResult",
+                "steps.REMARKS.payload.issueAndAction",
+                "steps.REMARKS.payload.correctionResults",
                 "steps.ISSUES.payload.issueAndAction"));
         put(fields, "correctionResults", readFirst(
                 snapshot,
                 "steps.DAILY_LOG.payload.correctionResults",
                 "steps.DAILY_LOG.payload.issueAndAction",
+                "steps.REMARKS.payload.correctionResults",
+                "steps.REMARKS.payload.issueAndAction",
                 "steps.ISSUES.payload.issueAndAction"));
+        put(fields, "nextAction", readFirst(
+                snapshot,
+                "steps.REMARKS.payload.nextAction",
+                "steps.DAILY_LOG.payload.nextAction",
+                "steps.ISSUES.payload.nextAction"));
         put(fields, "correctiveAction", readFirst(
                 snapshot,
                 "steps.ISSUES.payload.correctiveAction"));

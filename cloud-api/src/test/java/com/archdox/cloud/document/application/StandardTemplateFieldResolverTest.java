@@ -98,4 +98,20 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Acceptable", fields.get("comprehensiveOpinion"));
         assertEquals("No special issue", fields.get("specialNotes"));
     }
+
+    @Test
+    void resolvesDailyLogRemarksFieldsFromRemarksStep() {
+        var fields = resolver.resolve(Map.of(
+                "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG", "title", "Daily log"),
+                "steps", Map.of(
+                        "REMARKS", Map.of("payload", Map.of(
+                                "remarks", "Special site memo",
+                                "issueAndAction", "Guardrail reinforced and verified",
+                                "nextAction", "Reinspect before concrete pour")))));
+
+        assertEquals("Special site memo", fields.get("specialNotes"));
+        assertEquals("Guardrail reinforced and verified", fields.get("issueAndAction"));
+        assertEquals("Guardrail reinforced and verified", fields.get("correctionResults"));
+        assertEquals("Reinspect before concrete pour", fields.get("nextAction"));
+    }
 }

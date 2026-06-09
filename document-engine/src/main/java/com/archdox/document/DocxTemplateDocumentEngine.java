@@ -237,6 +237,11 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
                 "지적사항 및 처리결과",
                 binding(context, "issueAndAction", "correctionResults"),
                 1600));
+        var nextAction = binding(context, "nextAction");
+        if (!nextAction.isBlank()) {
+            body.append(spacerParagraph(70));
+            body.append(officialLinedSectionXml("다음 조치", nextAction, 1000));
+        }
         body.append(officialPhotoEvidenceXml(context));
         body.append(spacerParagraph(100));
         body.append(officialAuthoringGuideXml());

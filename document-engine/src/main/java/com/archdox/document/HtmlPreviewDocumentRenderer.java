@@ -394,6 +394,8 @@ public class HtmlPreviewDocumentRenderer {
         labels.put("comprehensiveOpinion", "종합 의견");
         labels.put("specialNotes", "특이사항");
         labels.put("issueAndAction", "지적사항 및 처리결과");
+        labels.put("correctionResults", "지적사항 및 처리결과");
+        labels.put("nextAction", "다음 조치");
         return labels;
     }
 

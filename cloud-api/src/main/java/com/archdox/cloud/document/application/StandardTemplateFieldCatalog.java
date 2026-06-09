@@ -75,6 +75,7 @@ public class StandardTemplateFieldCatalog {
             field("specialNotes", "Special notes", "daily-content", "steps.*.payload.specialNotes", "No special issue", "Special notes section.", ALL_DAILY_LOG_REPORT_TYPES),
             field("issueAndAction", "Issue and action result", "daily-content", "steps.*.payload.issueAndAction", "None", "Issue and treatment result for daily logs.", ALL_DAILY_LOG_REPORT_TYPES),
             field("correctionResults", "Correction results", "daily-content", "steps.*.payload.issueAndAction", "Corrected", "Alias for forms that label issue handling as correction results.", ALL_DAILY_LOG_REPORT_TYPES),
+            field("nextAction", "Next action", "daily-content", "steps.REMARKS.payload.nextAction", "Recheck requested", "Follow-up action or reinspection plan for daily logs.", ALL_DAILY_LOG_REPORT_TYPES),
             field("correctiveAction", "Corrective action", "checklist-construction", "steps.*.payload.correctiveAction", "Corrected", "Corrective action for construction supervision issue handling."),
             field("relationEngineerOpinion", "Relation engineer opinion", "report-opinion", "steps.REMARKS.payload.relationEngineerOpinion", "Reviewed", "Engineer opinion for construction supervision reports.", CONSTRUCTION_REPORT_TYPES),
             field("comprehensiveOpinion", "Comprehensive opinion", "report-opinion", "steps.REMARKS.payload.comprehensiveOpinion", "Suitable", "Overall opinion for construction supervision reports.", CONSTRUCTION_REPORT_TYPES),
@@ -98,7 +99,7 @@ public class StandardTemplateFieldCatalog {
                     "ArchDox의 공사감리일지 표준입니다. 별지 제2호서식 기준의 공식 제출용 렌더러를 사용합니다.",
                     RENDERING_BUNDLED_OFFICIAL_RENDERER,
                     DAILY_REPORT_TYPES,
-                    List.of("documentTitle", "serialNo", "chiefSupervisorName", "architectAssistantName", "assistantArchitectName", "constructionName", "inspectionDate", "inspectionDayOfWeek", "weather", "dailyItems", "specialNotes", "issueAndAction", "correctionResults"),
+                    List.of("documentTitle", "serialNo", "chiefSupervisorName", "architectAssistantName", "assistantArchitectName", "constructionName", "inspectionDate", "inspectionDayOfWeek", "weather", "dailyItems", "specialNotes", "issueAndAction", "correctionResults", "nextAction"),
                     List.of("CHECKLIST_TABLE", "CHECKLIST_PHOTO_TABLE", "PHOTO_TABLE")),
             officeInternalPreset(
                     "OFFICE_INTERNAL_CONSTRUCTION_SUPERVISION_REPORT",

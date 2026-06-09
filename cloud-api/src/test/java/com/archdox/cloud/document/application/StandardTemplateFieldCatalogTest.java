@@ -37,6 +37,7 @@ class StandardTemplateFieldCatalogTest {
         assertTrue(hasField(constructionDaily, "constructionTrade"));
         assertTrue(hasField(constructionDaily, "assistantArchitectName"));
         assertTrue(hasField(constructionDaily, "correctionResults"));
+        assertTrue(hasField(constructionDaily, "nextAction"));
         assertTrue(hasPreset(constructionDaily, "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_APPENDIX_2"));
 
         var demolitionSafety = catalog.catalog("demolition_safety_checklist");
