@@ -22,6 +22,7 @@ import com.archdox.cloud.reportai.flow.ReportPreflightReviewFlowFactory;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewFindingRepository;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewRunRepository;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -52,41 +53,11 @@ class ReportPreflightReviewServiceApprovalGateTest {
     void acceptedAiDraftFindingLetsPreflightRunPass() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
-        var report = new InspectionReport(
-                10L,
-                20L,
-                30L,
-                "R-001",
-                "CONSTRUCTION_DAILY_SUPERVISION_LOG",
-                "공사감리일지",
-                40L,
-                7L,
-                now);
-        ReflectionTestUtils.setField(report, "id", 100L);
-        var run = new ReportPreflightReviewRun(10L, 100L, 1, 7L, now);
-        ReflectionTestUtils.setField(run, "id", 200L);
-        run.markNeedsAttention("AI_PREFLIGHT_NEEDS_HUMAN_REVIEW", now);
-        var finding = new ReportPreflightReviewFinding(
-                10L,
-                200L,
-                100L,
-                "AI",
-                "LEGAL_REVIEW_DRAFT",
-                "MEDIUM",
-                "DAILY_LOG",
-                "AI 법령검토 초안 확인이 필요합니다.",
-                "source-backed legal references were supplied",
-                Map.of(
-                        "approvalRequired", "true",
-                        "draftOnly", "true"),
-                now);
-        ReflectionTestUtils.setField(finding, "id", 300L);
-
-        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
-        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(run));
-        when(findingRepository.findByIdAndOfficeIdAndReviewRunIdAndReportId(300L, 10L, 200L, 100L))
-                .thenReturn(Optional.of(finding));
-        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(java.util.List.of(finding));
+        var report = report(now);
+        var run = run(now);
+        var finding = aiFinding(300L, now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
 
         var response = service.resolveFinding(
                 100L,
@@ -111,5 +82,103 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 any(),
                 any(),
                 any());
+    }
+
+    @Test
+    void resolvingOneOfMultipleAttentionFindingsKeepsPreflightRunBlocked() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var first = aiFinding(300L, now);
+        var second = aiFinding(301L, now);
+        arrange(report, run, first);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(first, second));
+
+        service.resolveFinding(
+                100L,
+                200L,
+                300L,
+                new ResolveReportPreflightFindingRequest("RESOLVED", "First item reviewed."),
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        assertThat(first.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
+        assertThat(second.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.OPEN);
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.NEEDS_ATTENTION);
+    }
+
+    @Test
+    void resolvingLastOpenAttentionFindingLetsPreflightRunPass() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var first = aiFinding(300L, now);
+        var second = aiFinding(301L, now);
+        first.resolve(ReportPreflightFindingResolutionStatus.ACCEPTED, "Already reviewed.", 7L, now.minusMinutes(1));
+        arrange(report, run, second);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(first, second));
+
+        service.resolveFinding(
+                100L,
+                200L,
+                301L,
+                new ResolveReportPreflightFindingRequest("RESOLVED", "Second item reviewed."),
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+        assertThat(run.terminalReason()).isEqualTo("PREFLIGHT_FINDINGS_RESOLVED");
+    }
+
+    private void arrange(
+            InspectionReport report,
+            ReportPreflightReviewRun run,
+            ReportPreflightReviewFinding finding
+    ) {
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(run));
+        when(findingRepository.findByIdAndOfficeIdAndReviewRunIdAndReportId(finding.id(), 10L, 200L, 100L))
+                .thenReturn(Optional.of(finding));
+    }
+
+    private InspectionReport report(OffsetDateTime now) {
+        var report = new InspectionReport(
+                10L,
+                20L,
+                30L,
+                "R-001",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                "Daily supervision log",
+                40L,
+                7L,
+                now);
+        ReflectionTestUtils.setField(report, "id", 100L);
+        return report;
+    }
+
+    private ReportPreflightReviewRun run(OffsetDateTime now) {
+        var run = new ReportPreflightReviewRun(10L, 100L, 1, 7L, now);
+        ReflectionTestUtils.setField(run, "id", 200L);
+        run.markNeedsAttention("AI_PREFLIGHT_NEEDS_HUMAN_REVIEW", now);
+        return run;
+    }
+
+    private ReportPreflightReviewFinding aiFinding(Long id, OffsetDateTime now) {
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "AI",
+                "LEGAL_REVIEW_DRAFT",
+                "MEDIUM",
+                "DAILY_LOG",
+                "AI legal review draft requires human approval.",
+                "source-backed legal references were supplied",
+                Map.of(
+                        "approvalRequired", "true",
+                        "draftOnly", "true"),
+                now);
+        ReflectionTestUtils.setField(finding, "id", id);
+        return finding;
     }
 }

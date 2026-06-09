@@ -663,6 +663,12 @@ function PreflightReviewPanel({
   const progress = reviewing || (run && isPreflightActive(run))
     ? preflightProgress(run, reviewing)
     : null;
+  const actionRequiredFindings = findings.filter((finding) => requiresPreflightFindingAction(finding));
+  const passiveFindings = findings.filter((finding) => !requiresPreflightFindingAction(finding));
+  const passiveDisplayLimit = Math.max(0, 6 - actionRequiredFindings.length);
+  const displayedPassiveFindings = passiveFindings.slice(0, passiveDisplayLimit);
+  const displayedFindings = [...actionRequiredFindings, ...displayedPassiveFindings];
+  const hiddenPassiveCount = Math.max(0, passiveFindings.length - displayedPassiveFindings.length);
 
   return (
     <section className={warning ? "preflight-panel warning" : "preflight-panel"}>
@@ -726,7 +732,7 @@ function PreflightReviewPanel({
 
       {findings.length > 0 ? (
         <div className="preflight-finding-list">
-          {findings.slice(0, 4).map((finding) => {
+          {displayedFindings.map((finding) => {
             const legalReferenceDetails = finding.legalReferenceDetails ?? [];
             const legalReferenceCount = legalReferenceDetails.length > 0
               ? legalReferenceDetails.length
@@ -768,6 +774,7 @@ function PreflightReviewPanel({
                     className="secondary-button compact-button"
                     disabled={resolvingFindingId === finding.id}
                     onClick={() => onResolveFinding(run.id, finding.id, "RESOLVED")}
+                    title="내용을 수정했거나 검토해서 더 이상 문서 생성을 막을 문제가 아니라고 확인합니다."
                     type="button"
                   >
                     {resolvingFindingId === finding.id ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
@@ -777,6 +784,7 @@ function PreflightReviewPanel({
                     className="secondary-button compact-button"
                     disabled={resolvingFindingId === finding.id}
                     onClick={() => onResolveFinding(run.id, finding.id, "ACCEPTED")}
+                    title="경고가 남아 있음을 알고도 이 리포트에서는 진행 가능한 리스크로 수용합니다."
                     type="button"
                   >
                     리스크 수용
@@ -786,8 +794,8 @@ function PreflightReviewPanel({
             </div>
             );
           })}
-          {findings.length > 4 ? (
-            <span className="preflight-more">외 {findings.length - 4}건</span>
+          {hiddenPassiveCount > 0 ? (
+            <span className="preflight-more">조치 필요 항목은 모두 표시됨 / 참고·완료 항목 {hiddenPassiveCount}건 접힘</span>
           ) : null}
         </div>
       ) : null}

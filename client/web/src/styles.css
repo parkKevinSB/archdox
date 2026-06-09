@@ -1045,6 +1045,9 @@ button {
 .preflight-finding-list {
   display: grid;
   gap: 7px;
+  max-height: min(56dvh, 680px);
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .preflight-finding {
