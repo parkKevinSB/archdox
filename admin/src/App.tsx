@@ -1304,9 +1304,9 @@ export default function App() {
     }
   }
 
-  async function handleCreateAiWorkerEvaluationRun() {
+  async function handleCreateAiWorkerEvaluationRun(): Promise<AiWorkerEvaluationRun | null> {
     if (!auth || !platformAdmin) {
-      return;
+      return null;
     }
     setLoading(true);
     setError(null);
@@ -1314,25 +1314,26 @@ export default function App() {
       const run = await createPlatformAiWorkerEvaluationRun(auth.accessToken);
       setPlatformData((current) => ({
         ...current,
-        aiWorkerEvaluationSummary: run.summary,
         aiWorkerEvaluationRuns: [
           run,
           ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
         ].slice(0, 20)
       }));
+      return run;
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI/Worker 평가 기록을 생성하지 못했습니다.");
+      return null;
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleCreateAiWorkerRuntimeEvaluationRun() {
+  async function handleCreateAiWorkerRuntimeEvaluationRun(): Promise<AiWorkerEvaluationRun | null> {
     if (!auth || !platformAdmin) {
-      return;
+      return null;
     }
     if (!window.confirm("런타임 연결 평가는 실제 AI provider에 짧은 연결 테스트를 보낼 수 있습니다. 진행할까요?")) {
-      return;
+      return null;
     }
     setLoading(true);
     setError(null);
@@ -1340,14 +1341,15 @@ export default function App() {
       const run = await createPlatformAiWorkerRuntimeEvaluationRun(auth.accessToken);
       setPlatformData((current) => ({
         ...current,
-        aiWorkerEvaluationSummary: run.summary,
         aiWorkerEvaluationRuns: [
           run,
           ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
         ].slice(0, 20)
       }));
+      return run;
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI/Worker 런타임 평가를 실행하지 못했습니다.");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -6125,8 +6127,8 @@ function AiManagementView({
   onUpdateObservationMode: (enabled: boolean) => Promise<void>;
   onClearObservations: () => Promise<void>;
   onRefresh: () => Promise<void>;
-  onCreateWorkerEvaluationRun: () => Promise<void>;
-  onCreateWorkerRuntimeEvaluationRun: () => Promise<void>;
+  onCreateWorkerEvaluationRun: () => Promise<AiWorkerEvaluationRun | null>;
+  onCreateWorkerRuntimeEvaluationRun: () => Promise<AiWorkerEvaluationRun | null>;
   onSaveHarnessPolicy: (
     policyKey: string,
     body: {
@@ -6476,8 +6478,8 @@ function AiWorkerEvaluationControlPanel({
   busy: boolean;
   runs: AiWorkerEvaluationRun[];
   summary: AiWorkerEvaluationSummary | null;
-  onCreateRun: () => Promise<void>;
-  onCreateRuntimeRun: () => Promise<void>;
+  onCreateRun: () => Promise<AiWorkerEvaluationRun | null>;
+  onCreateRuntimeRun: () => Promise<AiWorkerEvaluationRun | null>;
 }) {
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
@@ -6518,7 +6520,20 @@ function AiWorkerEvaluationControlPanel({
   const currentVerdictStatus = currentSummary
     ? evaluationVerdict(currentSummary, currentFailedSignals, currentWarningSignals).status
     : verdict.status;
-  const runLabel = selectedRun ? `Run #${selectedRun.id}` : "현재 기준";
+  const selectedRunTitle = selectedRun ? `${evaluationRunTriggerLabel(selectedRun.triggerType)} #${selectedRun.id}` : "현재 기준";
+  const selectedRunSubtitle = selectedRun
+    ? `${selectedRun.evaluationMode} · ${formatDate(selectedRun.completedAt)}`
+    : `${summary.evaluationMode} · 아직 저장된 Run이 아닙니다`;
+  const selectedRunDescription = selectedRun
+    ? "아래 평가 그룹과 제어 신호는 이 Run에 저장된 결과입니다."
+    : "현재 기준은 지금 코드 기준으로 계산한 상태입니다. 기록 버튼을 누르면 Run으로 저장됩니다.";
+  async function createAndSelectRun(creator: () => Promise<AiWorkerEvaluationRun | null>) {
+    const run = await creator();
+    if (run) {
+      setSelectedRunId(run.id);
+      setSelectedGroupKey(null);
+    }
+  }
 
   return (
     <Panel
@@ -6530,11 +6545,17 @@ function AiWorkerEvaluationControlPanel({
           <span>Pass {summary.passedCases}</span>
           <span>Warn {summary.warningCases + warningSignals}</span>
           <span>Fail {summary.failedCases + failedSignals}</span>
-          <button className="button compact" disabled={busy} onClick={onCreateRun} type="button">
+          {selectedRun ? (
+            <button className="button compact" disabled={busy} onClick={() => setSelectedRunId(null)} type="button">
+              <ArrowLeft size={14} />
+              현재 기준 보기
+            </button>
+          ) : null}
+          <button className="button compact" disabled={busy} onClick={() => createAndSelectRun(onCreateRun)} type="button">
             {busy ? <Loader2 className="spin" size={14} /> : <Plus size={14} />}
             현재 기준 기록
           </button>
-          <button className="button compact" disabled={busy} onClick={onCreateRuntimeRun} type="button">
+          <button className="button compact" disabled={busy} onClick={() => createAndSelectRun(onCreateRuntimeRun)} type="button">
             {busy ? <Loader2 className="spin" size={14} /> : <Activity size={14} />}
             런타임 연결 평가
           </button>
@@ -6545,7 +6566,7 @@ function AiWorkerEvaluationControlPanel({
         <div>
           <p className="eyebrow">핵심 판단</p>
           <h3>{verdict.title}</h3>
-          <span>{runLabel} · {verdict.description}</span>
+          <span>{selectedRunTitle} · {verdict.description}</span>
         </div>
         <StatusBadge status={verdict.status} />
       </div>
@@ -6589,24 +6610,30 @@ function AiWorkerEvaluationControlPanel({
       </div>
 
       <section className="evaluation-section">
+        <div className="evaluation-selected-run">
+          <div>
+            <p className="eyebrow">표시 중인 평가</p>
+            <h3>{selectedRunTitle}</h3>
+            <span>{selectedRunSubtitle}</span>
+          </div>
+          <div>
+            <strong>{summary.groups.length}개 그룹</strong>
+            <span>{selectedRunDescription}</span>
+          </div>
+          <StatusBadge status={selectedRun ? selectedRun.status : currentVerdictStatus} />
+        </div>
+      </section>
+
+      <section className="evaluation-section">
         <div className="evaluation-detail-head">
           <div>
-            <h3>최근 평가 Run</h3>
-            <span>현재 기준 기록은 정적 평가를 저장하고, 런타임 연결 평가는 하네스 정책과 실제 provider 연결성을 확인합니다.</span>
+            <h3>평가 Run 기록</h3>
+            <span>Run은 한 번 저장된 평가 결과입니다. Run을 선택하면 아래 상세 영역이 그 기록 기준으로 바뀝니다.</span>
           </div>
         </div>
-        <div className="evaluation-run-list">
-          <button
-            className={selectedRunId == null ? "evaluation-run-button active" : "evaluation-run-button"}
-            onClick={() => setSelectedRunId(null)}
-            type="button"
-          >
-            <div>
-              <strong>현재 기준</strong>
-              <span>{formatDate(currentSummary?.generatedAt ?? summary.generatedAt)}</span>
-            </div>
-            <StatusBadge status={currentVerdictStatus} />
-          </button>
+        {runs.length === 0 ? <EmptyState message="저장된 평가 Run이 없습니다." /> : null}
+        {runs.length > 0 ? (
+          <div className="evaluation-run-list">
           {runs.map((run) => (
             <button
               className={selectedRunId === run.id ? "evaluation-run-button active" : "evaluation-run-button"}
@@ -6622,11 +6649,12 @@ function AiWorkerEvaluationControlPanel({
               <StatusBadge status={run.status} />
             </button>
           ))}
-        </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="evaluation-section">
-        <h3>평가 그룹</h3>
+        <h3>{selectedRunTitle}의 평가 그룹</h3>
         <div className="evaluation-group-list">
           {summary.groups.map((group) => (
             <button
