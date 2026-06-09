@@ -52,6 +52,9 @@ public class ReportPreflightAiReviewFindingSink implements FindingSink {
     private LinkedHashMap<String, String> attributes(AiFinding finding) {
         var attributes = new LinkedHashMap<>(finding.attributes());
         attributes.put("source", SOURCE);
+        attributes.put("draftOnly", "true");
+        attributes.put("approvalRequired", "true");
+        attributes.put("reviewMode", ReportPreflightAiHarnessFlowService.REVIEW_MODE_SOURCE_BACKED_LEGAL_DRY_RUN);
         return attributes;
     }
 }

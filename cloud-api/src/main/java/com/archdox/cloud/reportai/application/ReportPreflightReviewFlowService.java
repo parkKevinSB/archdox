@@ -16,8 +16,10 @@ import com.archdox.cloud.worker.engine.EngineWorkerActionSubmissionService;
 import com.archdox.worker.domain.ArchDoxWorkerActionType;
 import com.archdox.worker.domain.ArchDoxWorkerRequestContext;
 import com.archdox.worker.domain.ArchDoxWorkerRequestSource;
+import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class ReportPreflightReviewFlowService {
     private final ReportPreflightDeterministicValidator deterministicValidator;
     private final ReportPreflightEngineBoundaryService engineBoundaryService;
     private final EngineWorkerActionSubmissionService workerActionSubmissionService;
+    private final ReportPreflightAiHarnessFlowService aiHarnessFlowService;
     private final OperationEventService operationEventService;
 
     public ReportPreflightReviewFlowService(
@@ -42,6 +45,7 @@ public class ReportPreflightReviewFlowService {
             ReportPreflightDeterministicValidator deterministicValidator,
             ReportPreflightEngineBoundaryService engineBoundaryService,
             EngineWorkerActionSubmissionService workerActionSubmissionService,
+            ReportPreflightAiHarnessFlowService aiHarnessFlowService,
             OperationEventService operationEventService
     ) {
         this.reportRepository = reportRepository;
@@ -50,6 +54,7 @@ public class ReportPreflightReviewFlowService {
         this.deterministicValidator = deterministicValidator;
         this.engineBoundaryService = engineBoundaryService;
         this.workerActionSubmissionService = workerActionSubmissionService;
+        this.aiHarnessFlowService = aiHarnessFlowService;
         this.operationEventService = operationEventService;
     }
 
@@ -75,6 +80,7 @@ public class ReportPreflightReviewFlowService {
                 engineResult,
                 workerActionSubmissionRequest(request, report));
         var result = combinedResult(deterministicResult, engineResult);
+        var aiReviewPlanned = !result.blocksGeneration() && aiHarnessFlowService.canCreate(report, request.requestedBy());
         for (var finding : result.findings()) {
             findingRepository.save(new ReportPreflightReviewFinding(
                     request.officeId(),
@@ -91,7 +97,7 @@ public class ReportPreflightReviewFlowService {
         }
         if (result.blocksGeneration()) {
             run.markNeedsAttention("DETERMINISTIC_PREFLIGHT_BLOCKED", OffsetDateTime.now());
-        } else if (run.hasHarness()) {
+        } else if (aiReviewPlanned) {
             run.markRunning(OffsetDateTime.now());
         } else {
             run.markPassed("DETERMINISTIC_PREFLIGHT_PASSED", OffsetDateTime.now());
@@ -109,7 +115,7 @@ public class ReportPreflightReviewFlowService {
                 result.blocksGeneration()
                         ? "Report preflight validation found blocking issues."
                         : "Report preflight validation passed.",
-                validationEventMetadata(request, result, engineResult, workerActionSubmission, run.hasHarness()));
+                validationEventMetadata(request, result, engineResult, workerActionSubmission, aiReviewPlanned));
         return result;
     }
 
@@ -117,7 +123,28 @@ public class ReportPreflightReviewFlowService {
     public boolean canSubmitAiHarness(ReportPreflightReviewRequest request) {
         var run = runRepository.findByIdAndOfficeIdAndReportId(request.reviewRunId(), request.officeId(), request.reportId())
                 .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
-        return run.hasHarness() && !run.terminal() && !run.harnessTerminal();
+        if (run.hasHarness()) {
+            return !run.terminal() && !run.harnessTerminal();
+        }
+        if (run.terminal()) {
+            return false;
+        }
+        var report = reportRepository.findByIdAndOfficeId(request.reportId(), request.officeId())
+                .orElseThrow(() -> new NotFoundException("Inspection report not found"));
+        return aiHarnessFlowService.canCreate(report, request.requestedBy());
+    }
+
+    @Transactional
+    public AiHarnessFlow createAiHarnessFlow(ReportPreflightReviewRequest request) {
+        var report = reportRepository.findByIdAndOfficeId(request.reportId(), request.officeId())
+                .orElseThrow(() -> new NotFoundException("Inspection report not found"));
+        var run = runRepository.findByIdAndOfficeIdAndReportId(request.reviewRunId(), request.officeId(), request.reportId())
+                .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
+        if (run.hasHarness() || run.terminal()) {
+            return null;
+        }
+        var findings = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), request.reviewRunId());
+        return aiHarnessFlowService.create(report, run, findings);
     }
 
     @Transactional
@@ -163,15 +190,18 @@ public class ReportPreflightReviewFlowService {
             return;
         }
         var findings = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), request.reviewRunId());
-        long blockingCount = findings.stream().filter(finding -> isBlockingSeverity(finding.severity())).count();
-        if (blockingCount > 0) {
-            run.markNeedsAttention("AI_PREFLIGHT_NEEDS_ATTENTION", OffsetDateTime.now());
+        long attentionCount = findings.stream()
+                .filter(finding -> requiresResolutionForGeneration(finding)
+                        && finding.resolutionStatus() == com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus.OPEN)
+                .count();
+        if (attentionCount > 0) {
+            run.markNeedsAttention("AI_PREFLIGHT_NEEDS_HUMAN_REVIEW", OffsetDateTime.now());
         } else {
             run.markPassed("AI_PREFLIGHT_PASSED", OffsetDateTime.now());
         }
         operationEventService.record(
                 request.officeId(),
-                blockingCount > 0 ? OperationEventSeverity.WARN : OperationEventSeverity.INFO,
+                attentionCount > 0 ? OperationEventSeverity.WARN : OperationEventSeverity.INFO,
                 "REPORT_PREFLIGHT_AI_REVIEW_SUMMARIZED",
                 "report-preflight-review",
                 workflowKey(request),
@@ -179,14 +209,14 @@ public class ReportPreflightReviewFlowService {
                 request.reviewRunId(),
                 request.requestedBy(),
                 null,
-                blockingCount > 0
-                        ? "Report preflight AI review found issues needing attention."
+                attentionCount > 0
+                        ? "Report preflight AI dry-run produced findings that need human review."
                         : "Report preflight AI review passed.",
                 Map.of(
                         "reportId", request.reportId(),
                         "reviewRunId", request.reviewRunId(),
                         "findingCount", findings.size(),
-                        "blockingFindingCount", blockingCount));
+                        "attentionFindingCount", attentionCount));
     }
 
     @Transactional
@@ -314,6 +344,10 @@ public class ReportPreflightReviewFlowService {
         attributes.put("engineCategory", finding.category());
         if (!finding.legalReferences().isEmpty()) {
             attributes.put("legalReferences", String.join(",", finding.legalReferences()));
+            var legalReferenceDetails = legalReferenceDetails(finding, engineResult);
+            if (!legalReferenceDetails.isBlank()) {
+                attributes.put("legalReferenceDetails", legalReferenceDetails);
+            }
         }
         if (!engineResult.nextActions().isEmpty()) {
             attributes.put("engine.nextActions", String.join(",", engineResult.nextActions()));
@@ -331,6 +365,16 @@ public class ReportPreflightReviewFlowService {
 
     private static boolean isBlockingSeverity(String severity) {
         return "HIGH".equals(severity) || "CRITICAL".equals(severity);
+    }
+
+    private static boolean requiresResolutionForGeneration(ReportPreflightReviewFinding finding) {
+        if (isBlockingSeverity(finding.severity())) {
+            return true;
+        }
+        if ("AI".equals(finding.source())) {
+            return true;
+        }
+        return Boolean.parseBoolean(finding.attributesJson().getOrDefault("approvalRequired", "false"));
     }
 
     private static String reasonOf(String reason) {
@@ -356,5 +400,59 @@ public class ReportPreflightReviewFlowService {
             return String.valueOf(engineCheck);
         }
         return "engineRunId";
+    }
+
+    private static String legalReferenceDetails(
+            ArchDoxEngineFinding finding,
+            EngineValidationResult engineResult
+    ) {
+        var ids = new LinkedHashSet<>(finding.legalReferences());
+        return engineResult.legalReferences().stream()
+                .filter(reference -> ids.contains(text(reference.get("referenceId"))))
+                .map(ReportPreflightReviewFlowService::legalReferenceDetailLine)
+                .filter(line -> !line.isBlank())
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse("");
+    }
+
+    private static String legalReferenceDetailLine(Map<String, Object> reference) {
+        var metadata = objectMap(reference.get("metadata"));
+        return String.join("\t",
+                safeCell(text(reference.get("referenceId"))),
+                safeCell(legalReferenceLabel(reference)),
+                safeCell(text(metadata.get("resolutionSource"))),
+                safeCell(text(reference.get("bindingScope"))),
+                safeCell(text(reference.get("bindingKey"))),
+                safeCell(text(reference.get("relevance"))),
+                safeCell(text(reference.get("catalogCode"))),
+                safeCell(text(reference.get("catalogVersion"))),
+                safeCell(text(reference.get("checklistItemCode"))));
+    }
+
+    private static String legalReferenceLabel(Map<String, Object> reference) {
+        return List.of(
+                        text(reference.get("actName")),
+                        text(reference.get("articleNo")),
+                        text(reference.get("articleTitle")))
+                .stream()
+                .filter(value -> !value.isBlank())
+                .reduce((left, right) -> left + " " + right)
+                .orElse(text(reference.get("referenceId")));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
+    }
+
+    private static String safeCell(String value) {
+        return value == null ? "" : value.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
+    }
+
+    private static String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 }

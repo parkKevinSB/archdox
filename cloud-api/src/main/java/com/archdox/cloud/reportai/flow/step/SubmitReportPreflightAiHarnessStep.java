@@ -29,11 +29,15 @@ public final class SubmitReportPreflightAiHarnessStep extends Step {
 
     @Override
     protected StepResult onTick(StepContext ctx) {
-        if (aiHarnessFlow == null || !flowService.canSubmitAiHarness(request)) {
+        if (!flowService.canSubmitAiHarness(request)) {
             return StepResult.done();
         }
         if (!submitted) {
-            aiReviewWorker.submit(aiHarnessFlow);
+            var flow = aiHarnessFlow == null ? flowService.createAiHarnessFlow(request) : aiHarnessFlow;
+            if (flow == null) {
+                return StepResult.done();
+            }
+            aiReviewWorker.submit(flow);
             flowService.markAiHarnessSubmitted(request);
             submitted = true;
         }

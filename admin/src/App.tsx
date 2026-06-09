@@ -102,6 +102,7 @@ import {
   getPlatformFlowerRuntimeDump,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
+  getPlatformLegalDomainBindingCoverage,
   getPlatformLegalDomainBindings,
   getPlatformLegalDigestAiDrafts,
   getPlatformLegalOpenApiStatus,
@@ -175,6 +176,7 @@ import type {
   LegalChangeDigest,
   LegalChangeSet,
   LegalDomainBindingAutoGenerateResponse,
+  LegalDomainBindingCoverage,
   LegalDomainBinding,
   LegalLawSearchResult,
   LegalDigestAiDraft,
@@ -309,6 +311,7 @@ type PlatformOpsData = {
   legalChangeSets: LegalChangeSet[];
   legalChangeDigests: LegalChangeDigest[];
   legalDomainBindings: LegalDomainBinding[];
+  legalDomainBindingCoverage: LegalDomainBindingCoverage | null;
   legalOpenApiStatus: LegalOpenApiStatus | null;
   engineApiKeys: EngineApiKey[];
   engineApiUsageSummary: EngineApiUsageSummary | null;
@@ -380,6 +383,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   legalChangeSets: [],
   legalChangeDigests: [],
   legalDomainBindings: [],
+  legalDomainBindingCoverage: null,
   legalOpenApiStatus: null,
   engineApiKeys: [],
   engineApiUsageSummary: null,
@@ -907,14 +911,29 @@ export default function App() {
         ]);
         Object.assign(next, { summary, offices });
       } else if (view === "platform-legal") {
-        const [legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests, legalDomainBindings] = await Promise.all([
+        const [
+          legalOpenApiStatus,
+          legalSyncRuns,
+          legalChangeSets,
+          legalChangeDigests,
+          legalDomainBindings,
+          legalDomainBindingCoverage
+        ] = await Promise.all([
           getPlatformLegalOpenApiStatus(token),
           getPlatformLegalSyncRuns(token, 50),
           getPlatformLegalChangeSets(token, 50),
           getPlatformLegalChangeDigests(token, 50),
-          getPlatformLegalDomainBindings(token, 500)
+          getPlatformLegalDomainBindings(token, 500),
+          getPlatformLegalDomainBindingCoverage(token)
         ]);
-        Object.assign(next, { legalOpenApiStatus, legalSyncRuns, legalChangeSets, legalChangeDigests, legalDomainBindings });
+        Object.assign(next, {
+          legalOpenApiStatus,
+          legalSyncRuns,
+          legalChangeSets,
+          legalChangeDigests,
+          legalDomainBindings,
+          legalDomainBindingCoverage
+        });
       } else if (view === "platform-engine-keys") {
         const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users] = await Promise.all([
           getPlatformEngineApiKeys(token),
@@ -1085,8 +1104,11 @@ export default function App() {
     setError(null);
     try {
       await createPlatformLegalDomainBinding(auth.accessToken, body);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
-      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+      const [legalDomainBindings, legalDomainBindingCoverage] = await Promise.all([
+        getPlatformLegalDomainBindings(auth.accessToken, 500),
+        getPlatformLegalDomainBindingCoverage(auth.accessToken)
+      ]);
+      setPlatformData((current) => ({ ...current, legalDomainBindings, legalDomainBindingCoverage }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 저장하지 못했습니다.");
     } finally {
@@ -1102,8 +1124,11 @@ export default function App() {
     setError(null);
     try {
       await updatePlatformLegalDomainBinding(auth.accessToken, bindingId, body);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
-      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+      const [legalDomainBindings, legalDomainBindingCoverage] = await Promise.all([
+        getPlatformLegalDomainBindings(auth.accessToken, 500),
+        getPlatformLegalDomainBindingCoverage(auth.accessToken)
+      ]);
+      setPlatformData((current) => ({ ...current, legalDomainBindings, legalDomainBindingCoverage }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 수정하지 못했습니다.");
     } finally {
@@ -1122,8 +1147,11 @@ export default function App() {
     setError(null);
     try {
       const result = await autoGeneratePlatformConstructionSupervisionLegalBindings(auth.accessToken);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
-      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+      const [legalDomainBindings, legalDomainBindingCoverage] = await Promise.all([
+        getPlatformLegalDomainBindings(auth.accessToken, 500),
+        getPlatformLegalDomainBindingCoverage(auth.accessToken)
+      ]);
+      setPlatformData((current) => ({ ...current, legalDomainBindings, legalDomainBindingCoverage }));
       setLegalBindingAutoGenerateResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "공사감리 기본 법령 바인딩을 자동 생성하지 못했습니다.");
@@ -1143,8 +1171,11 @@ export default function App() {
     setError(null);
     try {
       await deactivatePlatformLegalDomainBinding(auth.accessToken, bindingId);
-      const legalDomainBindings = await getPlatformLegalDomainBindings(auth.accessToken, 500);
-      setPlatformData((current) => ({ ...current, legalDomainBindings }));
+      const [legalDomainBindings, legalDomainBindingCoverage] = await Promise.all([
+        getPlatformLegalDomainBindings(auth.accessToken, 500),
+        getPlatformLegalDomainBindingCoverage(auth.accessToken)
+      ]);
+      setPlatformData((current) => ({ ...current, legalDomainBindings, legalDomainBindingCoverage }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "법령 도메인 바인딩을 비활성화하지 못했습니다.");
     } finally {
@@ -4437,6 +4468,7 @@ function PlatformLegalAdminPanel({
         <LegalDomainBindingPanel
           accessToken={accessToken}
           bindings={data.legalDomainBindings}
+          coverage={data.legalDomainBindingCoverage}
           busy={loading}
           autoGenerateResult={legalBindingAutoGenerateResult}
           onCreate={onCreateLegalDomainBinding}
@@ -4452,6 +4484,7 @@ function PlatformLegalAdminPanel({
 function LegalDomainBindingPanel({
   accessToken,
   bindings,
+  coverage,
   busy,
   autoGenerateResult,
   onCreate,
@@ -4461,6 +4494,7 @@ function LegalDomainBindingPanel({
 }: {
   accessToken: string;
   bindings: LegalDomainBinding[];
+  coverage: LegalDomainBindingCoverage | null;
   busy: boolean;
   autoGenerateResult: LegalDomainBindingAutoGenerateResponse | null;
   onCreate: (body: LegalDomainBindingPayload) => Promise<void>;
@@ -4551,6 +4585,7 @@ function LegalDomainBindingPanel({
   }
   return (
     <div className="view-stack">
+      {coverage ? <LegalDomainBindingCoverageSummary coverage={coverage} /> : null}
       <Panel title="바인딩 목록" icon={<FileText size={18} />} count={bindings.length}>
         <InlineNotice message="수동 바인딩은 예외/정정용입니다. 기본 공사감리 카탈로그 연결은 자동 생성으로 깔고, 운영자는 중요한 항목만 수정합니다." />
         <div className="legal-binding-toolbar">
@@ -4580,7 +4615,11 @@ function LegalDomainBindingPanel({
           columns={["바인딩", "법령/조문", "업무 연결", "관련도", "상태", "기간", "작업"]}
           empty="등록된 법령 도메인 바인딩이 없습니다."
           rows={bindings.map((binding) => [
-            <CellTitle key="binding" title={binding.bindingKey} subtitle={`${binding.bindingScope} / #${binding.id}`} />,
+            <CellTitle
+              key="binding"
+              title={legalBindingDomainTitle(binding)}
+              subtitle={`${binding.bindingScope} / ${binding.bindingKey} / #${binding.id}`}
+            />,
             <CellTitle
               key="law"
               title={`${binding.actName ?? binding.actCode ?? `Act #${binding.actId}`}`}
@@ -4588,8 +4627,8 @@ function LegalDomainBindingPanel({
             />,
             <CellTitle
               key="domain"
-              title={binding.checklistItemCode ?? binding.reportType ?? "-"}
-              subtitle={[binding.catalogCode, binding.catalogVersion ? `v${binding.catalogVersion}` : null].filter(Boolean).join(" / ") || "-"}
+              title={legalBindingWorkLabel(binding)}
+              subtitle={legalBindingCodeLine(binding)}
             />,
             displayLabel(binding.relevance),
             <StatusBadge key="status" status={binding.status} />,
@@ -4609,6 +4648,76 @@ function LegalDomainBindingPanel({
       </Panel>
     </div>
   );
+}
+
+function LegalDomainBindingCoverageSummary({ coverage }: { coverage: LegalDomainBindingCoverage }) {
+  const coveragePercent = coverage.catalogItemCount > 0
+    ? Math.round((coverage.activeBoundItemCount / coverage.catalogItemCount) * 100)
+    : 0;
+  const missingSamples = coverage.missingItems.slice(0, 8);
+  return (
+    <Panel title="공사감리 바인딩 커버리지" icon={<ShieldCheck size={18} />} count={coverage.activeBoundItemCount}>
+      <InlineNotice
+        message={`${coverage.catalogName || coverage.catalogCode} v${coverage.catalogVersion} 기준입니다. 저장값은 코드이고, 화면 설명은 카탈로그에서 계산해 함께 표시합니다.`}
+      />
+      <div className="metric-grid compact">
+        <MetricCard icon={<FileText size={20} />} label="카탈로그 항목" value={coverage.catalogItemCount} detail="구조화 업무 데이터" tone="blue" />
+        <MetricCard icon={<CheckCircle2 size={20} />} label="활성 연결" value={coverage.activeBoundItemCount} detail={`전체의 ${coveragePercent}%`} tone="green" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="누락 항목" value={coverage.missingItemCount} detail="활성 바인딩 없음" tone={coverage.missingItemCount > 0 ? "amber" : "green"} />
+        <MetricCard icon={<ShieldCheck size={20} />} label="수동 보정" value={coverage.manualBindingCount} detail={`자동 ${coverage.autoGeneratedBindingCount} / 전체 ${coverage.totalBindingCount}`} tone="slate" />
+      </div>
+      {missingSamples.length > 0 ? (
+        <div className="legal-binding-coverage-list">
+          <strong>활성 바인딩이 없는 항목 예시</strong>
+          {missingSamples.map((item) => (
+            <div className="legal-binding-coverage-item" key={item.checklistItemCode}>
+              <span>{item.tradeName} / {item.processName}</span>
+              <b>{item.checklistItemName}</b>
+              <small>{item.checklistItemCode}</small>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <InlineNotice message="공사감리 카탈로그 항목 전체에 활성 법령 바인딩이 있습니다." />
+      )}
+    </Panel>
+  );
+}
+
+function legalBindingDomainTitle(binding: LegalDomainBinding) {
+  return binding.bindingDisplayName || legalBindingWorkLabel(binding) || binding.bindingKey;
+}
+
+function legalBindingWorkLabel(binding: LegalDomainBinding) {
+  if (binding.checklistItemName) {
+    return binding.checklistItemName;
+  }
+  if (binding.reportTypeLabel) {
+    return binding.reportTypeLabel;
+  }
+  return binding.checklistItemCode ?? binding.reportType ?? "-";
+}
+
+function legalBindingCodeLine(binding: LegalDomainBinding) {
+  const domainParts = [
+    binding.tradeCode,
+    binding.processCode,
+    binding.checklistItemCode
+  ].filter(Boolean);
+  const catalogParts = [
+    binding.catalogCode,
+    binding.catalogVersion ? `v${binding.catalogVersion}` : null
+  ].filter(Boolean);
+  if (domainParts.length > 0 && catalogParts.length > 0) {
+    return `${domainParts.join(" / ")} · ${catalogParts.join(" / ")}`;
+  }
+  if (domainParts.length > 0) {
+    return domainParts.join(" / ");
+  }
+  if (binding.reportType) {
+    return binding.reportType;
+  }
+  return catalogParts.join(" / ") || "-";
 }
 
 function LegalDomainBindingForm({

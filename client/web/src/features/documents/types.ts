@@ -113,12 +113,25 @@ export type ReportPreflightReviewFindingResponse = {
   engineRunId?: string | null;
   engineStatus?: string | null;
   legalReferences: string[];
+  legalReferenceDetails: ReportPreflightLegalReferenceResponse[];
   nextActions: string[];
   resolutionStatus: ReportPreflightFindingResolutionStatus;
   resolutionNote?: string | null;
   resolvedBy?: number | null;
   resolvedAt?: string | null;
   createdAt: string;
+};
+
+export type ReportPreflightLegalReferenceResponse = {
+  referenceId: string;
+  label: string;
+  resolutionSource: string;
+  bindingScope: string;
+  bindingKey: string;
+  relevance: string;
+  catalogCode: string;
+  catalogVersion?: number | null;
+  checklistItemCode: string;
 };
 
 export type ReportPreflightRunsByReport = Record<number, ReportPreflightReviewRunResponse[]>;

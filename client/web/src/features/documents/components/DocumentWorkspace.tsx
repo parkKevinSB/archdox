@@ -20,6 +20,7 @@ import type {
   DocumentSignatureInput,
   InspectionReport,
   Project,
+  ReportPreflightLegalReferenceResponse,
   ReportPreflightFindingResolutionStatus,
   ReportPreflightReviewFindingResponse,
   ReportPreflightReviewRunResponse
@@ -653,7 +654,7 @@ function PreflightReviewPanel({
   const deterministicFindings = findings.filter((finding) => finding.source === "DETERMINISTIC");
   const aiFindings = findings.filter((finding) => finding.source !== "DETERMINISTIC");
   const deterministicBlockingCount = deterministicFindings.filter((finding) => isOpenBlockingFinding(finding)).length;
-  const aiBlockingCount = aiFindings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const aiAttentionCount = aiFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const warningCount = findings.filter((finding) => !isOpenBlockingFinding(finding)).length;
   const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const stale = run ? run.reportRevision !== currentRevision : false;
@@ -706,9 +707,9 @@ function PreflightReviewPanel({
               : "검토 실행 전"}
           </span>
         </div>
-        <div className={aiBlockingCount > 0 ? "preflight-gate-item blocking" : "preflight-gate-item pass"}>
+        <div className={aiAttentionCount > 0 ? "preflight-gate-item blocking" : "preflight-gate-item pass"}>
           <strong>AI 검토</strong>
-          <span>{run ? preflightAiDescription(run) : "검토 실행 전"}</span>
+          <span>{run ? preflightAiDescription(run, aiAttentionCount) : "검토 실행 전"}</span>
         </div>
         <div className={stale ? "preflight-gate-item blocking" : run?.status === "PASSED" ? "preflight-gate-item pass" : "preflight-gate-item"}>
           <strong>생성 가능 여부</strong>
@@ -725,22 +726,31 @@ function PreflightReviewPanel({
 
       {findings.length > 0 ? (
         <div className="preflight-finding-list">
-          {findings.slice(0, 4).map((finding) => (
-            <div className={isOpenBlockingFinding(finding) ? "preflight-finding blocking" : "preflight-finding"} key={finding.id}>
-              {isOpenBlockingFinding(finding) ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
+          {findings.slice(0, 4).map((finding) => {
+            const legalReferenceDetails = finding.legalReferenceDetails ?? [];
+            const legalReferenceCount = legalReferenceDetails.length > 0
+              ? legalReferenceDetails.length
+              : finding.legalReferences.length;
+            return (
+            <div className={requiresPreflightFindingAction(finding) ? "preflight-finding blocking" : "preflight-finding"} key={finding.id}>
+              {requiresPreflightFindingAction(finding) ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
               <span>
                 <strong>{finding.message}</strong>
                 <small>
                   {preflightSourceLabel(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
                 </small>
                 <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
-                {finding.legalReferences.length > 0 ? (
+                {legalReferenceCount > 0 ? (
                   <span className="preflight-legal-context">
                     <strong>법령 근거</strong>
-                    {finding.legalReferences.slice(0, 3).map((reference) => (
-                      <em key={reference}>{legalReferenceDisplay(reference)}</em>
-                    ))}
-                    {finding.legalReferences.length > 3 ? <em>외 {finding.legalReferences.length - 3}건</em> : null}
+                    {legalReferenceDetails.length > 0
+                      ? legalReferenceDetails.slice(0, 3).map((reference) => (
+                        <em key={reference.referenceId}>{legalReferenceDetailDisplay(reference)}</em>
+                      ))
+                      : finding.legalReferences.slice(0, 3).map((reference) => (
+                        <em key={reference}>{legalReferenceDisplay(reference)}</em>
+                      ))}
+                    {legalReferenceCount > 3 ? <em>외 {legalReferenceCount - 3}건</em> : null}
                   </span>
                 ) : null}
                 {finding.nextActions.length > 0 ? (
@@ -752,7 +762,7 @@ function PreflightReviewPanel({
                   </span>
                 ) : null}
               </span>
-              {run && !stale && isOpenBlockingFinding(finding) ? (
+              {run && !stale && requiresPreflightFindingAction(finding) ? (
                 <div className="preflight-finding-actions">
                   <button
                     className="secondary-button compact-button"
@@ -774,7 +784,8 @@ function PreflightReviewPanel({
                 </div>
               ) : null}
             </div>
-          ))}
+            );
+          })}
           {findings.length > 4 ? (
             <span className="preflight-more">외 {findings.length - 4}건</span>
           ) : null}
@@ -1141,9 +1152,12 @@ function preflightProgress(run: ReportPreflightReviewRunResponse | null, reviewi
   };
 }
 
-function preflightAiDescription(run: ReportPreflightReviewRunResponse) {
+function preflightAiDescription(run: ReportPreflightReviewRunResponse, attentionCount = 0) {
   if (!run.aiReviewPlanned) {
     return "정책상 AI 검토 생략";
+  }
+  if (attentionCount > 0) {
+    return `AI 초안 확인 필요 ${attentionCount}건`;
   }
   const status = harnessStatusLabel(run.harnessStatus ?? "QUEUED");
   const model = run.aiModelId ?? run.aiProviderCode ?? "설정된 모델";
@@ -1168,8 +1182,8 @@ function preflightAiMode(run: ReportPreflightReviewRunResponse) {
   }
   return {
     kind: "real",
-    title: "실제 AI 검토",
-    description: `${run.aiProviderCode ?? "provider"} 설정을 통해 외부 또는 로컬 모델 호출 결과를 반영했습니다.`
+    title: "AI 법령검토 초안",
+    description: `${run.aiProviderCode ?? "provider"} 설정을 통해 source-backed 법령 근거 안에서 dry-run 검토 초안을 생성합니다.`
   };
 }
 
@@ -1232,6 +1246,37 @@ function legalReferenceDisplay(reference: string) {
   };
   const readableAct = actLabel[actCode] ?? actCode;
   return version ? `${readableAct} ${articleKey} / ${version}` : `${readableAct} ${articleKey ?? ""}`.trim();
+}
+
+function legalReferenceDetailDisplay(reference: ReportPreflightLegalReferenceResponse) {
+  const label = reference.label || legalReferenceDisplay(reference.referenceId);
+  const source = legalReferenceSourceLabel(reference);
+  const relevance = reference.relevance ? ` / ${legalReferenceRelevanceLabel(reference.relevance)}` : "";
+  return `${label} · ${source}${relevance}`;
+}
+
+function legalReferenceSourceLabel(reference: ReportPreflightLegalReferenceResponse) {
+  const source = reference.resolutionSource || reference.bindingScope;
+  if (source === "LEGAL_DOMAIN_BINDING") {
+    return "도메인 바인딩";
+  }
+  if (source === "LEGAL_CORPUS_SEARCH") {
+    return "법령 검색 후보";
+  }
+  if (source === "CATALOG_ITEM") {
+    return "카탈로그 항목 연결";
+  }
+  return source || "근거 후보";
+}
+
+function legalReferenceRelevanceLabel(relevance: string) {
+  const labels: Record<string, string> = {
+    PRIMARY: "주요 근거",
+    SUPPORTING: "보조 근거",
+    REFERENCE: "참고 근거",
+    CANDIDATE: "후보"
+  };
+  return labels[relevance] ?? relevance;
 }
 
 function preflightNextActionLabel(action: string) {
@@ -1320,6 +1365,19 @@ function isBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
 
 function isOpenBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
   return isBlockingFinding(finding) && finding.resolutionStatus === "OPEN";
+}
+
+function requiresPreflightFindingAction(finding: ReportPreflightReviewFindingResponse) {
+  if (finding.resolutionStatus !== "OPEN") {
+    return false;
+  }
+  if (isBlockingFinding(finding)) {
+    return true;
+  }
+  if (finding.source !== "DETERMINISTIC") {
+    return true;
+  }
+  return finding.attributes?.approvalRequired === "true";
 }
 
 function findingMetaLabel(finding: ReportPreflightReviewFindingResponse) {

@@ -7,6 +7,7 @@ import com.archdox.cloud.legal.dto.CreateLegalDomainBindingRequest;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalDomainBindingAutoGenerateResponse;
+import com.archdox.cloud.legal.dto.LegalDomainBindingCoverageResponse;
 import com.archdox.cloud.legal.dto.LegalDomainBindingResponse;
 import com.archdox.cloud.legal.dto.LegalDigestAiDraftResponse;
 import com.archdox.cloud.legal.dto.LegalDigestRefreshResponse;
@@ -153,6 +154,11 @@ public class PlatformLegalController {
                 catalogVersion,
                 checklistItemCode,
                 limit);
+    }
+
+    @GetMapping("/domain-bindings/coverage/construction-supervision")
+    public LegalDomainBindingCoverageResponse constructionSupervisionDomainBindingCoverage(Authentication authentication) {
+        return bindingAdminService.constructionSupervisionCoverage(principal(authentication));
     }
 
     @GetMapping("/law-search")

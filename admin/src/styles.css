@@ -2516,6 +2516,44 @@ button {
   font-weight: 700;
 }
 
+.legal-binding-coverage-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.legal-binding-coverage-list > strong {
+  color: #213d38;
+  font-size: 13px;
+}
+
+.legal-binding-coverage-item {
+  align-items: start;
+  border: 1px solid #e1e9e7;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.legal-binding-coverage-item span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.legal-binding-coverage-item b {
+  color: #213d38;
+  font-size: 14px;
+}
+
+.legal-binding-coverage-item small {
+  color: #738884;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .stack-panel {
   display: grid;
   gap: 10px;

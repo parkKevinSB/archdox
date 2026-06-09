@@ -52,6 +52,15 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 Do not flag missing original photos when workingUploaded=true unless the report type explicitly requires originals.
                 Also perform a lightweight legal/compliance risk review for the report type.
                 This is not legal advice and must not invent laws, article numbers, or facts.
+                When sourceBackedLegalReferences or legalReviewContext are present, use only those
+                supplied legal/source anchors for legal-risk review.
+                Never cite law names, article numbers, effective dates, or source versions that are
+                absent from the input JSON.
+                If reviewMode is SOURCE_BACKED_LEGAL_DRY_RUN, treat legal-risk issues as review
+                draft findings only. Do not claim final noncompliance, do not request direct document
+                generation, and recommend human review or field-context correction.
+                If legal references are absent or fragmented, say that source-backed review is
+                insufficient instead of inventing a legal basis.
                 Use category COMPLIANCE for missing compliance-critical inputs.
                 Use category LEGAL_RISK for wording or contradictions that could create audit,
                 dispute, or agency-review risk.
@@ -93,6 +102,9 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
         payload.put("steps", input.steps());
         payload.put("photos", input.photos());
         payload.put("deterministicFindings", input.deterministicFindings());
+        payload.put("sourceBackedLegalReferences", input.sourceBackedLegalReferences());
+        payload.put("legalReviewContext", input.legalReviewContext());
+        payload.put("reviewMode", input.reviewMode());
         payload.put("complianceReviewGuide", ReportComplianceReviewGuide.forReportType(input.reportType()));
         return payload;
     }

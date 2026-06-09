@@ -14,8 +14,39 @@ public record ReportPreflightInput(
         Map<String, Object> reportSnapshot,
         Map<String, Object> steps,
         List<Map<String, Object>> photos,
-        List<ReportPreflightFindingSummary> deterministicFindings
+        List<ReportPreflightFindingSummary> deterministicFindings,
+        List<Map<String, Object>> sourceBackedLegalReferences,
+        Map<String, Object> legalReviewContext,
+        String reviewMode
 ) {
+    public ReportPreflightInput(
+            String officeId,
+            String reportId,
+            String reportType,
+            String title,
+            String status,
+            int contentRevision,
+            Map<String, Object> reportSnapshot,
+            Map<String, Object> steps,
+            List<Map<String, Object>> photos,
+            List<ReportPreflightFindingSummary> deterministicFindings
+    ) {
+        this(
+                officeId,
+                reportId,
+                reportType,
+                title,
+                status,
+                contentRevision,
+                reportSnapshot,
+                steps,
+                photos,
+                deterministicFindings,
+                List.of(),
+                Map.of(),
+                "STANDARD_PREFLIGHT");
+    }
+
     public ReportPreflightInput {
         officeId = requireText(officeId, "officeId");
         reportId = requireText(reportId, "reportId");
@@ -28,6 +59,13 @@ public record ReportPreflightInput(
                 .map(photo -> photo == null ? Map.<String, Object>of() : Map.copyOf(photo))
                 .toList();
         deterministicFindings = deterministicFindings == null ? List.of() : List.copyOf(deterministicFindings);
+        sourceBackedLegalReferences = sourceBackedLegalReferences == null
+                ? List.of()
+                : sourceBackedLegalReferences.stream()
+                .map(reference -> reference == null ? Map.<String, Object>of() : Map.copyOf(reference))
+                .toList();
+        legalReviewContext = legalReviewContext == null ? Map.of() : Map.copyOf(legalReviewContext);
+        reviewMode = reviewMode == null || reviewMode.isBlank() ? "STANDARD_PREFLIGHT" : reviewMode.trim();
     }
 
     private static String requireText(String value, String fieldName) {

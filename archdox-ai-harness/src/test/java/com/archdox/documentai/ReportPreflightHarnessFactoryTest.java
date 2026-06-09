@@ -91,17 +91,20 @@ class ReportPreflightHarnessFactoryTest {
         var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.0.2");
+        assertThat(prompt.version().version()).isEqualTo("1.1.0");
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
                 .contains("top-level photos array as the source of truth")
                 .contains("originalPickupStatus is NOT_REQUIRED")
                 .contains("savedAt is the data-entry/save timestamp")
                 .contains("normally use LOW or MEDIUM")
-                .contains("Do not translate stable code/category/severity enum values");
+                .contains("Do not translate stable code/category/severity enum values")
+                .contains("sourceBackedLegalReferences")
+                .contains("SOURCE_BACKED_LEGAL_DRY_RUN");
         assertThat(prompt.messages().get(1).content())
                 .contains("\"photos\"")
-                .contains("\"workingUploaded\" : true");
+                .contains("\"workingUploaded\" : true")
+                .contains("\"sourceBackedLegalReferences\"");
     }
 
     private static ReportPreflightInput input() {

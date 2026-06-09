@@ -27,6 +27,7 @@ import type {
   LegalChangeDigest,
   LegalChangeSet,
   LegalDomainBindingAutoGenerateResponse,
+  LegalDomainBindingCoverage,
   LegalDomainBinding,
   LegalLawSearchResponse,
   LegalDigestAiDraft,
@@ -771,6 +772,12 @@ export function getPlatformLegalDomainBindings(token: string, limit = 100) {
   return request<LegalDomainBinding[]>("/api/v1/platform-admin/legal/domain-bindings", {
     token,
     query: { limit }
+  });
+}
+
+export function getPlatformLegalDomainBindingCoverage(token: string) {
+  return request<LegalDomainBindingCoverage>("/api/v1/platform-admin/legal/domain-bindings/coverage/construction-supervision", {
+    token
   });
 }
 

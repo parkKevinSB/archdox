@@ -16,6 +16,7 @@ public record ReportPreflightReviewFindingResponse(
         String engineRunId,
         String engineStatus,
         List<String> legalReferences,
+        List<ReportPreflightLegalReferenceResponse> legalReferenceDetails,
         List<String> nextActions,
         String resolutionStatus,
         String resolutionNote,
