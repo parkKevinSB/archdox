@@ -4469,13 +4469,86 @@ function LegalDomainBindingPanel({
   onDeactivate: (bindingId: number) => Promise<void>;
 }) {
   const [selectedBindingId, setSelectedBindingId] = useState<number | null>(null);
+  const [mode, setMode] = useState<"LIST" | "CREATE" | "EDIT">("LIST");
   const activeCount = bindings.filter((binding) => binding.status === "ACTIVE").length;
   const selectedBinding = bindings.find((binding) => binding.id === selectedBindingId) ?? null;
   useEffect(() => {
-    if (selectedBindingId && !selectedBinding) {
+    if (mode === "EDIT" && selectedBindingId && !selectedBinding) {
       setSelectedBindingId(null);
+      setMode("LIST");
     }
-  }, [selectedBinding, selectedBindingId]);
+  }, [mode, selectedBinding, selectedBindingId]);
+  function openEdit(bindingId: number) {
+    setSelectedBindingId(bindingId);
+    setMode("EDIT");
+  }
+  function openCreate() {
+    setSelectedBindingId(null);
+    setMode("CREATE");
+  }
+  function backToList() {
+    setSelectedBindingId(null);
+    setMode("LIST");
+  }
+  if (mode === "EDIT" && selectedBinding) {
+    return (
+      <div className="view-stack">
+        <Panel title="도메인 바인딩 수정" icon={<ShieldCheck size={18} />} count={selectedBinding.id}>
+          <div className="legal-binding-detail-head">
+            <button className="button" disabled={busy} onClick={backToList} type="button">
+              <ArrowLeft size={16} />
+              목록으로
+            </button>
+            <CellTitle
+              title={selectedBinding.bindingKey}
+              subtitle={`#${selectedBinding.id} / ${selectedBinding.bindingScope} / ${selectedBinding.status}`}
+            />
+          </div>
+          <InlineNotice message="이 화면에서 수정한 연결은 다음 Engine/preflight 검토부터 적용됩니다. 법령 원문은 수정하지 않고 업무 항목과 조문 연결만 바꿉니다." />
+          <LegalDomainBindingForm
+            accessToken={accessToken}
+            busy={busy}
+            initialBinding={selectedBinding}
+            key={selectedBinding.id}
+            onCancel={backToList}
+            onSubmit={async (body) => {
+              await onUpdate(selectedBinding.id, body);
+              backToList();
+            }}
+          />
+        </Panel>
+      </div>
+    );
+  }
+  if (mode === "CREATE") {
+    return (
+      <div className="view-stack">
+        <Panel title="새 도메인 바인딩 추가" icon={<ShieldCheck size={18} />} count={activeCount}>
+          <div className="legal-binding-detail-head">
+            <button className="button" disabled={busy} onClick={backToList} type="button">
+              <ArrowLeft size={16} />
+              목록으로
+            </button>
+            <CellTitle
+              title="수동 바인딩 추가"
+              subtitle="자동 생성 후 예외/정정이 필요한 항목만 추가하세요."
+            />
+          </div>
+          <InlineNotice message="카탈로그 항목이나 리포트 유형을 synchronized 법령 조문에 연결합니다. 생성된 연결은 preflight/Engine 근거 후보로 사용됩니다." />
+          <LegalDomainBindingForm
+            accessToken={accessToken}
+            busy={busy}
+            key="new"
+            onCancel={backToList}
+            onSubmit={async (body) => {
+              await onCreate(body);
+              backToList();
+            }}
+          />
+        </Panel>
+      </div>
+    );
+  }
   return (
     <div className="view-stack">
       <Panel title="바인딩 목록" icon={<FileText size={18} />} count={bindings.length}>
@@ -4484,6 +4557,10 @@ function LegalDomainBindingPanel({
           <button className="button primary" disabled={busy} onClick={onAutoGenerate} type="button">
             {busy ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
             공사감리 기본 바인딩 자동 생성
+          </button>
+          <button className="button" disabled={busy} onClick={openCreate} type="button">
+            <Plus size={16} />
+            새 바인딩 추가
           </button>
           <span className="muted">기존 바인딩은 유지하고 없는 카탈로그 항목만 추가합니다.</span>
         </div>
@@ -4518,7 +4595,7 @@ function LegalDomainBindingPanel({
             <StatusBadge key="status" status={binding.status} />,
             `${binding.effectiveFrom ?? "-"} ~ ${binding.effectiveTo ?? "-"}`,
             <div className="table-action-group" key="actions">
-              <button className="button compact" disabled={busy} onClick={() => setSelectedBindingId(binding.id)} type="button">
+              <button className="button compact" disabled={busy} onClick={() => openEdit(binding.id)} type="button">
                 수정
               </button>
               {binding.status === "ACTIVE" ? (
@@ -4528,25 +4605,6 @@ function LegalDomainBindingPanel({
               ) : null}
             </div>
           ])}
-        />
-      </Panel>
-      <Panel
-        title={selectedBinding ? "선택한 바인딩 수정" : "새 바인딩 추가"}
-        icon={<ShieldCheck size={18} />}
-        count={selectedBinding ? selectedBinding.id : activeCount}
-      >
-        {selectedBinding ? (
-          <InlineNotice message={`선택한 바인딩 #${selectedBinding.id}을 수정합니다. 수정 후 다음 Engine 검토부터 새 연결이 적용됩니다.`} />
-        ) : (
-          <InlineNotice message="카탈로그 항목이나 리포트 유형을 synchronized 법령 조문에 연결합니다. 생성된 연결은 preflight/Engine 근거 후보로 사용됩니다." />
-        )}
-        <LegalDomainBindingForm
-          accessToken={accessToken}
-          busy={busy}
-          initialBinding={selectedBinding}
-          key={selectedBinding?.id ?? "new"}
-          onCancel={selectedBinding ? () => setSelectedBindingId(null) : undefined}
-          onSubmit={(body) => selectedBinding ? onUpdate(selectedBinding.id, body) : onCreate(body)}
         />
       </Panel>
     </div>

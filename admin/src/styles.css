@@ -2486,6 +2486,16 @@ button {
   margin: 12px 0;
 }
 
+.legal-binding-detail-head {
+  align-items: center;
+  border-bottom: 1px solid #edf0ef;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: -4px 0 14px;
+  padding-bottom: 12px;
+}
+
 .legal-binding-result {
   background: #eef8f4;
   border: 1px solid #b7d9cb;
