@@ -891,6 +891,51 @@ export type AiUsageSummary = {
   groups: AiUsageGroup[];
 };
 
+export type AiWorkerEvaluationCase = {
+  caseId: string;
+  name: string;
+  layer: string;
+  status: string;
+  automated: boolean;
+  verification: string;
+  evidence: string;
+};
+
+export type AiWorkerEvaluationGroup = {
+  groupKey: string;
+  displayName: string;
+  layer: string;
+  totalCases: number;
+  automatedCases: number;
+  passedCases: number;
+  warningCases: number;
+  failedCases: number;
+  passRatePercent: number;
+  cases: AiWorkerEvaluationCase[];
+};
+
+export type AiWorkerEvaluationSignal = {
+  signalKey: string;
+  displayName: string;
+  status: string;
+  layer: string;
+  evidence: string;
+};
+
+export type AiWorkerEvaluationSummary = {
+  generatedAt: string;
+  evaluationMode: string;
+  dataPolicy: string;
+  totalCases: number;
+  automatedCases: number;
+  passedCases: number;
+  warningCases: number;
+  failedCases: number;
+  passRatePercent: number;
+  groups: AiWorkerEvaluationGroup[];
+  signals: AiWorkerEvaluationSignal[];
+};
+
 export type AiHarnessTraceEvent = {
   id: number;
   officeId?: number | null;

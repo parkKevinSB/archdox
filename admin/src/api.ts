@@ -11,6 +11,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiWorkerEvaluationSummary,
   AuthTokenResponse,
   ConfigDefinition,
   CreateEngineApiKeyResponse,
@@ -892,6 +893,10 @@ export function getPlatformAiCallLogs(token: string, limit = 100, status?: strin
 
 export function getPlatformAiUsageSummary(token: string) {
   return request<AiUsageSummary>("/api/v1/platform-admin/ai/usage-summary", { token });
+}
+
+export function getPlatformAiWorkerEvaluationSummary(token: string) {
+  return request<AiWorkerEvaluationSummary>("/api/v1/platform-admin/ai/evaluation-summary", { token });
 }
 
 export function getPlatformAiHarnessTraces(token: string, limit = 100, harnessRunId?: string) {

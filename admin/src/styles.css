@@ -663,6 +663,20 @@ button {
   padding: 0 16px 14px;
 }
 
+.evaluation-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 16px 16px;
+}
+
+.evaluation-section h3 {
+  margin: 0;
+  color: #162523;
+  font-size: 14px;
+  font-weight: 900;
+}
+
 .ai-observer-guide {
   display: grid;
   gap: 12px;

@@ -80,6 +80,7 @@ import {
   getPlatformAiProviders,
   getPlatformAiPricingRules,
   getPlatformAiUsageSummary,
+  getPlatformAiWorkerEvaluationSummary,
   getPlatformCommands,
   getPlatformDeliveries,
   getPlatformDocumentJobs,
@@ -140,6 +141,7 @@ import type {
   AiProviderConnectionTestResult,
   AiProviderCredential,
   AiUsageSummary,
+  AiWorkerEvaluationSummary,
   ConfigDefinition,
   CreateEngineApiKeyResponse,
   DocumentDelivery,
@@ -300,6 +302,7 @@ type PlatformOpsData = {
   aiPreflightFindings: PlatformReportPreflightFinding[];
   aiPricingRules: AiModelPricingRule[];
   aiUsageSummary: AiUsageSummary | null;
+  aiWorkerEvaluationSummary: AiWorkerEvaluationSummary | null;
 };
 
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
@@ -348,7 +351,8 @@ const emptyPlatformOpsData: PlatformOpsData = {
   aiObservations: [],
   aiPreflightFindings: [],
   aiPricingRules: [],
-  aiUsageSummary: null
+  aiUsageSummary: null,
+  aiWorkerEvaluationSummary: null
 };
 
 const navItems: Array<{ key: OfficeViewKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -490,6 +494,7 @@ const statusLabels: Record<string, string> = {
   ONLINE: "온라인",
   OPEN: "미처리",
   OWNER: "소유자",
+  PASS: "통과",
   PASSED: "통과",
   PENDING: "대기",
   PENDING_UPLOAD: "업로드 대기",
@@ -873,15 +878,32 @@ export default function App() {
       } else if (view === "platform-flower-runtime") {
         next.flowerRuntimeDump = await getPlatformFlowerRuntimeDump(token);
       } else if (view === "ai-overview") {
-        const [aiProviders, aiHarnessPolicies, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings] = await Promise.all([
+        const [
+          aiProviders,
+          aiHarnessPolicies,
+          officeAiPolicies,
+          aiUsageSummary,
+          aiCallLogs,
+          aiPreflightFindings,
+          aiWorkerEvaluationSummary
+        ] = await Promise.all([
           getPlatformAiProviders(token),
           getPlatformAiHarnessPolicies(token),
           getPlatformOfficeAiPolicies(token, 100),
           getPlatformAiUsageSummary(token),
           getPlatformAiCallLogs(token, 100),
-          getPlatformAiPreflightFindings(token, 100)
+          getPlatformAiPreflightFindings(token, 100),
+          getPlatformAiWorkerEvaluationSummary(token)
         ]);
-        Object.assign(next, { aiProviders, aiHarnessPolicies, officeAiPolicies, aiUsageSummary, aiCallLogs, aiPreflightFindings });
+        Object.assign(next, {
+          aiProviders,
+          aiHarnessPolicies,
+          officeAiPolicies,
+          aiUsageSummary,
+          aiCallLogs,
+          aiPreflightFindings,
+          aiWorkerEvaluationSummary
+        });
       } else if (view === "ai-providers") {
         const [aiProviders, aiPricingRules, aiUsageSummary] = await Promise.all([
           getPlatformAiProviders(token),
@@ -1732,6 +1754,7 @@ export default function App() {
               harnessPolicies={platformData.aiHarnessPolicies}
               policies={platformData.officeAiPolicies}
               usageSummary={platformData.aiUsageSummary}
+              workerEvaluationSummary={platformData.aiWorkerEvaluationSummary}
               onCreatePricingRule={handleCreateAiPricingRule}
               onDisablePricingRule={handleDisableAiPricingRule}
               onCreateProvider={handleCreateAiProvider}
@@ -5977,6 +6000,7 @@ function AiManagementView({
   harnessPolicies,
   policies,
   usageSummary,
+  workerEvaluationSummary,
   onCreatePricingRule,
   onDisablePricingRule,
   onCreateProvider,
@@ -6002,6 +6026,7 @@ function AiManagementView({
   harnessPolicies: AiHarnessPolicy[];
   policies: OfficeAiPolicy[];
   usageSummary: AiUsageSummary | null;
+  workerEvaluationSummary: AiWorkerEvaluationSummary | null;
   onCreatePricingRule: (body: {
     providerCode: string;
     modelName: string;
@@ -6108,6 +6133,7 @@ function AiManagementView({
         </div>
       ) : null}
 
+      {showOverview ? <AiWorkerEvaluationSummaryPanel summary={workerEvaluationSummary} /> : null}
       {showOverview ? <AiProviderStatusPanel callLogs={callLogs} policies={policies} providers={providers} /> : null}
       {showObserver ? (
         <>
@@ -6359,6 +6385,117 @@ function AiManagementView({
         </Panel>
       ) : null}
     </div>
+  );
+}
+
+function AiWorkerEvaluationSummaryPanel({ summary }: { summary: AiWorkerEvaluationSummary | null }) {
+  if (!summary) {
+    return (
+      <Panel title="AI/Worker 평가 점수판" icon={<ShieldCheck size={18} />}>
+        <EmptyState message="평가 점수판을 불러오지 못했습니다." />
+      </Panel>
+    );
+  }
+  const warningSignals = summary.signals.filter((signal) => signal.status === "WARN").length;
+  const failedSignals = summary.signals.filter((signal) => signal.status === "FAILED").length;
+  const signalPassCount = summary.signals.filter((signal) => signal.status === "PASS").length;
+
+  return (
+    <Panel
+      title="AI/Worker 평가 점수판"
+      icon={<ShieldCheck size={18} />}
+      count={summary.totalCases}
+      action={
+        <div className="panel-kpis compact">
+          <span>Pass {summary.passedCases}</span>
+          <span>Warn {summary.warningCases + warningSignals}</span>
+          <span>Fail {summary.failedCases + failedSignals}</span>
+        </div>
+      }
+    >
+      <div className="metric-grid ai-observer-metrics">
+        <MetricCard
+          label="평가 케이스"
+          value={summary.totalCases}
+          detail={`${summary.automatedCases}개 자동화`}
+          icon={<Command size={18} />}
+          tone="blue"
+        />
+        <MetricCard
+          label="통과율"
+          value={`${summary.passRatePercent}%`}
+          detail={`${summary.passedCases}/${summary.totalCases} 통과`}
+          icon={<CheckCircle2 size={18} />}
+          tone={summary.failedCases > 0 ? "red" : summary.warningCases > 0 ? "amber" : "green"}
+        />
+        <MetricCard
+          label="제어 신호"
+          value={summary.signals.length}
+          detail={`PASS ${signalPassCount} / WARN ${warningSignals}`}
+          icon={<Gauge size={18} />}
+          tone={failedSignals > 0 ? "red" : warningSignals > 0 ? "amber" : "green"}
+        />
+        <MetricCard
+          label="검증 모드"
+          value={summary.evaluationMode}
+          detail={formatDate(summary.generatedAt)}
+          icon={<Activity size={18} />}
+          tone="slate"
+        />
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="evaluation-section">
+          <h3>평가 그룹</h3>
+          <Table
+            columns={["그룹", "계층", "케이스", "자동화", "통과율", "상태"]}
+            empty="평가 그룹이 없습니다."
+            rows={summary.groups.map((group) => [
+              <CellTitle key="group" title={group.displayName} subtitle={group.groupKey} />,
+              group.layer,
+              `${group.passedCases}/${group.totalCases}`,
+              group.automatedCases,
+              `${group.passRatePercent}%`,
+              <StatusBadge key="status" status={group.failedCases > 0 ? "FAILED" : group.warningCases > 0 ? "WARN" : "PASS"} />
+            ])}
+          />
+        </section>
+        <section className="evaluation-section">
+          <h3>제어 신호</h3>
+          <Table
+            columns={["항목", "계층", "상태", "근거"]}
+            empty="제어 신호가 없습니다."
+            rows={summary.signals.map((signal) => [
+              <CellTitle key="signal" title={signal.displayName} subtitle={signal.signalKey} />,
+              signal.layer,
+              <StatusBadge key="status" status={signal.status} />,
+              signal.evidence
+            ])}
+          />
+        </section>
+      </div>
+
+      <section className="evaluation-section">
+        <h3>평가 케이스 상세</h3>
+        <Table
+          columns={["ID", "케이스", "계층", "상태", "검증", "근거"]}
+          empty="평가 케이스가 없습니다."
+          rows={summary.groups.flatMap((group) =>
+            group.cases.map((item) => [
+              item.caseId,
+              item.name,
+              item.layer,
+              <StatusBadge key="status" status={item.status} />,
+              item.automated ? item.verification : "MANUAL",
+              item.evidence
+            ])
+          )}
+        />
+      </section>
+      <div className="inline-notice">
+        {summary.dataPolicy}
+      </div>
+    </Panel>
   );
 }
 
@@ -7755,7 +7892,7 @@ function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
 }
 
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED", "PASS"].includes(status)) {
     return "green";
   }
   if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW", "NEEDS_HUMAN_REVIEW"].includes(status)) {
