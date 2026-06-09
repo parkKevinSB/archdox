@@ -921,6 +921,13 @@ export function createPlatformAiWorkerRuntimeEvaluationRun(token: string) {
   });
 }
 
+export function createPlatformAiWorkerRuntimeScenarioRun(token: string) {
+  return request<AiWorkerEvaluationRun>("/api/v1/platform-admin/ai/evaluation-runs/runtime-scenario", {
+    token,
+    method: "POST"
+  });
+}
+
 export function getPlatformAiHarnessTraces(token: string, limit = 100, harnessRunId?: string) {
   return request<AiHarnessTraceEvent[]>("/api/v1/platform-admin/ai/harness-traces", {
     token,

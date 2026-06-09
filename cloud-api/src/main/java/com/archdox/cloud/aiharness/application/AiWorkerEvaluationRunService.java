@@ -25,6 +25,7 @@ public class AiWorkerEvaluationRunService {
     private static final int RETAINED_RUN_COUNT = 30;
     private static final String TRIGGER_PLATFORM_ADMIN_SNAPSHOT = "PLATFORM_ADMIN_SNAPSHOT";
     private static final String TRIGGER_PLATFORM_ADMIN_RUNTIME_PROBE = "PLATFORM_ADMIN_RUNTIME_PROBE";
+    private static final String TRIGGER_PLATFORM_ADMIN_RUNTIME_SCENARIO = "PLATFORM_ADMIN_RUNTIME_SCENARIO";
     private static final String STATUS_PASS = "PASS";
     private static final String STATUS_WARN = "WARN";
     private static final String STATUS_FAILED = "FAILED";
@@ -32,6 +33,7 @@ public class AiWorkerEvaluationRunService {
     private final AiWorkerEvaluationRunRepository repository;
     private final AiWorkerEvaluationReadService readService;
     private final AiWorkerEvaluationRuntimeProbeService runtimeProbeService;
+    private final AiWorkerEvaluationRuntimeScenarioService runtimeScenarioService;
     private final PlatformAdminService platformAdminService;
     private final ObjectMapper objectMapper;
 
@@ -39,12 +41,14 @@ public class AiWorkerEvaluationRunService {
             AiWorkerEvaluationRunRepository repository,
             AiWorkerEvaluationReadService readService,
             AiWorkerEvaluationRuntimeProbeService runtimeProbeService,
+            AiWorkerEvaluationRuntimeScenarioService runtimeScenarioService,
             PlatformAdminService platformAdminService,
             ObjectMapper objectMapper
     ) {
         this.repository = repository;
         this.readService = readService;
         this.runtimeProbeService = runtimeProbeService;
+        this.runtimeScenarioService = runtimeScenarioService;
         this.platformAdminService = platformAdminService;
         this.objectMapper = objectMapper;
     }
@@ -58,6 +62,11 @@ public class AiWorkerEvaluationRunService {
     public AiWorkerEvaluationRunResponse createRuntimeProbe(UserPrincipal principal) {
         var summary = runtimeProbeService.runtimeProbe(principal);
         return saveRun(principal, summary, TRIGGER_PLATFORM_ADMIN_RUNTIME_PROBE);
+    }
+
+    public AiWorkerEvaluationRunResponse createRuntimeScenario(UserPrincipal principal) {
+        var summary = runtimeScenarioService.runtimeScenario(principal);
+        return saveRun(principal, summary, TRIGGER_PLATFORM_ADMIN_RUNTIME_SCENARIO);
     }
 
     private AiWorkerEvaluationRunResponse saveRun(

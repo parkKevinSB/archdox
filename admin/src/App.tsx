@@ -42,6 +42,7 @@ import {
   configureTokenRefresh,
   createPlatformAiWorkerEvaluationRun,
   createPlatformAiWorkerRuntimeEvaluationRun,
+  createPlatformAiWorkerRuntimeScenarioRun,
   createPlatformEngineApiKey,
   createPlatformAiPricingRule,
   createPlatformAiProvider,
@@ -926,7 +927,7 @@ export default function App() {
       } else if (view === "ai-evaluation") {
         const [aiWorkerEvaluationSummary, aiWorkerEvaluationRuns] = await Promise.all([
           getPlatformAiWorkerEvaluationSummary(token),
-          getPlatformAiWorkerEvaluationRuns(token, 20)
+          getPlatformAiWorkerEvaluationRuns(token, 30)
         ]);
         Object.assign(next, { aiWorkerEvaluationSummary, aiWorkerEvaluationRuns });
       } else if (view === "ai-policies") {
@@ -1318,7 +1319,7 @@ export default function App() {
         aiWorkerEvaluationRuns: [
           run,
           ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
-        ].slice(0, 20)
+        ].slice(0, 30)
       }));
       return run;
     } catch (err) {
@@ -1345,11 +1346,38 @@ export default function App() {
         aiWorkerEvaluationRuns: [
           run,
           ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
-        ].slice(0, 20)
+        ].slice(0, 30)
       }));
       return run;
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI/Worker 런타임 평가를 실행하지 못했습니다.");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateAiWorkerRuntimeScenarioRun(): Promise<AiWorkerEvaluationRun | null> {
+    if (!auth || !platformAdmin) {
+      return null;
+    }
+    if (!window.confirm("Worker 시나리오 평가는 Legal Digest Worker를 dry-run으로 실행합니다. 실제 provider가 배정되어 있으면 외부 모델 호출이 발생할 수 있습니다. 진행할까요?")) {
+      return null;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const run = await createPlatformAiWorkerRuntimeScenarioRun(auth.accessToken);
+      setPlatformData((current) => ({
+        ...current,
+        aiWorkerEvaluationRuns: [
+          run,
+          ...current.aiWorkerEvaluationRuns.filter((item) => item.id !== run.id)
+        ].slice(0, 30)
+      }));
+      return run;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI/Worker 시나리오 평가를 실행하지 못했습니다.");
       return null;
     } finally {
       setLoading(false);
@@ -1830,6 +1858,7 @@ export default function App() {
               onRefresh={refreshPlatform}
               onCreateWorkerEvaluationRun={handleCreateAiWorkerEvaluationRun}
               onCreateWorkerRuntimeEvaluationRun={handleCreateAiWorkerRuntimeEvaluationRun}
+              onCreateWorkerRuntimeScenarioRun={handleCreateAiWorkerRuntimeScenarioRun}
               onSaveHarnessPolicy={handleSaveAiHarnessPolicy}
               onSaveOfficePolicy={handleSaveOfficeAiPolicy}
               providerTestResults={aiProviderTestResults}
@@ -6079,6 +6108,7 @@ function AiManagementView({
   onRefresh,
   onCreateWorkerEvaluationRun,
   onCreateWorkerRuntimeEvaluationRun,
+  onCreateWorkerRuntimeScenarioRun,
   onSaveHarnessPolicy,
   providerTestResults,
   onSaveOfficePolicy
@@ -6130,6 +6160,7 @@ function AiManagementView({
   onRefresh: () => Promise<void>;
   onCreateWorkerEvaluationRun: () => Promise<AiWorkerEvaluationRun | null>;
   onCreateWorkerRuntimeEvaluationRun: () => Promise<AiWorkerEvaluationRun | null>;
+  onCreateWorkerRuntimeScenarioRun: () => Promise<AiWorkerEvaluationRun | null>;
   onSaveHarnessPolicy: (
     policyKey: string,
     body: {
@@ -6214,6 +6245,7 @@ function AiManagementView({
           summary={workerEvaluationSummary}
           onCreateRun={onCreateWorkerEvaluationRun}
           onCreateRuntimeRun={onCreateWorkerRuntimeEvaluationRun}
+          onCreateRuntimeScenarioRun={onCreateWorkerRuntimeScenarioRun}
         />
       ) : null}
       {showObserver ? (
@@ -6474,13 +6506,15 @@ function AiWorkerEvaluationControlPanel({
   runs,
   summary: currentSummary,
   onCreateRun,
-  onCreateRuntimeRun
+  onCreateRuntimeRun,
+  onCreateRuntimeScenarioRun
 }: {
   busy: boolean;
   runs: AiWorkerEvaluationRun[];
   summary: AiWorkerEvaluationSummary | null;
   onCreateRun: () => Promise<AiWorkerEvaluationRun | null>;
   onCreateRuntimeRun: () => Promise<AiWorkerEvaluationRun | null>;
+  onCreateRuntimeScenarioRun: () => Promise<AiWorkerEvaluationRun | null>;
 }) {
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
@@ -6560,6 +6594,10 @@ function AiWorkerEvaluationControlPanel({
           <button className="button compact" disabled={busy} onClick={() => createAndSelectRun(onCreateRuntimeRun)} type="button">
             {busy ? <Loader2 className="spin" size={14} /> : <Activity size={14} />}
             런타임 연결 평가
+          </button>
+          <button className="button compact" disabled={busy} onClick={() => createAndSelectRun(onCreateRuntimeScenarioRun)} type="button">
+            {busy ? <Loader2 className="spin" size={14} /> : <Command size={14} />}
+            Worker 시나리오 평가
           </button>
         </div>
       }
@@ -6871,7 +6909,9 @@ function evaluationGroupLabel(groupKey: string, fallback: string) {
     MCP_ENGINE_BOUNDARY: "MCP / Engine 외부 경계",
     LEGAL_DIGEST_PIPELINE: "법령 동기화 / 변경 게시글",
     WORKER_POLICY_GOVERNANCE: "Worker 정책 / 승인 / 관측",
-    RUNTIME_AI_PROVIDER_PROBE: "런타임 AI provider 연결"
+    RUNTIME_AI_PROVIDER_PROBE: "런타임 AI provider 연결",
+    RUNTIME_WORKER_SCENARIO: "Worker dry-run 시나리오",
+    TOKEN_COST_CONTROL: "토큰 / 비용 통제"
   };
   return labels[groupKey] ?? fallback;
 }
@@ -6883,7 +6923,9 @@ function evaluationGroupDescription(groupKey: string) {
     MCP_ENGINE_BOUNDARY: "외부 Agent가 쓰는 MCP/API 경계에서 scope, quota, 오류 계약을 봅니다.",
     LEGAL_DIGEST_PIPELINE: "법령 원문은 보존하고 AI는 초안까지만 만드는지 봅니다.",
     WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다.",
-    RUNTIME_AI_PROVIDER_PROBE: "운영 설정에서 하네스 정책과 provider 연결이 실제로 가능한지 봅니다."
+    RUNTIME_AI_PROVIDER_PROBE: "운영 설정에서 하네스 정책과 provider 연결이 실제로 가능한지 봅니다.",
+    RUNTIME_WORKER_SCENARIO: "실제 Worker 실행 통로를 dry-run으로 지나가며 통제와 출력 안전성을 봅니다.",
+    TOKEN_COST_CONTROL: "하네스 반복 호출, 실제 토큰 사용량, 가격 규칙, 사무소 예산 제한, 최근 폭주 징후를 봅니다."
   };
   return descriptions[groupKey] ?? "선택한 영역의 자동 평가 결과입니다.";
 }
@@ -6895,7 +6937,9 @@ function evaluationGroupFocus(groupKey: string) {
     MCP_ENGINE_BOUNDARY: "핵심은 외부 Agent가 실패 원인을 해석할 수 있는 응답 계약입니다.",
     LEGAL_DIGEST_PIPELINE: "핵심은 AI가 법령 corpus를 바꾸지 않고 관리자 승인 전 초안에 머무는지입니다.",
     WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다.",
-    RUNTIME_AI_PROVIDER_PROBE: "핵심은 fake provider와 실제 provider를 구분하고, 실제 연결 실패를 분리해 보는 것입니다."
+    RUNTIME_AI_PROVIDER_PROBE: "핵심은 fake provider와 실제 provider를 구분하고, 실제 연결 실패를 분리해 보는 것입니다.",
+    RUNTIME_WORKER_SCENARIO: "핵심은 Worker flow, policy gate, run-control, executor, output safety가 실제 dry-run에서도 지켜지는지입니다.",
+    TOKEN_COST_CONTROL: "핵심은 특정 하네스나 Worker가 반복 호출로 토큰을 과소비하지 않도록 상한과 관측 지표가 있는지입니다."
   };
   return focus[groupKey] ?? "이 그룹의 평가 케이스와 근거를 확인합니다.";
 }
@@ -6903,7 +6947,8 @@ function evaluationGroupFocus(groupKey: string) {
 function evaluationRunTriggerLabel(triggerType: string) {
   const labels: Record<string, string> = {
     PLATFORM_ADMIN_SNAPSHOT: "기준 기록",
-    PLATFORM_ADMIN_RUNTIME_PROBE: "런타임 평가"
+    PLATFORM_ADMIN_RUNTIME_PROBE: "런타임 연결 평가",
+    PLATFORM_ADMIN_RUNTIME_SCENARIO: "Worker 시나리오 평가"
   };
   return labels[triggerType] ?? displayLabel(triggerType);
 }
@@ -6935,7 +6980,9 @@ function evaluationSignalLabel(signalKey: string, fallback: string) {
     TRACE_AUDIT: "Trace / audit 관측",
     REAL_MODEL_EVALUATION: "실제 모델 반복 평가",
     RUNTIME_HARNESS_POLICY: "런타임 하네스 정책 해석",
-    RUNTIME_PROVIDER_CONNECTIVITY: "런타임 provider 연결성"
+    RUNTIME_PROVIDER_CONNECTIVITY: "런타임 provider 연결성",
+    RUNTIME_WORKER_SCENARIO: "Worker dry-run 시나리오",
+    TOKEN_COST_CONTROL: "토큰 / 비용 통제"
   };
   return labels[signalKey] ?? fallback;
 }
@@ -6946,6 +6993,26 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
   }
   if (caseId.startsWith("RUN-AI-PROVIDER-")) {
     return "provider 연결 평가";
+  }
+  if (caseId.startsWith("RUN-SCENARIO-LEGAL-DIGEST-")) {
+    const labels: Record<string, string> = {
+      "RUN-SCENARIO-LEGAL-DIGEST-000": "법령 변경 게시글 시나리오 데이터 확인",
+      "RUN-SCENARIO-LEGAL-DIGEST-001": "법령 게시글 AI Worker dry-run 실행",
+      "RUN-SCENARIO-LEGAL-DIGEST-002": "Worker 출력 안전 플래그 확인",
+      "RUN-SCENARIO-LEGAL-DIGEST-003": "AI Harness 실행 추적 가능성 확인",
+      "RUN-SCENARIO-LEGAL-DIGEST-004": "평가 시나리오 저장 경계 확인"
+    };
+    return labels[caseId] ?? "법령 게시글 Worker 시나리오";
+  }
+  if (caseId.startsWith("RUN-TOKEN-")) {
+    const labels: Record<string, string> = {
+      "RUN-TOKEN-001": "하네스 반복 호출 / timeout 상한",
+      "RUN-TOKEN-002": "실제 provider 모델 가격 규칙",
+      "RUN-TOKEN-003": "사무소 예산 / 일일 호출 / 월간 토큰 제한",
+      "RUN-TOKEN-004": "월간 토큰 사용량 관측",
+      "RUN-TOKEN-005": "최근 1시간 반복 호출 / 토큰 폭주 징후"
+    };
+    return labels[caseId] ?? "토큰 / 비용 통제 평가";
   }
   const labels: Record<string, string> = {
     "AI-H-001": "법령 요약이 입력된 근거 조문만 사용",
@@ -7003,7 +7070,13 @@ function evaluationVerificationLabel(verification: string) {
   const labels: Record<string, string> = {
     GRADLE_TEST: "자동 테스트",
     RUNTIME_PROBE: "런타임 설정 점검",
-    PROVIDER_CONNECTION_TEST: "Provider 연결 테스트"
+    PROVIDER_CONNECTION_TEST: "Provider 연결 테스트",
+    WORKER_DRY_RUN: "Worker dry-run",
+    WORKER_OUTPUT_SAFETY: "출력 안전성 점검",
+    WORKER_TRACE_SCENARIO: "실행 추적 점검",
+    TOKEN_USAGE_POLICY: "토큰 사용 정책",
+    TOKEN_COST_POLICY: "비용 / 예산 정책",
+    TOKEN_USAGE_TELEMETRY: "토큰 사용량 관측"
   };
   return labels[verification] ?? displayLabel(verification);
 }

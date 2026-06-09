@@ -20,10 +20,12 @@ class AiWorkerEvaluationRunServiceTest {
     private final PlatformAdminService platformAdminService = mock(PlatformAdminService.class);
     private final AiWorkerEvaluationReadService readService = new AiWorkerEvaluationReadService(platformAdminService);
     private final AiWorkerEvaluationRuntimeProbeService runtimeProbeService = mock(AiWorkerEvaluationRuntimeProbeService.class);
+    private final AiWorkerEvaluationRuntimeScenarioService runtimeScenarioService = mock(AiWorkerEvaluationRuntimeScenarioService.class);
     private final AiWorkerEvaluationRunService service = new AiWorkerEvaluationRunService(
             repository,
             readService,
             runtimeProbeService,
+            runtimeScenarioService,
             platformAdminService,
             JsonMapper.builder().addModule(new JavaTimeModule()).build());
 
@@ -76,6 +78,24 @@ class AiWorkerEvaluationRunServiceTest {
         assertThat(saved.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
         assertThat(saved.evaluationMode()).isEqualTo("STATIC_BASELINE");
         assertThat(response.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_PROBE");
+        verify(repository).deleteAllButMostRecent(30);
+    }
+
+    @Test
+    void createRuntimeScenarioStoresWorkerScenarioSummaryAsRun() {
+        var principal = new UserPrincipal(7L, "platform@test.co.kr");
+        var runtimeSummary = readService.summary(principal);
+        when(runtimeScenarioService.runtimeScenario(principal)).thenReturn(runtimeSummary);
+        when(repository.save(any(AiWorkerEvaluationRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.createRuntimeScenario(principal);
+
+        var captor = ArgumentCaptor.forClass(AiWorkerEvaluationRun.class);
+        verify(repository).save(captor.capture());
+        var saved = captor.getValue();
+        assertThat(saved.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_SCENARIO");
+        assertThat(saved.evaluationMode()).isEqualTo("STATIC_BASELINE");
+        assertThat(response.triggerType()).isEqualTo("PLATFORM_ADMIN_RUNTIME_SCENARIO");
         verify(repository).deleteAllButMostRecent(30);
     }
 }

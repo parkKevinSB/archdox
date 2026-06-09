@@ -19,6 +19,7 @@ import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -27,10 +28,12 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
     private final AiWorkerEvaluationReadService readService = new AiWorkerEvaluationReadService(platformAdminService);
     private final AiHarnessPolicyExecutionService policyExecutionService = mock(AiHarnessPolicyExecutionService.class);
     private final AiProviderConnectionTestService connectionTestService = mock(AiProviderConnectionTestService.class);
+    private final AiWorkerEvaluationTokenControlService tokenControlService = mock(AiWorkerEvaluationTokenControlService.class);
     private final AiWorkerEvaluationRuntimeProbeService service = new AiWorkerEvaluationRuntimeProbeService(
             readService,
             policyExecutionService,
-            connectionTestService);
+            connectionTestService,
+            tokenControlService);
 
     @Test
     void runtimeProbeTestsUniqueRealProviderAndMarksRealModelSignalPass() {
@@ -64,6 +67,8 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
                         "stop",
                         "{\"status\":\"ok\"}",
                         OffsetDateTime.parse("2026-06-09T00:00:00+09:00")));
+        when(tokenControlService.tokenControlGroups()).thenReturn(List.of());
+        when(tokenControlService.tokenControlSignals(List.of())).thenReturn(List.of());
 
         var summary = service.runtimeProbe(principal);
 
@@ -100,6 +105,8 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
                 .thenReturn(AiHarnessPolicyResolution.unavailable(
                         AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS,
                         "PROVIDER_NOT_ASSIGNED"));
+        when(tokenControlService.tokenControlGroups()).thenReturn(List.of());
+        when(tokenControlService.tokenControlSignals(List.of())).thenReturn(List.of());
 
         var summary = service.runtimeProbe(principal);
 

@@ -32,15 +32,18 @@ public class AiWorkerEvaluationRuntimeProbeService {
     private final AiWorkerEvaluationReadService readService;
     private final AiHarnessPolicyExecutionService policyExecutionService;
     private final AiProviderConnectionTestService connectionTestService;
+    private final AiWorkerEvaluationTokenControlService tokenControlService;
 
     public AiWorkerEvaluationRuntimeProbeService(
             AiWorkerEvaluationReadService readService,
             AiHarnessPolicyExecutionService policyExecutionService,
-            AiProviderConnectionTestService connectionTestService
+            AiProviderConnectionTestService connectionTestService,
+            AiWorkerEvaluationTokenControlService tokenControlService
     ) {
         this.readService = readService;
         this.policyExecutionService = policyExecutionService;
         this.connectionTestService = connectionTestService;
+        this.tokenControlService = tokenControlService;
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -115,14 +118,17 @@ public class AiWorkerEvaluationRuntimeProbeService {
                 runtimeCases);
         var groups = new ArrayList<>(baseline.groups());
         groups.add(runtimeGroup);
+        var tokenGroups = tokenControlService.tokenControlGroups();
+        groups.addAll(tokenGroups);
         var realModelSignalStatus = realModelSignalStatus(realProviderTestedCount, failedRealProviderCount);
-        var signals = runtimeSignals(
+        var signals = new ArrayList<>(runtimeSignals(
                 baseline.signals(),
                 unavailableHarnessCount,
                 fakeProviderCount,
                 realProviderTestedCount,
                 failedRealProviderCount,
-                realModelSignalStatus);
+                realModelSignalStatus));
+        signals.addAll(tokenControlService.tokenControlSignals(tokenGroups));
         return summary(groups, signals, dataPolicy(realProviderTestedCount, fakeProviderCount));
     }
 
