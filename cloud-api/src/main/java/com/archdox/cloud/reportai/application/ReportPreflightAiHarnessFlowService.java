@@ -49,6 +49,7 @@ public class ReportPreflightAiHarnessFlowService {
     private final AiModelGateway aiModelGateway;
     private final ReportPreflightAiReviewRunStore aiReviewRunStore;
     private final ReportPreflightAiReviewFindingSink aiReviewFindingSink;
+    private final ReportPhotoEvidenceStatusService photoEvidenceStatusService;
     private final ObjectMapper objectMapper;
     private final TraceListener aiHarnessTraceListener;
 
@@ -61,6 +62,7 @@ public class ReportPreflightAiHarnessFlowService {
             AiModelGateway aiModelGateway,
             ReportPreflightAiReviewRunStore aiReviewRunStore,
             ReportPreflightAiReviewFindingSink aiReviewFindingSink,
+            ReportPhotoEvidenceStatusService photoEvidenceStatusService,
             ObjectMapper objectMapper,
             TraceListener aiHarnessTraceListener
     ) {
@@ -72,6 +74,7 @@ public class ReportPreflightAiHarnessFlowService {
         this.aiModelGateway = aiModelGateway;
         this.aiReviewRunStore = aiReviewRunStore;
         this.aiReviewFindingSink = aiReviewFindingSink;
+        this.photoEvidenceStatusService = photoEvidenceStatusService;
         this.objectMapper = objectMapper;
         this.aiHarnessTraceListener = aiHarnessTraceListener;
     }
@@ -128,6 +131,7 @@ public class ReportPreflightAiHarnessFlowService {
 
     private ReportPreflightInput input(InspectionReport report, List<ReportPreflightReviewFinding> findings) {
         var legalReferences = legalReferences(findings);
+        var photoEvidenceStatus = photoEvidenceStatusService.evaluate(report);
         return new ReportPreflightInput(
                 String.valueOf(report.officeId()),
                 String.valueOf(report.id()),
@@ -135,7 +139,7 @@ public class ReportPreflightAiHarnessFlowService {
                 report.title(),
                 report.status().name(),
                 report.contentRevision(),
-                reportSnapshot(report),
+                reportSnapshot(report, photoEvidenceStatus),
                 stepSnapshot(report),
                 photoSnapshot(report),
                 findingSummaries(findings),
@@ -226,7 +230,10 @@ public class ReportPreflightAiHarnessFlowService {
         return Map.copyOf(reference);
     }
 
-    private Map<String, Object> reportSnapshot(InspectionReport report) {
+    private Map<String, Object> reportSnapshot(
+            InspectionReport report,
+            ReportPhotoEvidenceStatus photoEvidenceStatus
+    ) {
         var snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("id", report.id());
         snapshot.put("officeId", report.officeId());
@@ -240,6 +247,7 @@ public class ReportPreflightAiHarnessFlowService {
         snapshot.put("templateId", report.templateId() == null ? "" : report.templateId());
         snapshot.put("contentRevision", report.contentRevision());
         snapshot.put("submittedRevision", report.submittedRevision() == null ? "" : report.submittedRevision());
+        snapshot.put("photoEvidenceStatus", photoEvidenceStatus.toMap());
         return snapshot;
     }
 

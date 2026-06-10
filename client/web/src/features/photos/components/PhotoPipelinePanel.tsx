@@ -10,6 +10,8 @@ type PhotoPipelinePanelProps = {
   canUpload?: boolean;
   emptyText?: string;
   emptyTitle?: string;
+  showLinkageStatus?: boolean;
+  showUploadControls?: boolean;
   officeId: number | null;
   photoContexts?: Record<number, PhotoDisplayContext>;
   report: InspectionReport;
@@ -24,6 +26,8 @@ export type PhotoDisplayContext = {
 
 export function PhotoPipelinePanel({
   canUpload = true,
+  showLinkageStatus = false,
+  showUploadControls = true,
   emptyText = "현장 사진을 올리면 원본/작업본/썸네일 처리 상태를 여기에서 확인합니다.",
   emptyTitle = "아직 업로드된 사진이 없습니다",
   officeId,
@@ -43,6 +47,7 @@ export function PhotoPipelinePanel({
 
   return (
     <>
+      {showUploadControls ? (
       <div className="panel-body">
         <div className="photo-upload-zone">
           <div>
@@ -74,10 +79,13 @@ export function PhotoPipelinePanel({
         </div>
         <PhotoUploadTaskStrip onCancel={workspace.cancelUploadTask} tasks={workspace.uploadTasks} />
       </div>
+      ) : null}
 
       {workspace.photos.length === 0 ? (
         <EmptyState title={emptyTitle} text={emptyText} />
       ) : (
+        <>
+        {showLinkageStatus ? <PhotoLinkageSummary photoContexts={photoContexts} photos={workspace.photos} /> : null}
         <div className="photo-grid">
           {workspace.photos.map((photo) => (
             <PhotoCard
@@ -87,12 +95,47 @@ export function PhotoPipelinePanel({
               onDeletePhoto={workspace.deletePhoto}
               photo={photo}
               photoContext={photoContexts[photo.id]}
+              showLinkageStatus={showLinkageStatus}
               token={token}
             />
           ))}
         </div>
+        </>
       )}
     </>
+  );
+}
+
+function PhotoLinkageSummary({
+  photoContexts,
+  photos
+}: {
+  photoContexts: Record<number, PhotoDisplayContext>;
+  photos: PhotoResponse[];
+}) {
+  const linkedCount = photos.filter((photo) => Boolean(photoContexts[photo.id])).length;
+  const unlinkedCount = photos.length - linkedCount;
+  const preparingCount = photos.filter((photo) => photo.status !== "UPLOADED").length;
+
+  return (
+    <div className="photo-linkage-summary">
+      <span>
+        <strong>{photos.length}</strong>
+        전체
+      </span>
+      <span>
+        <strong>{linkedCount}</strong>
+        공정 연결
+      </span>
+      <span className={unlinkedCount > 0 ? "attention" : ""}>
+        <strong>{unlinkedCount}</strong>
+        미연결
+      </span>
+      <span className={preparingCount > 0 ? "attention" : ""}>
+        <strong>{preparingCount}</strong>
+        준비 중
+      </span>
+    </div>
   );
 }
 
@@ -142,6 +185,7 @@ function PhotoCard({
   onDeletePhoto,
   photo,
   photoContext,
+  showLinkageStatus,
   token
 }: {
   officeId: number | null;
@@ -149,6 +193,7 @@ function PhotoCard({
   onDeletePhoto: (photoId: number) => Promise<void>;
   photo: PhotoResponse;
   photoContext?: PhotoDisplayContext;
+  showLinkageStatus?: boolean;
   token: string;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -193,6 +238,11 @@ function PhotoCard({
             </span>
             <span>{displayCaption}</span>
             {photoContext?.detail ? <span>{photoContext.detail}</span> : null}
+            {showLinkageStatus ? (
+              <span className={photoContext ? "photo-linkage-chip linked" : "photo-linkage-chip unlinked"}>
+                {photoContext ? "공정 연결됨" : "미연결 사진"}
+              </span>
+            ) : null}
           </div>
           <StatusBadge status={photo.status} />
         </div>

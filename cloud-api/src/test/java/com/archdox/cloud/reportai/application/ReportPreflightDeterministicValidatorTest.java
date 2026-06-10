@@ -2,6 +2,7 @@ package com.archdox.cloud.reportai.application;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,10 +20,19 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ReportPreflightDeterministicValidatorTest {
+    private final ReportPhotoEvidenceStatusService photoEvidenceStatusService = mock(ReportPhotoEvidenceStatusService.class);
+
+    @BeforeEach
+    void setUp() {
+        when(photoEvidenceStatusService.evaluate(any())).thenReturn(emptyPhotoEvidenceStatus());
+    }
+
     @Test
     void submitValidationBlockingIssueBlocksGeneration() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
@@ -39,7 +49,7 @@ class ReportPreflightDeterministicValidatorTest {
         when(targetRepository.findByOfficeIdAndReportIdOrderByRoleAscIdAsc(10L, 100L)).thenReturn(List.of());
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.empty());
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
@@ -54,7 +64,7 @@ class ReportPreflightDeterministicValidatorTest {
         var report = report("CONSTRUCTION_SUPERVISION_REPORT");
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertFalse(result.blocksGeneration());
@@ -71,7 +81,7 @@ class ReportPreflightDeterministicValidatorTest {
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.empty());
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertFalse(result.blocksGeneration());
@@ -90,7 +100,7 @@ class ReportPreflightDeterministicValidatorTest {
                 "dailyItems", Map.of("groups", List.of())
         ))));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
@@ -117,7 +127,7 @@ class ReportPreflightDeterministicValidatorTest {
                 )))
         ))));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
@@ -149,7 +159,7 @@ class ReportPreflightDeterministicValidatorTest {
                 )))
         ))));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertTrue(result.blocksGeneration());
@@ -171,11 +181,93 @@ class ReportPreflightDeterministicValidatorTest {
                         """
         ))));
 
-        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository)
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
                 .validate(report);
 
         assertFalse(result.blocksGeneration());
         assertFalse(result.findings().stream().anyMatch(finding -> finding.code().startsWith("DAILY_LOG_")));
+    }
+
+    @Test
+    void dailySupervisionBlocksWhenLinkedPhotoReferenceIsBroken() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of(Map.of(
+                        "floor", "전층",
+                        "tradeCode", "REINFORCED_CONCRETE",
+                        "processCode", "REBAR_ASSEMBLY",
+                        "entries", List.of(Map.of(
+                                "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
+                                "photoIds", List.of(101L)
+                        ))
+                )))
+        ))));
+        when(photoEvidenceStatusService.evaluate(report)).thenReturn(new ReportPhotoEvidenceStatus(
+                true,
+                0,
+                0,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(101L),
+                Set.of(),
+                Set.of(101L),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of()));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
+                .validate(report);
+
+        assertTrue(result.blocksGeneration());
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_PHOTO_REFERENCE_MISSING".equals(finding.code())));
+    }
+
+    @Test
+    void dailySupervisionWarnsWhenReportPhotoIsNotLinkedToDailyLog() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of(Map.of(
+                        "floor", "전층",
+                        "tradeCode", "REINFORCED_CONCRETE",
+                        "processCode", "REBAR_ASSEMBLY",
+                        "entries", List.of(Map.of(
+                                "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
+                                "photoIds", List.of(101L)
+                        ))
+                )))
+        ))));
+        when(photoEvidenceStatusService.evaluate(report)).thenReturn(new ReportPhotoEvidenceStatus(
+                true,
+                2,
+                2,
+                Set.of(101L, 202L),
+                Set.of(101L, 202L),
+                Set.of(101L, 202L),
+                Set.of(101L),
+                Set.of(101L),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(202L)));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
+                .validate(report);
+
+        assertFalse(result.blocksGeneration());
+        assertTrue(result.findings().stream().anyMatch(finding -> "REPORT_PHOTO_UNLINKED_TO_DAILY_LOG".equals(finding.code())));
     }
 
     private InspectionReport report() {
@@ -205,5 +297,22 @@ class ReportPreflightDeterministicValidatorTest {
                 payload,
                 20L,
                 OffsetDateTime.now());
+    }
+
+    private ReportPhotoEvidenceStatus emptyPhotoEvidenceStatus() {
+        return new ReportPhotoEvidenceStatus(
+                true,
+                0,
+                0,
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                Set.of());
     }
 }

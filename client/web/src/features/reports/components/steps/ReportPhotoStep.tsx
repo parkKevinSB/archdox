@@ -37,6 +37,8 @@ export function ReportPhotoStep({
           officeId={officeId}
           photoContexts={photoContexts}
           report={report}
+          showLinkageStatus
+          showUploadControls={false}
           token={token}
           workspace={workspace}
         />

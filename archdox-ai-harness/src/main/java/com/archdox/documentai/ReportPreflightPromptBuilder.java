@@ -49,6 +49,8 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 inconsistent dates, contradictory answers, vague safety remarks, missing context,
                 suspiciously empty narrative fields, and checklist answers that need evidence.
                 Use the top-level photos array as the source of truth for uploaded photo evidence.
+                Prefer reportSnapshot.photoEvidenceStatus and photoEvidenceSummary over raw PHOTOS step payload.
+                For construction daily supervision logs, DAILY_LOG entry photoIds are the business linkage.
                 The PHOTOS step payload may be empty even when photos were uploaded through the photo API.
                 Use photoEvidenceSummary to decide whether DAILY_LOG photoIds are actually backed by uploaded photos.
                 Do not create a PHOTOS step empty/missing-photo finding when allDailyLogPhotoRefsResolved is true.
@@ -108,6 +110,7 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
         payload.put("steps", input.steps());
         payload.put("photos", input.photos());
         payload.put("photoEvidenceSummary", photoEvidenceSummary(input));
+        payload.put("photoEvidenceStatus", photoEvidenceStatus(input));
         payload.put("deterministicFindings", input.deterministicFindings());
         payload.put("sourceBackedLegalReferences", input.sourceBackedLegalReferences());
         payload.put("legalReviewContext", input.legalReviewContext());
@@ -117,6 +120,7 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
     }
 
     private Map<String, Object> photoEvidenceSummary(ReportPreflightInput input) {
+        var hostStatus = photoEvidenceStatus(input);
         var uploadedPhotoIds = new LinkedHashSet<String>();
         var workingUploadedPhotoIds = new LinkedHashSet<String>();
         for (var photo : input.photos()) {
@@ -151,7 +155,16 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
         summary.put("notWorkingUploadedDailyLogPhotoIds", List.copyOf(notWorkingUploadedPhotoIds));
         summary.put("allDailyLogPhotoRefsResolved", missingPhotoIds.isEmpty() && notWorkingUploadedPhotoIds.isEmpty());
         summary.put("photoSourceOfTruth", "top-level photos array from ArchDox photo API");
+        if (!hostStatus.isEmpty()) {
+            summary.put("hostPhotoEvidenceStatus", hostStatus);
+        }
         return Map.copyOf(summary);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> photoEvidenceStatus(ReportPreflightInput input) {
+        var status = input.reportSnapshot().get("photoEvidenceStatus");
+        return status instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
     }
 
     private boolean photosStepPayloadEmpty(Map<String, Object> steps) {

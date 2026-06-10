@@ -1680,6 +1680,47 @@ button {
   padding: 14px;
 }
 
+.photo-linkage-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 14px 0;
+}
+
+.photo-linkage-summary span,
+.photo-linkage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 9px;
+  border: 1px solid #d8e1df;
+  border-radius: 999px;
+  color: #40514e;
+  background: #f7fbfa;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.photo-linkage-summary strong {
+  color: #14201f;
+}
+
+.photo-linkage-summary .attention,
+.photo-linkage-chip.unlinked {
+  border-color: #f1d298;
+  color: #7d570b;
+  background: #fff8e8;
+}
+
+.photo-linkage-chip.linked {
+  border-color: #bae2d4;
+  color: #0d6c54;
+  background: #ecfaf5;
+}
+
 .photo-card {
   display: grid;
   gap: 12px;

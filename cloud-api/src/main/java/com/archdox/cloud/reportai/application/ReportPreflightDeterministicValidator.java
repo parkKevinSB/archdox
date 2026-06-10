@@ -20,16 +20,19 @@ public class ReportPreflightDeterministicValidator {
     private final ReportSubmitValidationService submitValidationService;
     private final InspectionReportTargetRepository targetRepository;
     private final InspectionReportStepRepository stepRepository;
+    private final ReportPhotoEvidenceStatusService photoEvidenceStatusService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ReportPreflightDeterministicValidator(
             ReportSubmitValidationService submitValidationService,
             InspectionReportTargetRepository targetRepository,
-            InspectionReportStepRepository stepRepository
+            InspectionReportStepRepository stepRepository,
+            ReportPhotoEvidenceStatusService photoEvidenceStatusService
     ) {
         this.submitValidationService = submitValidationService;
         this.targetRepository = targetRepository;
         this.stepRepository = stepRepository;
+        this.photoEvidenceStatusService = photoEvidenceStatusService;
     }
 
     public ReportPreflightValidationResult validate(InspectionReport report) {
@@ -58,6 +61,7 @@ public class ReportPreflightDeterministicValidator {
         }
         validateTargetPresence(report, findings);
         validateConstructionDailyLog(report, findings);
+        validatePhotoEvidenceStatus(report, findings);
         return new ReportPreflightValidationResult(findings);
     }
 
@@ -237,6 +241,52 @@ public class ReportPreflightDeterministicValidator {
         }
     }
 
+    private void validatePhotoEvidenceStatus(InspectionReport report, ArrayList<ReportPreflightFinding> findings) {
+        if (!"CONSTRUCTION_DAILY_SUPERVISION_LOG".equals(normalizeReportType(report.reportType()))) {
+            return;
+        }
+        var status = photoEvidenceStatusService.evaluate(report);
+        var baseAttributes = new java.util.LinkedHashMap<String, String>();
+        baseAttributes.put("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        baseAttributes.put("photoEvidenceStatus", status.toMap().toString());
+        if (!status.missingDailyLogPhotoIds().isEmpty()) {
+            findings.add(finding(
+                    "DAILY_LOG_PHOTO_REFERENCE_MISSING",
+                    "HIGH",
+                    "steps.DAILY_LOG.payload.dailyItems.photoIds",
+                    "공정별 검사항목이 참조하는 사진이 실제 리포트 사진 목록에 없습니다.",
+                    "missingDailyLogPhotoIds=" + status.missingDailyLogPhotoIds(),
+                    attributes(baseAttributes, "missingDailyLogPhotoIds", status.missingDailyLogPhotoIds().toString())));
+        }
+        if (!status.pendingDailyLogPhotoIds().isEmpty()) {
+            findings.add(finding(
+                    "DAILY_LOG_PHOTO_UPLOAD_PENDING",
+                    "HIGH",
+                    "steps.DAILY_LOG.payload.dailyItems.photoIds",
+                    "공정별 검사항목에 연결된 사진 중 업로드가 완료되지 않은 사진이 있습니다.",
+                    "pendingDailyLogPhotoIds=" + status.pendingDailyLogPhotoIds(),
+                    attributes(baseAttributes, "pendingDailyLogPhotoIds", status.pendingDailyLogPhotoIds().toString())));
+        }
+        if (!status.notWorkingUploadedPhotoIds().isEmpty()) {
+            findings.add(finding(
+                    "PHOTO_WORKING_ASSET_NOT_READY",
+                    "HIGH",
+                    "photos.assets.WORKING",
+                    "문서 생성에 사용할 작업본 사진이 아직 준비되지 않았습니다.",
+                    "notWorkingUploadedPhotoIds=" + status.notWorkingUploadedPhotoIds(),
+                    attributes(baseAttributes, "notWorkingUploadedPhotoIds", status.notWorkingUploadedPhotoIds().toString())));
+        }
+        if (!status.unlinkedPhotoIds().isEmpty()) {
+            findings.add(finding(
+                    "REPORT_PHOTO_UNLINKED_TO_DAILY_LOG",
+                    "LOW",
+                    "photos.unlinked",
+                    "리포트에 업로드되었지만 공정별 검사항목에 연결되지 않은 사진이 있습니다.",
+                    "unlinkedPhotoIds=" + status.unlinkedPhotoIds(),
+                    attributes(baseAttributes, "unlinkedPhotoIds", status.unlinkedPhotoIds().toString())));
+        }
+    }
+
     private Optional<Map<String, Object>> dailyItems(InspectionReportStep step) {
         var payload = step.payloadJson();
         if (payload == null) {
@@ -325,6 +375,12 @@ public class ReportPreflightDeterministicValidator {
                 message,
                 evidence,
                 attributes);
+    }
+
+    private Map<String, String> attributes(Map<String, String> base, String key, String value) {
+        var attributes = new java.util.LinkedHashMap<>(base);
+        attributes.put(key, value);
+        return Map.copyOf(attributes);
     }
 
     private String stringValue(Object value) {
