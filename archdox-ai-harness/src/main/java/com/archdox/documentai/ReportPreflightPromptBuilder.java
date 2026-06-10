@@ -6,9 +6,11 @@ import io.github.parkkevinsb.flower.ai.harness.prompt.PromptBuilder;
 import io.github.parkkevinsb.flower.ai.harness.prompt.RenderedPrompt;
 import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunContext;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportPreflightInput> {
     private final ObjectMapper objectMapper;
@@ -48,6 +50,10 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 suspiciously empty narrative fields, and checklist answers that need evidence.
                 Use the top-level photos array as the source of truth for uploaded photo evidence.
                 The PHOTOS step payload may be empty even when photos were uploaded through the photo API.
+                Use photoEvidenceSummary to decide whether DAILY_LOG photoIds are actually backed by uploaded photos.
+                Do not create a PHOTOS step empty/missing-photo finding when allDailyLogPhotoRefsResolved is true.
+                Only flag photo evidence mismatch when DAILY_LOG references photo IDs that are absent from uploadedPhotoIds
+                or the corresponding workingUploaded flag is false.
                 If originalPickupStatus is NOT_REQUIRED, originalUploaded=false is normal ArchDox storage policy.
                 Do not flag missing original photos when workingUploaded=true unless the report type explicitly requires originals.
                 Also perform a lightweight legal/compliance risk review for the report type.
@@ -101,12 +107,88 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
         payload.put("reportSnapshot", input.reportSnapshot());
         payload.put("steps", input.steps());
         payload.put("photos", input.photos());
+        payload.put("photoEvidenceSummary", photoEvidenceSummary(input));
         payload.put("deterministicFindings", input.deterministicFindings());
         payload.put("sourceBackedLegalReferences", input.sourceBackedLegalReferences());
         payload.put("legalReviewContext", input.legalReviewContext());
         payload.put("reviewMode", input.reviewMode());
         payload.put("complianceReviewGuide", ReportComplianceReviewGuide.forReportType(input.reportType()));
         return payload;
+    }
+
+    private Map<String, Object> photoEvidenceSummary(ReportPreflightInput input) {
+        var uploadedPhotoIds = new LinkedHashSet<String>();
+        var workingUploadedPhotoIds = new LinkedHashSet<String>();
+        for (var photo : input.photos()) {
+            var photoId = text(photo.get("photoId"));
+            if (photoId.isBlank()) {
+                continue;
+            }
+            uploadedPhotoIds.add(photoId);
+            if (Boolean.TRUE.equals(photo.get("workingUploaded"))) {
+                workingUploadedPhotoIds.add(photoId);
+            }
+        }
+
+        var referencedPhotoIds = new LinkedHashSet<String>();
+        collectDailyLogPhotoIds(input.steps(), referencedPhotoIds);
+
+        var missingPhotoIds = new LinkedHashSet<>(referencedPhotoIds);
+        missingPhotoIds.removeAll(uploadedPhotoIds);
+
+        var notWorkingUploadedPhotoIds = new LinkedHashSet<>(referencedPhotoIds);
+        notWorkingUploadedPhotoIds.retainAll(uploadedPhotoIds);
+        notWorkingUploadedPhotoIds.removeAll(workingUploadedPhotoIds);
+
+        var summary = new LinkedHashMap<String, Object>();
+        summary.put("photosStepPayloadEmpty", photosStepPayloadEmpty(input.steps()));
+        summary.put("uploadedPhotoCount", uploadedPhotoIds.size());
+        summary.put("dailyLogReferencedPhotoCount", referencedPhotoIds.size());
+        summary.put("uploadedPhotoIds", List.copyOf(uploadedPhotoIds));
+        summary.put("workingUploadedPhotoIds", List.copyOf(workingUploadedPhotoIds));
+        summary.put("dailyLogReferencedPhotoIds", List.copyOf(referencedPhotoIds));
+        summary.put("missingDailyLogPhotoIds", List.copyOf(missingPhotoIds));
+        summary.put("notWorkingUploadedDailyLogPhotoIds", List.copyOf(notWorkingUploadedPhotoIds));
+        summary.put("allDailyLogPhotoRefsResolved", missingPhotoIds.isEmpty() && notWorkingUploadedPhotoIds.isEmpty());
+        summary.put("photoSourceOfTruth", "top-level photos array from ArchDox photo API");
+        return Map.copyOf(summary);
+    }
+
+    private boolean photosStepPayloadEmpty(Map<String, Object> steps) {
+        var photosStep = mapValue(steps.get("PHOTOS"));
+        var payload = mapValue(photosStep.get("payload"));
+        return payload.isEmpty();
+    }
+
+    private void collectDailyLogPhotoIds(Map<String, Object> steps, Set<String> result) {
+        var dailyLog = mapValue(steps.get("DAILY_LOG"));
+        var payload = mapValue(dailyLog.get("payload"));
+        var dailyItems = mapValue(payload.get("dailyItems"));
+        for (Object groupValue : listValue(dailyItems.get("groups"))) {
+            var group = mapValue(groupValue);
+            for (Object entryValue : listValue(group.get("entries"))) {
+                var entry = mapValue(entryValue);
+                for (Object rawPhotoId : listValue(entry.get("photoIds"))) {
+                    var photoId = text(rawPhotoId);
+                    if (!photoId.isBlank()) {
+                        result.add(photoId);
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private String toJson(Object value) {

@@ -95,6 +95,8 @@ class ReportPreflightHarnessFactoryTest {
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
                 .contains("top-level photos array as the source of truth")
+                .contains("Use photoEvidenceSummary")
+                .contains("allDailyLogPhotoRefsResolved is true")
                 .contains("originalPickupStatus is NOT_REQUIRED")
                 .contains("savedAt is the data-entry/save timestamp")
                 .contains("normally use LOW or MEDIUM")
@@ -103,11 +105,31 @@ class ReportPreflightHarnessFactoryTest {
                 .contains("SOURCE_BACKED_LEGAL_DRY_RUN");
         assertThat(prompt.messages().get(1).content())
                 .contains("\"photos\"")
+                .contains("\"photoEvidenceSummary\"")
+                .contains("\"photosStepPayloadEmpty\" : true")
+                .contains("\"dailyLogReferencedPhotoIds\"")
+                .contains("\"missingDailyLogPhotoIds\" : [ ]")
+                .contains("\"allDailyLogPhotoRefsResolved\" : true")
                 .contains("\"workingUploaded\" : true")
                 .contains("\"sourceBackedLegalReferences\"");
     }
 
     private static ReportPreflightInput input() {
+        var dailyEntry = Map.<String, Object>of(
+                "inspectionItemName", "철근 배근",
+                "supervisionContent", "배근 상태 확인",
+                "photoIds", List.of(10));
+        var dailyGroup = Map.<String, Object>of("entries", List.of(dailyEntry));
+        var steps = Map.<String, Object>of(
+                "CHECKLIST", Map.of("payload", Map.of("safetyRemark", "good")),
+                "PHOTOS", Map.of("payload", Map.of()),
+                "DAILY_LOG", Map.of("payload", Map.of(
+                        "dailyItems", Map.of("groups", List.of(dailyGroup)))));
+        var photos = List.of(Map.<String, Object>of(
+                "photoId", 10,
+                "stepCode", "PHOTOS",
+                "status", "UPLOADED",
+                "workingUploaded", true));
         return new ReportPreflightInput(
                 "1",
                 "20",
@@ -116,12 +138,8 @@ class ReportPreflightHarnessFactoryTest {
                 "READY_TO_GENERATE",
                 3,
                 Map.of("reportNo", "R-001"),
-                Map.of("CHECKLIST", Map.of("payload", Map.of("safetyRemark", "good"))),
-                List.of(Map.of(
-                        "photoId", 10,
-                        "stepCode", "PHOTOS",
-                        "status", "UPLOADED",
-                        "workingUploaded", true)),
+                steps,
+                photos,
                 List.of());
     }
 
