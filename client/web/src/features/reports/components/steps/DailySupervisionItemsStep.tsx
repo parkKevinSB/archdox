@@ -1,8 +1,10 @@
-import { Camera, Plus, Trash2, UploadCloud, X } from "lucide-react";
+import { Camera, FileImage, Loader2, Plus, Trash2, UploadCloud, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { usePhotoAssetPreview } from "../../../photos/hooks/usePhotoAssetPreview";
 import { usePhotoWorkspace } from "../../../photos/hooks/usePhotoWorkspace";
 import { PhotoUploadTaskStrip } from "../../../photos/components/PhotoPipelinePanel";
+import type { PhotoAssetResponse, PhotoAssetType, PhotoResponse } from "../../../photos/types";
 import { getSupervisionDomainCatalog } from "../../api";
 import type { SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
@@ -64,6 +66,10 @@ export function DailySupervisionItemsStep({
   const totalPhotos = useMemo(
     () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entry.photoIds.length, 0), 0),
     [groups]
+  );
+  const photosById = useMemo(
+    () => new Map(workspace.allPhotos.map((photo) => [photo.id, photo])),
+    [workspace.allPhotos]
   );
 
   useEffect(() => {
@@ -428,22 +434,15 @@ export function DailySupervisionItemsStep({
                       />
                     </label>
                     <div className="daily-supervision-photo-row">
-                      <div className="daily-supervision-photo-chips">
-                        {entry.photoIds.length === 0 ? (
-                          <span className="daily-supervision-muted">연결 사진 없음</span>
-                        ) : entry.photoIds.map((photoId) => (
-                          <button
-                            className="daily-photo-chip"
-                            disabled={!canWriteReports || deletingPhotoIds.has(photoId)}
-                            key={photoId}
-                            onClick={() => void deleteLinkedPhoto(photoId)}
-                            type="button"
-                          >
-                            Photo #{photoId}
-                            <X size={12} />
-                          </button>
-                        ))}
-                      </div>
+                      <DailyPhotoThumbStrip
+                        canWriteReports={canWriteReports}
+                        deletingPhotoIds={deletingPhotoIds}
+                        officeId={officeId}
+                        onDeletePhoto={deleteLinkedPhoto}
+                        photoIds={entry.photoIds}
+                        photosById={photosById}
+                        token={token}
+                      />
                       <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
                         <Camera size={16} />
                         사진 촬영
@@ -498,6 +497,130 @@ export function DailySupervisionItemsStep({
       <datalist id="daily-floor-options">
         {floorOptions.map((option) => <option key={option} value={option} />)}
       </datalist>
+    </>
+  );
+}
+
+function DailyPhotoThumbStrip({
+  canWriteReports,
+  deletingPhotoIds,
+  officeId,
+  onDeletePhoto,
+  photoIds,
+  photosById,
+  token
+}: {
+  canWriteReports: boolean;
+  deletingPhotoIds: Set<number>;
+  officeId: number;
+  onDeletePhoto: (photoId: number) => Promise<void>;
+  photoIds: number[];
+  photosById: Map<number, PhotoResponse>;
+  token: string;
+}) {
+  if (photoIds.length === 0) {
+    return (
+      <div className="daily-supervision-photo-chips">
+        <span className="daily-supervision-muted">연결 사진 없음</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="daily-photo-thumb-strip">
+      {photoIds.map((photoId) => (
+        <DailyPhotoThumb
+          canWriteReports={canWriteReports}
+          deleting={deletingPhotoIds.has(photoId)}
+          key={photoId}
+          officeId={officeId}
+          onDeletePhoto={onDeletePhoto}
+          photo={photosById.get(photoId)}
+          photoId={photoId}
+          token={token}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DailyPhotoThumb({
+  canWriteReports,
+  deleting,
+  officeId,
+  onDeletePhoto,
+  photo,
+  photoId,
+  token
+}: {
+  canWriteReports: boolean;
+  deleting: boolean;
+  officeId: number;
+  onDeletePhoto: (photoId: number) => Promise<void>;
+  photo?: PhotoResponse;
+  photoId: number;
+  token: string;
+}) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewAssetType = selectDailyPreviewAssetType(photo);
+  const preview = usePhotoAssetPreview({
+    assetType: previewAssetType,
+    officeId,
+    photoId,
+    token
+  });
+  const label = photo?.caption || photo?.inspectionItemCode || `Photo #${photoId}`;
+  const disabled = !preview.url || deleting;
+
+  return (
+    <>
+      <div className={deleting ? "daily-photo-thumb deleting" : "daily-photo-thumb"}>
+        <button
+          aria-label={`Photo ${photoId} 크게 보기`}
+          className="daily-photo-thumb-preview"
+          disabled={disabled}
+          onClick={() => setPreviewOpen(true)}
+          type="button"
+        >
+          {preview.url ? (
+            <img alt={`Photo ${photoId}`} src={preview.url} />
+          ) : (
+            <span className="daily-photo-thumb-placeholder">
+              {preview.loading ? <Loader2 className="spin" size={16} /> : <FileImage size={18} />}
+            </span>
+          )}
+        </button>
+        <button
+          aria-label={`Photo ${photoId} 삭제`}
+          className="daily-photo-thumb-remove"
+          disabled={!canWriteReports || deleting}
+          onClick={() => void onDeletePhoto(photoId)}
+          type="button"
+        >
+          {deleting ? <Loader2 className="spin" size={12} /> : <X size={12} />}
+        </button>
+        <span>{photo ? `#${photoId}` : `#${photoId} 준비 중`}</span>
+      </div>
+
+      {previewOpen && preview.url ? (
+        <div className="photo-lightbox" onClick={() => setPreviewOpen(false)} role="dialog" aria-modal="true">
+          <div className="photo-lightbox-panel" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <strong>Photo #{photoId}</strong>
+                <span>{label}</span>
+              </div>
+              <button className="icon-button" onClick={() => setPreviewOpen(false)} type="button" aria-label="미리보기 닫기">
+                <X size={18} />
+              </button>
+            </header>
+            <img alt={`Photo ${photoId} larger preview`} src={preview.url} />
+            <footer>
+              {photo?.stepCode ?? "DAILY_LOG"} · {photo?.width ?? "-"}x{photo?.height ?? "-"}
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -580,6 +703,21 @@ function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCa
   return trade.processGroups.find((processGroup) => processGroup.code === group.processCode)
     ?? trade.processGroups.find((processGroup) => processGroup.name === group.processName)
     ?? null;
+}
+
+function selectDailyPreviewAssetType(photo?: PhotoResponse): Exclude<PhotoAssetType, "ORIGINAL"> | null {
+  if (!photo) {
+    return null;
+  }
+  const working = photo.assets.find((asset: PhotoAssetResponse) => asset.assetType === "WORKING");
+  const thumbnail = photo.assets.find((asset: PhotoAssetResponse) => asset.assetType === "THUMBNAIL");
+  if (working?.status === "UPLOADED") {
+    return "WORKING";
+  }
+  if (thumbnail?.status === "UPLOADED") {
+    return "THUMBNAIL";
+  }
+  return null;
 }
 
 function emptyEntry(): DailySupervisionEntry {

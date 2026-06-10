@@ -2379,6 +2379,93 @@ button {
   align-items: center;
 }
 
+.daily-photo-thumb-strip {
+  display: flex;
+  flex: 1 1 300px;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.daily-photo-thumb {
+  position: relative;
+  display: grid;
+  width: 74px;
+  gap: 4px;
+}
+
+.daily-photo-thumb-preview {
+  display: grid;
+  width: 74px;
+  height: 74px;
+  padding: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #eef2f4;
+}
+
+.daily-photo-thumb-preview:disabled {
+  cursor: default;
+}
+
+.daily-photo-thumb-preview:not(:disabled):hover {
+  border-color: var(--hover-border);
+}
+
+.daily-photo-thumb-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.daily-photo-thumb-placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #60746f;
+  background: #f7fbfa;
+}
+
+.daily-photo-thumb-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #d8cfb1;
+  border-radius: 999px;
+  color: #5f4c20;
+  background: #fbf5df;
+  box-shadow: 0 3px 10px rgba(25, 34, 32, 0.14);
+}
+
+.daily-photo-thumb-remove:hover:not(:disabled) {
+  border-color: #c9b065;
+  background: #f7ecd0;
+}
+
+.daily-photo-thumb.deleting {
+  opacity: 0.55;
+}
+
+.daily-photo-thumb > span {
+  display: block;
+  overflow: hidden;
+  color: #60746f;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .daily-photo-chip {
   display: inline-flex;
   align-items: center;
