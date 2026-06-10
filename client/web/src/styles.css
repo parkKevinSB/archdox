@@ -1546,7 +1546,7 @@ button {
 .document-signature-dialog {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  width: min(640px, 100%);
+  width: min(880px, 100%);
   max-height: calc(100vh - 48px);
   overflow: hidden;
   border: 1px solid #cfd9d8;
@@ -1564,37 +1564,68 @@ button {
 }
 
 .document-narrative-polish {
+  display: grid;
+  gap: 12px;
   border: 1px solid #d7e2df;
   border-radius: 8px;
   background: #fbfdfc;
+  padding: 12px;
 }
 
-.document-narrative-polish summary {
+.document-narrative-polish-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
-  cursor: pointer;
 }
 
-.document-narrative-polish summary span {
+.document-narrative-polish-head span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.document-narrative-polish summary strong {
+.document-narrative-polish-head strong {
   color: #1f3430;
-  font-size: 13px;
+  font-size: 14px;
 }
 
-.document-narrative-polish summary small,
-.document-narrative-polish summary em {
+.document-narrative-polish-head small,
+.document-narrative-polish-head em {
   color: #60746f;
   font-size: 12px;
   font-style: normal;
   font-weight: 800;
+}
+
+.document-narrative-polish-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.document-narrative-polish-status span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid #d9e5e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 9px 10px;
+}
+
+.document-narrative-polish-status strong {
+  color: #203732;
+  font-size: 12px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.document-narrative-polish-status small {
+  color: #6a7d79;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .document-narrative-polish-actions {
@@ -1602,7 +1633,6 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 12px 10px;
 }
 
 .document-narrative-polish-actions p {
@@ -1613,7 +1643,7 @@ button {
 }
 
 .document-narrative-polish-summary {
-  margin: 0 12px 10px;
+  margin: 0;
   border: 1px solid #c7d8d4;
   border-radius: 8px;
   background: #eef8f5;
@@ -1627,20 +1657,82 @@ button {
 .document-narrative-polish-list {
   display: grid;
   gap: 12px;
-  max-height: 320px;
+  max-height: min(44vh, 420px);
   overflow: auto;
-  padding: 0 12px 12px;
 }
 
-.document-narrative-polish-list label {
+.document-narrative-polish-item {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  border: 1px solid #d9e5e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
 }
 
-.document-narrative-polish-list label span {
+.document-narrative-polish-item.changed {
+  border-color: #afcfc7;
+  background: #f6fbf9;
+}
+
+.document-narrative-polish-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.document-narrative-polish-item-head span {
   color: #2f4a45;
   font-size: 12px;
   font-weight: 850;
+}
+
+.document-narrative-polish-item-head em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #edf6f3;
+  color: #41625c;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+  padding: 3px 8px;
+}
+
+.document-narrative-polish-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 10px;
+}
+
+.document-narrative-polish-original,
+.document-narrative-polish-compare label {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.document-narrative-polish-original small,
+.document-narrative-polish-compare label small {
+  color: #6b7d79;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.document-narrative-polish-original p {
+  min-height: 76px;
+  max-height: 160px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid #d8e2df;
+  border-radius: 8px;
+  background: #f7faf9;
+  color: #43524f;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 11px;
+  white-space: pre-wrap;
 }
 
 .document-narrative-polish-list textarea {
@@ -1663,6 +1755,21 @@ button {
   font-size: 11px;
   font-weight: 750;
   line-height: 1.4;
+}
+
+.document-narrative-polish-footnote {
+  margin: 0;
+  color: #56716b;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.compact-text-button {
+  min-height: 0;
+  justify-self: start;
+  font-size: 12px;
+  padding: 0;
 }
 
 .signature-form-grid {
@@ -5120,6 +5227,24 @@ button.list-row {
 
   .document-signature-dialog {
     max-height: calc(100vh - 20px);
+  }
+
+  .document-narrative-polish-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .document-narrative-polish-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-narrative-polish-actions button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .document-narrative-polish-compare {
+    grid-template-columns: 1fr;
   }
 
   .signature-pad {

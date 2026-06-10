@@ -89,6 +89,7 @@ const documentReportStatuses = new Set([
 export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, token }: UseDocumentWorkspaceOptions) {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<DocumentPreviewState | null>(null);
+  const [autoPreviewHtmlJobId, setAutoPreviewHtmlJobId] = useState<number | null>(null);
   const documentReports = reports.filter((report) =>
     documentReportStatuses.has(report.status) && (report.status !== "STEP_SAVED" || report.contentRevision > (report.submittedRevision ?? 0))
   );
@@ -225,7 +226,8 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       }
       return createDocumentJob(token, officeId, reportId, { outputFormat, renderOverrides, signature });
     },
-    onSuccess: async () => {
+    onSuccess: async (job, variables) => {
+      setAutoPreviewHtmlJobId((variables.outputFormat ?? "DOCX") === "HTML" ? job.id : null);
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["document-jobs"] }), onRefreshWorkspace()]);
     }
   });
@@ -373,6 +375,15 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       if (!downloadUrl) {
         const delivery = await createDocumentDeliveryRequest(token, officeId, job.id, artifact.id);
         downloadUrl = delivery.downloadUrl ?? null;
+        if (!downloadUrl) {
+          const downloadableDelivery = await waitForDeliveryDownloadUrl({
+            artifactId: artifact.id,
+            jobId: job.id,
+            officeId,
+            token
+          });
+          downloadUrl = downloadableDelivery?.downloadUrl ?? null;
+        }
       }
       if (!downloadUrl) {
         throw new Error("HTML 미리보기 파일이 준비 중입니다. 잠시 후 다시 시도하세요.");
@@ -385,6 +396,33 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       await queryClient.invalidateQueries({ queryKey: ["document-deliveries"] });
     }
   });
+
+  useEffect(() => {
+    if (!autoPreviewHtmlJobId || previewArtifactMutation.isPending) {
+      return;
+    }
+    const job = Object.values(jobsQuery.data ?? {})
+      .flat()
+      .find((item) => item.id === autoPreviewHtmlJobId);
+    if (!job) {
+      return;
+    }
+    if (job.status === "FAILED" || job.status === "CANCELLED") {
+      setAutoPreviewHtmlJobId(null);
+      return;
+    }
+    if (job.status !== "GENERATED") {
+      return;
+    }
+    const artifact = job.artifacts.find((item) => item.artifactType === "HTML");
+    if (!artifact) {
+      setAutoPreviewHtmlJobId(null);
+      return;
+    }
+    void previewArtifactMutation.mutateAsync({ artifact, job })
+      .then(() => setAutoPreviewHtmlJobId(null))
+      .catch(() => setAutoPreviewHtmlJobId(null));
+  }, [autoPreviewHtmlJobId, jobsQuery.data, jobsQuery.dataUpdatedAt, previewArtifactMutation.isPending]);
 
   return {
     closePreview: () => setPreview(null),

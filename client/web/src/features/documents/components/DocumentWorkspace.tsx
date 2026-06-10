@@ -493,6 +493,10 @@ function DocumentSignatureDialog({
       label: field.label,
       source: "DOCUMENT_GENERATION_DIALOG"
     }));
+  const appliedNarrativeCount = renderOverrides().length;
+  const applicableSuggestionCount = polishSuggestions.filter((suggestion) =>
+    suggestion.applicable && suggestion.polishedText.trim()
+  ).length;
 
   const polishNarrative = async () => {
     const fields = narrativePolishFields();
@@ -625,7 +629,7 @@ function DocumentSignatureDialog({
           <div>
             <span>문서 생성 서명</span>
             <strong>{report.title || report.reportNo}</strong>
-            <small>{outputFormat} 생성 전에 필요한 경우 서명을 남길 수 있습니다. 서명 없이 생성하면 서명란은 비워집니다.</small>
+            <small>{outputFormat} 생성 전에 문장과 서명을 확인합니다. 문장 다듬기는 이번 생성본에만 반영됩니다.</small>
           </div>
           <button className="icon-button" disabled={submitting} onClick={onClose} type="button" aria-label="서명 창 닫기">
             <X size={18} />
@@ -643,18 +647,38 @@ function DocumentSignatureDialog({
             </label>
           </div>
           {narrativeFields.length > 0 ? (
-            <details className="document-narrative-polish" open={outputFormat === "HTML"}>
-              <summary>
+            <section className="document-narrative-polish" aria-label="문장 다듬기">
+              <div className="document-narrative-polish-head">
                 <span>
                   <strong>문장 다듬기</strong>
-                  <small>{renderOverrides().length > 0 ? `${renderOverrides().length}개 문장 반영` : "생성본에만 반영"}</small>
+                  <small>{appliedNarrativeCount > 0 ? `${appliedNarrativeCount}개 문장 생성본 반영` : "원본 문장으로 생성"}</small>
                 </span>
                 <em>{outputFormat}</em>
-              </summary>
+              </div>
+              <div className="document-narrative-polish-status">
+                <span>
+                  <strong>{appliedNarrativeCount}</strong>
+                  <small>적용 문장</small>
+                </span>
+                <span>
+                  <strong>{narrativeFields.length}</strong>
+                  <small>확인 대상</small>
+                </span>
+                <span>
+                  <strong>원본 보존</strong>
+                  <small>리포트 데이터는 수정하지 않음</small>
+                </span>
+                {outputFormat === "HTML" ? (
+                  <span>
+                    <strong>자동 미리보기</strong>
+                    <small>생성 완료 후 HTML 열기</small>
+                  </span>
+                ) : null}
+              </div>
               <div className="document-narrative-polish-actions">
-                <p>원본 리포트는 바꾸지 않고 이번 생성본 문장에만 반영합니다.</p>
+                <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 필요하면 직접 고친 뒤 생성할 수 있습니다.</p>
                 <button
-                  className="secondary-button compact-button"
+                  className="primary-button compact-button"
                   disabled={submitting || polishing}
                   onClick={polishNarrative}
                   type="button"
@@ -667,27 +691,59 @@ function DocumentSignatureDialog({
               <div className="document-narrative-polish-list">
                 {narrativeFields.map((field) => {
                   const suggestion = polishSuggestionsByPath.get(field.path);
+                  const currentValue = narrativeValues[field.path] ?? field.value;
+                  const changed = currentValue.trim() !== field.value.trim();
                   return (
-                    <label key={field.path}>
-                      <span>{field.label}</span>
-                      <textarea
-                        value={narrativeValues[field.path] ?? field.value}
-                        onChange={(event) => setNarrativeValues((current) => ({
-                          ...current,
-                          [field.path]: event.target.value
-                        }))}
-                        rows={3}
-                      />
+                    <div className={`document-narrative-polish-item${changed ? " changed" : ""}`} key={field.path}>
+                      <div className="document-narrative-polish-item-head">
+                        <span>{field.label}</span>
+                        <em>{changed ? "생성본 반영" : "원문 유지"}</em>
+                      </div>
+                      <div className="document-narrative-polish-compare">
+                        <div className="document-narrative-polish-original">
+                          <small>원본 리포트</small>
+                          <p>{field.value}</p>
+                        </div>
+                        <label>
+                          <small>이번 생성본 문장</small>
+                          <textarea
+                            value={currentValue}
+                            onChange={(event) => setNarrativeValues((current) => ({
+                              ...current,
+                              [field.path]: event.target.value
+                            }))}
+                            rows={3}
+                          />
+                        </label>
+                      </div>
                       {suggestion ? (
                         <small className="document-narrative-polish-suggestion">
                           AI 제안 반영됨 · {suggestion.reason || suggestion.confidence}
                         </small>
                       ) : null}
-                    </label>
+                      {changed ? (
+                        <button
+                          className="text-button compact-text-button"
+                          onClick={() => setNarrativeValues((current) => ({
+                            ...current,
+                            [field.path]: field.value
+                          }))}
+                          type="button"
+                        >
+                          <RefreshCw size={13} />
+                          원문으로 되돌리기
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
-            </details>
+              {applicableSuggestionCount > 0 ? (
+                <p className="document-narrative-polish-footnote">
+                  AI 제안 {applicableSuggestionCount}건이 생성본 문장에 반영되었습니다. 문서 생성 전 최종 문장을 한 번 확인해주세요.
+                </p>
+              ) : null}
+            </section>
           ) : null}
           <div className="signature-pad-wrap">
             <div className="signature-pad-head">
