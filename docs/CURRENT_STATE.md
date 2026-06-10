@@ -1,10 +1,19 @@
 ﻿# ArchDox Current State
 
-Last updated: 2026-06-04
+Last updated: 2026-06-10
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
 agents and humans can re-enter the project without reading every Markdown file.
+
+Document governance is now explicit:
+
+- `docs/DOCUMENT_GOVERNANCE.md` defines document levels, statuses, conflict
+  rules, and update rules.
+- `docs/DOCUMENT_INDEX.md` assigns the current Markdown set to L0/L1/L2/L3 or
+  reference status.
+- New AI-assisted work should read those files before topic-specific design
+  documents.
 
 ## Platform Position
 
