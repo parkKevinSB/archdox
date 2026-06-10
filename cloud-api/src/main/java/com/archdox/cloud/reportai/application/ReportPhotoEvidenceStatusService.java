@@ -3,7 +3,6 @@ package com.archdox.cloud.reportai.application;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.photo.domain.Photo;
-import com.archdox.cloud.photo.domain.PhotoAsset;
 import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.domain.PhotoStatus;
@@ -95,11 +94,10 @@ public class ReportPhotoEvidenceStatusService {
         if (photoIds.isEmpty()) {
             return Set.of();
         }
-        return photoAssetRepository.findByPhotoIdInOrderByPhotoIdAscIdAsc(photoIds.stream().toList()).stream()
-                .filter(asset -> asset.assetType() == PhotoAssetType.WORKING)
-                .filter(asset -> asset.status() == PhotoAssetStatus.UPLOADED)
-                .map(PhotoAsset::photo)
-                .map(Photo::id)
+        return photoAssetRepository.findPhotoIdsByAssetTypeAndStatus(
+                        photoIds.stream().toList(),
+                        PhotoAssetType.WORKING,
+                        PhotoAssetStatus.UPLOADED).stream()
                 .filter(id -> id != null)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }

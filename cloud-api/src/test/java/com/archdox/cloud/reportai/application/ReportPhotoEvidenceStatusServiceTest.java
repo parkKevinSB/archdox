@@ -9,7 +9,7 @@ import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.domain.PayloadStorageMode;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.photo.domain.Photo;
-import com.archdox.cloud.photo.domain.PhotoAsset;
+import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.domain.PhotoCaptureKind;
 import com.archdox.cloud.photo.domain.PhotoStatus;
@@ -46,8 +46,11 @@ class ReportPhotoEvidenceStatusServiceTest {
         when(stepRepository.findByReportIdAndStepCode(100L, "PHOTOS")).thenReturn(Optional.empty());
         when(photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(10L, 100L, PhotoStatus.DELETED))
                 .thenReturn(List.of(linkedPhoto, unlinkedPhoto));
-        when(photoAssetRepository.findByPhotoIdInOrderByPhotoIdAscIdAsc(List.of(101L, 202L)))
-                .thenReturn(List.of(uploadedWorkingAsset(linkedPhoto), uploadedWorkingAsset(unlinkedPhoto)));
+        when(photoAssetRepository.findPhotoIdsByAssetTypeAndStatus(
+                List.of(101L, 202L),
+                PhotoAssetType.WORKING,
+                PhotoAssetStatus.UPLOADED))
+                .thenReturn(List.of(101L, 202L));
 
         var status = service.evaluate(report);
 
@@ -138,18 +141,4 @@ class ReportPhotoEvidenceStatusServiceTest {
         return photo;
     }
 
-    private PhotoAsset uploadedWorkingAsset(Photo photo) {
-        var asset = new PhotoAsset(
-                photo,
-                PhotoAssetType.WORKING,
-                PhotoStorageKind.API_LOCAL,
-                "photos/" + photo.id() + "-working.jpg",
-                "image/jpeg",
-                1024L,
-                "asset-hash-" + photo.id(),
-                false,
-                OffsetDateTime.now());
-        asset.markUploaded(1024L, OffsetDateTime.now());
-        return asset;
-    }
 }

@@ -17,6 +17,21 @@ public interface PhotoAssetRepository extends JpaRepository<PhotoAsset, Long> {
     Optional<PhotoAsset> findByPhotoIdAndAssetType(Long photoId, PhotoAssetType assetType);
 
     @Query("""
+            select photo.id
+            from PhotoAsset asset
+            join asset.photo photo
+            where photo.id in :photoIds
+              and asset.assetType = :assetType
+              and asset.status = :status
+            order by photo.id asc, asset.id asc
+            """)
+    List<Long> findPhotoIdsByAssetTypeAndStatus(
+            @Param("photoIds") List<Long> photoIds,
+            @Param("assetType") PhotoAssetType assetType,
+            @Param("status") PhotoAssetStatus status
+    );
+
+    @Query("""
             select count(asset) > 0
             from PhotoAsset asset
             join asset.photo photo
