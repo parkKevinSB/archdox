@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getInspectionSteps } from "../../reports/api";
 import {
   applyReportPreflightReviewFindingFix,
+  applyDocumentNarrativeToReport,
   createReportPreflightReviewRun,
   createDocumentDeliveryRequest,
   createDocumentJob,
@@ -19,6 +20,7 @@ import {
 } from "../api";
 import type {
   DocumentArtifactResponse,
+  DocumentNarrativeApplyResponse,
   DocumentDeliveriesByJob,
   DocumentDeliveryRequestResponse,
   DocumentJobsByReport,
@@ -65,6 +67,11 @@ type ApplyPreflightFindingFixInput = {
 };
 
 type PolishNarrativeInput = {
+  fields: DocumentNarrativePolishFieldInput[];
+  reportId: number;
+};
+
+type ApplyNarrativeInput = {
   fields: DocumentNarrativePolishFieldInput[];
   reportId: number;
 };
@@ -238,6 +245,22 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         throw new Error("Office selection is required.");
       }
       return polishDocumentNarrative(token, officeId, reportId, fields);
+    }
+  });
+
+  const applyNarrativeMutation = useMutation({
+    mutationFn: async ({ fields, reportId }: ApplyNarrativeInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return applyDocumentNarrativeToReport(token, officeId, reportId, fields);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["document-report-steps"] }),
+        queryClient.invalidateQueries({ queryKey: ["document-jobs"] }),
+        onRefreshWorkspace()
+      ]);
     }
   });
 
@@ -433,12 +456,14 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
     downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? polishNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? polishNarrativeMutation.error ?? applyNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
     loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading || stepsQuery.isLoading,
     preview,
     previewArtifact: previewArtifactMutation.mutateAsync,
     previewingArtifactId: previewArtifactMutation.isPending ? previewArtifactMutation.variables?.artifact.id ?? null : null,
+    applyDocumentNarrativeToReport: applyNarrativeMutation.mutateAsync as (input: ApplyNarrativeInput) => Promise<DocumentNarrativeApplyResponse>,
+    applyingNarrativeReportId: applyNarrativeMutation.isPending ? applyNarrativeMutation.variables?.reportId ?? null : null,
     polishDocumentNarrative: polishNarrativeMutation.mutateAsync as (input: PolishNarrativeInput) => Promise<DocumentNarrativePolishResponse>,
     polishingNarrativeReportId: polishNarrativeMutation.isPending ? polishNarrativeMutation.variables?.reportId ?? null : null,
     preflightFindingsByRun: preflightFindingsQuery.data ?? {},

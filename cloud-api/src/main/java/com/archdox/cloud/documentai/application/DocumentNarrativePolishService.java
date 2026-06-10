@@ -3,6 +3,7 @@ package com.archdox.cloud.documentai.application;
 import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
 import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.documentai.dto.DocumentNarrativeApplyResponse;
 import com.archdox.cloud.documentai.dto.DocumentNarrativePolishRequest;
 import com.archdox.cloud.documentai.dto.DocumentNarrativePolishResponse;
 import com.archdox.cloud.documentai.flow.DocumentNarrativePolishAiWorker;
@@ -27,6 +28,7 @@ import io.github.parkkevinsb.flower.ai.harness.validate.ValidationResult;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +49,8 @@ public class DocumentNarrativePolishService {
             "^steps\\.DAILY_LOG\\.payload\\.(issueAndAction|issueAndActionResult|nextAction)$");
     private static final Pattern REMARKS_PATH = Pattern.compile(
             "^steps\\.REMARKS\\.payload\\.(issueAndAction|nextAction)$");
+    private static final Pattern DAILY_LOG_GROUPED_CONTENT_PATH = Pattern.compile(
+            "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.supervisionContent$");
 
     private final InspectionReportService reportService;
     private final OfficePermissionService permissionService;
@@ -208,6 +212,32 @@ public class DocumentNarrativePolishService {
                 suggestions);
     }
 
+    @Transactional
+    public DocumentNarrativeApplyResponse applyToReport(
+            Long reportId,
+            DocumentNarrativePolishRequest request,
+            UserPrincipal principal
+    ) {
+        var report = reportService.requireReport(reportId);
+        permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
+        var fields = normalizeFields(request);
+        var payloadsByStep = new LinkedHashMap<String, Map<String, Object>>();
+        var appliedPaths = new ArrayList<String>();
+        for (var field : fields) {
+            var payload = payloadsByStep.computeIfAbsent(fieldStepCode(field.path()), stepCode -> currentPayload(report.id(), stepCode));
+            if (applyField(payload, field.path(), field.originalText())) {
+                appliedPaths.add(field.path());
+            }
+        }
+        if (appliedPaths.isEmpty()) {
+            return new DocumentNarrativeApplyResponse(0, List.of());
+        }
+        ensureReportEditableForNarrativeApply(report, principal);
+        payloadsByStep.forEach((stepCode, payload) ->
+                reportService.applyPreflightFixStep(report.id(), stepCode, new com.archdox.cloud.inspection.dto.SaveInspectionStepRequest(payload), principal));
+        return new DocumentNarrativeApplyResponse(appliedPaths.size(), List.copyOf(appliedPaths));
+    }
+
     private List<NarrativePolishField> normalizeFields(DocumentNarrativePolishRequest request) {
         if (request == null || request.fields() == null || request.fields().isEmpty()) {
             throw new BadRequestException(
@@ -261,6 +291,143 @@ public class DocumentNarrativePolishService {
         return DAILY_LOG_ENTRY_PATH.matcher(path).matches()
                 || DAILY_LOG_REMARK_PATH.matcher(path).matches()
                 || REMARKS_PATH.matcher(path).matches();
+    }
+
+    private void ensureReportEditableForNarrativeApply(InspectionReport report, UserPrincipal principal) {
+        if (report.canSaveStep() || report.canApplyPreflightFixToSubmittedRevision()) {
+            return;
+        }
+        if (!report.canReopenForEdit()) {
+            throw new BadRequestException(
+                    "DOCUMENT_NARRATIVE_APPLY_NOT_EDITABLE",
+                    "errors.documentNarrativePolish.applyNotEditable",
+                    "Report cannot be edited while applying narrative polish.",
+                    Map.of("reportId", report.id(), "status", report.status().name()));
+        }
+        reportService.reopenForEdit(report.id(), principal);
+    }
+
+    private Map<String, Object> currentPayload(Long reportId, String stepCode) {
+        return reportService.listSteps(reportId).stream()
+                .filter(step -> stepCode.equals(step.stepCode()))
+                .findFirst()
+                .map(step -> mutableMap(step.payload()))
+                .orElseGet(LinkedHashMap::new);
+    }
+
+    private String fieldStepCode(String path) {
+        if (path.startsWith("steps.DAILY_LOG.")) {
+            return "DAILY_LOG";
+        }
+        if (path.startsWith("steps.REMARKS.")) {
+            return "REMARKS";
+        }
+        throw new BadRequestException(
+                "DOCUMENT_NARRATIVE_POLISH_PATH_UNSUPPORTED",
+                "errors.documentNarrativePolish.pathUnsupported",
+                "Unsupported narrative field path.",
+                Map.of("path", path));
+    }
+
+    private boolean applyField(Map<String, Object> payload, String path, String value) {
+        var groupedMatcher = DAILY_LOG_GROUPED_CONTENT_PATH.matcher(path);
+        if (groupedMatcher.matches()) {
+            applyDailyLogGroupedContent(
+                    payload,
+                    Integer.parseInt(groupedMatcher.group(1)),
+                    Integer.parseInt(groupedMatcher.group(2)),
+                    value);
+            return true;
+        }
+        var dailyLogMatcher = DAILY_LOG_REMARK_PATH.matcher(path);
+        if (dailyLogMatcher.matches()) {
+            payload.put(dailyLogMatcher.group(1), value);
+            return true;
+        }
+        var remarksMatcher = REMARKS_PATH.matcher(path);
+        if (remarksMatcher.matches()) {
+            payload.put(remarksMatcher.group(1), value);
+            return true;
+        }
+        return false;
+    }
+
+    private void applyDailyLogGroupedContent(Map<String, Object> payload, int groupIndex, int entryIndex, String value) {
+        var dailyItems = mutableChildMap(payload, "dailyItems");
+        var groups = mutableChildList(dailyItems, "groups");
+        if (groupIndex < 0 || groupIndex >= groups.size()) {
+            throw new BadRequestException(
+                    "DOCUMENT_NARRATIVE_APPLY_TARGET_NOT_FOUND",
+                    "errors.documentNarrativePolish.targetNotFound",
+                    "Narrative field group target was not found.",
+                    Map.of("groupIndex", groupIndex));
+        }
+        var group = mutableMap(groups.get(groupIndex));
+        groups.set(groupIndex, group);
+        var entries = mutableChildList(group, "entries");
+        if (entryIndex < 0 || entryIndex >= entries.size()) {
+            throw new BadRequestException(
+                    "DOCUMENT_NARRATIVE_APPLY_TARGET_NOT_FOUND",
+                    "errors.documentNarrativePolish.targetNotFound",
+                    "Narrative field entry target was not found.",
+                    Map.of("groupIndex", groupIndex, "entryIndex", entryIndex));
+        }
+        var entry = mutableMap(entries.get(entryIndex));
+        entry.put("supervisionContent", value);
+        entries.set(entryIndex, entry);
+    }
+
+    private Map<String, Object> mutableMap(Map<String, Object> source) {
+        var result = new LinkedHashMap<String, Object>();
+        if (source == null) {
+            return result;
+        }
+        source.forEach((key, value) -> result.put(key, mutableValue(value)));
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mutableMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new LinkedHashMap<String, Object>();
+            map.forEach((key, item) -> result.put(String.valueOf(key), mutableValue(item)));
+            return result;
+        }
+        return new LinkedHashMap<>();
+    }
+
+    private Object mutableValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new LinkedHashMap<String, Object>();
+            map.forEach((key, item) -> result.put(String.valueOf(key), mutableValue(item)));
+            return result;
+        }
+        if (value instanceof List<?> list) {
+            return new ArrayList<>(list.stream().map(this::mutableValue).toList());
+        }
+        return value;
+    }
+
+    private Map<String, Object> mutableChildMap(Map<String, Object> parent, String key) {
+        var child = mutableMap(parent.get(key));
+        parent.put(key, child);
+        return child;
+    }
+
+    @SuppressWarnings("unchecked")
+    private ArrayList<Object> mutableChildList(Map<String, Object> parent, String key) {
+        var value = parent.get(key);
+        if (value instanceof ArrayList<?> arrayList) {
+            return (ArrayList<Object>) arrayList;
+        }
+        if (value instanceof List<?> list) {
+            var result = new ArrayList<>(list.stream().map(this::mutableValue).toList());
+            parent.put(key, result);
+            return result;
+        }
+        var result = new ArrayList<Object>();
+        parent.put(key, result);
+        return result;
     }
 
     private Optional<NarrativePolishResult> result(Optional<ValidationResult<?>> validation) {

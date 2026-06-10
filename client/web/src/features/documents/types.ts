@@ -63,6 +63,11 @@ export type DocumentNarrativePolishResponse = {
   suggestions: DocumentNarrativePolishSuggestionResponse[];
 };
 
+export type DocumentNarrativeApplyResponse = {
+  appliedCount: number;
+  appliedPaths: string[];
+};
+
 export type DocumentArtifactResponse = {
   id: number;
   artifactType: DocumentArtifactType;

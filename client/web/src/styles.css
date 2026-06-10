@@ -1555,12 +1555,54 @@ button {
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
 }
 
+.document-polish-dialog {
+  width: min(980px, 100%);
+}
+
 .signature-dialog-body {
   display: grid;
   gap: 16px;
   min-height: 0;
   overflow: auto;
   padding: 16px;
+}
+
+.document-narrative-polish-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #d7e2df;
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 12px;
+}
+
+.document-narrative-polish-compact div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.document-narrative-polish-compact span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #1f3430;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.document-narrative-polish-compact p {
+  margin: 0;
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.document-narrative-polish-compact button {
+  flex: 0 0 auto;
 }
 
 .document-narrative-polish {
@@ -1776,6 +1818,29 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.signature-skipped-note {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #d7e2df;
+  border-radius: 8px;
+  background: #f7faf9;
+  padding: 12px;
+}
+
+.signature-skipped-note strong {
+  color: #263f3a;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.signature-skipped-note p {
+  margin: 0;
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .signature-form-grid label {
@@ -5227,6 +5292,16 @@ button.list-row {
 
   .document-signature-dialog {
     max-height: calc(100vh - 20px);
+  }
+
+  .document-narrative-polish-compact {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-narrative-polish-compact button {
+    justify-content: center;
+    width: 100%;
   }
 
   .document-narrative-polish-status {

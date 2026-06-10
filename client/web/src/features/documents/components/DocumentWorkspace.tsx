@@ -16,6 +16,7 @@ import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
+  DocumentNarrativeApplyResponse,
   DocumentNarrativePolishFieldInput,
   DocumentNarrativePolishResponse,
   DocumentNarrativePolishSuggestionResponse,
@@ -47,6 +48,8 @@ type NarrativeRenderField = {
   value: string;
 };
 
+const EMPTY_NARRATIVE_VALUES: Record<string, string> = {};
+
 export function DocumentWorkspace({
   currentOffice,
   currentUser,
@@ -62,9 +65,16 @@ export function DocumentWorkspace({
     report: InspectionReport;
   } | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
+  const [narrativeDraftsByReport, setNarrativeDraftsByReport] = useState<Record<number, Record<string, string>>>({});
   const requestSignedGeneration = (report: InspectionReport, outputFormat: DocumentOutputFormat) => {
     setSignatureError(null);
     setSignatureRequest({ outputFormat, report });
+  };
+  const rememberNarrativeDraft = (reportId: number, values: Record<string, string>) => {
+    setNarrativeDraftsByReport((current) => ({
+      ...current,
+      [reportId]: values
+    }));
   };
   const submitSignature = async (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => {
     if (!signatureRequest) {
@@ -175,6 +185,8 @@ export function DocumentWorkspace({
           currentOffice={currentOffice}
           currentUser={currentUser}
           error={signatureError}
+          applyingNarrative={workspace.applyingNarrativeReportId === signatureRequest.report.id}
+          initialNarrativeValues={narrativeDraftsByReport[signatureRequest.report.id] ?? EMPTY_NARRATIVE_VALUES}
           outputFormat={signatureRequest.outputFormat}
           report={signatureRequest.report}
           polishing={workspace.polishingNarrativeReportId === signatureRequest.report.id}
@@ -191,6 +203,11 @@ export function DocumentWorkspace({
             fields,
             reportId: signatureRequest.report.id
           })}
+          onApplyNarrativeToReport={(fields) => workspace.applyDocumentNarrativeToReport({
+            fields,
+            reportId: signatureRequest.report.id
+          })}
+          onRememberNarrativeValues={(values) => rememberNarrativeDraft(signatureRequest.report.id, values)}
           onSubmit={submitSignature}
         />
       ) : null}
@@ -415,28 +432,36 @@ function DocumentReportCard({
 }
 
 function DocumentSignatureDialog({
+  applyingNarrative,
   currentOffice,
   currentUser,
   error,
+  initialNarrativeValues,
   outputFormat,
   polishing,
   report,
   steps,
   submitting,
   onClose,
+  onApplyNarrativeToReport,
+  onRememberNarrativeValues,
   onPolishNarrative,
   onSkip,
   onSubmit
 }: {
+  applyingNarrative: boolean;
   currentOffice: Office | null;
   currentUser: MeResponse;
   error: string | null;
+  initialNarrativeValues: Record<string, string>;
   outputFormat: DocumentOutputFormat;
   polishing: boolean;
   report: InspectionReport;
   steps: InspectionStep[];
   submitting: boolean;
   onClose: () => void;
+  onApplyNarrativeToReport: (fields: DocumentNarrativePolishFieldInput[]) => Promise<DocumentNarrativeApplyResponse>;
+  onRememberNarrativeValues: (values: Record<string, string>) => void;
   onPolishNarrative: (fields: DocumentNarrativePolishFieldInput[]) => Promise<DocumentNarrativePolishResponse>;
   onSkip: (renderOverrides: DocumentRenderOverrideInput[]) => Promise<void>;
   onSubmit: (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => Promise<void>;
@@ -445,6 +470,7 @@ function DocumentSignatureDialog({
   const drawingRef = useRef(false);
   const [empty, setEmpty] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [screen, setScreen] = useState<"generate" | "polish">(() => outputFormat === "HTML" ? "polish" : "generate");
   const [name, setName] = useState(() => localStorage.getItem("archdox.signature.name") ?? defaultSignatureName(currentUser));
   const [role, setRole] = useState(() => {
     if (currentOffice?.type === "PERSONAL") {
@@ -458,10 +484,13 @@ function DocumentSignatureDialog({
   const [polishSuggestions, setPolishSuggestions] = useState<DocumentNarrativePolishSuggestionResponse[]>([]);
 
   useEffect(() => {
-    setNarrativeValues(Object.fromEntries(narrativeFields.map((field) => [field.path, field.value])));
+    setNarrativeValues(Object.fromEntries(narrativeFields.map((field) => [
+      field.path,
+      initialNarrativeValues[field.path] ?? field.value
+    ])));
     setPolishSummary(null);
     setPolishSuggestions([]);
-  }, [narrativeFields]);
+  }, [narrativeFields, initialNarrativeValues]);
 
   const polishSuggestionsByPath = useMemo(() => {
     const suggestions = new Map<string, DocumentNarrativePolishSuggestionResponse>();
@@ -481,22 +510,33 @@ function DocumentSignatureDialog({
     }))
     .filter((field) => field.value.length > 0);
 
-  const renderOverrides = () => narrativeFields
+  const changedNarrativeFields = () => narrativeFields
     .map((field) => ({
       field,
       value: (narrativeValues[field.path] ?? field.value).trim()
     }))
-    .filter(({ field, value }) => value !== field.value.trim())
+    .filter(({ field, value }) => value.length > 0 && value !== field.value.trim());
+
+  const renderOverrides = () => changedNarrativeFields()
     .map(({ field, value }) => ({
       path: field.path,
       value,
       label: field.label,
       source: "DOCUMENT_GENERATION_DIALOG"
     }));
+  const applyNarrativeFields = () => changedNarrativeFields()
+    .map(({ field, value }) => ({
+      label: field.label,
+      path: field.path,
+      value
+    }));
+  const rememberDraft = () => onRememberNarrativeValues(narrativeValues);
   const appliedNarrativeCount = renderOverrides().length;
   const applicableSuggestionCount = polishSuggestions.filter((suggestion) =>
     suggestion.applicable && suggestion.polishedText.trim()
   ).length;
+  const isHtmlOutput = outputFormat === "HTML";
+  const outputLabel = isHtmlOutput ? "HTML 생성" : `${outputFormat} 생성`;
 
   const polishNarrative = async () => {
     const fields = narrativePolishFields();
@@ -525,6 +565,22 @@ function DocumentSignatureDialog({
       }
     } catch (polishError) {
       setLocalError(polishError instanceof Error ? polishError.message : "문장 다듬기 AI 요청에 실패했습니다.");
+    }
+  };
+
+  const applyNarrativeToReport = async () => {
+    const fields = applyNarrativeFields();
+    if (fields.length === 0) {
+      setLocalError("원본 리포트에 적용할 변경 문장이 없습니다.");
+      return;
+    }
+    try {
+      setLocalError(null);
+      const response = await onApplyNarrativeToReport(fields);
+      setPolishSummary(`${response.appliedCount}개 문장을 원본 리포트에 적용했습니다. 리포트 상태에 따라 다시 제출이 필요할 수 있습니다.`);
+      rememberDraft();
+    } catch (applyError) {
+      setLocalError(applyError instanceof Error ? applyError.message : "원본 리포트 적용에 실패했습니다.");
     }
   };
 
@@ -613,6 +669,7 @@ function DocumentSignatureDialog({
     }
     localStorage.setItem("archdox.signature.name", trimmedName);
     localStorage.setItem("archdox.signature.role", role.trim());
+    rememberDraft();
     setLocalError(null);
     await onSubmit({
       signedByName: trimmedName,
@@ -621,162 +678,258 @@ function DocumentSignatureDialog({
       signatureImageMimeType: "image/png"
     }, renderOverrides());
   };
+  const submitWithoutSignature = async () => {
+    rememberDraft();
+    await onSkip(renderOverrides());
+  };
+  const closeDialog = () => {
+    rememberDraft();
+    onClose();
+  };
+  const polishSection = (
+    <section className="document-narrative-polish" aria-label="문장 다듬기">
+      <div className="document-narrative-polish-head">
+        <span>
+          <strong>문장 다듬기</strong>
+          <small>{appliedNarrativeCount > 0 ? `${appliedNarrativeCount}개 문장 생성본 반영` : "원본 문장으로 생성"}</small>
+        </span>
+        <em>{outputFormat}</em>
+      </div>
+      <div className="document-narrative-polish-status">
+        <span>
+          <strong>{appliedNarrativeCount}</strong>
+          <small>적용 문장</small>
+        </span>
+        <span>
+          <strong>{narrativeFields.length}</strong>
+          <small>확인 대상</small>
+        </span>
+        <span>
+          <strong>원본 보존</strong>
+          <small>생성만 하면 리포트 데이터는 수정하지 않음</small>
+        </span>
+        {outputFormat === "HTML" ? (
+          <span>
+            <strong>자동 미리보기</strong>
+            <small>생성 완료 후 HTML 열기</small>
+          </span>
+        ) : null}
+      </div>
+      <div className="document-narrative-polish-actions">
+        <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 필요하면 직접 고친 뒤 생성하거나 원본 리포트에 적용할 수 있습니다.</p>
+        <button
+          className="primary-button compact-button"
+          disabled={submitting || polishing || applyingNarrative}
+          onClick={polishNarrative}
+          type="button"
+        >
+          {polishing ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
+          AI로 다듬기
+        </button>
+      </div>
+      {polishSummary ? <p className="document-narrative-polish-summary">{polishSummary}</p> : null}
+      <div className="document-narrative-polish-list">
+        {narrativeFields.map((field) => {
+          const suggestion = polishSuggestionsByPath.get(field.path);
+          const currentValue = narrativeValues[field.path] ?? field.value;
+          const changed = currentValue.trim() !== field.value.trim();
+          return (
+            <div className={`document-narrative-polish-item${changed ? " changed" : ""}`} key={field.path}>
+              <div className="document-narrative-polish-item-head">
+                <span>{field.label}</span>
+                <em>{changed ? "생성본 반영" : "원문 유지"}</em>
+              </div>
+              <div className="document-narrative-polish-compare">
+                <div className="document-narrative-polish-original">
+                  <small>원본 리포트</small>
+                  <p>{field.value}</p>
+                </div>
+                <label>
+                  <small>이번 생성본 문장</small>
+                  <textarea
+                    value={currentValue}
+                    onChange={(event) => setNarrativeValues((current) => ({
+                      ...current,
+                      [field.path]: event.target.value
+                    }))}
+                    rows={3}
+                  />
+                </label>
+              </div>
+              {suggestion ? (
+                <small className="document-narrative-polish-suggestion">
+                  AI 제안 반영됨 · {suggestion.reason || suggestion.confidence}
+                </small>
+              ) : null}
+              {changed ? (
+                <button
+                  className="text-button compact-text-button"
+                  onClick={() => setNarrativeValues((current) => ({
+                    ...current,
+                    [field.path]: field.value
+                  }))}
+                  type="button"
+                >
+                  <RefreshCw size={13} />
+                  원문으로 되돌리기
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      {applicableSuggestionCount > 0 ? (
+        <p className="document-narrative-polish-footnote">
+          AI 제안 {applicableSuggestionCount}건이 생성본 문장에 반영되었습니다. 문서 생성 전 최종 문장을 한 번 확인해주세요.
+        </p>
+      ) : null}
+    </section>
+  );
+
+  if (screen === "polish" && narrativeFields.length > 0) {
+    return (
+      <div className="document-preview-backdrop" role="presentation">
+        <section className="document-signature-dialog document-polish-dialog" role="dialog" aria-modal="true" aria-label="문장 다듬기">
+          <header className="document-preview-header">
+            <div>
+              <span>문장 다듬기</span>
+              <strong>{report.title || report.reportNo}</strong>
+              <small>다듬은 문장은 생성본에만 반영하거나, 원하면 원본 리포트에도 적용할 수 있습니다.</small>
+            </div>
+            <button className="icon-button" disabled={submitting || applyingNarrative} onClick={closeDialog} type="button" aria-label="문장 다듬기 닫기">
+              <X size={18} />
+            </button>
+          </header>
+          <div className="signature-dialog-body">
+            {polishSection}
+            {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
+          </div>
+          <footer className="signature-dialog-actions">
+            <button className="secondary-button" disabled={submitting || applyingNarrative} onClick={closeDialog} type="button">
+              취소
+            </button>
+            <button className="secondary-button" disabled={submitting || applyingNarrative || appliedNarrativeCount === 0} onClick={applyNarrativeToReport} type="button">
+              {applyingNarrative ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+              원본 리포트에 적용
+            </button>
+            {outputFormat === "HTML" ? (
+              <button className="primary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
+                {submitting ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+                HTML 생성
+              </button>
+            ) : (
+              <button className="primary-button" disabled={submitting || applyingNarrative} onClick={() => {
+                rememberDraft();
+                setScreen("generate");
+              }} type="button">
+                생성 설정으로 이동
+              </button>
+            )}
+          </footer>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="document-preview-backdrop" role="presentation">
-      <section className="document-signature-dialog" role="dialog" aria-modal="true" aria-label="문서 서명">
+      <section className="document-signature-dialog" role="dialog" aria-modal="true" aria-label={outputLabel}>
         <header className="document-preview-header">
           <div>
-            <span>문서 생성 서명</span>
+            <span>{outputLabel}</span>
             <strong>{report.title || report.reportNo}</strong>
-            <small>{outputFormat} 생성 전에 문장과 서명을 확인합니다. 문장 다듬기는 이번 생성본에만 반영됩니다.</small>
+            <small>
+              {isHtmlOutput
+                ? "서명 없이 HTML을 생성하고 완료 후 미리보기를 엽니다. 다듬은 문장은 다른 출력에도 다시 사용할 수 있습니다."
+                : `${outputFormat} 생성 전에 서명과 다듬은 문장을 확인합니다.`}
+            </small>
           </div>
-          <button className="icon-button" disabled={submitting} onClick={onClose} type="button" aria-label="서명 창 닫기">
+          <button className="icon-button" disabled={submitting} onClick={closeDialog} type="button" aria-label={`${outputLabel} 창 닫기`}>
             <X size={18} />
           </button>
         </header>
         <div className="signature-dialog-body">
-          <div className="signature-form-grid">
-            <label>
-              <span>서명자</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="이름" />
-            </label>
-            <label>
-              <span>역할</span>
-              <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="작성자 / 점검자" />
-            </label>
-          </div>
           {narrativeFields.length > 0 ? (
-            <section className="document-narrative-polish" aria-label="문장 다듬기">
-              <div className="document-narrative-polish-head">
+            <section className="document-narrative-polish-compact" aria-label="문장 다듬기 요약">
+              <div>
                 <span>
+                  <Sparkles size={15} />
                   <strong>문장 다듬기</strong>
-                  <small>{appliedNarrativeCount > 0 ? `${appliedNarrativeCount}개 문장 생성본 반영` : "원본 문장으로 생성"}</small>
                 </span>
-                <em>{outputFormat}</em>
-              </div>
-              <div className="document-narrative-polish-status">
-                <span>
-                  <strong>{appliedNarrativeCount}</strong>
-                  <small>적용 문장</small>
-                </span>
-                <span>
-                  <strong>{narrativeFields.length}</strong>
-                  <small>확인 대상</small>
-                </span>
-                <span>
-                  <strong>원본 보존</strong>
-                  <small>리포트 데이터는 수정하지 않음</small>
-                </span>
-                {outputFormat === "HTML" ? (
-                  <span>
-                    <strong>자동 미리보기</strong>
-                    <small>생성 완료 후 HTML 열기</small>
-                  </span>
-                ) : null}
-              </div>
-              <div className="document-narrative-polish-actions">
-                <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 필요하면 직접 고친 뒤 생성할 수 있습니다.</p>
-                <button
-                  className="primary-button compact-button"
-                  disabled={submitting || polishing}
-                  onClick={polishNarrative}
-                  type="button"
-                >
-                  {polishing ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
-                  AI로 다듬기
-                </button>
-              </div>
-              {polishSummary ? <p className="document-narrative-polish-summary">{polishSummary}</p> : null}
-              <div className="document-narrative-polish-list">
-                {narrativeFields.map((field) => {
-                  const suggestion = polishSuggestionsByPath.get(field.path);
-                  const currentValue = narrativeValues[field.path] ?? field.value;
-                  const changed = currentValue.trim() !== field.value.trim();
-                  return (
-                    <div className={`document-narrative-polish-item${changed ? " changed" : ""}`} key={field.path}>
-                      <div className="document-narrative-polish-item-head">
-                        <span>{field.label}</span>
-                        <em>{changed ? "생성본 반영" : "원문 유지"}</em>
-                      </div>
-                      <div className="document-narrative-polish-compare">
-                        <div className="document-narrative-polish-original">
-                          <small>원본 리포트</small>
-                          <p>{field.value}</p>
-                        </div>
-                        <label>
-                          <small>이번 생성본 문장</small>
-                          <textarea
-                            value={currentValue}
-                            onChange={(event) => setNarrativeValues((current) => ({
-                              ...current,
-                              [field.path]: event.target.value
-                            }))}
-                            rows={3}
-                          />
-                        </label>
-                      </div>
-                      {suggestion ? (
-                        <small className="document-narrative-polish-suggestion">
-                          AI 제안 반영됨 · {suggestion.reason || suggestion.confidence}
-                        </small>
-                      ) : null}
-                      {changed ? (
-                        <button
-                          className="text-button compact-text-button"
-                          onClick={() => setNarrativeValues((current) => ({
-                            ...current,
-                            [field.path]: field.value
-                          }))}
-                          type="button"
-                        >
-                          <RefreshCw size={13} />
-                          원문으로 되돌리기
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-              {applicableSuggestionCount > 0 ? (
-                <p className="document-narrative-polish-footnote">
-                  AI 제안 {applicableSuggestionCount}건이 생성본 문장에 반영되었습니다. 문서 생성 전 최종 문장을 한 번 확인해주세요.
+                <p>
+                  {appliedNarrativeCount > 0
+                    ? `${appliedNarrativeCount}개 문장이 생성본에 반영되어 있습니다. DOCX/PDF/HTML 생성에 같은 문장을 사용합니다.`
+                    : `확인 대상 ${narrativeFields.length}개가 있습니다. 원본 문장 그대로 생성하거나 별도 화면에서 다듬을 수 있습니다.`}
                 </p>
-              ) : null}
+              </div>
+              <button className="secondary-button compact-button" disabled={submitting} onClick={() => {
+                rememberDraft();
+                setScreen("polish");
+              }} type="button">
+                문장 확인/다듬기
+              </button>
             </section>
           ) : null}
-          <div className="signature-pad-wrap">
-            <div className="signature-pad-head">
-              <strong>서명</strong>
-              <button className="secondary-button compact-button" disabled={submitting} onClick={clearSignature} type="button">
-                <Trash2 size={14} />
-                지우기
-              </button>
+          {isHtmlOutput ? (
+            <div className="signature-skipped-note">
+              <strong>HTML 생성에는 서명을 요구하지 않습니다.</strong>
+              <p>HTML은 화면 확인용 산출물이므로 현재 생성본 문장만 반영해 만들고, 생성 완료 후 미리보기를 엽니다.</p>
             </div>
-            <canvas
-              className="signature-pad"
-              ref={canvasRef}
-              onPointerCancel={stopDrawing}
-              onPointerDown={startDrawing}
-              onPointerLeave={stopDrawing}
-              onPointerMove={draw}
-              onPointerUp={stopDrawing}
-            />
-          </div>
+          ) : (
+            <>
+              <div className="signature-form-grid">
+                <label>
+                  <span>서명자</span>
+                  <input value={name} onChange={(event) => setName(event.target.value)} placeholder="이름" />
+                </label>
+                <label>
+                  <span>역할</span>
+                  <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="작성자 / 점검자" />
+                </label>
+              </div>
+              <div className="signature-pad-wrap">
+                <div className="signature-pad-head">
+                  <strong>서명</strong>
+                  <button className="secondary-button compact-button" disabled={submitting} onClick={clearSignature} type="button">
+                    <Trash2 size={14} />
+                    지우기
+                  </button>
+                </div>
+                <canvas
+                  className="signature-pad"
+                  ref={canvasRef}
+                  onPointerCancel={stopDrawing}
+                  onPointerDown={startDrawing}
+                  onPointerLeave={stopDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                />
+              </div>
+            </>
+          )}
           {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
         </div>
         <footer className="signature-dialog-actions">
-          <button className="secondary-button" disabled={submitting} onClick={onClose} type="button">
+          <button className="secondary-button" disabled={submitting} onClick={closeDialog} type="button">
             취소
           </button>
-          <button className="secondary-button" disabled={submitting} onClick={() => onSkip(renderOverrides())} type="button">
-            {submitting ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
-            서명 없이 생성
-          </button>
-          <button className="primary-button" disabled={submitting} onClick={submit} type="button">
-            {submitting ? <Loader2 className="spin" size={17} /> : <PenLine size={17} />}
-            서명 후 생성
-          </button>
+          {isHtmlOutput ? (
+            <button className="primary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
+              {submitting ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+              HTML 생성
+            </button>
+          ) : (
+            <>
+              <button className="secondary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
+                {submitting ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+                서명 없이 생성
+              </button>
+              <button className="primary-button" disabled={submitting} onClick={submit} type="button">
+                {submitting ? <Loader2 className="spin" size={17} /> : <PenLine size={17} />}
+                서명 후 생성
+              </button>
+            </>
+          )}
         </footer>
       </section>
     </div>

@@ -3,6 +3,7 @@ import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
+  DocumentNarrativeApplyResponse,
   DocumentNarrativePolishFieldInput,
   DocumentNarrativePolishResponse,
   DocumentOutputFormat,
@@ -49,6 +50,20 @@ export function polishDocumentNarrative(
   fields: DocumentNarrativePolishFieldInput[]
 ) {
   return request<DocumentNarrativePolishResponse>(`/api/v1/inspection-reports/${reportId}/document-narrative-polish`, {
+    token,
+    officeId,
+    method: "POST",
+    body: { fields }
+  });
+}
+
+export function applyDocumentNarrativeToReport(
+  token: string,
+  officeId: number,
+  reportId: number,
+  fields: DocumentNarrativePolishFieldInput[]
+) {
+  return request<DocumentNarrativeApplyResponse>(`/api/v1/inspection-reports/${reportId}/document-narrative-polish/apply`, {
     token,
     officeId,
     method: "POST",
