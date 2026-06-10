@@ -222,12 +222,18 @@ public class ReportPreflightDeterministicValidator {
                             groupNo,
                             entryNo));
                 }
+                var supervisionContentLocation = "groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
                 requireText(entry, "supervisionContent", "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED", "HIGH",
                         "감리내용을 입력해야 문서 생성 시 감리내용 칸이 비지 않습니다.",
-                        "groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent",
+                        supervisionContentLocation,
                         groupNo,
                         entryNo,
                         findings);
+                findings.addAll(ReportPreflightWordingLint.dailySupervisionContent(
+                        stringValue(entry.get("supervisionContent")),
+                        "steps.DAILY_LOG.payload.dailyItems." + supervisionContentLocation,
+                        groupNo,
+                        entryNo));
                 if (listValue(entry.get("photoIds")).isEmpty()) {
                     findings.add(dailyFinding(
                             "DAILY_LOG_PHOTO_EVIDENCE_RECOMMENDED",

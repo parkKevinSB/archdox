@@ -30,10 +30,12 @@ class ReportPreflightAiReviewFindingSinkTest {
     private final ReportPreflightReviewRunRepository runRepository = mock(ReportPreflightReviewRunRepository.class);
     private final ReportPreflightReviewFindingRepository findingRepository = mock(ReportPreflightReviewFindingRepository.class);
     private final ReportPhotoEvidenceStatusService photoEvidenceStatusService = mock(ReportPhotoEvidenceStatusService.class);
+    private final ReportPreflightFieldValueResolver fieldValueResolver = mock(ReportPreflightFieldValueResolver.class);
     private final ReportPreflightAiReviewFindingSink sink = new ReportPreflightAiReviewFindingSink(
             runRepository,
             findingRepository,
-            photoEvidenceStatusService);
+            photoEvidenceStatusService,
+            fieldValueResolver);
 
     @Test
     void storesAiFindingsAsDraftsThatRequireApproval() {

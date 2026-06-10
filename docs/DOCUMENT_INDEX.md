@@ -77,10 +77,26 @@ all canonical files.
 | Document | Level | Status | Role |
 | --- | --- | --- | --- |
 | `docs/ai-harness/IMPLEMENTATION_ROADMAP.md` | L3 | roadmap | Planned AI harness implementation direction. Verify against code before using. |
+| `docs/old/initial-design/README.md` | L3 | superseded | Index for archived initial Korean design notes. Historical record only; do not use for implementation. |
 
 ## Current Superseded Documents
 
-No Markdown document is marked `superseded` in this first governance pass.
+| Document | Former Location | Role |
+| --- | --- | --- |
+| `docs/old/initial-design/00_README.md` | `00_README.md` | Initial design archive index. Historical record only. |
+| `docs/old/initial-design/01_상세설계_전체아키텍처.md` | `01_상세설계_전체아키텍처.md` | Initial overall architecture design. Historical record only. |
+| `docs/old/initial-design/02_상세설계_도메인및데이터.md` | `02_상세설계_도메인및데이터.md` | Initial domain/data design. Historical record only. |
+| `docs/old/initial-design/03_상세설계_API및이벤트.md` | `03_상세설계_API및이벤트.md` | Initial API/event design. Historical record only. |
+| `docs/old/initial-design/04_상세설계_이미지및스토리지.md` | `04_상세설계_이미지및스토리지.md` | Initial image/storage design. Historical record only. |
+| `docs/old/initial-design/05_상세설계_클라이언트.md` | `05_상세설계_클라이언트.md` | Initial client design. Historical record only. |
+| `docs/old/initial-design/06_상세설계_로컬서버_및_관리UI.md` | `06_상세설계_로컬서버_및_관리UI.md` | Initial local server/admin UI design. Historical record only. |
+| `docs/old/initial-design/07_상세설계_멀티테넌트_admin.md` | `07_상세설계_멀티테넌트_admin.md` | Initial multi-tenant admin design. Historical record only. |
+| `docs/old/initial-design/08_구현순서_및_기능목록.md` | `08_구현순서_및_기능목록.md` | Initial implementation sequence and feature list. Historical record only. |
+| `docs/old/initial-design/09_상세설계_문서생성및AI계층.md` | `09_상세설계_문서생성및AI계층.md` | Initial document generation and AI layer design. Historical record only. |
+| `docs/old/initial-design/10_상세설계_템플릿편집기.md` | `10_상세설계_템플릿편집기.md` | Initial template editor design. Historical record only. |
+| `docs/old/initial-design/11_상세설계_건축법검토.md` | `11_상세설계_건축법검토.md` | Initial building-law review design. Historical record only. |
+| `docs/old/initial-design/12_상세설계_문서전달정책.md` | `12_상세설계_문서전달정책.md` | Initial document delivery policy. Historical record only. |
+| `docs/old/initial-design/건축자동화_개발구현계획.md` | `건축자동화_개발구현계획.md` | Initial development plan. Historical record only. |
 
-If a document becomes stale, mark it here first instead of silently ignoring it.
-
+Do not use superseded documents for new implementation unless a human explicitly
+asks for historical context.

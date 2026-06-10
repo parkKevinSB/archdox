@@ -189,6 +189,41 @@ class ReportPreflightDeterministicValidatorTest {
     }
 
     @Test
+    void dailySupervisionFlagsDeterministicWordingLint() {
+        var submitValidationService = mock(ReportSubmitValidationService.class);
+        var targetRepository = mock(InspectionReportTargetRepository.class);
+        var stepRepository = mock(InspectionReportStepRepository.class);
+        var report = report("CONSTRUCTION_DAILY_SUPERVISION_LOG");
+        var content = "column \uACFC \uB97C \uD655\uC774\uD588\uC501\uB2C8\uB2E4.";
+        when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
+                "dailyItems", Map.of("groups", List.of(Map.of(
+                        "floor", "1F",
+                        "tradeCode", "STEEL",
+                        "processCode", "COLUMN",
+                        "entries", List.of(Map.of(
+                                "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
+                                "supervisionContent", content,
+                                "photoIds", List.of(101L)
+                        ))
+                )))
+        ))));
+
+        var result = new ReportPreflightDeterministicValidator(submitValidationService, targetRepository, stepRepository, photoEvidenceStatusService)
+                .validate(report);
+
+        assertTrue(result.blocksGeneration());
+        assertTrue(result.findings().stream()
+                .anyMatch(finding -> "DAILY_LOG_WORDING_TYPO".equals(finding.code())
+                        && "true".equals(finding.attributes().get("approvalRequired"))
+                        && "WORDING".equals(finding.attributes().get("category"))
+                        && finding.attributes().get("replacement").contains("\uD655\uC778\uD588\uC2B5\uB2C8\uB2E4")));
+        assertTrue(result.findings().stream()
+                .anyMatch(finding -> "DAILY_LOG_WORDING_PARTICLE_SEQUENCE".equals(finding.code())
+                        && "true".equals(finding.attributes().get("approvalRequired"))));
+    }
+
+    @Test
     void dailySupervisionBlocksWhenLinkedPhotoReferenceIsBroken() {
         var submitValidationService = mock(ReportSubmitValidationService.class);
         var targetRepository = mock(InspectionReportTargetRepository.class);

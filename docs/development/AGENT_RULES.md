@@ -1,5 +1,9 @@
 # Agent Rules
 
+Level: L0
+Status: canonical
+Last reviewed: 2026-06-10
+
 This document defines rules that AI development agents must follow when working
 on ArchDox. Keep changes conservative, tenant-safe, and consistent with the
 current architecture.
@@ -7,15 +11,28 @@ current architecture.
 ## Documentation Reading Rules
 
 1. Start non-trivial tasks from `docs/README.md`.
-2. Do not load every Markdown file by default. Read `docs/CURRENT_STATE.md`,
-   this file, and only the topic-specific documents listed in `docs/README.md`.
-3. After a major phase changes actual system behavior, update the smallest
+2. Do not load every Markdown file by default. Read the canonical entry set in
+   order: `docs/README.md`, `docs/DOCUMENT_GOVERNANCE.md`,
+   `docs/DOCUMENT_INDEX.md`, `docs/architecture/SYSTEM_MAP.md`, this file, and
+   `docs/CURRENT_STATE.md`. Then open only the topic-specific documents listed
+   in `docs/README.md` or `docs/DOCUMENT_INDEX.md`.
+3. Use `docs/DOCUMENT_GOVERNANCE.md` and `docs/DOCUMENT_INDEX.md` to decide a
+   document's level and status before trusting it. Do not let an L3 roadmap,
+   draft, or older phase note override an L0/L1 canonical document.
+4. After a major phase changes actual system behavior, update the smallest
    relevant canonical document and `docs/CURRENT_STATE.md`.
-4. Do not create a new documentation file when an existing canonical document
+5. Do not create a new documentation file when an existing canonical document
    is the right home for the rule.
-5. If documentation conflicts, prefer this file first, then
-   `docs/architecture/ARCHDOX_PLATFORM_IDENTITY.md`, then topic-specific
-   architecture documents, then older phase notes or conversation history.
+6. If documents conflict, follow the precedence ladder defined in
+   `docs/DOCUMENT_GOVERNANCE.md`:
+   1. Code, database migrations, deployed configuration, and tests.
+   2. `docs/DOCUMENT_GOVERNANCE.md`.
+   3. `docs/development/AGENT_RULES.md` (this file).
+   4. `docs/architecture/SYSTEM_MAP.md`.
+   5. L1 canonical architecture documents from `docs/DOCUMENT_INDEX.md`,
+      including `docs/architecture/ARCHDOX_PLATFORM_IDENTITY.md`.
+   6. L2 implementation contracts and guides.
+   7. L3 roadmaps, drafts, older phase notes, or conversation history.
 
 ## Core Development Rules
 

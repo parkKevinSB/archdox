@@ -18,6 +18,9 @@ public record ReportPreflightValidationResult(
     }
 
     private boolean isBlocking(ReportPreflightFinding finding) {
-        return "HIGH".equals(finding.severity()) || "CRITICAL".equals(finding.severity());
+        return "HIGH".equals(finding.severity())
+                || "CRITICAL".equals(finding.severity())
+                || "AI".equals(finding.source())
+                || Boolean.parseBoolean(finding.attributes().getOrDefault("approvalRequired", "false"));
     }
 }

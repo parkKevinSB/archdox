@@ -69,6 +69,8 @@ needed for the change.
 - Reference source materials live under `docs/reference-forms`.
 - `docs/CURRENT_STATE.md` is the short operational snapshot and should be
   updated after major phase completions.
+- `docs/old/initial-design` contains superseded historical design notes only.
+  Do not use those files as current architecture or implementation guidance.
 
 ## Reading Rule For AI Agents
 

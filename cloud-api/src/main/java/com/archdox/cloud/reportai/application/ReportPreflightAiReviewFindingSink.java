@@ -21,15 +21,18 @@ public class ReportPreflightAiReviewFindingSink implements FindingSink {
     private final ReportPreflightReviewRunRepository runRepository;
     private final ReportPreflightReviewFindingRepository findingRepository;
     private final ReportPhotoEvidenceStatusService photoEvidenceStatusService;
+    private final ReportPreflightFieldValueResolver fieldValueResolver;
 
     public ReportPreflightAiReviewFindingSink(
             ReportPreflightReviewRunRepository runRepository,
             ReportPreflightReviewFindingRepository findingRepository,
-            ReportPhotoEvidenceStatusService photoEvidenceStatusService
+            ReportPhotoEvidenceStatusService photoEvidenceStatusService,
+            ReportPreflightFieldValueResolver fieldValueResolver
     ) {
         this.runRepository = runRepository;
         this.findingRepository = findingRepository;
         this.photoEvidenceStatusService = photoEvidenceStatusService;
+        this.fieldValueResolver = fieldValueResolver;
     }
 
     @Override
@@ -42,6 +45,9 @@ public class ReportPreflightAiReviewFindingSink implements FindingSink {
             if (shouldSuppressBenignDailyLogPhotoPayloadFinding(run, finding)) {
                 continue;
             }
+            var attributes = attributes(finding);
+            fieldValueResolver.resolveHash(run.reportId(), finding.location())
+                    .ifPresent(hash -> attributes.put("fieldValueHash", hash));
             findingRepository.save(new ReportPreflightReviewFinding(
                     run.officeId(),
                     run.id(),
@@ -52,7 +58,7 @@ public class ReportPreflightAiReviewFindingSink implements FindingSink {
                     finding.location(),
                     finding.message(),
                     finding.evidence(),
-                    attributes(finding),
+                    attributes,
                     OffsetDateTime.now()));
         }
     }

@@ -672,12 +672,12 @@ function PreflightReviewPanel({
     status: ReportPreflightFindingResolutionStatus
   ) => Promise<ReportPreflightReviewFindingResponse>;
 }) {
-  const blockingCount = findings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const blockingCount = findings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const deterministicFindings = findings.filter((finding) => finding.source === "DETERMINISTIC");
   const aiFindings = findings.filter((finding) => finding.source !== "DETERMINISTIC");
-  const deterministicBlockingCount = deterministicFindings.filter((finding) => isOpenBlockingFinding(finding)).length;
+  const deterministicBlockingCount = deterministicFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const aiAttentionCount = aiFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
-  const warningCount = findings.filter((finding) => !isOpenBlockingFinding(finding)).length;
+  const warningCount = findings.filter((finding) => !requiresPreflightFindingAction(finding)).length;
   const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const stale = run ? run.reportRevision !== currentRevision : false;
   const warning = stale || (run && isPreflightBlocking(run));
@@ -752,6 +752,8 @@ function PreflightReviewPanel({
         </div>
       ) : null}
 
+      <PreflightLegalReviewSummary findings={findings} run={run} stale={stale} />
+
       {findings.length > 0 ? (
         <div className="preflight-finding-list">
           {displayedFindings.map((finding) => {
@@ -809,7 +811,7 @@ function PreflightReviewPanel({
                       className="secondary-button compact-button"
                       disabled={fixing || resolving}
                       onClick={() => onApplyFindingFix(run.id, finding.id)}
-                      title="AI 수정안을 보고서 입력값에 적용합니다. 적용 후 보고서는 편집 상태가 되며 다시 제출해야 합니다."
+                      title="수정안을 보고서 입력값에 적용합니다. 적용 후 보고서는 편집 상태가 되며 다시 제출해야 합니다."
                       type="button"
                     >
                       {fixing ? <Loader2 className="spin" size={14} /> : <PenLine size={14} />}
@@ -853,6 +855,60 @@ function PreflightReviewPanel({
         </button>
       </div>
     </section>
+  );
+}
+
+function PreflightLegalReviewSummary({
+  findings,
+  run,
+  stale
+}: {
+  findings: ReportPreflightReviewFindingResponse[];
+  run: ReportPreflightReviewRunResponse | null;
+  stale: boolean;
+}) {
+  const summary = preflightLegalSummary(findings, run, stale);
+  const visibleReferences = summary.references.slice(0, 5);
+
+  return (
+    <div className={`preflight-legal-review ${summary.kind}`}>
+      <div className="preflight-legal-review-head">
+        <div>
+          <strong>법령검토</strong>
+          <span>{summary.status}</span>
+        </div>
+        <em>{summary.badge}</em>
+      </div>
+      <div className="preflight-legal-review-grid">
+        <div>
+          <strong>법령 근거</strong>
+          <span>{summary.evidence}</span>
+        </div>
+        <div>
+          <strong>법률 리스크</strong>
+          <span>{summary.risk}</span>
+        </div>
+        <div>
+          <strong>판정 이유</strong>
+          <span>{summary.reason}</span>
+        </div>
+      </div>
+      <div className="preflight-legal-review-refs">
+        <strong>검토된 조문</strong>
+        {visibleReferences.length > 0 ? (
+          <span>
+            {visibleReferences.map((reference) => (
+              <em key={reference.key}>{reference.label}</em>
+            ))}
+            {summary.references.length > visibleReferences.length ? (
+              <em>외 {summary.references.length - visibleReferences.length}건</em>
+            ) : null}
+          </span>
+        ) : (
+          <small>표시된 조문 근거가 없습니다.</small>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1289,6 +1345,134 @@ function preflightStatusLabel(run: ReportPreflightReviewRunResponse | null, stal
   return "검토 중";
 }
 
+function preflightLegalSummary(
+  findings: ReportPreflightReviewFindingResponse[],
+  run: ReportPreflightReviewRunResponse | null,
+  stale: boolean
+) {
+  const legalFindings = findings.filter(isLegalPreflightFinding);
+  const references = legalReviewReferences(findings);
+  const openAttention = legalFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
+  const evidence = references.length > 0
+    ? `법령 근거 ${references.length}건 사용됨`
+    : "표시된 법령 근거 없음";
+
+  if (!run) {
+    return {
+      kind: "pending",
+      badge: "검토 전",
+      status: "생성 전 검토를 실행하면 법령 근거와 리스크를 함께 확인합니다.",
+      evidence: "검토 전",
+      risk: "검토 전",
+      reason: "아직 Engine/AI 검토 결과가 없습니다.",
+      references
+    };
+  }
+  if (stale) {
+    return {
+      kind: "warning",
+      badge: "재검토 필요",
+      status: "현재 리포트 내용이 이전 검토 revision과 다릅니다.",
+      evidence,
+      risk: "다시 검토 필요",
+      reason: "리포트가 변경되어 이전 법령검토 결과를 그대로 신뢰할 수 없습니다.",
+      references
+    };
+  }
+  if (isPreflightActive(run) || isPreflightAiPending(run)) {
+    return {
+      kind: "pending",
+      badge: "검토 중",
+      status: "법령 근거와 AI dry-run 검토 결과를 정리하는 중입니다.",
+      evidence,
+      risk: "검토 중",
+      reason: "검토 run이 아직 완료되지 않았습니다.",
+      references
+    };
+  }
+  if (run.status === "FAILED") {
+    return {
+      kind: "warning",
+      badge: "실패",
+      status: "법령검토 결과를 확정하지 못했습니다.",
+      evidence,
+      risk: "확인 불가",
+      reason: run.terminalReason ?? "생성 전 검토 run이 실패했습니다.",
+      references
+    };
+  }
+  if (openAttention > 0) {
+    return {
+      kind: "warning",
+      badge: "확인 필요",
+      status: `법령/준법 관련 확인 필요 항목 ${openAttention}건이 있습니다.`,
+      evidence,
+      risk: `확인 필요 ${openAttention}건`,
+      reason: "열린 법령/준법 finding을 수정 완료하거나 리스크 수용해야 생성할 수 있습니다.",
+      references
+    };
+  }
+  if (run.status === "PASSED" && references.length > 0) {
+    return {
+      kind: "pass",
+      badge: "통과",
+      status: "표시된 법률 리스크 없이 근거 기반 검토가 통과했습니다.",
+      evidence,
+      risk: "표시된 법률 리스크 없음",
+      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다.",
+      references
+    };
+  }
+  if (run.status === "PASSED") {
+    return {
+      kind: "pass",
+      badge: "통과",
+      status: "표시된 법률 리스크는 없습니다.",
+      evidence,
+      risk: "표시된 법률 리스크 없음",
+      reason: "현재 응답에는 별도로 표시할 법령 근거 조문이 없습니다. 업무-법령 매핑이 없는 항목일 수 있습니다.",
+      references
+    };
+  }
+  return {
+    kind: "pending",
+    badge: "확인 중",
+    status: "법령검토 결과를 정리하는 중입니다.",
+    evidence,
+    risk: "확인 중",
+    reason: run.terminalReason ?? "검토 상태가 아직 최종 통과/확인 필요로 정리되지 않았습니다.",
+    references
+  };
+}
+
+function legalReviewReferences(findings: ReportPreflightReviewFindingResponse[]) {
+  const references = new Map<string, { key: string; label: string }>();
+  findings.forEach((finding) => {
+    finding.legalReferenceDetails.forEach((reference) => {
+      const key = reference.referenceId || reference.label;
+      if (key && !references.has(key)) {
+        references.set(key, { key, label: legalReferenceDetailDisplay(reference) });
+      }
+    });
+    finding.legalReferences.forEach((reference) => {
+      if (reference && !references.has(reference)) {
+        references.set(reference, { key: reference, label: legalReferenceDisplay(reference) });
+      }
+    });
+  });
+  return [...references.values()];
+}
+
+function isLegalPreflightFinding(finding: ReportPreflightReviewFindingResponse) {
+  const category = finding.attributes?.category ?? "";
+  const code = finding.code ?? "";
+  return code.includes("LEGAL")
+    || ["LEGAL_CONTEXT", "LEGAL_RISK", "COMPLIANCE"].includes(category)
+    || finding.legalReferences.length > 0
+    || finding.legalReferenceDetails.length > 0
+    || finding.nextActions.some((action) => action.includes("LEGAL"));
+}
+
 function legalReferenceDisplay(reference: string) {
   const [left, version] = reference.split("@");
   const [actCode, articleKey] = left.split(":");
@@ -1373,7 +1557,7 @@ function canApplyPreflightFindingFix(finding: ReportPreflightReviewFindingRespon
   if (finding.resolutionStatus !== "OPEN") {
     return false;
   }
-  if (finding.source !== "AI" || !["LOW", "MEDIUM"].includes(finding.severity)) {
+  if (!["AI", "DETERMINISTIC"].includes(finding.source) || !["LOW", "MEDIUM"].includes(finding.severity)) {
     return false;
   }
   return finding.attributes?.category === "WORDING";
@@ -1451,7 +1635,10 @@ function generationRevision(report: InspectionReport) {
 }
 
 function isBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
-  return finding.severity === "HIGH" || finding.severity === "CRITICAL";
+  return finding.severity === "HIGH"
+    || finding.severity === "CRITICAL"
+    || finding.source === "AI"
+    || finding.attributes?.approvalRequired === "true";
 }
 
 function isOpenBlockingFinding(finding: ReportPreflightReviewFindingResponse) {

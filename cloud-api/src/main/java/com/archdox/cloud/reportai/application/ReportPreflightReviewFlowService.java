@@ -6,6 +6,7 @@ import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
+import com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewFinding;
 import com.archdox.cloud.reportai.flow.ReportPreflightReviewRequest;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewFindingRepository;
@@ -37,6 +38,7 @@ public class ReportPreflightReviewFlowService {
     private final EngineWorkerActionSubmissionService workerActionSubmissionService;
     private final ReportPreflightAiHarnessFlowService aiHarnessFlowService;
     private final OperationEventService operationEventService;
+    private final ReportPreflightFieldValueResolver fieldValueResolver;
 
     public ReportPreflightReviewFlowService(
             InspectionReportRepository reportRepository,
@@ -46,7 +48,8 @@ public class ReportPreflightReviewFlowService {
             ReportPreflightEngineBoundaryService engineBoundaryService,
             EngineWorkerActionSubmissionService workerActionSubmissionService,
             ReportPreflightAiHarnessFlowService aiHarnessFlowService,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            ReportPreflightFieldValueResolver fieldValueResolver
     ) {
         this.reportRepository = reportRepository;
         this.runRepository = runRepository;
@@ -56,6 +59,7 @@ public class ReportPreflightReviewFlowService {
         this.workerActionSubmissionService = workerActionSubmissionService;
         this.aiHarnessFlowService = aiHarnessFlowService;
         this.operationEventService = operationEventService;
+        this.fieldValueResolver = fieldValueResolver;
     }
 
     @Transactional(readOnly = true)
@@ -79,7 +83,10 @@ public class ReportPreflightReviewFlowService {
         var workerActionSubmission = workerActionSubmissionService.submitAfterCommit(
                 engineResult,
                 workerActionSubmissionRequest(request, report));
-        var result = combinedResult(deterministicResult, engineResult);
+        var result = withCarriedOpenFindings(
+                request,
+                run,
+                combinedResult(deterministicResult, engineResult));
         var aiReviewPlanned = !result.blocksGeneration() && aiHarnessFlowService.canCreate(report, request.requestedBy());
         for (var finding : result.findings()) {
             findingRepository.save(new ReportPreflightReviewFinding(
@@ -269,7 +276,112 @@ public class ReportPreflightReviewFlowService {
         findings.addAll(engineResult.findings().stream()
                 .map(finding -> toPreflightFinding(finding, engineResult))
                 .toList());
+        legalReferenceSummaryFinding(engineResult).ifPresent(findings::add);
         return new ReportPreflightValidationResult(List.copyOf(findings));
+    }
+
+    private static java.util.Optional<ReportPreflightFinding> legalReferenceSummaryFinding(EngineValidationResult engineResult) {
+        if (engineResult.legalReferences().isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        var referenceIds = engineResult.legalReferences().stream()
+                .map(reference -> text(reference.get("referenceId")))
+                .filter(value -> !value.isBlank())
+                .toList();
+        var legalReferenceDetails = engineResult.legalReferences().stream()
+                .map(ReportPreflightReviewFlowService::legalReferenceDetailLine)
+                .filter(line -> !line.isBlank())
+                .reduce((left, right) -> left + "\n" + right)
+                .orElse("");
+        var attributes = new LinkedHashMap<String, String>();
+        attributes.put("engineRunId", engineResult.engineRunId());
+        attributes.put("engineStatus", engineResult.status().name());
+        attributes.put("enginePhase", engineResult.enginePhase());
+        attributes.put("category", "LEGAL_CONTEXT");
+        attributes.put("approvalRequired", "false");
+        attributes.put("engine.legalReferenceCount", String.valueOf(engineResult.legalReferences().size()));
+        if (!referenceIds.isEmpty()) {
+            attributes.put("legalReferences", String.join(",", referenceIds));
+        }
+        if (!legalReferenceDetails.isBlank()) {
+            attributes.put("legalReferenceDetails", legalReferenceDetails);
+        }
+        return java.util.Optional.of(new ReportPreflightFinding(
+                "DETERMINISTIC",
+                "LEGAL_EVIDENCE_CONTEXT_USED",
+                "INFO",
+                "LEGAL_CONTEXT",
+                "법령 근거를 사용해 생성 전 검토를 수행했습니다.",
+                referenceIds.isEmpty() ? "legalReferenceCount=" + engineResult.legalReferences().size() : "legalReferences=" + String.join(",", referenceIds),
+                Map.copyOf(attributes)));
+    }
+
+    private ReportPreflightValidationResult withCarriedOpenFindings(
+            ReportPreflightReviewRequest request,
+            com.archdox.cloud.reportai.domain.ReportPreflightReviewRun currentRun,
+            ReportPreflightValidationResult currentResult
+    ) {
+        var findings = new ArrayList<>(currentResult.findings());
+        var currentKeys = new LinkedHashSet<String>();
+        for (var finding : findings) {
+            currentKeys.add(findingKey(finding.source(), finding.code(), finding.location()));
+        }
+        var previousRun = runRepository.findByOfficeIdAndReportIdOrderByRequestedAtDesc(
+                        request.officeId(),
+                        request.reportId())
+                .stream()
+                .filter(run -> !java.util.Objects.equals(run.id(), currentRun.id()))
+                .filter(run -> run.reportRevision() == currentRun.reportRevision())
+                .findFirst();
+        if (previousRun.isEmpty()) {
+            return currentResult;
+        }
+        var carried = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), previousRun.get().id())
+                .stream()
+                .filter(finding -> finding.resolutionStatus() == ReportPreflightFindingResolutionStatus.OPEN)
+                .filter(finding -> !currentKeys.contains(findingKey(finding.source(), finding.code(), finding.location())))
+                .filter(this::fieldValueStillMatches)
+                .map(finding -> carriedFinding(finding, previousRun.get().id()))
+                .toList();
+        if (carried.isEmpty()) {
+            return currentResult;
+        }
+        findings.addAll(carried);
+        return new ReportPreflightValidationResult(findings);
+    }
+
+    private boolean fieldValueStillMatches(ReportPreflightReviewFinding finding) {
+        var previousHash = text(finding.attributesJson().get("fieldValueHash"));
+        if (previousHash.isBlank()) {
+            return false;
+        }
+        return fieldValueResolver.resolveHash(finding.reportId(), finding.location())
+                .map(previousHash::equals)
+                .orElse(false);
+    }
+
+    private static ReportPreflightFinding carriedFinding(
+            ReportPreflightReviewFinding finding,
+            Long previousRunId
+    ) {
+        var attributes = new LinkedHashMap<String, String>(finding.attributesJson());
+        attributes.put("carriedOver", "true");
+        attributes.put("carriedOverFromRunId", String.valueOf(previousRunId));
+        if (finding.id() != null) {
+            attributes.put("carriedOverFromFindingId", String.valueOf(finding.id()));
+        }
+        return new ReportPreflightFinding(
+                finding.source(),
+                finding.code(),
+                finding.severity(),
+                finding.location(),
+                finding.message(),
+                finding.evidence(),
+                Map.copyOf(attributes));
+    }
+
+    private static String findingKey(String source, String code, String location) {
+        return text(source) + "|" + text(code) + "|" + text(location);
     }
 
     private static EngineWorkerActionSubmissionRequest workerActionSubmissionRequest(

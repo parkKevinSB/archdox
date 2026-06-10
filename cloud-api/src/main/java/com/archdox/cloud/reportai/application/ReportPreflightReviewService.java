@@ -329,7 +329,7 @@ public class ReportPreflightReviewService {
     }
 
     private static FindingFixTarget fixTarget(ReportPreflightReviewFinding finding) {
-        if (!"AI".equals(finding.source())) {
+        if (!fixSourceAllowed(finding)) {
             return null;
         }
         if (!"LOW".equals(finding.severity()) && !"MEDIUM".equals(finding.severity())) {
@@ -358,6 +358,14 @@ public class ReportPreflightReviewService {
             return flatDaily;
         }
         return null;
+    }
+
+    private static boolean fixSourceAllowed(ReportPreflightReviewFinding finding) {
+        if ("AI".equals(finding.source())) {
+            return true;
+        }
+        return "DETERMINISTIC".equals(finding.source())
+                && "WORDING".equals(finding.attributesJson().get("category"));
     }
 
     private static FindingFixTarget groupedDailyLogLocation(String location) {
