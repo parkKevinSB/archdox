@@ -313,6 +313,85 @@ class DocumentJobIntegrationTest {
         assertTrue(documentXml.contains("Supervision content: Checked rebar spacing"));
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void documentJobAppliesRenderOverridesToSnapshotTemplateFieldsAndLayout() throws Exception {
+        var user = signup("document-render-overrides@example.com");
+        createTemplateOverride(user);
+        registerDocumentAgent(user.officeId());
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveDailyLogStep(user, reportId);
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        passPreflight(user, reportId);
+
+        var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "workerType": "ARCHDOX_AGENT",
+                                  "outputFormat": "DOCX",
+                                  "renderOverrides": [
+                                    {
+                                      "path": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent",
+                                      "value": "Rebar spacing was inspected and confirmed to comply with the approved drawings.",
+                                      "label": "Supervision content",
+                                      "source": "TEST"
+                                    },
+                                    {
+                                      "path": "steps.REMARKS.payload.issueAndAction",
+                                      "value": "No corrective action was required.",
+                                      "label": "Issue and action",
+                                      "source": "TEST"
+                                    },
+                                    {
+                                      "path": "steps.REMARKS.payload.nextAction",
+                                      "value": "Continue monitoring before the next concrete placement.",
+                                      "label": "Next action",
+                                      "source": "TEST"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var jobId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+        var job = documentJobRepository.findById(jobId).orElseThrow();
+        var snapshot = job.inputSnapshotJson();
+        var steps = (Map<String, Object>) snapshot.get("steps");
+        var dailyLog = (Map<String, Object>) steps.get("DAILY_LOG");
+        var dailyPayload = (Map<String, Object>) dailyLog.get("payload");
+        var dailyItems = (Map<String, Object>) dailyPayload.get("dailyItems");
+        var groups = (List<Object>) dailyItems.get("groups");
+        var group = (Map<String, Object>) groups.get(0);
+        var entries = (List<Object>) group.get("entries");
+        var entry = (Map<String, Object>) entries.get(0);
+        assertTrue("Rebar spacing was inspected and confirmed to comply with the approved drawings."
+                .equals(entry.get("supervisionContent")));
+
+        var templateFields = (Map<String, Object>) snapshot.get("templateFields");
+        assertTrue("Rebar spacing was inspected and confirmed to comply with the approved drawings."
+                .equals(templateFields.get("supervisionContent")));
+        assertTrue("No corrective action was required.".equals(templateFields.get("issueAndAction")));
+        assertTrue("Continue monitoring before the next concrete placement.".equals(templateFields.get("nextAction")));
+        assertTrue(String.valueOf(templateFields.get("dailyLogSection"))
+                .contains("Rebar spacing was inspected and confirmed to comply with the approved drawings."));
+        var renderOverrides = (List<Object>) snapshot.get("renderOverrides");
+        assertTrue(renderOverrides.size() == 3);
+    }
+
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {
         var templateResult = mockMvc.perform(post("/api/v1/config/document-templates")
                         .header("Authorization", bearer(user.accessToken()))

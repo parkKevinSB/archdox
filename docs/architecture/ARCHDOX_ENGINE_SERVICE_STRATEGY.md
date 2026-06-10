@@ -601,13 +601,11 @@ foundation implemented:
   ArchDoxWorkerExecutionFlowFactory
   report preflight operation-event metadata records candidate/submission status
   report preflight excludes RUN_PREFLIGHT_REVIEW to prevent recursive self-submit
-  Worker Chat scoped executors are skipped unless chat payload is present
+  RUN_PREFLIGHT_REVIEW and REQUEST_DOCUMENT_GENERATION have generic Worker
+  executors that can run without Worker Chat payload
 
 remaining:
   approval/dry-run UX for suggested follow-up actions is not implemented
-  generic non-chat executors should replace or complement current chat-scoped
-  MVP executors for actions such as RUN_PREFLIGHT_REVIEW and
-  REQUEST_DOCUMENT_GENERATION
   Engine must remain a recipe/context boundary, not an action executor
 ```
 

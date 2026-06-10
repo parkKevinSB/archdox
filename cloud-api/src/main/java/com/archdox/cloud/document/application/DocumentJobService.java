@@ -137,7 +137,7 @@ public class DocumentJobService {
 
     @Transactional
     public DocumentJobResponse create(Long reportId, CreateDocumentJobRequest request, UserPrincipal principal) {
-        var createRequest = request == null ? new CreateDocumentJobRequest(null, null, null) : request;
+        var createRequest = request == null ? new CreateDocumentJobRequest(null, null, null, null) : request;
         var report = inspectionReportService.requireReport(reportId);
         permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
         requireCanRequestGeneration(report);
@@ -148,7 +148,8 @@ public class DocumentJobService {
         var workerType = routingService.route(officeId, outputFormat, createRequest.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
-        var snapshot = new LinkedHashMap<>(snapshotBuilder.build(report, configuration));
+        var renderOverrides = renderOverrides(createRequest);
+        var snapshot = new LinkedHashMap<>(snapshotBuilder.build(report, configuration, renderOverrides));
         var signatureApplied = applySignature(snapshot, createRequest.signature(), principal, now, officeId, report);
         var reportRevision = report.generationRevision();
         var job = documentJobRepository.saveAndFlush(new DocumentJob(
@@ -180,10 +181,25 @@ public class DocumentJobService {
                         "workerType", workerType.name(),
                         "outputFormat", outputFormat.name(),
                         "signatureApplied", signatureApplied,
+                        "renderOverrideCount", renderOverrides.size(),
                         "templateRevisionId", selectedTemplateRevisionId(report, configuration) == null
                                 ? ""
                                 : selectedTemplateRevisionId(report, configuration)));
         return toResponse(job);
+    }
+
+    private List<DocumentSnapshotBuilder.RenderOverride> renderOverrides(CreateDocumentJobRequest request) {
+        if (request.renderOverrides() == null || request.renderOverrides().isEmpty()) {
+            return List.of();
+        }
+        return request.renderOverrides().stream()
+                .filter(override -> override != null)
+                .map(override -> new DocumentSnapshotBuilder.RenderOverride(
+                        override.path(),
+                        override.value(),
+                        override.label(),
+                        override.source()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

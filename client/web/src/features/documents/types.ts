@@ -1,6 +1,6 @@
-import type { InspectionReport, Project } from "../../types";
+import type { InspectionReport, InspectionStep, Project } from "../../types";
 
-export type { InspectionReport, Project };
+export type { InspectionReport, InspectionStep, Project };
 
 export type DocumentJobStatus = "REQUESTED" | "GENERATING" | "GENERATED" | "FAILED" | "CANCELLED";
 
@@ -29,6 +29,38 @@ export type DocumentSignatureInput = {
   signedByRole?: string | null;
   signatureImageDataUrl: string;
   signatureImageMimeType?: string | null;
+};
+
+export type DocumentRenderOverrideInput = {
+  path: string;
+  value: string;
+  label?: string | null;
+  source?: string | null;
+};
+
+export type DocumentNarrativePolishFieldInput = {
+  path: string;
+  label?: string | null;
+  value: string;
+};
+
+export type DocumentNarrativePolishSuggestionResponse = {
+  path: string;
+  label: string;
+  originalText: string;
+  polishedText: string;
+  reason: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  applicable: boolean;
+};
+
+export type DocumentNarrativePolishResponse = {
+  status: "DRAFTED" | "NO_CHANGES" | "NEEDS_HUMAN_REVIEW";
+  summary: string;
+  providerCode: string;
+  modelId: string;
+  aiHarnessRunId: string;
+  suggestions: DocumentNarrativePolishSuggestionResponse[];
 };
 
 export type DocumentArtifactResponse = {

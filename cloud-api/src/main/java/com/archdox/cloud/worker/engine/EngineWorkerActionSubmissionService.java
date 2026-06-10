@@ -16,8 +16,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class EngineWorkerActionSubmissionService {
-    private static final String WORKER_CHAT_OWNER = "WORKER_CHAT";
-
     private final EngineWorkerActionSuggestionBridge suggestionBridge;
     private final ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider;
     private final ObjectProvider<ArchDoxWorkerServiceWorker> workerProvider;
@@ -96,19 +94,7 @@ public class EngineWorkerActionSubmissionService {
         if (request.excludedActionTypes().contains(candidate.action().actionType())) {
             return "Suggested Worker action is excluded for this Engine workflow to prevent recursion or unsafe chaining.";
         }
-        if (chatExecutorRequiresChatPayload(candidate)) {
-            return "Registered executor is Worker Chat scoped and requires chat session payload.";
-        }
         return "";
-    }
-
-    private boolean chatExecutorRequiresChatPayload(EngineWorkerActionCandidate candidate) {
-        var owner = text(candidate.definitionMetadata().get("owner"));
-        if (!WORKER_CHAT_OWNER.equals(owner)) {
-            return false;
-        }
-        var payload = candidate.action().payload();
-        return !payload.containsKey("sessionId") || !payload.containsKey("assistantMessageId");
     }
 
     private Map<String, Object> submittedMetadata(EngineWorkerActionCandidate candidate) {
@@ -127,7 +113,4 @@ public class EngineWorkerActionSubmissionService {
         return Map.copyOf(metadata);
     }
 
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
-    }
 }

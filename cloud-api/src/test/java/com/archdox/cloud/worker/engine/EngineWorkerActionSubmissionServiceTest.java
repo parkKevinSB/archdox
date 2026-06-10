@@ -45,7 +45,7 @@ class EngineWorkerActionSubmissionServiceTest {
     }
 
     @Test
-    void skipsWorkerChatScopedCandidateWithoutChatPayload() {
+    void submitsGenericCandidateWithoutChatPayload() {
         var registry = new ArchDoxWorkerActionRegistry(List.of(executor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW)));
         var worker = new CapturingWorker();
         var service = service(registry, worker);
@@ -54,11 +54,11 @@ class EngineWorkerActionSubmissionServiceTest {
                 result(List.of("RUN_PREFLIGHT_REVIEW")),
                 request(Map.of("reportId", 3L), Set.of()));
 
-        assertThat(result.submitted()).isEmpty();
-        assertThat(result.skipped()).singleElement()
-                .satisfies(skipped -> assertThat(skipped.get("reason").toString())
-                        .contains("Worker Chat scoped"));
-        assertThat(worker.submitted).isEmpty();
+        assertThat(result.submitted()).singleElement()
+                .satisfies(submitted -> assertThat(submitted)
+                        .containsEntry("actionType", "RUN_PREFLIGHT_REVIEW"));
+        assertThat(result.skipped()).isEmpty();
+        assertThat(worker.submitted).hasSize(1);
     }
 
     @Test

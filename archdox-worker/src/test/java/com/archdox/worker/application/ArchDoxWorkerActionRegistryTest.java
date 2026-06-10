@@ -3,6 +3,7 @@ package com.archdox.worker.application;
 import com.archdox.worker.domain.ArchDoxWorkerActionResult;
 import com.archdox.worker.domain.ArchDoxWorkerActionRiskLevel;
 import com.archdox.worker.domain.ArchDoxWorkerActionType;
+import com.archdox.worker.domain.ArchDoxWorkerRequestSource;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +63,21 @@ class ArchDoxWorkerActionRegistryTest {
         assertThat(definition.get().supportsDryRun()).isTrue();
         assertThat(definition.get().requiredContextFields()).containsExactly("userId");
         assertThat(registry.resolve(ArchDoxWorkerActionType.ENRICH_LEGAL_CHANGE_DIGEST)).isEmpty();
+    }
+
+    @Test
+    void preflightAndDocumentGenerationActionsUseGenericExecutorsForApiBoundary() {
+        var registry = new ArchDoxWorkerActionRegistry(List.of());
+
+        var preflight = registry.definition(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW).orElseThrow();
+        var documentGeneration = registry.definition(ArchDoxWorkerActionType.REQUEST_DOCUMENT_GENERATION).orElseThrow();
+
+        assertThat(preflight.owner()).isEqualTo("REPORT_REVIEW");
+        assertThat(preflight.executorName()).isEqualTo("RunPreflightReviewArchDoxWorkerActionExecutor");
+        assertThat(preflight.allowedSources()).contains(ArchDoxWorkerRequestSource.UI, ArchDoxWorkerRequestSource.API);
+        assertThat(documentGeneration.owner()).isEqualTo("DOCUMENT_WORKFLOW");
+        assertThat(documentGeneration.executorName()).isEqualTo("RequestDocumentGenerationArchDoxWorkerActionExecutor");
+        assertThat(documentGeneration.allowedSources()).contains(ArchDoxWorkerRequestSource.UI, ArchDoxWorkerRequestSource.API);
     }
 
     @Test

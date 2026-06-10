@@ -91,6 +91,7 @@ public class ArchDoxWorkerActionPolicyGate implements ArchDoxWorkerPolicyGate {
     ) {
         return switch (action.actionType()) {
             case SUBMIT_REPORT -> evaluateSubmitReportPolicy(request, action);
+            case RUN_PREFLIGHT_REVIEW -> evaluatePreflightReviewPolicy(request, action);
             case REQUEST_DOCUMENT_GENERATION -> evaluateDocumentGenerationPolicy(request, action);
             default -> null;
         };
@@ -109,6 +110,23 @@ public class ArchDoxWorkerActionPolicyGate implements ArchDoxWorkerPolicyGate {
             return ArchDoxWorkerPolicyDecision.deny(
                     "ARCHDOX_WORKER_REPORT_NOT_SUBMITTABLE",
                     "Report can be submitted only while it is draft or step-saved.");
+        }
+        return null;
+    }
+
+    private ArchDoxWorkerPolicyDecision evaluatePreflightReviewPolicy(
+            ArchDoxWorkerRequest request,
+            ArchDoxWorkerAction action
+    ) {
+        var reportDecision = resolveReportAndWriter(request, action, action.actionType());
+        if (reportDecision.decision() != null) {
+            return reportDecision.decision();
+        }
+        var report = reportDecision.report();
+        if (!report.canRequestGeneration()) {
+            return ArchDoxWorkerPolicyDecision.deny(
+                    "ARCHDOX_WORKER_REPORT_PREFLIGHT_NOT_ALLOWED",
+                    "Report must be ready, generated, or failed before running preflight review.");
         }
         return null;
     }

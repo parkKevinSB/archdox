@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, Loader2, PenLine, RefreshCw, ShieldCheck, Trash2, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, Loader2, PenLine, RefreshCw, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 import {
   EmptyState,
   InlineAlert,
@@ -16,9 +16,14 @@ import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
+  DocumentNarrativePolishFieldInput,
+  DocumentNarrativePolishResponse,
+  DocumentNarrativePolishSuggestionResponse,
   DocumentOutputFormat,
+  DocumentRenderOverrideInput,
   DocumentSignatureInput,
   InspectionReport,
+  InspectionStep,
   Project,
   ReportPreflightLegalReferenceResponse,
   ReportPreflightFindingResolutionStatus,
@@ -34,6 +39,12 @@ type DocumentWorkspaceProps = {
   projects: Project[];
   reports: InspectionReport[];
   token: string;
+};
+
+type NarrativeRenderField = {
+  label: string;
+  path: string;
+  value: string;
 };
 
 export function DocumentWorkspace({
@@ -55,13 +66,14 @@ export function DocumentWorkspace({
     setSignatureError(null);
     setSignatureRequest({ outputFormat, report });
   };
-  const submitSignature = async (signature: DocumentSignatureInput) => {
+  const submitSignature = async (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => {
     if (!signatureRequest) {
       return;
     }
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
+        renderOverrides,
         reportId: signatureRequest.report.id,
         signature
       });
@@ -71,13 +83,14 @@ export function DocumentWorkspace({
       setSignatureError(error instanceof Error ? error.message : "문서 생성 요청에 실패했습니다.");
     }
   };
-  const submitWithoutSignature = async () => {
+  const submitWithoutSignature = async (renderOverrides: DocumentRenderOverrideInput[]) => {
     if (!signatureRequest) {
       return;
     }
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
+        renderOverrides,
         reportId: signatureRequest.report.id
       });
       setSignatureRequest(null);
@@ -164,6 +177,8 @@ export function DocumentWorkspace({
           error={signatureError}
           outputFormat={signatureRequest.outputFormat}
           report={signatureRequest.report}
+          polishing={workspace.polishingNarrativeReportId === signatureRequest.report.id}
+          steps={workspace.stepsByReport[signatureRequest.report.id] ?? []}
           submitting={workspace.creatingReportId === signatureRequest.report.id}
           onClose={() => {
             if (!workspace.creatingReportId) {
@@ -172,6 +187,10 @@ export function DocumentWorkspace({
             }
           }}
           onSkip={submitWithoutSignature}
+          onPolishNarrative={(fields) => workspace.polishDocumentNarrative({
+            fields,
+            reportId: signatureRequest.report.id
+          })}
           onSubmit={submitSignature}
         />
       ) : null}
@@ -379,7 +398,7 @@ function DocumentReportCard({
         <div className="document-action-buttons">
           <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
             {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-            HTML 미리보기
+            HTML 생성
           </button>
           <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
             {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
@@ -400,9 +419,12 @@ function DocumentSignatureDialog({
   currentUser,
   error,
   outputFormat,
+  polishing,
   report,
+  steps,
   submitting,
   onClose,
+  onPolishNarrative,
   onSkip,
   onSubmit
 }: {
@@ -410,11 +432,14 @@ function DocumentSignatureDialog({
   currentUser: MeResponse;
   error: string | null;
   outputFormat: DocumentOutputFormat;
+  polishing: boolean;
   report: InspectionReport;
+  steps: InspectionStep[];
   submitting: boolean;
   onClose: () => void;
-  onSkip: () => Promise<void>;
-  onSubmit: (signature: DocumentSignatureInput) => Promise<void>;
+  onPolishNarrative: (fields: DocumentNarrativePolishFieldInput[]) => Promise<DocumentNarrativePolishResponse>;
+  onSkip: (renderOverrides: DocumentRenderOverrideInput[]) => Promise<void>;
+  onSubmit: (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => Promise<void>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
@@ -427,6 +452,77 @@ function DocumentSignatureDialog({
     }
     return localStorage.getItem("archdox.signature.role") ?? defaultSignatureRole(report, currentOffice);
   });
+  const narrativeFields = useMemo(() => documentNarrativeRenderFields(steps), [steps]);
+  const [narrativeValues, setNarrativeValues] = useState<Record<string, string>>({});
+  const [polishSummary, setPolishSummary] = useState<string | null>(null);
+  const [polishSuggestions, setPolishSuggestions] = useState<DocumentNarrativePolishSuggestionResponse[]>([]);
+
+  useEffect(() => {
+    setNarrativeValues(Object.fromEntries(narrativeFields.map((field) => [field.path, field.value])));
+    setPolishSummary(null);
+    setPolishSuggestions([]);
+  }, [narrativeFields]);
+
+  const polishSuggestionsByPath = useMemo(() => {
+    const suggestions = new Map<string, DocumentNarrativePolishSuggestionResponse>();
+    polishSuggestions.forEach((suggestion) => {
+      if (suggestion.applicable && suggestion.polishedText.trim()) {
+        suggestions.set(suggestion.path, suggestion);
+      }
+    });
+    return suggestions;
+  }, [polishSuggestions]);
+
+  const narrativePolishFields = () => narrativeFields
+    .map((field) => ({
+      label: field.label,
+      path: field.path,
+      value: (narrativeValues[field.path] ?? field.value).trim()
+    }))
+    .filter((field) => field.value.length > 0);
+
+  const renderOverrides = () => narrativeFields
+    .map((field) => ({
+      field,
+      value: (narrativeValues[field.path] ?? field.value).trim()
+    }))
+    .filter(({ field, value }) => value !== field.value.trim())
+    .map(({ field, value }) => ({
+      path: field.path,
+      value,
+      label: field.label,
+      source: "DOCUMENT_GENERATION_DIALOG"
+    }));
+
+  const polishNarrative = async () => {
+    const fields = narrativePolishFields();
+    if (fields.length === 0) {
+      setLocalError("다듬을 문장이 없습니다.");
+      return;
+    }
+    try {
+      setLocalError(null);
+      const response = await onPolishNarrative(fields);
+      const applicable = response.suggestions.filter((suggestion) =>
+        suggestion.applicable && suggestion.polishedText.trim()
+      );
+      setPolishSuggestions(response.suggestions);
+      setPolishSummary(response.summary || (applicable.length > 0
+        ? `${applicable.length}개 문장 초안을 반영했습니다.`
+        : "다듬을 문장이 없습니다."));
+      if (applicable.length > 0) {
+        setNarrativeValues((current) => {
+          const next = { ...current };
+          applicable.forEach((suggestion) => {
+            next[suggestion.path] = suggestion.polishedText;
+          });
+          return next;
+        });
+      }
+    } catch (polishError) {
+      setLocalError(polishError instanceof Error ? polishError.message : "문장 다듬기 AI 요청에 실패했습니다.");
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -519,7 +615,7 @@ function DocumentSignatureDialog({
       signedByRole: role.trim() || null,
       signatureImageDataUrl: signatureDataUrl(canvasRef.current),
       signatureImageMimeType: "image/png"
-    });
+    }, renderOverrides());
   };
 
   return (
@@ -546,6 +642,53 @@ function DocumentSignatureDialog({
               <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="작성자 / 점검자" />
             </label>
           </div>
+          {narrativeFields.length > 0 ? (
+            <details className="document-narrative-polish" open={outputFormat === "HTML"}>
+              <summary>
+                <span>
+                  <strong>문장 다듬기</strong>
+                  <small>{renderOverrides().length > 0 ? `${renderOverrides().length}개 문장 반영` : "생성본에만 반영"}</small>
+                </span>
+                <em>{outputFormat}</em>
+              </summary>
+              <div className="document-narrative-polish-actions">
+                <p>원본 리포트는 바꾸지 않고 이번 생성본 문장에만 반영합니다.</p>
+                <button
+                  className="secondary-button compact-button"
+                  disabled={submitting || polishing}
+                  onClick={polishNarrative}
+                  type="button"
+                >
+                  {polishing ? <Loader2 className="spin" size={14} /> : <Sparkles size={14} />}
+                  AI로 다듬기
+                </button>
+              </div>
+              {polishSummary ? <p className="document-narrative-polish-summary">{polishSummary}</p> : null}
+              <div className="document-narrative-polish-list">
+                {narrativeFields.map((field) => {
+                  const suggestion = polishSuggestionsByPath.get(field.path);
+                  return (
+                    <label key={field.path}>
+                      <span>{field.label}</span>
+                      <textarea
+                        value={narrativeValues[field.path] ?? field.value}
+                        onChange={(event) => setNarrativeValues((current) => ({
+                          ...current,
+                          [field.path]: event.target.value
+                        }))}
+                        rows={3}
+                      />
+                      {suggestion ? (
+                        <small className="document-narrative-polish-suggestion">
+                          AI 제안 반영됨 · {suggestion.reason || suggestion.confidence}
+                        </small>
+                      ) : null}
+                    </label>
+                  );
+                })}
+              </div>
+            </details>
+          ) : null}
           <div className="signature-pad-wrap">
             <div className="signature-pad-head">
               <strong>서명</strong>
@@ -570,7 +713,7 @@ function DocumentSignatureDialog({
           <button className="secondary-button" disabled={submitting} onClick={onClose} type="button">
             취소
           </button>
-          <button className="secondary-button" disabled={submitting} onClick={onSkip} type="button">
+          <button className="secondary-button" disabled={submitting} onClick={() => onSkip(renderOverrides())} type="button">
             {submitting ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
             서명 없이 생성
           </button>
@@ -582,6 +725,71 @@ function DocumentSignatureDialog({
       </section>
     </div>
   );
+}
+
+function documentNarrativeRenderFields(steps: InspectionStep[]): NarrativeRenderField[] {
+  const stepsByCode = new Map(steps.map((step) => [step.stepCode, step]));
+  const fields: NarrativeRenderField[] = [];
+  const dailyPayload = recordValue(stepsByCode.get("DAILY_LOG")?.payload);
+  const dailyItems = recordValue(dailyPayload.dailyItems);
+  listValue(dailyItems.groups).forEach((groupValue, groupIndex) => {
+    const group = recordValue(groupValue);
+    const groupLabel = joinNonBlank(
+      stringValue(group.tradeName),
+      stringValue(group.processName),
+      stringValue(group.floor)
+    );
+    listValue(group.entries).forEach((entryValue, entryIndex) => {
+      const entry = recordValue(entryValue);
+      const value = stringValue(entry.supervisionContent);
+      if (!value.trim()) {
+        return;
+      }
+      const itemName = stringValue(entry.inspectionItemName);
+      fields.push({
+        label: joinNonBlank("감리내용", groupLabel, itemName) || `감리내용 ${groupIndex + 1}-${entryIndex + 1}`,
+        path: `steps.DAILY_LOG.payload.dailyItems.groups[${groupIndex}].entries[${entryIndex}].supervisionContent`,
+        value
+      });
+    });
+  });
+
+  const remarksPayload = recordValue(stepsByCode.get("REMARKS")?.payload);
+  addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndAction", dailyPayload.issueAndAction);
+  addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndActionResult", dailyPayload.issueAndActionResult);
+  addNarrativeField(fields, "다음 조치", "steps.DAILY_LOG.payload.nextAction", dailyPayload.nextAction);
+  addNarrativeField(fields, "지적사항 및 처리결과", "steps.REMARKS.payload.issueAndAction", remarksPayload.issueAndAction);
+  addNarrativeField(fields, "다음 조치", "steps.REMARKS.payload.nextAction", remarksPayload.nextAction);
+  return fields.slice(0, 30);
+}
+
+function addNarrativeField(
+  fields: NarrativeRenderField[],
+  label: string,
+  path: string,
+  rawValue: unknown
+) {
+  const value = stringValue(rawValue);
+  if (!value.trim()) {
+    return;
+  }
+  fields.push({ label, path, value });
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function listValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringValue(value: unknown) {
+  return value == null ? "" : String(value);
+}
+
+function joinNonBlank(...values: string[]) {
+  return values.map((value) => value.trim()).filter(Boolean).join(" / ");
 }
 
 function signatureDataUrl(canvas: HTMLCanvasElement) {

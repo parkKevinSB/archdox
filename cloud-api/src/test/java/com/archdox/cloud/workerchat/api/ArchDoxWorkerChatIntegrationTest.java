@@ -474,7 +474,8 @@ class ArchDoxWorkerChatIntegrationTest {
                 now));
         provider.publish(now);
         providerRepository.saveAndFlush(provider);
-        var policy = officeAiPolicyRepository.saveAndFlush(new OfficeAiPolicy(officeId, null, now));
+        var policy = officeAiPolicyRepository.findByOfficeId(officeId)
+                .orElseGet(() -> officeAiPolicyRepository.saveAndFlush(new OfficeAiPolicy(officeId, null, now)));
         policy.update(
                 true,
                 false,

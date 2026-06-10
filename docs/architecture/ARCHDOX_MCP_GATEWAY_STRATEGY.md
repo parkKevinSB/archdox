@@ -682,6 +682,55 @@ runs validation. Long-running or state-mutating business work must still go
 through ArchDox Worker action registry, policy gate, Flower execution, and
 operation audit.
 
+### MCP Tool To Executor Boundary
+
+MCP tools should not all be implemented the same way.
+
+Read-only external tools may call gateway-managed read services directly when
+they do not mutate ArchDox state, do not create a workflow run, and do not need
+approval:
+
+```text
+get_legal_updates
+search_law
+get_law_article
+```
+
+These tools still require scope, quota, usage logging, correlation id, and
+stable JSON-RPC error handling at the MCP gateway.
+
+Any MCP tool that creates or mutates ArchDox business state must enter through
+the ArchDox Worker control boundary:
+
+```text
+MCP tool call
+  -> MCP auth, scope, quota, and parameter validation
+  -> ArchDoxWorkerAction
+  -> ArchDoxWorkerActionRegistry
+  -> ArchDoxWorkerPolicyGate
+  -> ArchDoxWorkerRunControl
+  -> ArchDoxWorkerActionExecutor
+  -> existing ArchDox application service / use case
+  -> standard result, trace, audit, and usage response
+```
+
+Examples that should use this path when exposed externally:
+
+```text
+request_document_generation
+run_report_preflight_review
+apply_report_fix
+submit_report
+create_or_update_report_step
+```
+
+AI or review tools that create durable runs, findings, drafts, or chargeable
+model calls should also use this boundary unless they are strictly read-only
+Engine validation sessions. The executor is not the business logic owner; it is
+the controlled adapter that lets external and AI-originated calls reuse normal
+ArchDox services without bypassing permission, approval, cancellation, audit,
+and budget controls.
+
 This is still not a production OAuth MCP gateway. It is the smallest useful
 MCP-compatible adapter that proves external agents can call ArchDox Engine
 through scoped keys without touching internal SaaS DTOs or raw database state.

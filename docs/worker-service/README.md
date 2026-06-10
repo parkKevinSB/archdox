@@ -373,7 +373,7 @@ The worker module starts as an in-process library used by `cloud-api`. It may
 become a separate deployable `archdox-worker-service` process later only if
 load, scaling, or operational isolation requires it.
 
-The first implementation is intentionally safe by default:
+The first implementation baseline was intentionally safe by default:
 
 ```text
 - worker action registry exists
@@ -384,9 +384,45 @@ The first implementation is intentionally safe by default:
 - cloud-api default policy denies worker actions until explicit features are added
 ```
 
-This keeps the existing UI/document workflow untouched while preparing the next
-slice: registering real domain workers such as `DocumentQaWorker` and
-`ReviewPlannerWorker`.
+Current MVP work has moved beyond that baseline by registering bounded Worker
+executors for chat-driven report actions, generic preflight/document-generation
+actions, and legal digest enrichment. That does not change the boundary rule:
+existing SaaS application services remain the owners of business behavior, and
+Worker executors are controlled entry adapters into those services.
+
+### Direct Service Vs Worker Executor Boundary
+
+Do not create an executor for every internal module method. Ordinary SaaS UI
+flows should continue to call application services directly:
+
+```text
+Authenticated ArchDox UI
+  -> application service / use case
+  -> domain service, Flower flow, repository, event
+```
+
+Use an `ArchDoxWorkerActionExecutor` only when a capability is entered through
+a controlled non-ordinary path:
+
+```text
+Worker Chat / AI Worker / external Engine API action / future MCP tool
+  -> ArchDoxWorkerAction
+  -> ArchDoxWorkerActionRegistry
+  -> ArchDoxWorkerPolicyGate
+  -> ArchDoxWorkerRunControl
+  -> ArchDoxWorkerActionExecutor
+  -> existing application service / use case
+```
+
+Executor implementations should stay thin. They translate action payload and
+request context into the existing application-service call, then return a
+standard `SUCCEEDED`, `FAILED`, `REJECTED`, `CANCELLED`, or
+`PENDING_APPROVAL` result. They must not reimplement report, document, legal,
+approval, or rendering business logic.
+
+This rule keeps the normal product code understandable while giving AI,
+Worker, and future MCP paths a shared control rail for permission, quota,
+approval, cancellation, trace, and audit.
 
 ## Suggested Internal Architecture
 

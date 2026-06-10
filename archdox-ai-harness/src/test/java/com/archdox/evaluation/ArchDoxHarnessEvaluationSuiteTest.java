@@ -346,7 +346,8 @@ class ArchDoxHarnessEvaluationSuiteTest {
                                       "location": "PHOTOS",
                                       "message": "Required photo evidence is missing.",
                                       "evidence": "Deterministic finding PHOTO_EVIDENCE_MISSING is present.",
-                                      "suggestion": "Attach site photo evidence or mark the evidence policy explicitly."
+                                      "suggestion": "Attach site photo evidence or mark the evidence policy explicitly.",
+                                      "replacement": ""
                                     }
                                   ]
                                 }
@@ -382,7 +383,8 @@ class ArchDoxHarnessEvaluationSuiteTest {
                                       "location": "SIGNATURES",
                                       "message": "Required signature slot is missing.",
                                       "evidence": "Deterministic finding SIGNATURE_SLOT_MISSING is present.",
-                                      "suggestion": "Assign the supervisor signature slot before document generation."
+                                      "suggestion": "Assign the supervisor signature slot before document generation.",
+                                      "replacement": ""
                                     }
                                   ]
                                 }
@@ -418,7 +420,8 @@ class ArchDoxHarnessEvaluationSuiteTest {
                                       "location": "LEGAL_REFERENCES",
                                       "message": "Legal evidence context is missing.",
                                       "evidence": "The deterministic legal evidence finding remains unresolved.",
-                                      "suggestion": "Attach source-backed legal references or mark the review as manual."
+                                      "suggestion": "Attach source-backed legal references or mark the review as manual.",
+                                      "replacement": ""
                                     }
                                   ]
                                 }

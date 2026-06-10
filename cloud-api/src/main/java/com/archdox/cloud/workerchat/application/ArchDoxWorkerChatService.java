@@ -1,9 +1,6 @@
 package com.archdox.cloud.workerchat.application;
 
 import com.archdox.cloud.global.api.BadRequestException;
-import com.archdox.cloud.document.application.DocumentGenerationRequestService;
-import com.archdox.cloud.document.domain.DocumentWorkerType;
-import com.archdox.cloud.document.dto.CreateDocumentJobRequest;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -21,10 +18,8 @@ import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.project.infra.ProjectRepository;
-import com.archdox.cloud.reportai.application.ReportPreflightReviewService;
 import com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewStatus;
-import com.archdox.cloud.reportai.flow.ReportPreflightReviewWorker;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewFindingRepository;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewRunRepository;
 import com.archdox.cloud.site.application.SiteService;
@@ -43,6 +38,8 @@ import com.archdox.cloud.workerchat.dto.ArchDoxWorkerChatSessionResponse;
 import com.archdox.cloud.workerchat.dto.SendArchDoxWorkerChatMessageRequest;
 import com.archdox.cloud.workerchat.infra.ArchDoxWorkerChatMessageRepository;
 import com.archdox.cloud.workerchat.infra.ArchDoxWorkerChatSessionRepository;
+import com.archdox.cloud.worker.application.ArchDoxWorkerDocumentActionService.DocumentGenerationActionResult;
+import com.archdox.cloud.worker.application.ArchDoxWorkerDocumentActionService.PreflightReviewActionResult;
 import com.archdox.worker.domain.ArchDoxWorkerAction;
 import com.archdox.worker.domain.ArchDoxWorkerActionOrigin;
 import com.archdox.worker.domain.ArchDoxWorkerActionType;
@@ -57,7 +54,6 @@ import com.archdox.workerai.ConversationPlannerFieldOption;
 import com.archdox.workerai.ConversationPlannerInput;
 import com.archdox.workerai.ConversationPlannerResult;
 import com.archdox.workerai.ConversationPlannerWorkflowStepOption;
-import com.archdox.document.OutputFormat;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -87,11 +83,8 @@ public class ArchDoxWorkerChatService {
     private final InspectionReportStepRepository stepRepository;
     private final InspectionReportService inspectionReportService;
     private final ReportWorkflowDefinitionService workflowDefinitionService;
-    private final ReportPreflightReviewService preflightReviewService;
-    private final ReportPreflightReviewWorker preflightReviewWorker;
     private final ReportPreflightReviewRunRepository preflightRunRepository;
     private final ReportPreflightReviewFindingRepository preflightFindingRepository;
-    private final DocumentGenerationRequestService documentGenerationRequestService;
     private final DocumentJobRepository documentJobRepository;
     private final OfficePermissionService permissionService;
     private final ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider;
@@ -109,11 +102,8 @@ public class ArchDoxWorkerChatService {
             InspectionReportStepRepository stepRepository,
             InspectionReportService inspectionReportService,
             ReportWorkflowDefinitionService workflowDefinitionService,
-            ReportPreflightReviewService preflightReviewService,
-            ReportPreflightReviewWorker preflightReviewWorker,
             ReportPreflightReviewRunRepository preflightRunRepository,
             ReportPreflightReviewFindingRepository preflightFindingRepository,
-            DocumentGenerationRequestService documentGenerationRequestService,
             DocumentJobRepository documentJobRepository,
             OfficePermissionService permissionService,
             ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider,
@@ -130,11 +120,8 @@ public class ArchDoxWorkerChatService {
         this.stepRepository = stepRepository;
         this.inspectionReportService = inspectionReportService;
         this.workflowDefinitionService = workflowDefinitionService;
-        this.preflightReviewService = preflightReviewService;
-        this.preflightReviewWorker = preflightReviewWorker;
         this.preflightRunRepository = preflightRunRepository;
         this.preflightFindingRepository = preflightFindingRepository;
-        this.documentGenerationRequestService = documentGenerationRequestService;
         this.documentJobRepository = documentJobRepository;
         this.permissionService = permissionService;
         this.flowFactoryProvider = flowFactoryProvider;
@@ -482,32 +469,28 @@ public class ArchDoxWorkerChatService {
                 ArchDoxWorkerActionType.SUBMIT_REPORT);
     }
 
+    @Transactional(readOnly = true)
+    public boolean isAssistantActionPending(Long officeId, Long sessionId, Long assistantMessageId) {
+        return messageRepository.findByIdAndOfficeIdAndSessionId(assistantMessageId, officeId, sessionId)
+                .map(message -> message.status() == ArchDoxWorkerChatMessageStatus.PENDING)
+                .orElse(false);
+    }
+
     @Transactional
-    public void runPreflightReviewFromWorker(
+    public void completePreflightReviewFromWorker(
             Long officeId,
             Long userId,
             Long projectId,
             Long sessionId,
             Long assistantMessageId,
-            Map<String, Object> payload
+            PreflightReviewActionResult result
     ) {
         if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
             return;
         }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
-        var reportId = longValue(payload.get("reportId"));
-        if (reportId == null) {
-            reportId = session.reportId();
-        }
-        if (reportId == null) {
-            throw new BadRequestException("Report must be selected before running preflight review");
-        }
-        var report = requireReport(officeId, projectId, reportId);
-        var submission = withOfficeContext(
-                officeId,
-                () -> preflightReviewService.requestReview(report.id(), workerPrincipal(userId)));
-        registerAfterCommit(() -> preflightReviewWorker.submit(submission.flow()));
+        var report = requireReport(officeId, projectId, result.reportId());
         var now = OffsetDateTime.now();
         if (session.reportId() == null) {
             session.selectReport(report.id(), now);
@@ -517,9 +500,9 @@ public class ArchDoxWorkerChatService {
         metadata.put("stage", session.stage().name());
         putIfNotNull(metadata, "siteId", session.siteId());
         metadata.put("reportId", report.id());
-        metadata.put("preflightRunId", submission.response().id());
-        metadata.put("preflightStatus", submission.response().status());
-        metadata.put("reportRevision", submission.response().reportRevision());
+        metadata.put("preflightRunId", result.preflightRunId());
+        metadata.put("preflightStatus", result.preflightStatus());
+        metadata.put("reportRevision", result.reportRevision());
         metadata.put("documentTabAvailable", true);
         metadata.put("nextAction", ArchDoxWorkerActionType.REQUEST_DOCUMENT_GENERATION.name());
         completeAssistantMessage(
@@ -533,35 +516,20 @@ public class ArchDoxWorkerChatService {
     }
 
     @Transactional
-    public void requestDocumentGenerationFromWorker(
+    public void completeDocumentGenerationFromWorker(
             Long officeId,
             Long userId,
             Long projectId,
             Long sessionId,
             Long assistantMessageId,
-            Map<String, Object> payload
+            DocumentGenerationActionResult result
     ) {
         if (!assistantMessagePending(officeId, sessionId, assistantMessageId)) {
             return;
         }
         var session = requireSession(officeId, sessionId);
         validateProjectAccess(officeId, projectId, userId);
-        var reportId = longValue(payload.get("reportId"));
-        if (reportId == null) {
-            reportId = session.reportId();
-        }
-        if (reportId == null) {
-            throw new BadRequestException("Report must be selected before requesting document generation");
-        }
-        var report = requireReport(officeId, projectId, reportId);
-        var outputFormat = outputFormatValue(payload.get("outputFormat"));
-        var workerType = documentWorkerTypeValue(payload.get("workerType"));
-        var job = withOfficeContext(
-                officeId,
-                () -> documentGenerationRequestService.request(
-                        report.id(),
-                        new CreateDocumentJobRequest(outputFormat, workerType, null),
-                        workerPrincipal(userId)));
+        var report = requireReport(officeId, projectId, result.reportId());
         var now = OffsetDateTime.now();
         if (session.reportId() == null) {
             session.selectReport(report.id(), now);
@@ -571,12 +539,12 @@ public class ArchDoxWorkerChatService {
         metadata.put("stage", session.stage().name());
         putIfNotNull(metadata, "siteId", session.siteId());
         metadata.put("reportId", report.id());
-        metadata.put("documentJobId", job.id());
-        metadata.put("documentJobStatus", job.status().name());
-        metadata.put("documentJobProgressStep", job.progressStep().name());
-        metadata.put("documentJobProgressPercent", job.progressPercent());
-        metadata.put("outputFormat", job.outputFormat().name());
-        metadata.put("workerType", job.workerType().name());
+        metadata.put("documentJobId", result.documentJobId());
+        metadata.put("documentJobStatus", result.documentJobStatus());
+        metadata.put("documentJobProgressStep", result.documentJobProgressStep());
+        metadata.put("documentJobProgressPercent", result.documentJobProgressPercent());
+        metadata.put("outputFormat", result.outputFormat());
+        metadata.put("workerType", result.workerType());
         metadata.put("documentTabAvailable", true);
         metadata.put("nextAction", "OPEN_DOCUMENTS");
         completeAssistantMessage(
@@ -1669,27 +1637,6 @@ public class ArchDoxWorkerChatService {
             return normalized;
         }
         throw new BadRequestException("Invalid map value: " + value);
-    }
-
-    private OutputFormat outputFormatValue(Object value) {
-        var normalized = defaultString(value, OutputFormat.DOCX.name()).trim().toUpperCase(Locale.ROOT);
-        try {
-            return OutputFormat.valueOf(normalized);
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid output format: " + value);
-        }
-    }
-
-    private DocumentWorkerType documentWorkerTypeValue(Object value) {
-        var normalized = trimToNull(stringValue(value));
-        if (normalized == null) {
-            return null;
-        }
-        try {
-            return DocumentWorkerType.valueOf(normalized.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid document worker type: " + value);
-        }
     }
 
     private UserPrincipal workerPrincipal(Long userId) {

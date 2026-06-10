@@ -56,6 +56,32 @@ class ArchDoxWorkerActionPolicyGateTest {
     }
 
     @Test
+    void allowsPreflightReviewWhenReportIsWritableAndReadyForGeneration() {
+        var action = action(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW);
+        var definition = registry.definition(action.actionType()).orElseThrow();
+        var report = readyReport();
+        when(reportRepository.findByIdAndOfficeId(5L, 2L)).thenReturn(Optional.of(report));
+        when(permissionService.canWriteReport(1L, 2L, 3L, 5L)).thenReturn(true);
+
+        var decision = policyGate.evaluate(request(ArchDoxWorkerRequestSource.UI, 1L, 2L, 3L, 5L), action, definition);
+
+        assertThat(decision.type()).isEqualTo(ArchDoxWorkerPolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void deniesPreflightReviewWhenReportIsNotReadyForGeneration() {
+        var action = action(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW);
+        var definition = registry.definition(action.actionType()).orElseThrow();
+        when(reportRepository.findByIdAndOfficeId(5L, 2L)).thenReturn(Optional.of(draftReport()));
+        when(permissionService.canWriteReport(1L, 2L, 3L, 5L)).thenReturn(true);
+
+        var decision = policyGate.evaluate(request(ArchDoxWorkerRequestSource.UI, 1L, 2L, 3L, 5L), action, definition);
+
+        assertThat(decision.type()).isEqualTo(ArchDoxWorkerPolicyDecisionType.DENY);
+        assertThat(decision.reasonCode()).isEqualTo("ARCHDOX_WORKER_REPORT_PREFLIGHT_NOT_ALLOWED");
+    }
+
+    @Test
     void deniesDisabledDefinitionEvenIfActionExists() {
         var action = action(ArchDoxWorkerActionType.CREATE_SITE);
 

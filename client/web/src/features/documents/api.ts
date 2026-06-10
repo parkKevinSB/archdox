@@ -3,7 +3,10 @@ import type {
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
+  DocumentNarrativePolishFieldInput,
+  DocumentNarrativePolishResponse,
   DocumentOutputFormat,
+  DocumentRenderOverrideInput,
   DocumentSignatureInput,
   DocumentWorkerType,
   ReportPreflightFindingResolutionStatus,
@@ -19,6 +22,7 @@ export function createDocumentJob(
   reportId: number,
   body: {
     outputFormat?: DocumentOutputFormat;
+    renderOverrides?: DocumentRenderOverrideInput[];
     signature?: DocumentSignatureInput;
     workerType?: DocumentWorkerType;
   } = {}
@@ -35,6 +39,20 @@ export function listDocumentJobsByReport(token: string, officeId: number, report
   return request<DocumentJobResponse[]>(`/api/v1/inspection-reports/${reportId}/document-jobs`, {
     token,
     officeId
+  });
+}
+
+export function polishDocumentNarrative(
+  token: string,
+  officeId: number,
+  reportId: number,
+  fields: DocumentNarrativePolishFieldInput[]
+) {
+  return request<DocumentNarrativePolishResponse>(`/api/v1/inspection-reports/${reportId}/document-narrative-polish`, {
+    token,
+    officeId,
+    method: "POST",
+    body: { fields }
   });
 }
 

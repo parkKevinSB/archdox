@@ -37,6 +37,7 @@ public class ArchDoxRuntimeConfiguration {
     public static final String ARCHDOX_WORKER_PLANNER_AI_WORKER = "archdox-worker-planner-ai";
     public static final String LEGAL_SYNC_WORKER = "legal-sync";
     public static final String LEGAL_DIGEST_AI_WORKER = "legal-digest-ai";
+    public static final String DOCUMENT_NARRATIVE_POLISH_AI_WORKER = "document-narrative-polish-ai";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -101,6 +102,9 @@ public class ArchDoxRuntimeConfiguration {
                         .intervalMillis(legalSyncProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(LEGAL_DIGEST_AI_WORKER)
+                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(DOCUMENT_NARRATIVE_POLISH_AI_WORKER)
                         .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
                         .build())
                 .build();

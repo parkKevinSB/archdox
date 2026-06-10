@@ -261,13 +261,12 @@ disabled action
 missing executor
 workflow explicitly excludes that action, such as RUN_PREFLIGHT_REVIEW inside
   an already-running preflight flow
-Worker Chat scoped executor is registered but no chat session payload exists
 ```
 
-This last rule matters because several current MVP executors are still
-Worker-Chat scoped. Engine follow-up should not accidentally call those
-chat-specific executors without `sessionId` and `assistantMessageId`. Generic
-executors can be introduced later without changing the Engine boundary.
+RUN_PREFLIGHT_REVIEW and REQUEST_DOCUMENT_GENERATION now have generic Worker
+executors. Worker Chat can still attach `sessionId` and `assistantMessageId`
+for UI reply updates, but Engine/API/MCP-style callers do not need chat payload
+to submit those actions through the Worker control boundary.
 
 The first legal-risk context check is deterministic recipe validation. When
 legal references are attached but the normalized context lacks supervision

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { getInspectionSteps } from "../../reports/api";
 import {
   applyReportPreflightReviewFindingFix,
   createReportPreflightReviewRun,
@@ -13,6 +14,7 @@ import {
   listDocumentJobsByReport,
   listReportPreflightReviewFindings,
   listReportPreflightReviewRuns,
+  polishDocumentNarrative,
   resolveReportPreflightReviewFinding
 } from "../api";
 import type {
@@ -21,9 +23,13 @@ import type {
   DocumentDeliveryRequestResponse,
   DocumentJobsByReport,
   DocumentJobResponse,
+  DocumentNarrativePolishFieldInput,
+  DocumentNarrativePolishResponse,
   DocumentOutputFormat,
+  DocumentRenderOverrideInput,
   DocumentSignatureInput,
   InspectionReport,
+  InspectionStep,
   ReportPreflightFindingResolutionStatus,
   ReportPreflightFindingsByRun,
   ReportPreflightReviewRunResponse,
@@ -40,6 +46,7 @@ type UseDocumentWorkspaceOptions = {
 type CreateDocumentJobInput = {
   outputFormat?: DocumentOutputFormat;
   reportId: number;
+  renderOverrides?: DocumentRenderOverrideInput[];
   signature?: DocumentSignatureInput;
 };
 
@@ -57,11 +64,18 @@ type ApplyPreflightFindingFixInput = {
   runId: number;
 };
 
+type PolishNarrativeInput = {
+  fields: DocumentNarrativePolishFieldInput[];
+  reportId: number;
+};
+
 export type DocumentPreviewState = {
   artifact: DocumentArtifactResponse;
   html: string;
   job: DocumentJobResponse;
 };
+
+type InspectionStepsByReport = Record<number, InspectionStep[]>;
 
 const documentReportStatuses = new Set([
   "STEP_SAVED",
@@ -187,15 +201,41 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     refetchInterval: preflightRunsQuery.data && latestPreflightRuns.some(shouldPollPreflightFindings) ? 3000 : false
   });
 
+  const stepsQuery = useQuery({
+    enabled: Boolean(token && officeId && documentReports.length > 0),
+    queryKey: ["document-report-steps", officeId, reportIds.join(",")],
+    queryFn: async () => {
+      if (!officeId) {
+        return {};
+      }
+      const entries = await Promise.all(
+        documentReports.map(async (report) => [
+          report.id,
+          await getInspectionSteps(token, officeId, report.id)
+        ] as const)
+      );
+      return Object.fromEntries(entries) as InspectionStepsByReport;
+    }
+  });
+
   const createJobMutation = useMutation({
-    mutationFn: async ({ outputFormat = "DOCX", reportId, signature }: CreateDocumentJobInput) => {
+    mutationFn: async ({ outputFormat = "DOCX", renderOverrides, reportId, signature }: CreateDocumentJobInput) => {
       if (!officeId) {
         throw new Error("사무소 선택이 필요합니다.");
       }
-      return createDocumentJob(token, officeId, reportId, { outputFormat, signature });
+      return createDocumentJob(token, officeId, reportId, { outputFormat, renderOverrides, signature });
     },
     onSuccess: async () => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["document-jobs"] }), onRefreshWorkspace()]);
+    }
+  });
+
+  const polishNarrativeMutation = useMutation({
+    mutationFn: async ({ fields, reportId }: PolishNarrativeInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return polishDocumentNarrative(token, officeId, reportId, fields);
     }
   });
 
@@ -210,6 +250,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["report-preflight-reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["report-preflight-findings"] }),
+        queryClient.invalidateQueries({ queryKey: ["document-report-steps"] }),
         onRefreshWorkspace()
       ]);
     }
@@ -354,12 +395,14 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
     downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? polishNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
-    loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading,
+    loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading || stepsQuery.isLoading,
     preview,
     previewArtifact: previewArtifactMutation.mutateAsync,
     previewingArtifactId: previewArtifactMutation.isPending ? previewArtifactMutation.variables?.artifact.id ?? null : null,
+    polishDocumentNarrative: polishNarrativeMutation.mutateAsync as (input: PolishNarrativeInput) => Promise<DocumentNarrativePolishResponse>,
+    polishingNarrativeReportId: polishNarrativeMutation.isPending ? polishNarrativeMutation.variables?.reportId ?? null : null,
     preflightFindingsByRun: preflightFindingsQuery.data ?? {},
     preflightRunsByReport: preflightRunsQuery.data ?? {},
     refreshJobs: async () => {
@@ -368,6 +411,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         deliveriesQuery.refetch(),
         preflightRunsQuery.refetch(),
         preflightFindingsQuery.refetch(),
+        stepsQuery.refetch(),
         onRefreshWorkspace()
       ]);
     },
@@ -381,6 +425,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       ? resolvePreflightFindingMutation.variables?.findingId ?? null
       : null,
     requestArtifactDelivery: requestDeliveryMutation.mutateAsync,
+    stepsByReport: stepsQuery.data ?? {},
     reviewingReportId: createPreflightReviewMutation.isPending ? createPreflightReviewMutation.variables ?? null : null,
     requestingDeliveryArtifactId: requestDeliveryMutation.isPending ? requestDeliveryMutation.variables?.artifact.id ?? null : null
   };

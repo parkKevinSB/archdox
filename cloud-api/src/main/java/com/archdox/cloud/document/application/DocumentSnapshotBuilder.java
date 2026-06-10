@@ -5,6 +5,7 @@ import com.archdox.cloud.configuration.application.ResolvedDocumentConfigPart;
 import com.archdox.cloud.configuration.application.ResolvedDocumentConfiguration;
 import com.archdox.cloud.configuration.application.ResolvedDocumentTemplateConfig;
 import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
@@ -22,10 +23,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DocumentSnapshotBuilder {
+    private static final int MAX_RENDER_OVERRIDE_COUNT = 30;
+    private static final int MAX_RENDER_OVERRIDE_VALUE_LENGTH = 4_000;
+    private static final Pattern DAILY_SUPERVISION_CONTENT_PATH = Pattern.compile(
+            "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.supervisionContent$");
+    private static final Pattern REMARKS_TEXT_PATH = Pattern.compile(
+            "^steps\\.REMARKS\\.payload\\.(issueAndAction|nextAction)$");
+    private static final Pattern DAILY_LOG_TEXT_PATH = Pattern.compile(
+            "^steps\\.DAILY_LOG\\.payload\\.(issueAndAction|issueAndActionResult|nextAction)$");
+
     private final InspectionReportStepRepository stepRepository;
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
@@ -68,6 +79,14 @@ public class DocumentSnapshotBuilder {
             InspectionReport report,
             ResolvedDocumentConfiguration configuration
     ) {
+        return build(report, configuration, List.of());
+    }
+
+    public Map<String, Object> build(
+            InspectionReport report,
+            ResolvedDocumentConfiguration configuration,
+            List<RenderOverride> renderOverrides
+    ) {
         var snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("report", reportSnapshot(report));
         snapshot.put("configuration", configurationSnapshot(configuration));
@@ -77,11 +96,15 @@ public class DocumentSnapshotBuilder {
         var steps = stepSnapshot(report);
         snapshot.put("steps", steps);
         snapshot.put("targets", targetSnapshot(report));
+        var appliedRenderOverrides = applyRenderOverrides(snapshot, renderOverrides);
         var photos = photoSnapshot(report, steps);
         var checklistAnswers = checklistAnswerSnapshot(report, photos);
         snapshot.put("checklistAnswers", checklistAnswers);
         snapshot.put("photos", photos);
         snapshot.put("checklistPhotos", checklistPhotoSnapshot(photos));
+        if (!appliedRenderOverrides.isEmpty()) {
+            snapshot.put("renderOverrides", appliedRenderOverrides);
+        }
 
         var templateFields = new LinkedHashMap<>(standardTemplateFieldResolver.resolve(snapshot));
         templateFields.putAll(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
@@ -95,6 +118,172 @@ public class DocumentSnapshotBuilder {
         layoutBinding.templateFields().forEach(templateFields::putIfAbsent);
         snapshot.put("templateFields", templateFields);
         return snapshot;
+    }
+
+    private List<Map<String, Object>> applyRenderOverrides(
+            Map<String, Object> snapshot,
+            List<RenderOverride> renderOverrides
+    ) {
+        if (renderOverrides == null || renderOverrides.isEmpty()) {
+            return List.of();
+        }
+        if (renderOverrides.size() > MAX_RENDER_OVERRIDE_COUNT) {
+            throw new BadRequestException(
+                    "DOCUMENT_RENDER_OVERRIDE_LIMIT_EXCEEDED",
+                    "errors.document.renderOverrideLimitExceeded",
+                    "Document render overrides exceed the allowed limit.",
+                    Map.of("limit", MAX_RENDER_OVERRIDE_COUNT));
+        }
+        var applied = new ArrayList<Map<String, Object>>();
+        for (RenderOverride override : renderOverrides) {
+            if (override == null) {
+                continue;
+            }
+            var path = stringValue(override.path()).trim();
+            var value = stringValue(override.value()).trim();
+            if (path.isBlank()) {
+                continue;
+            }
+            if (value.length() > MAX_RENDER_OVERRIDE_VALUE_LENGTH) {
+                throw new BadRequestException(
+                        "DOCUMENT_RENDER_OVERRIDE_VALUE_TOO_LONG",
+                        "errors.document.renderOverrideValueTooLong",
+                        "Document render override value is too long.",
+                        Map.of("path", path, "limit", MAX_RENDER_OVERRIDE_VALUE_LENGTH));
+            }
+            if (!applyRenderOverride(snapshot, path, value)) {
+                throw new BadRequestException(
+                        "DOCUMENT_RENDER_OVERRIDE_UNSUPPORTED_PATH",
+                        "errors.document.renderOverrideUnsupportedPath",
+                        "Document render override path is not supported.",
+                        Map.of("path", path));
+            }
+            var entry = new LinkedHashMap<String, Object>();
+            entry.put("path", path);
+            entry.put("label", stringValue(override.label()).trim());
+            entry.put("source", stringValue(override.source()).trim());
+            applied.add(entry);
+        }
+        return applied;
+    }
+
+    private boolean applyRenderOverride(Map<String, Object> snapshot, String path, String value) {
+        var dailyMatcher = DAILY_SUPERVISION_CONTENT_PATH.matcher(path);
+        if (dailyMatcher.matches()) {
+            applyDailySupervisionContentOverride(
+                    snapshot,
+                    Integer.parseInt(dailyMatcher.group(1)),
+                    Integer.parseInt(dailyMatcher.group(2)),
+                    value);
+            return true;
+        }
+        var remarksMatcher = REMARKS_TEXT_PATH.matcher(path);
+        if (remarksMatcher.matches()) {
+            applyRemarksTextOverride(snapshot, remarksMatcher.group(1), value);
+            return true;
+        }
+        var dailyLogMatcher = DAILY_LOG_TEXT_PATH.matcher(path);
+        if (dailyLogMatcher.matches()) {
+            applyDailyLogTextOverride(snapshot, dailyLogMatcher.group(1), value);
+            return true;
+        }
+        return false;
+    }
+
+    private void applyDailySupervisionContentOverride(
+            Map<String, Object> snapshot,
+            int groupIndex,
+            int entryIndex,
+            String value
+    ) {
+        var payload = mutableStepPayload(snapshot, "DAILY_LOG", false);
+        var dailyItems = mutableChildMap(payload, "dailyItems");
+        var groups = mutableChildList(dailyItems, "groups");
+        if (groupIndex < 0 || groupIndex >= groups.size()) {
+            throw new BadRequestException(
+                    "DOCUMENT_RENDER_OVERRIDE_TARGET_NOT_FOUND",
+                    "errors.document.renderOverrideTargetNotFound",
+                    "Document render override group target was not found.",
+                    Map.of("stepCode", "DAILY_LOG", "groupIndex", groupIndex));
+        }
+        var group = mutableMap(groups.get(groupIndex));
+        groups.set(groupIndex, group);
+        var entries = mutableChildList(group, "entries");
+        if (entryIndex < 0 || entryIndex >= entries.size()) {
+            throw new BadRequestException(
+                    "DOCUMENT_RENDER_OVERRIDE_TARGET_NOT_FOUND",
+                    "errors.document.renderOverrideTargetNotFound",
+                    "Document render override entry target was not found.",
+                    Map.of("stepCode", "DAILY_LOG", "groupIndex", groupIndex, "entryIndex", entryIndex));
+        }
+        var entry = mutableMap(entries.get(entryIndex));
+        entry.put("supervisionContent", value);
+        entries.set(entryIndex, entry);
+    }
+
+    private void applyRemarksTextOverride(Map<String, Object> snapshot, String key, String value) {
+        var payload = mutableStepPayload(snapshot, "REMARKS", true);
+        payload.put(key, value);
+    }
+
+    private void applyDailyLogTextOverride(Map<String, Object> snapshot, String key, String value) {
+        var payload = mutableStepPayload(snapshot, "DAILY_LOG", false);
+        payload.put(key, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mutableStepPayload(
+            Map<String, Object> snapshot,
+            String stepCode,
+            boolean createIfMissing
+    ) {
+        var steps = mutableMap(snapshot.get("steps"));
+        snapshot.put("steps", steps);
+        var step = mutableMap(steps.get(stepCode));
+        if (step.isEmpty() && !createIfMissing) {
+            throw new BadRequestException(
+                    "DOCUMENT_RENDER_OVERRIDE_TARGET_NOT_FOUND",
+                    "errors.document.renderOverrideTargetNotFound",
+                    "Document render override step target was not found.",
+                    Map.of("stepCode", stepCode));
+        }
+        if (step.isEmpty()) {
+            step.put("payloadStorageMode", "INLINE_JSON");
+            step.put("clientRevision", "");
+            step.put("savedAt", "");
+        }
+        steps.put(stepCode, step);
+        var payload = mutableMap(step.get("payload"));
+        step.put("payload", payload);
+        return payload;
+    }
+
+    private Map<String, Object> mutableChildMap(Map<String, Object> parent, String key) {
+        var child = mutableMap(parent.get(key));
+        parent.put(key, child);
+        return child;
+    }
+
+    private List<Object> mutableChildList(Map<String, Object> parent, String key) {
+        var child = mutableList(parent.get(key));
+        parent.put(key, child);
+        return child;
+    }
+
+    private Map<String, Object> mutableMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return new LinkedHashMap<>();
+        }
+        var mapped = new LinkedHashMap<String, Object>();
+        rawMap.forEach((key, mapValue) -> mapped.put(String.valueOf(key), mapValue));
+        return mapped;
+    }
+
+    private List<Object> mutableList(Object value) {
+        if (!(value instanceof List<?> rawList)) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(rawList);
     }
 
     private Map<String, Object> reportSnapshot(InspectionReport report) {
@@ -422,5 +611,13 @@ public class DocumentSnapshotBuilder {
 
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    public record RenderOverride(
+            String path,
+            String value,
+            String label,
+            String source
+    ) {
     }
 }
