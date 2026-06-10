@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import {
+  applyReportPreflightReviewFindingFix,
   createReportPreflightReviewRun,
   createDocumentDeliveryRequest,
   createDocumentJob,
@@ -48,6 +49,12 @@ type ResolvePreflightFindingInput = {
   reportId: number;
   runId: number;
   status: ReportPreflightFindingResolutionStatus;
+};
+
+type ApplyPreflightFindingFixInput = {
+  findingId: number;
+  reportId: number;
+  runId: number;
 };
 
 export type DocumentPreviewState = {
@@ -227,6 +234,22 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     }
   });
 
+  const applyPreflightFindingFixMutation = useMutation({
+    mutationFn: async ({ findingId, reportId, runId }: ApplyPreflightFindingFixInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return applyReportPreflightReviewFindingFix(token, officeId, reportId, runId, findingId);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-reviews"] }),
+        queryClient.invalidateQueries({ queryKey: ["report-preflight-findings"] }),
+        onRefreshWorkspace()
+      ]);
+    }
+  });
+
   const requestDeliveryMutation = useMutation({
     mutationFn: async ({ artifact, job }: { artifact: DocumentArtifactResponse; job: DocumentJobResponse }) => {
       if (!officeId) {
@@ -331,7 +354,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
     downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
     loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading,
     preview,
@@ -350,6 +373,10 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     },
     requestPreflightReview: createPreflightReviewMutation.mutateAsync,
     resolvePreflightFinding: resolvePreflightFindingMutation.mutateAsync,
+    applyPreflightFindingFix: applyPreflightFindingFixMutation.mutateAsync,
+    applyingPreflightFindingId: applyPreflightFindingFixMutation.isPending
+      ? applyPreflightFindingFixMutation.variables?.findingId ?? null
+      : null,
     resolvingPreflightFindingId: resolvePreflightFindingMutation.isPending
       ? resolvePreflightFindingMutation.variables?.findingId ?? null
       : null,

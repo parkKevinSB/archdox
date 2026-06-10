@@ -5,7 +5,10 @@ import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.inspection.domain.InspectionReport;
+import com.archdox.cloud.inspection.application.InspectionReportService;
+import com.archdox.cloud.inspection.dto.SaveInspectionStepRequest;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
+import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.operation.application.OperationEventService;
@@ -33,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReportPreflightReviewService {
     private final InspectionReportRepository reportRepository;
+    private final InspectionReportStepRepository stepRepository;
+    private final InspectionReportService inspectionReportService;
     private final OfficePermissionService permissionService;
     private final ReportPreflightReviewRunRepository runRepository;
     private final ReportPreflightReviewFindingRepository findingRepository;
@@ -42,6 +47,8 @@ public class ReportPreflightReviewService {
 
     public ReportPreflightReviewService(
             InspectionReportRepository reportRepository,
+            InspectionReportStepRepository stepRepository,
+            InspectionReportService inspectionReportService,
             OfficePermissionService permissionService,
             ReportPreflightReviewRunRepository runRepository,
             ReportPreflightReviewFindingRepository findingRepository,
@@ -50,6 +57,8 @@ public class ReportPreflightReviewService {
             OperationEventService operationEventService
     ) {
         this.reportRepository = reportRepository;
+        this.stepRepository = stepRepository;
+        this.inspectionReportService = inspectionReportService;
         this.permissionService = permissionService;
         this.runRepository = runRepository;
         this.findingRepository = findingRepository;
@@ -138,6 +147,87 @@ public class ReportPreflightReviewService {
                         "reviewRunId", run.id(),
                         "findingId", finding.id(),
                         "resolutionStatus", finding.resolutionStatus().name()));
+        return toFindingResponse(finding);
+    }
+
+    @Transactional
+    public ReportPreflightReviewFindingResponse applyFindingFix(
+            Long reportId,
+            Long runId,
+            Long findingId,
+            UserPrincipal principal
+    ) {
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        var report = requireReportWithWriteAccess(reportId, officeId, principal);
+        var run = runRepository.findByIdAndOfficeIdAndReportId(runId, officeId, report.id())
+                .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
+        if (run.reportRevision() != report.contentRevision()) {
+            throw new BadRequestException(
+                    "REPORT_PREFLIGHT_RUN_STALE",
+                    "errors.reportPreflight.stale",
+                    "Report preflight review run is stale. Run the review again before applying a fix.",
+                    Map.of("reportId", report.id(), "reviewRunId", run.id()));
+        }
+        var finding = findingRepository.findByIdAndOfficeIdAndReviewRunIdAndReportId(findingId, officeId, run.id(), report.id())
+                .orElseThrow(() -> new NotFoundException("Report preflight review finding not found"));
+        if (finding.resolutionStatus() != ReportPreflightFindingResolutionStatus.OPEN) {
+            throw new BadRequestException(
+                    "REPORT_PREFLIGHT_FINDING_ALREADY_RESOLVED",
+                    "errors.reportPreflight.findingAlreadyResolved",
+                    "Report preflight review finding is already resolved.",
+                    Map.of("findingId", finding.id()));
+        }
+        var target = fixTarget(finding);
+        var suggestion = fixSuggestion(finding);
+        if (target == null || suggestion.isBlank()) {
+            throw new BadRequestException(
+                    "REPORT_PREFLIGHT_FIX_NOT_AVAILABLE",
+                    "errors.reportPreflight.fixNotAvailable",
+                    "This preflight finding does not have a safe automatic fix.",
+                    Map.of("findingId", finding.id()));
+        }
+        if (!report.canSaveStep()) {
+            if (!report.canReopenForEdit()) {
+                throw new BadRequestException(
+                        "REPORT_PREFLIGHT_FIX_NOT_EDITABLE",
+                        "errors.reportPreflight.fixNotEditable",
+                        "Report cannot be edited while applying this preflight fix.",
+                        Map.of("reportId", report.id(), "status", report.status().name()));
+            }
+            report.reopenForEdit(OffsetDateTime.now());
+        }
+        var payload = stepRepository.findByReportIdAndStepCode(report.id(), target.stepCode())
+                .map(step -> new LinkedHashMap<>(step.payloadJson() == null ? Map.<String, Object>of() : step.payloadJson()))
+                .orElseGet(LinkedHashMap::new);
+        payload.put(target.payloadKey(), suggestion);
+        inspectionReportService.saveStep(
+                report.id(),
+                target.stepCode(),
+                new SaveInspectionStepRequest(payload),
+                principal);
+        finding.resolve(
+                ReportPreflightFindingResolutionStatus.RESOLVED,
+                "AI_FIX_APPLIED:" + target.stepCode() + "." + target.payloadKey(),
+                principal.userId(),
+                OffsetDateTime.now());
+        recomputeRunAfterResolution(run);
+        operationEventService.record(
+                officeId,
+                OperationEventSeverity.INFO,
+                "REPORT_PREFLIGHT_FINDING_FIX_APPLIED",
+                "report-preflight-review",
+                "report:" + report.id() + ":preflight-run:" + run.id(),
+                "REPORT_PREFLIGHT_REVIEW_FINDING",
+                finding.id(),
+                principal.userId(),
+                null,
+                "Report preflight finding fix applied.",
+                Map.of(
+                        "reportId", report.id(),
+                        "reviewRunId", run.id(),
+                        "findingId", finding.id(),
+                        "stepCode", target.stepCode(),
+                        "payloadKey", target.payloadKey()));
         return toFindingResponse(finding);
     }
 
@@ -236,6 +326,34 @@ public class ReportPreflightReviewService {
             return true;
         }
         return Boolean.parseBoolean(finding.attributesJson().getOrDefault("approvalRequired", "false"));
+    }
+
+    private static FindingFixTarget fixTarget(ReportPreflightReviewFinding finding) {
+        if (!"AI".equals(finding.source())) {
+            return null;
+        }
+        if (!"LOW".equals(finding.severity())) {
+            return null;
+        }
+        if (!"WORDING".equals(finding.attributesJson().get("category"))) {
+            return null;
+        }
+        var location = finding.location() == null ? "" : finding.location().trim();
+        if (location.endsWith("REMARKS.issueAndAction") || "REMARKS.issueAndAction".equals(location)) {
+            return new FindingFixTarget("REMARKS", "issueAndAction");
+        }
+        if (location.endsWith("REMARKS.nextAction") || "REMARKS.nextAction".equals(location)) {
+            return new FindingFixTarget("REMARKS", "nextAction");
+        }
+        return null;
+    }
+
+    private static String fixSuggestion(ReportPreflightReviewFinding finding) {
+        var suggestion = finding.attributesJson().get("suggestion");
+        return suggestion == null ? "" : suggestion.trim();
+    }
+
+    private record FindingFixTarget(String stepCode, String payloadKey) {
     }
 
     private static List<String> csvList(String value) {

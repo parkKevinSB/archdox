@@ -114,6 +114,23 @@ export function resolveReportPreflightReviewFinding(
   );
 }
 
+export function applyReportPreflightReviewFindingFix(
+  token: string,
+  officeId: number,
+  reportId: number,
+  runId: number,
+  findingId: number
+) {
+  return request<ReportPreflightReviewFindingResponse>(
+    `/api/v1/inspection-reports/${reportId}/preflight-review-runs/${runId}/findings/${findingId}/fix`,
+    {
+      token,
+      officeId,
+      method: "POST"
+    }
+  );
+}
+
 export async function downloadDocumentUrl(
   token: string,
   officeId: number,

@@ -132,6 +132,7 @@ export function DocumentWorkspace({
                     report={report}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
                     reviewing={workspace.reviewingReportId === report.id}
+                    applyingPreflightFindingId={workspace.applyingPreflightFindingId}
                     resolvingPreflightFindingId={workspace.resolvingPreflightFindingId}
                     onCreate={() => requestSignedGeneration(report, "DOCX")}
                     onCreatePdf={() => requestSignedGeneration(report, "PDF")}
@@ -139,6 +140,9 @@ export function DocumentWorkspace({
                     onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
                     onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
                     onRequestPreflightReview={() => workspace.requestPreflightReview(report.id)}
+                    onApplyPreflightFindingFix={(runId, findingId) =>
+                      workspace.applyPreflightFindingFix({ reportId: report.id, runId, findingId })
+                    }
                     onResolvePreflightFinding={(runId, findingId, status) =>
                       workspace.resolvePreflightFinding({ reportId: report.id, runId, findingId, status })
                     }
@@ -188,6 +192,7 @@ function DocumentReportCard({
   previewingArtifactId,
   requestingDeliveryArtifactId,
   reviewing,
+  applyingPreflightFindingId,
   resolvingPreflightFindingId,
   onCreate,
   onCreatePdf,
@@ -195,6 +200,7 @@ function DocumentReportCard({
   onDownloadPrepared,
   onPreviewArtifact,
   onRequestPreflightReview,
+  onApplyPreflightFindingFix,
   onResolvePreflightFinding,
   onRequestDelivery
 }: {
@@ -210,6 +216,7 @@ function DocumentReportCard({
   previewingArtifactId: number | null;
   requestingDeliveryArtifactId: number | null;
   reviewing: boolean;
+  applyingPreflightFindingId: number | null;
   resolvingPreflightFindingId: number | null;
   onCreate: () => void;
   onCreatePdf: () => void;
@@ -217,6 +224,10 @@ function DocumentReportCard({
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
   onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
   onRequestPreflightReview: () => Promise<ReportPreflightReviewRunResponse>;
+  onApplyPreflightFindingFix: (
+    runId: number,
+    findingId: number
+  ) => Promise<ReportPreflightReviewFindingResponse>;
   onResolvePreflightFinding: (
     runId: number,
     findingId: number,
@@ -231,7 +242,7 @@ function DocumentReportCard({
   const active = Boolean(activeJob);
   const preflightActive = preflightRun ? isPreflightActive(preflightRun) : false;
   const preflightBlocking = preflightRun ? isPreflightBlocking(preflightRun) : false;
-  const preflightCurrent = preflightRun ? preflightRun.reportRevision === generationRevision(report) : false;
+  const preflightCurrent = preflightRun ? preflightRun.reportRevision === report.contentRevision : false;
   const preflightReady = Boolean(preflightRun && preflightCurrent && preflightRun.status === "PASSED" && !isPreflightAiPending(preflightRun));
   const canCreate = ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status)
     && !active
@@ -291,12 +302,14 @@ function DocumentReportCard({
         </summary>
         <PreflightReviewPanel
           findings={preflightFindings}
-          currentRevision={generationRevision(report)}
+          currentRevision={report.contentRevision}
           report={report}
           reviewing={reviewing || preflightActive}
+          applyingFindingId={applyingPreflightFindingId}
           resolvingFindingId={resolvingPreflightFindingId}
           run={preflightRun}
           onRequestReview={onRequestPreflightReview}
+          onApplyFindingFix={onApplyPreflightFindingFix}
           onResolveFinding={onResolvePreflightFinding}
         />
       </details>
@@ -632,18 +645,25 @@ function PreflightReviewPanel({
   findings,
   report,
   reviewing,
+  applyingFindingId,
   resolvingFindingId,
   run,
   onRequestReview,
+  onApplyFindingFix,
   onResolveFinding
 }: {
   currentRevision: number;
   findings: ReportPreflightReviewFindingResponse[];
   report: InspectionReport;
   reviewing: boolean;
+  applyingFindingId: number | null;
   resolvingFindingId: number | null;
   run: ReportPreflightReviewRunResponse | null;
   onRequestReview: () => Promise<ReportPreflightReviewRunResponse>;
+  onApplyFindingFix: (
+    runId: number,
+    findingId: number
+  ) => Promise<ReportPreflightReviewFindingResponse>;
   onResolveFinding: (
     runId: number,
     findingId: number,
@@ -737,6 +757,11 @@ function PreflightReviewPanel({
             const legalReferenceCount = legalReferenceDetails.length > 0
               ? legalReferenceDetails.length
               : finding.legalReferences.length;
+            const fixSuggestion = preflightFixSuggestion(finding);
+            const fixTarget = preflightFixTargetLabel(finding);
+            const fixAvailable = Boolean(fixSuggestion && fixTarget && canApplyPreflightFindingFix(finding));
+            const fixing = applyingFindingId === finding.id;
+            const resolving = resolvingFindingId === finding.id;
             return (
             <div className={requiresPreflightFindingAction(finding) ? "preflight-finding blocking" : "preflight-finding"} key={finding.id}>
               {requiresPreflightFindingAction(finding) ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
@@ -746,6 +771,12 @@ function PreflightReviewPanel({
                   {preflightSourceLabel(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
                 </small>
                 <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
+                {fixSuggestion ? (
+                  <span className="preflight-ai-suggestion">
+                    <strong>{fixTarget ? `AI 수정안 · ${fixTarget}` : "AI 수정안"}</strong>
+                    <em>{fixSuggestion}</em>
+                  </span>
+                ) : null}
                 {legalReferenceCount > 0 ? (
                   <span className="preflight-legal-context">
                     <strong>법령 근거</strong>
@@ -770,19 +801,31 @@ function PreflightReviewPanel({
               </span>
               {run && !stale && requiresPreflightFindingAction(finding) ? (
                 <div className="preflight-finding-actions">
+                  {fixAvailable ? (
+                    <button
+                      className="secondary-button compact-button"
+                      disabled={fixing || resolving}
+                      onClick={() => onApplyFindingFix(run.id, finding.id)}
+                      title="AI 수정안을 보고서 입력값에 적용합니다. 적용 후 보고서는 편집 상태가 되며 다시 제출해야 합니다."
+                      type="button"
+                    >
+                      {fixing ? <Loader2 className="spin" size={14} /> : <PenLine size={14} />}
+                      수정안 적용
+                    </button>
+                  ) : null}
                   <button
                     className="secondary-button compact-button"
-                    disabled={resolvingFindingId === finding.id}
+                    disabled={fixing || resolving}
                     onClick={() => onResolveFinding(run.id, finding.id, "RESOLVED")}
                     title="내용을 수정했거나 검토해서 더 이상 문서 생성을 막을 문제가 아니라고 확인합니다."
                     type="button"
                   >
-                    {resolvingFindingId === finding.id ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
+                    {resolving ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />}
                     수정 완료
                   </button>
                   <button
                     className="secondary-button compact-button"
-                    disabled={resolvingFindingId === finding.id}
+                    disabled={fixing || resolving}
                     onClick={() => onResolveFinding(run.id, finding.id, "ACCEPTED")}
                     title="경고가 남아 있음을 알고도 이 리포트에서는 진행 가능한 리스크로 수용합니다."
                     type="button"
@@ -1294,6 +1337,31 @@ function preflightNextActionLabel(action: string) {
     REVIEW_LEGAL_EVIDENCE_CONTEXT: "법령 근거와 현장 증빙 연결 검토"
   };
   return labels[action] ?? action;
+}
+
+function preflightFixSuggestion(finding: ReportPreflightReviewFindingResponse) {
+  return finding.attributes?.suggestion?.trim() ?? "";
+}
+
+function preflightFixTargetLabel(finding: ReportPreflightReviewFindingResponse) {
+  const location = finding.location?.trim() ?? "";
+  if (location.endsWith("REMARKS.issueAndAction") || location === "REMARKS.issueAndAction") {
+    return "지적사항 및 처리결과";
+  }
+  if (location.endsWith("REMARKS.nextAction") || location === "REMARKS.nextAction") {
+    return "다음 조치";
+  }
+  return "";
+}
+
+function canApplyPreflightFindingFix(finding: ReportPreflightReviewFindingResponse) {
+  if (finding.resolutionStatus !== "OPEN") {
+    return false;
+  }
+  if (finding.source !== "AI" || finding.severity !== "LOW") {
+    return false;
+  }
+  return finding.attributes?.category === "WORDING";
 }
 
 function preflightSourceLabel(finding: ReportPreflightReviewFindingResponse) {

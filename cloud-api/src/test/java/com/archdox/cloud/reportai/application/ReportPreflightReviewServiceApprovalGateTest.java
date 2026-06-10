@@ -1,15 +1,26 @@
 package com.archdox.cloud.reportai.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.documentai.application.DocumentAiReviewProperties;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.global.api.BadRequestException;
+import com.archdox.cloud.inspection.application.InspectionReportService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
+import com.archdox.cloud.inspection.domain.InspectionReportStatus;
+import com.archdox.cloud.inspection.domain.InspectionReportStep;
+import com.archdox.cloud.inspection.domain.PayloadStorageMode;
+import com.archdox.cloud.inspection.dto.InspectionStepResponse;
+import com.archdox.cloud.inspection.dto.SaveInspectionStepRequest;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
+import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
 import com.archdox.cloud.operation.application.OperationEventService;
@@ -25,18 +36,23 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class ReportPreflightReviewServiceApprovalGateTest {
     private final InspectionReportRepository reportRepository = mock(InspectionReportRepository.class);
+    private final InspectionReportStepRepository stepRepository = mock(InspectionReportStepRepository.class);
+    private final InspectionReportService inspectionReportService = mock(InspectionReportService.class);
     private final OfficePermissionService permissionService = mock(OfficePermissionService.class);
     private final ReportPreflightReviewRunRepository runRepository = mock(ReportPreflightReviewRunRepository.class);
     private final ReportPreflightReviewFindingRepository findingRepository = mock(ReportPreflightReviewFindingRepository.class);
     private final OperationEventService operationEventService = mock(OperationEventService.class);
     private final ReportPreflightReviewService service = new ReportPreflightReviewService(
             reportRepository,
+            stepRepository,
+            inspectionReportService,
             permissionService,
             runRepository,
             findingRepository,
@@ -130,6 +146,63 @@ class ReportPreflightReviewServiceApprovalGateTest {
         assertThat(run.terminalReason()).isEqualTo("PREFLIGHT_FINDINGS_RESOLVED");
     }
 
+    @Test
+    void applyingSafeAiFixReopensSubmittedReportSavesRemarkAndResolvesFinding() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        report.submit(now);
+        var run = run(now);
+        var finding = aiWordFixFinding(300L, "REMARKS.issueAndAction", now);
+        var step = new InspectionReportStep(
+                report,
+                "REMARKS",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                Map.of("nextAction", "기존 다음 조치"),
+                7L,
+                now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS")).thenReturn(Optional.of(step));
+        when(inspectionReportService.saveStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any()))
+                .thenReturn(new InspectionStepResponse("REMARKS", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
+
+        var response = service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        var requestCaptor = ArgumentCaptor.forClass(SaveInspectionStepRequest.class);
+        verify(inspectionReportService).saveStep(eq(100L), eq("REMARKS"), requestCaptor.capture(), any());
+        assertThat(requestCaptor.getValue().payload())
+                .containsEntry("issueAndAction", "철근 개수는 양호하나 일부 부재 시공 상태가 부실하여 재시공을 요청했습니다.")
+                .containsEntry("nextAction", "기존 다음 조치");
+        assertThat(report.status()).isEqualTo(InspectionReportStatus.STEP_SAVED);
+        assertThat(report.contentRevision()).isEqualTo(2);
+        assertThat(response.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED.name());
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+    }
+
+    @Test
+    void applyingAmbiguousAiFixIsRejectedBeforeSavingStep() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var finding = aiWordFixFinding(300L, "DAILY_LOG.entries.supervisionContent", now);
+        arrange(report, run, finding);
+
+        assertThatThrownBy(() -> service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("This preflight finding does not have a safe automatic fix.");
+        verifyNoInteractions(stepRepository, inspectionReportService);
+    }
+
     private void arrange(
             InspectionReport report,
             ReportPreflightReviewRun run,
@@ -177,6 +250,25 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 Map.of(
                         "approvalRequired", "true",
                         "draftOnly", "true"),
+                now);
+        ReflectionTestUtils.setField(finding, "id", id);
+        return finding;
+    }
+
+    private ReportPreflightReviewFinding aiWordFixFinding(Long id, String location, OffsetDateTime now) {
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "AI",
+                "WORDING",
+                "LOW",
+                location,
+                "문장이 다소 모호합니다.",
+                "report wording",
+                Map.of(
+                        "category", "WORDING",
+                        "suggestion", "철근 개수는 양호하나 일부 부재 시공 상태가 부실하여 재시공을 요청했습니다."),
                 now);
         ReflectionTestUtils.setField(finding, "id", id);
         return finding;

@@ -75,4 +75,18 @@ public class ReportPreflightReviewController {
                 request,
                 (UserPrincipal) authentication.getPrincipal());
     }
+
+    @PostMapping("/{runId}/findings/{findingId}/fix")
+    public ReportPreflightReviewFindingResponse applyFindingFix(
+            @PathVariable Long reportId,
+            @PathVariable Long runId,
+            @PathVariable Long findingId,
+            Authentication authentication
+    ) {
+        return service.applyFindingFix(
+                reportId,
+                runId,
+                findingId,
+                (UserPrincipal) authentication.getPrincipal());
+    }
 }

@@ -1091,6 +1091,31 @@ button {
   margin-top: 3px;
 }
 
+.preflight-ai-suggestion {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 7px 8px;
+  border: 1px solid #d8e8e4;
+  border-radius: 6px;
+  background: #f7fbfa;
+}
+
+.preflight-ai-suggestion strong {
+  color: #34514c;
+  font-size: 11px;
+}
+
+.preflight-ai-suggestion em {
+  color: #2f4642;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .preflight-legal-context,
 .preflight-next-actions {
   display: flex;
