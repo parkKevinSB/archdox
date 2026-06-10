@@ -880,12 +880,13 @@ function PreflightReviewPanel({
     status: ReportPreflightFindingResolutionStatus
   ) => Promise<ReportPreflightReviewFindingResponse>;
 }) {
-  const blockingCount = findings.filter((finding) => requiresPreflightFindingAction(finding)).length;
-  const deterministicFindings = findings.filter((finding) => finding.source === "DETERMINISTIC");
-  const aiFindings = findings.filter((finding) => finding.source !== "DETERMINISTIC");
+  const listFindings = findings.filter((finding) => !isPreflightFindingCoveredByLegalSummary(finding));
+  const blockingCount = listFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
+  const deterministicFindings = listFindings.filter((finding) => finding.source === "DETERMINISTIC");
+  const aiFindings = listFindings.filter((finding) => finding.source !== "DETERMINISTIC" && finding.source !== "LEGAL_REVIEW");
   const deterministicBlockingCount = deterministicFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const aiAttentionCount = aiFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
-  const warningCount = findings.filter((finding) => !requiresPreflightFindingAction(finding)).length;
+  const warningCount = listFindings.filter((finding) => !requiresPreflightFindingAction(finding)).length;
   const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const stale = run ? run.reportRevision !== currentRevision : false;
   const warning = stale || (run && isPreflightBlocking(run));
@@ -893,8 +894,8 @@ function PreflightReviewPanel({
   const progress = reviewing || (run && isPreflightActive(run))
     ? preflightProgress(run, reviewing)
     : null;
-  const actionRequiredFindings = findings.filter((finding) => requiresPreflightFindingAction(finding));
-  const passiveFindings = findings.filter((finding) => !requiresPreflightFindingAction(finding));
+  const actionRequiredFindings = listFindings.filter((finding) => requiresPreflightFindingAction(finding));
+  const passiveFindings = listFindings.filter((finding) => !requiresPreflightFindingAction(finding));
   const passiveDisplayLimit = Math.max(0, 6 - actionRequiredFindings.length);
   const displayedPassiveFindings = passiveFindings.slice(0, passiveDisplayLimit);
   const displayedFindings = [...actionRequiredFindings, ...displayedPassiveFindings];
@@ -962,7 +963,7 @@ function PreflightReviewPanel({
 
       <PreflightLegalReviewSummary findings={findings} run={run} stale={stale} />
 
-      {findings.length > 0 ? (
+      {displayedFindings.length > 0 ? (
         <div className="preflight-finding-list">
           {displayedFindings.map((finding) => {
             const legalReferenceDetails = finding.legalReferenceDetails ?? [];
@@ -1703,17 +1704,32 @@ function preflightLegalSummaryV2(
 function legalReviewResultFinding(findings: ReportPreflightReviewFindingResponse[]) {
   return findings.find((finding) =>
     finding.source === "LEGAL_REVIEW"
-    && [
-      "LEGAL_REVIEW_PASSED",
-      "LEGAL_REVIEW_NEEDS_HUMAN_REVIEW",
-      "LEGAL_REVIEW_BLOCKED",
-      "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
-      "LEGAL_REVIEW_SKIPPED",
-      "LEGAL_REVIEW_AI_FAILED",
-      "LEGAL_REVIEW_AI_TIMEOUT",
-      "LEGAL_REVIEW_RESULT_INVALID"
-    ].includes(finding.code)
+    && LEGAL_REVIEW_RESULT_CODES.has(finding.code)
   ) ?? null;
+}
+
+const LEGAL_REVIEW_RESULT_CODES = new Set([
+  "LEGAL_REVIEW_PASSED",
+  "LEGAL_REVIEW_NEEDS_HUMAN_REVIEW",
+  "LEGAL_REVIEW_BLOCKED",
+  "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
+  "LEGAL_REVIEW_SKIPPED",
+  "LEGAL_REVIEW_AI_FAILED",
+  "LEGAL_REVIEW_AI_TIMEOUT",
+  "LEGAL_REVIEW_RESULT_INVALID"
+]);
+
+function isPreflightFindingCoveredByLegalSummary(finding: ReportPreflightReviewFindingResponse) {
+  const category = finding.attributes?.category ?? "";
+  if (finding.code === "LEGAL_EVIDENCE_CONTEXT_USED") {
+    return true;
+  }
+  if (finding.source === "LEGAL_REVIEW" && LEGAL_REVIEW_RESULT_CODES.has(finding.code)) {
+    return true;
+  }
+  return finding.severity === "INFO"
+    && ["LEGAL_CONTEXT", "LEGAL_REVIEW", "LEGAL_RISK"].includes(category)
+    && (finding.legalReferences.length > 0 || finding.legalReferenceDetails.length > 0);
 }
 
 function preflightLegalSummary(
