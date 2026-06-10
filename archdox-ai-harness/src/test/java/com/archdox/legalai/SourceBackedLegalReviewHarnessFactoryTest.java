@@ -111,7 +111,9 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
-                .contains("PASS must explain the legal review scope");
+                .contains("PASS must explain the legal review scope")
+                .contains("PASS does not mean final legal compliance")
+                .contains("Never say the report \"meets legal requirements\"");
         assertThat(prompt.messages().get(1).content())
                 .contains("\"sourceBackedLegalReferences\"")
                 .contains("\"BUILDING_ACT:0025001@v1\"");

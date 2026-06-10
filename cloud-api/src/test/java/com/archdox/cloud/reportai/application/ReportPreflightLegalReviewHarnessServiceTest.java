@@ -18,6 +18,7 @@ import com.archdox.cloud.inspection.domain.PayloadStorageMode;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
+import com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewFinding;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewRun;
 import com.archdox.cloud.reportai.flow.ReportPreflightLegalReviewAiWorker;
@@ -122,6 +123,31 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         service.run(request);
 
         verify(aiWorker).submitAndAwait(any(), any());
+    }
+
+    @Test
+    void skippedLegalReviewFindingIsResolvedBecauseItIsDisplayOnly() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(run));
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L))
+                .thenReturn(List.of(legalContextFinding(now)));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
+                        "POLICY_DISABLED"));
+        when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        service.run(request);
+
+        var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
+        org.mockito.Mockito.verify(findingRepository).save(captor.capture());
+        assertThat(captor.getValue().code()).isEqualTo("LEGAL_REVIEW_SKIPPED");
+        assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
+        assertThat(captor.getValue().resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");
     }
 
     private InspectionReport report(OffsetDateTime now) {

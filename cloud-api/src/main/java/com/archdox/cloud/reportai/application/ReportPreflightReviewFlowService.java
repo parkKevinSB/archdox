@@ -92,7 +92,8 @@ public class ReportPreflightReviewFlowService {
                 combinedResult(deterministicResult, engineResult));
         var aiReviewPlanned = aiHarnessFlowService.canCreate(report, request.requestedBy());
         for (var finding : result.findings()) {
-            findingRepository.save(new ReportPreflightReviewFinding(
+            var now = OffsetDateTime.now();
+            var entity = new ReportPreflightReviewFinding(
                     request.officeId(),
                     request.reviewRunId(),
                     request.reportId(),
@@ -103,7 +104,9 @@ public class ReportPreflightReviewFlowService {
                     finding.message(),
                     finding.evidence(),
                     finding.attributes(),
-                    OffsetDateTime.now()));
+                    now);
+            ReportPreflightFindingClassifier.autoResolveOnCreate(entity, request.requestedBy(), now);
+            findingRepository.save(entity);
         }
         if (aiReviewPlanned) {
             run.markRunning(OffsetDateTime.now());
@@ -492,18 +495,8 @@ public class ReportPreflightReviewFlowService {
                 Map.copyOf(attributes));
     }
 
-    private static boolean isBlockingSeverity(String severity) {
-        return "HIGH".equals(severity) || "CRITICAL".equals(severity);
-    }
-
     private static boolean requiresResolutionForGeneration(ReportPreflightReviewFinding finding) {
-        if (isBlockingSeverity(finding.severity())) {
-            return true;
-        }
-        if ("AI".equals(finding.source())) {
-            return true;
-        }
-        return Boolean.parseBoolean(finding.attributesJson().getOrDefault("approvalRequired", "false"));
+        return ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding);
     }
 
     private static String reasonOf(String reason) {

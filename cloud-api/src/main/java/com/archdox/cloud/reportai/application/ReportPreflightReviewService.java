@@ -314,18 +314,8 @@ public class ReportPreflightReviewService {
         }
     }
 
-    private boolean isBlockingSeverity(String severity) {
-        return "HIGH".equals(severity) || "CRITICAL".equals(severity);
-    }
-
     private boolean requiresResolutionForGeneration(ReportPreflightReviewFinding finding) {
-        if (isBlockingSeverity(finding.severity())) {
-            return true;
-        }
-        if ("AI".equals(finding.source())) {
-            return true;
-        }
-        return Boolean.parseBoolean(finding.attributesJson().getOrDefault("approvalRequired", "false"));
+        return ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding);
     }
 
     private static FindingFixTarget fixTarget(ReportPreflightReviewFinding finding) {

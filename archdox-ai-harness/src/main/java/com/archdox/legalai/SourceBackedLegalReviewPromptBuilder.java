@@ -63,8 +63,12 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Check whether selected checklist/business items, supervision content, issue/action text, and photo/evidence context are aligned with supplied legal anchors.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.
-                - PASS must explain the legal review scope, reviewed references, and why no legal-risk issue was found.
-                - PASS does not mean final legal compliance; state limitations briefly.
+                - PASS must explain the legal review scope, reviewed references, and why no additional legal-risk issue was found within the supplied anchors.
+                - PASS means no additional legal-risk issue was detected in this source-backed draft scope.
+                - PASS does not mean final legal compliance, legality confirmation, agency approval, or professional legal advice.
+                - Never say the report "meets legal requirements", "complies with law", "is lawful", or equivalent final compliance wording.
+                - In Korean, prefer cautious wording such as "제공된 근거와 입력 범위에서는 추가 법률 리스크가 표시되지 않습니다."
+                - State limitations briefly for every status, including PASS.
 
                 Korean writing rules:
                 - Write summary, legalReviewScope, passReason, limitations, message, evidence, and suggestion in concise professional Korean.

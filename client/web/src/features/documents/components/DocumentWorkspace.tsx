@@ -1719,12 +1719,17 @@ const LEGAL_REVIEW_RESULT_CODES = new Set([
   "LEGAL_REVIEW_RESULT_INVALID"
 ]);
 
+const LEGAL_REVIEW_DISPLAY_ONLY_CODES = new Set([
+  "LEGAL_REVIEW_PASSED",
+  "LEGAL_REVIEW_SKIPPED"
+]);
+
 function isPreflightFindingCoveredByLegalSummary(finding: ReportPreflightReviewFindingResponse) {
   const category = finding.attributes?.category ?? "";
   if (finding.code === "LEGAL_EVIDENCE_CONTEXT_USED") {
     return true;
   }
-  if (finding.source === "LEGAL_REVIEW" && LEGAL_REVIEW_RESULT_CODES.has(finding.code)) {
+  if (finding.source === "LEGAL_REVIEW" && LEGAL_REVIEW_DISPLAY_ONLY_CODES.has(finding.code)) {
     return true;
   }
   return finding.severity === "INFO"

@@ -325,6 +325,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private void saveSingleFinding(LegalReviewContext context, ReportPreflightReviewFinding finding) {
         transactionTemplate.executeWithoutResult(status -> {
             findingRepository.deleteByReviewRunIdAndSource(context.run().id(), SOURCE);
+            ReportPreflightFindingClassifier.autoResolveOnCreate(finding, context.request().requestedBy(), OffsetDateTime.now());
             findingRepository.save(finding);
         });
     }
@@ -351,6 +352,11 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         transactionTemplate.executeWithoutResult(tx -> {
             findingRepository.deleteByReviewRunIdAndSource(context.run().id(), SOURCE);
+            var now = OffsetDateTime.now();
+            findings.forEach(finding -> ReportPreflightFindingClassifier.autoResolveOnCreate(
+                    finding,
+                    context.request().requestedBy(),
+                    now));
             findingRepository.saveAll(findings);
         });
     }
@@ -366,7 +372,7 @@ public class ReportPreflightLegalReviewHarnessService {
     ) {
         var attributes = baseAttributes(result.status(), result.confidence().name(), providerCode, modelId, harnessRunId);
         attributes.put("category", "LEGAL_REVIEW");
-        attributes.put("approvalRequired", requiresHumanReview(result.status()) ? "true" : "false");
+        attributes.put("approvalRequired", result.status() == SourceBackedLegalReviewStatus.INSUFFICIENT_CONTEXT ? "true" : "false");
         attributes.put("legalReviewScope", result.legalReviewScope());
         attributes.put("passReason", result.passReason());
         attributes.put("limitations", result.limitations());
@@ -630,10 +636,6 @@ public class ReportPreflightLegalReviewHarnessService {
         return reviewedIds.isEmpty()
                 ? "reviewedReferenceCount=0"
                 : "reviewedReferences=" + String.join(",", reviewedIds);
-    }
-
-    private boolean requiresHumanReview(SourceBackedLegalReviewStatus status) {
-        return status != SourceBackedLegalReviewStatus.PASS;
     }
 
     private void recordEvent(

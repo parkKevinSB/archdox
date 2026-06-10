@@ -10,6 +10,7 @@ import com.archdox.cloud.engine.application.EngineValidationResult;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
+import com.archdox.cloud.reportai.domain.ReportPreflightFindingResolutionStatus;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewFinding;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewRun;
 import com.archdox.cloud.reportai.domain.ReportPreflightReviewStatus;
@@ -109,6 +110,7 @@ class ReportPreflightReviewFlowServiceTest {
         assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
         assertThat(captor.getValue().code()).isEqualTo("LEGAL_EVIDENCE_CONTEXT_USED");
         assertThat(captor.getValue().severity()).isEqualTo("INFO");
+        assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
         assertThat(captor.getValue().attributesJson())
                 .containsEntry("category", "LEGAL_CONTEXT")
                 .containsEntry("approvalRequired", "false")
