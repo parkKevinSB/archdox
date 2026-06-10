@@ -147,7 +147,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
     }
 
     @Test
-    void applyingSafeAiFixReopensSubmittedReportSavesRemarkAndResolvesFinding() {
+    void applyingSafeAiFixToReadyReportKeepsSubmittedRevisionAndResolvesFinding() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
         var report = report(now);
@@ -164,7 +164,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
         arrange(report, run, finding);
         when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
         when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS")).thenReturn(Optional.of(step));
-        when(inspectionReportService.saveStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any()))
+        when(inspectionReportService.applyPreflightFixStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any()))
                 .thenReturn(new InspectionStepResponse("REMARKS", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
 
         var response = service.applyFindingFix(
@@ -174,12 +174,12 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 new UserPrincipal(7L, "writer@test.co.kr"));
 
         var requestCaptor = ArgumentCaptor.forClass(SaveInspectionStepRequest.class);
-        verify(inspectionReportService).saveStep(eq(100L), eq("REMARKS"), requestCaptor.capture(), any());
+        verify(inspectionReportService).applyPreflightFixStep(eq(100L), eq("REMARKS"), requestCaptor.capture(), any());
         assertThat(requestCaptor.getValue().payload())
                 .containsEntry("issueAndAction", "철근 개수는 양호하나 일부 부재 시공 상태가 부실하여 재시공을 요청했습니다.")
                 .containsEntry("nextAction", "기존 다음 조치");
-        assertThat(report.status()).isEqualTo(InspectionReportStatus.STEP_SAVED);
-        assertThat(report.contentRevision()).isEqualTo(2);
+        assertThat(report.status()).isEqualTo(InspectionReportStatus.READY_TO_GENERATE);
+        assertThat(report.contentRevision()).isEqualTo(1);
         assertThat(response.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED.name());
         assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
     }

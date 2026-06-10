@@ -140,6 +140,36 @@ public class InspectionReportService {
     }
 
     @Transactional
+    public InspectionStepResponse applyPreflightFixStep(Long reportId, String stepCode, SaveInspectionStepRequest request, UserPrincipal principal) {
+        var report = requireReport(reportId);
+        permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
+        requireCanApplyPreflightFixStep(report);
+        var now = OffsetDateTime.now();
+        var normalizedStepCode = stepCode.trim().toUpperCase();
+        var step = stepRepository.findByReportIdAndStepCode(report.id(), normalizedStepCode)
+                .map(existing -> {
+                    existing.update(request.payload(), principal.userId(), now);
+                    return existing;
+                })
+                .orElseGet(() -> stepRepository.save(new InspectionReportStep(
+                        report,
+                        normalizedStepCode,
+                        PayloadStorageMode.CLOUD_ENCRYPTED,
+                        request.payload(),
+                        principal.userId(),
+                        now)));
+        if (report.canSaveStep()) {
+            report.markStepSaved(normalizedStepCode, now);
+        } else {
+            report.markSubmittedPreflightFixApplied(normalizedStepCode, now);
+        }
+        if ("DAILY_LOG".equals(normalizedStepCode) || "BASIC_INFO".equals(normalizedStepCode)) {
+            supervisionLedgerService.syncReportDailyLog(report, principal.userId(), now);
+        }
+        return toStepResponse(step);
+    }
+
+    @Transactional
     public InspectionReportResponse submit(Long reportId, UserPrincipal principal) {
         var report = requireReport(reportId);
         permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
@@ -212,6 +242,16 @@ public class InspectionReportService {
                     "REPORT_STEP_SAVE_NOT_ALLOWED",
                     "errors.report.stepSaveNotAllowed",
                     "Inspection report cannot be edited in status " + report.status(),
+                    reportParams(report));
+        }
+    }
+
+    private void requireCanApplyPreflightFixStep(InspectionReport report) {
+        if (!report.canSaveStep() && !report.canApplyPreflightFixToSubmittedRevision()) {
+            throw new BadRequestException(
+                    "REPORT_PREFLIGHT_FIX_STEP_SAVE_NOT_ALLOWED",
+                    "errors.report.stepSaveNotAllowed",
+                    "Inspection report cannot be changed by a preflight fix in status " + report.status(),
                     reportParams(report));
         }
     }

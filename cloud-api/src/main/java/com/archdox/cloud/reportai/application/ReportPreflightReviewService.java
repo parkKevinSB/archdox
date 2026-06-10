@@ -188,7 +188,8 @@ public class ReportPreflightReviewService {
                     "This preflight finding does not have a safe automatic fix.",
                     Map.of("findingId", finding.id()));
         }
-        if (!report.canSaveStep()) {
+        var applyToSubmittedRevision = report.canApplyPreflightFixToSubmittedRevision();
+        if (!report.canSaveStep() && !applyToSubmittedRevision) {
             if (!report.canReopenForEdit()) {
                 throw new BadRequestException(
                         "REPORT_PREFLIGHT_FIX_NOT_EDITABLE",
@@ -202,11 +203,12 @@ public class ReportPreflightReviewService {
                 .map(step -> mutableMap(step.payloadJson() == null ? Map.<String, Object>of() : step.payloadJson()))
                 .orElseGet(LinkedHashMap::new);
         applyReplacement(payload, target, replacement);
-        inspectionReportService.saveStep(
-                report.id(),
-                target.stepCode(),
-                new SaveInspectionStepRequest(payload),
-                principal);
+        var saveRequest = new SaveInspectionStepRequest(payload);
+        if (applyToSubmittedRevision) {
+            inspectionReportService.applyPreflightFixStep(report.id(), target.stepCode(), saveRequest, principal);
+        } else {
+            inspectionReportService.saveStep(report.id(), target.stepCode(), saveRequest, principal);
+        }
         var eventPayload = fixAppliedEventPayload(report.id(), run.id(), finding.id(), target);
         finding.resolve(
                 ReportPreflightFindingResolutionStatus.RESOLVED,

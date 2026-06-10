@@ -109,6 +109,10 @@ public class InspectionReport {
         return status == InspectionReportStatus.DRAFT || status == InspectionReportStatus.STEP_SAVED;
     }
 
+    public boolean canApplyPreflightFixToSubmittedRevision() {
+        return status == InspectionReportStatus.READY_TO_GENERATE;
+    }
+
     public boolean canSubmit() {
         return status == InspectionReportStatus.DRAFT || status == InspectionReportStatus.STEP_SAVED;
     }
@@ -129,6 +133,11 @@ public class InspectionReport {
     public void submit(OffsetDateTime now) {
         this.status = InspectionReportStatus.READY_TO_GENERATE;
         this.submittedRevision = contentRevision;
+        this.updatedAt = now;
+    }
+
+    public void markSubmittedPreflightFixApplied(String stepCode, OffsetDateTime now) {
+        this.currentStep = stepCode;
         this.updatedAt = now;
     }
 
