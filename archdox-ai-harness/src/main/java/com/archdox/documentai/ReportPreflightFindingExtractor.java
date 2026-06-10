@@ -41,6 +41,9 @@ public final class ReportPreflightFindingExtractor implements FindingExtractor<R
         if (!issue.suggestion().isBlank()) {
             attributes.put("suggestion", issue.suggestion());
         }
+        if (!issue.replacement().isBlank()) {
+            attributes.put("replacement", issue.replacement());
+        }
         return attributes;
     }
 }

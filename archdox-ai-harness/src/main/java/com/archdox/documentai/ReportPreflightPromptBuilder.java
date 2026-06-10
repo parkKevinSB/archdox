@@ -41,7 +41,8 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                       "location": "field, step, checklist item, or section",
                       "message": "human readable Korean issue",
                       "evidence": "Korean explanation of input evidence",
-                      "suggestion": "Korean recommended correction"
+                      "suggestion": "Korean explanation of the recommended correction",
+                      "replacement": "exact full Korean replacement text for the field, or empty string"
                     }
                   ]
                 }
@@ -86,6 +87,17 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 - Be concise and professional.
                 - Avoid overly legalistic language unless the input includes a concrete compliance risk.
                 - Do not translate stable code/category/severity enum values.
+                Auto-fix replacement guidance:
+                - For WORDING issues on direct text fields, set replacement to the exact full Korean text
+                  that should be saved into that field.
+                - Direct text fields include DAILY_LOG.entries[n].supervisionContent,
+                  DAILY_LOG.groups[n].entries[m].supervisionContent,
+                  REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - The replacement value must be final report prose, not an instruction.
+                - Do not write values like "수정하십시오", "명확히 기재하십시오", "문장을 다듬으십시오",
+                  or "보고서 최종 문장으로 수정하십시오" in replacement.
+                - If you cannot produce a safe final replacement from the input, set replacement to "" and
+                  explain the needed human edit in suggestion.
                 """;
         var user = """
                 Review this ArchDox report input before document generation.

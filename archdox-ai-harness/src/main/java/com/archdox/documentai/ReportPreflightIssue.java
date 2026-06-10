@@ -9,7 +9,8 @@ public record ReportPreflightIssue(
         String location,
         String message,
         String evidence,
-        String suggestion
+        String suggestion,
+        String replacement
 ) {
     public ReportPreflightIssue {
         code = requireText(code, "code");
@@ -19,6 +20,7 @@ public record ReportPreflightIssue(
         message = requireText(message, "message");
         evidence = evidence == null ? "" : evidence.trim();
         suggestion = suggestion == null ? "" : suggestion.trim();
+        replacement = replacement == null ? "" : replacement.trim();
     }
 
     private static String requireText(String value, String fieldName) {

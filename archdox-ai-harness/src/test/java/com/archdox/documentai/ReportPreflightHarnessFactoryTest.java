@@ -37,7 +37,8 @@ class ReportPreflightHarnessFactoryTest {
                       "location": "steps.CHECKLIST.payload.safetyRemark",
                       "message": "The safety remark is too vague for document generation.",
                       "evidence": "safetyRemark=good",
-                      "suggestion": "Describe the checked condition and observed result."
+                      "suggestion": "Describe the checked condition and observed result.",
+                      "replacement": "Safety condition was checked and no issue was found."
                     }
                   ]
                 }
@@ -55,6 +56,7 @@ class ReportPreflightHarnessFactoryTest {
                     assertThat(finding.attributes()).containsEntry("source", "AI");
                     assertThat(finding.attributes()).containsEntry("category", "COMPLIANCE");
                     assertThat(finding.attributes()).containsEntry("reviewStatus", "WARN");
+                    assertThat(finding.attributes()).containsEntry("replacement", "Safety condition was checked and no issue was found.");
                 });
     }
 
@@ -91,7 +93,7 @@ class ReportPreflightHarnessFactoryTest {
         var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.1.0");
+        assertThat(prompt.version().version()).isEqualTo("1.2.0");
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
                 .contains("top-level photos array as the source of truth")
@@ -102,7 +104,9 @@ class ReportPreflightHarnessFactoryTest {
                 .contains("normally use LOW or MEDIUM")
                 .contains("Do not translate stable code/category/severity enum values")
                 .contains("sourceBackedLegalReferences")
-                .contains("SOURCE_BACKED_LEGAL_DRY_RUN");
+                .contains("SOURCE_BACKED_LEGAL_DRY_RUN")
+                .contains("replacement to the exact full Korean text")
+                .contains("The replacement value must be final report prose");
         assertThat(prompt.messages().get(1).content())
                 .contains("\"photos\"")
                 .contains("\"photoEvidenceSummary\"")

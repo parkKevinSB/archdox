@@ -203,6 +203,82 @@ class ReportPreflightReviewServiceApprovalGateTest {
         verifyNoInteractions(stepRepository, inspectionReportService);
     }
 
+    @Test
+    void applyingIndexedDailyLogFixSavesSelectedEntryAndResolvesFinding() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var finding = aiWordFixFinding(
+                300L,
+                "DAILY_LOG.entries[1].supervisionContent",
+                "MEDIUM",
+                Map.of(
+                        "category", "WORDING",
+                        "replacement", "Column ties were checked and found acceptable."),
+                now);
+        var step = new InspectionReportStep(
+                report,
+                "DAILY_LOG",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                Map.of(
+                        "dailyItems", Map.of(
+                                "groups", List.of(Map.of(
+                                        "entries", List.of(
+                                                Map.of("supervisionContent", "First entry", "photoIds", List.of(1)),
+                                                Map.of("supervisionContent", "Second entry", "photoIds", List.of(2))))))),
+                7L,
+                now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step));
+        when(inspectionReportService.saveStep(eq(100L), eq("DAILY_LOG"), any(SaveInspectionStepRequest.class), any()))
+                .thenReturn(new InspectionStepResponse("DAILY_LOG", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
+
+        var response = service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        var requestCaptor = ArgumentCaptor.forClass(SaveInspectionStepRequest.class);
+        verify(inspectionReportService).saveStep(eq(100L), eq("DAILY_LOG"), requestCaptor.capture(), any());
+        var payload = requestCaptor.getValue().payload();
+        var dailyItems = asMap(payload.get("dailyItems"));
+        var groups = asList(dailyItems.get("groups"));
+        var entries = asList(asMap(groups.get(0)).get("entries"));
+        assertThat(asMap(entries.get(0))).containsEntry("supervisionContent", "First entry");
+        assertThat(asMap(entries.get(1))).containsEntry("supervisionContent", "Column ties were checked and found acceptable.");
+        assertThat(response.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED.name());
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+    }
+
+    @Test
+    void instructionStyleSuggestionIsRejectedBeforeSavingStep() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var finding = aiWordFixFinding(
+                300L,
+                "REMARKS.payload.nextAction",
+                "MEDIUM",
+                Map.of(
+                        "category", "WORDING",
+                        "suggestion", "보고서 최종 문장으로 적합한 공식적이고 명확한 문장으로 수정하십시오."),
+                now);
+        arrange(report, run, finding);
+
+        assertThatThrownBy(() -> service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("This preflight finding does not have a safe automatic fix.");
+        verifyNoInteractions(stepRepository, inspectionReportService);
+    }
+
     private void arrange(
             InspectionReport report,
             ReportPreflightReviewRun run,
@@ -255,6 +331,29 @@ class ReportPreflightReviewServiceApprovalGateTest {
         return finding;
     }
 
+    private ReportPreflightReviewFinding aiWordFixFinding(
+            Long id,
+            String location,
+            String severity,
+            Map<String, String> attributes,
+            OffsetDateTime now
+    ) {
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "AI",
+                "WORDING",
+                severity,
+                location,
+                "Report wording should be improved.",
+                "report wording",
+                attributes,
+                now);
+        ReflectionTestUtils.setField(finding, "id", id);
+        return finding;
+    }
+
     private ReportPreflightReviewFinding aiWordFixFinding(Long id, String location, OffsetDateTime now) {
         var finding = new ReportPreflightReviewFinding(
                 10L,
@@ -272,5 +371,15 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 now);
         ReflectionTestUtils.setField(finding, "id", id);
         return finding;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        return (Map<String, Object>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> asList(Object value) {
+        return (List<Object>) value;
     }
 }

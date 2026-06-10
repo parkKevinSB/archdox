@@ -256,7 +256,9 @@ function DocumentReportCard({
   const creatingPdf = creating && creatingOutputFormat === "PDF";
   const preflightStatus = preflightStatusLabel(preflightRun, Boolean(preflightRun && !preflightCurrent));
   const preflightBusy = reviewing || preflightActive;
-  const detailOpen = preflightBusy || (!preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status));
+  const detailOpen = preflightBusy
+    || Boolean(preflightRun && !preflightCurrent)
+    || (!preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status));
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
@@ -757,9 +759,10 @@ function PreflightReviewPanel({
             const legalReferenceCount = legalReferenceDetails.length > 0
               ? legalReferenceDetails.length
               : finding.legalReferences.length;
-            const fixSuggestion = preflightFixSuggestion(finding);
+            const fixReplacement = preflightFixReplacement(finding);
+            const fixSuggestion = fixReplacement || preflightFixSuggestion(finding);
             const fixTarget = preflightFixTargetLabel(finding);
-            const fixAvailable = Boolean(fixSuggestion && fixTarget && canApplyPreflightFindingFix(finding));
+            const fixAvailable = Boolean(fixReplacement && fixTarget && canApplyPreflightFindingFix(finding));
             const fixing = applyingFindingId === finding.id;
             const resolving = resolvingFindingId === finding.id;
             return (
@@ -773,7 +776,7 @@ function PreflightReviewPanel({
                 <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
                 {fixSuggestion ? (
                   <span className="preflight-ai-suggestion">
-                    <strong>{fixTarget ? `AI 수정안 · ${fixTarget}` : "AI 수정안"}</strong>
+                    <strong>{fixReplacement && fixTarget ? `자동 적용 문장 · ${fixTarget}` : fixTarget ? `AI 수정안 · ${fixTarget}` : "AI 수정안"}</strong>
                     <em>{fixSuggestion}</em>
                   </span>
                 ) : null}
@@ -1343,13 +1346,25 @@ function preflightFixSuggestion(finding: ReportPreflightReviewFindingResponse) {
   return finding.attributes?.suggestion?.trim() ?? "";
 }
 
+function preflightFixReplacement(finding: ReportPreflightReviewFindingResponse) {
+  return finding.attributes?.replacement?.trim() ?? "";
+}
+
 function preflightFixTargetLabel(finding: ReportPreflightReviewFindingResponse) {
   const location = finding.location?.trim() ?? "";
-  if (location.endsWith("REMARKS.issueAndAction") || location === "REMARKS.issueAndAction") {
+  if (location.endsWith("REMARKS.issueAndAction") || location.endsWith("REMARKS.payload.issueAndAction") || location === "REMARKS.issueAndAction") {
     return "지적사항 및 처리결과";
   }
-  if (location.endsWith("REMARKS.nextAction") || location === "REMARKS.nextAction") {
+  if (location.endsWith("REMARKS.nextAction") || location.endsWith("REMARKS.payload.nextAction") || location === "REMARKS.nextAction") {
     return "다음 조치";
+  }
+  const flatDaily = location.match(/DAILY_LOG\.entries\[(\d+)]\.supervisionContent$/);
+  if (flatDaily) {
+    return `감리내용 ${Number(flatDaily[1]) + 1}`;
+  }
+  const groupedDaily = location.match(/groups\[(\d+)]\.entries\[(\d+)]\.supervisionContent$/);
+  if (groupedDaily) {
+    return `감리내용 ${Number(groupedDaily[1]) + 1}-${Number(groupedDaily[2]) + 1}`;
   }
   return "";
 }
@@ -1358,7 +1373,7 @@ function canApplyPreflightFindingFix(finding: ReportPreflightReviewFindingRespon
   if (finding.resolutionStatus !== "OPEN") {
     return false;
   }
-  if (finding.source !== "AI" || finding.severity !== "LOW") {
+  if (finding.source !== "AI" || !["LOW", "MEDIUM"].includes(finding.severity)) {
     return false;
   }
   return finding.attributes?.category === "WORDING";
