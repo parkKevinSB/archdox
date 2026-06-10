@@ -13,7 +13,9 @@ import io.github.parkkevinsb.bloom.EventBus;
 import io.github.parkkevinsb.bloom.LocalEventBus;
 import io.github.parkkevinsb.flower.bloom.BloomEventBus;
 import io.github.parkkevinsb.flower.core.engine.Engine;
+import io.github.parkkevinsb.flower.core.listener.FlowerListener;
 import io.github.parkkevinsb.flower.core.worker.Worker;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -56,9 +58,10 @@ public class ArchDoxRuntimeConfiguration {
             ArchDoxAgentConnectionHealthProperties agentConnectionHealthProperties,
             PlatformOpsDetectionProperties platformOpsDetectionProperties,
             ArchDoxWorkerRuntimeProperties archDoxWorkerRuntimeProperties,
-            LegalSyncProperties legalSyncProperties
+            LegalSyncProperties legalSyncProperties,
+            List<FlowerListener> flowerListeners
     ) {
-        return Engine.builder()
+        var builder = Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
                 .worker(Worker.builder(PHOTO_DERIVATIVE_WORKER)
                         .intervalMillis(photoProperties.safeWorkerIntervalMs())
@@ -110,8 +113,9 @@ public class ArchDoxRuntimeConfiguration {
                         .build())
                 .worker(Worker.builder(DOCUMENT_NARRATIVE_POLISH_AI_WORKER)
                         .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
-                        .build())
-                .build();
+                        .build());
+        flowerListeners.forEach(builder::listener);
+        return builder.build();
     }
 
     @Bean(destroyMethod = "shutdown")

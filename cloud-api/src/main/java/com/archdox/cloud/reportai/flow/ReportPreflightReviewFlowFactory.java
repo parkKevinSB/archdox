@@ -9,6 +9,7 @@ import com.archdox.cloud.reportai.flow.step.RunReportPreflightLegalReviewStep;
 import com.archdox.cloud.reportai.flow.step.SubmitReportPreflightAiHarnessStep;
 import com.archdox.cloud.reportai.flow.step.SummarizeReportPreflightAiResultStep;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
+import io.github.parkkevinsb.flower.core.context.ExecutionContext;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +33,15 @@ public class ReportPreflightReviewFlowFactory {
     }
 
     public Flow create(ReportPreflightReviewRequest request, AiHarnessFlow aiHarnessFlow) {
-        return Flow.builder(FLOW_TYPE, "report:" + request.reportId() + ":preflight-run:" + request.reviewRunId())
+        var flowKey = "report:" + request.reportId() + ":preflight-run:" + request.reviewRunId();
+        var executionContext = ExecutionContext.builder()
+                .tenantId(String.valueOf(request.officeId()))
+                .userId(String.valueOf(request.requestedBy()))
+                .runId(String.valueOf(request.reviewRunId()))
+                .correlationId(flowKey)
+                .build();
+        return Flow.builder(FLOW_TYPE, flowKey)
+                .executionContext(executionContext)
                 .step("load-preflight-context", new LoadReportPreflightReviewContextStep(flowService, request))
                 .step("run-deterministic-preflight-validation", new RunReportPreflightDeterministicValidationStep(flowService, request))
                 .step("submit-report-preflight-ai-harness", new SubmitReportPreflightAiHarnessStep(flowService, aiReviewWorker, request, aiHarnessFlow))

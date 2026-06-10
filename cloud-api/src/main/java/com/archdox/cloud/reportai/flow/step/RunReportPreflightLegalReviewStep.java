@@ -21,11 +21,16 @@ public final class RunReportPreflightLegalReviewStep extends Step {
 
     @Override
     protected StepResult onTick(StepContext ctx) {
-        if (executed || !flowService.shouldRunSourceBackedLegalReview(request)) {
+        try {
+            if (executed || !flowService.shouldRunSourceBackedLegalReview(request)) {
+                return StepResult.done();
+            }
+            flowService.runSourceBackedLegalReview(request);
+            executed = true;
             return StepResult.done();
+        } catch (RuntimeException ex) {
+            flowService.fail(request, ex.getMessage());
+            return StepResult.fail(ex);
         }
-        flowService.runSourceBackedLegalReview(request);
-        executed = true;
-        return StepResult.done();
     }
 }

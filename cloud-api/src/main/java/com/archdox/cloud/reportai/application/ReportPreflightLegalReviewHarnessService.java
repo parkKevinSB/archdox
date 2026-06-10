@@ -206,8 +206,8 @@ public class ReportPreflightLegalReviewHarnessService {
         snapshot.put("officeId", report.officeId());
         snapshot.put("projectId", report.projectId());
         snapshot.put("siteId", report.siteId() == null ? "" : report.siteId());
-        snapshot.put("reportNo", report.reportNo());
-        snapshot.put("reportType", report.reportType());
+        snapshot.put("reportNo", report.reportNo() == null ? "" : report.reportNo());
+        snapshot.put("reportType", report.reportType() == null ? "" : report.reportType());
         snapshot.put("title", report.title() == null ? "" : report.title());
         snapshot.put("status", report.status().name());
         snapshot.put("currentStep", report.currentStep() == null ? "" : report.currentStep());
@@ -221,11 +221,11 @@ public class ReportPreflightLegalReviewHarnessService {
         var snapshot = new LinkedHashMap<String, Object>();
         for (var step : stepRepository.findByReportIdOrderById(report.id())) {
             var stepValue = new LinkedHashMap<String, Object>();
-            stepValue.put("payloadStorageMode", step.payloadStorageMode().name());
+            stepValue.put("payloadStorageMode", step.payloadStorageMode() == null ? "" : step.payloadStorageMode().name());
             stepValue.put("payload", step.payloadJson() == null ? Map.of() : step.payloadJson());
             stepValue.put("clientRevision", step.clientRevision());
-            stepValue.put("savedAt", step.savedAt().toString());
-            snapshot.put(step.stepCode(), stepValue);
+            stepValue.put("savedAt", step.savedAt() == null ? "" : step.savedAt().toString());
+            snapshot.put(step.stepCode() == null ? "" : step.stepCode(), stepValue);
         }
         return Map.copyOf(snapshot);
     }

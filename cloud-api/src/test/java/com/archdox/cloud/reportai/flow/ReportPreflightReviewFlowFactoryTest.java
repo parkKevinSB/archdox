@@ -1,5 +1,6 @@
 package com.archdox.cloud.reportai.flow;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,7 +36,7 @@ class ReportPreflightReviewFlowFactoryTest {
 
         var worker = worker();
         worker.submit(new ReportPreflightReviewFlowFactory(flowService, aiReviewWorker).create(request));
-        tick(worker, 6);
+        tick(worker, 8);
 
         verify(flowService).validateContext(request);
         verify(flowService).runDeterministicValidation(request);
@@ -56,7 +57,7 @@ class ReportPreflightReviewFlowFactoryTest {
 
         var worker = worker();
         worker.submit(new ReportPreflightReviewFlowFactory(flowService, aiReviewWorker).create(request, aiFlow));
-        tick(worker, 8);
+        tick(worker, 10);
 
         verify(flowService).validateContext(request);
         verify(flowService).runDeterministicValidation(request);
@@ -64,6 +65,28 @@ class ReportPreflightReviewFlowFactoryTest {
         verify(flowService).markAiHarnessSubmitted(request);
         verify(flowService).summarizeAiResult(request);
         verify(flowService).complete(request);
+    }
+
+    @Test
+    void legalReviewFailureMarksPreflightRunFailed() {
+        var flowService = mock(ReportPreflightReviewFlowService.class);
+        var aiReviewWorker = mock(ReportPreflightAiReviewWorker.class);
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 300L);
+        when(flowService.runDeterministicValidation(request))
+                .thenReturn(new ReportPreflightValidationResult(List.of()));
+        when(flowService.isAiHarnessTerminal(request)).thenReturn(true);
+        when(flowService.shouldRunSourceBackedLegalReview(request)).thenReturn(true);
+        doThrow(new IllegalStateException("legal review input failed"))
+                .when(flowService).runSourceBackedLegalReview(request);
+
+        var worker = worker();
+        worker.submit(new ReportPreflightReviewFlowFactory(flowService, aiReviewWorker).create(request));
+        tick(worker, 8);
+
+        verify(flowService).validateContext(request);
+        verify(flowService).runDeterministicValidation(request);
+        verify(flowService).runSourceBackedLegalReview(request);
+        verify(flowService).fail(request, "legal review input failed");
     }
 
     private Worker worker() {
