@@ -115,6 +115,37 @@ class ReportPreflightReviewFlowServiceTest {
                 .containsEntry("legalReferences", "BUILDING_ACT:0025001@v1");
     }
 
+    @Test
+    void keepsRunOpenForAiReviewWhenDeterministicValidationBlocksGeneration() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+        var report = report(now);
+        var currentRun = run(200L, now);
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);
+        var blockingFinding = new ReportPreflightFinding(
+                "DETERMINISTIC",
+                "DAILY_LOG_GROUP_FLOOR_REQUIRED",
+                "HIGH",
+                "steps.DAILY_LOG.payload.dailyItems.groups[1].floor",
+                "층/구역을 입력해야 합니다.",
+                "floor is blank",
+                Map.of());
+
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(currentRun));
+        when(deterministicValidator.validate(report)).thenReturn(new ReportPreflightValidationResult(List.of(blockingFinding)));
+        when(engineBoundaryService.validate(report, 7L)).thenReturn(emptyEngineResult());
+        when(workerActionSubmissionService.submitAfterCommit(any(), any())).thenReturn(EngineWorkerActionSubmissionResult.empty());
+        when(runRepository.findByOfficeIdAndReportIdOrderByRequestedAtDesc(10L, 100L))
+                .thenReturn(List.of(currentRun));
+        when(aiHarnessFlowService.canCreate(report, 7L)).thenReturn(true);
+
+        var result = service.runDeterministicValidation(request);
+
+        assertThat(result.blocksGeneration()).isTrue();
+        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.RUNNING);
+        assertThat(currentRun.terminalReason()).isNull();
+    }
+
     private InspectionReport report(OffsetDateTime now) {
         var report = new InspectionReport(
                 10L,

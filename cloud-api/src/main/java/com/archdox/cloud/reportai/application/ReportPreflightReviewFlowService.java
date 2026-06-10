@@ -90,7 +90,7 @@ public class ReportPreflightReviewFlowService {
                 request,
                 run,
                 combinedResult(deterministicResult, engineResult));
-        var aiReviewPlanned = !result.blocksGeneration() && aiHarnessFlowService.canCreate(report, request.requestedBy());
+        var aiReviewPlanned = aiHarnessFlowService.canCreate(report, request.requestedBy());
         for (var finding : result.findings()) {
             findingRepository.save(new ReportPreflightReviewFinding(
                     request.officeId(),
@@ -105,10 +105,10 @@ public class ReportPreflightReviewFlowService {
                     finding.attributes(),
                     OffsetDateTime.now()));
         }
-        if (result.blocksGeneration()) {
-            run.markNeedsAttention("DETERMINISTIC_PREFLIGHT_BLOCKED", OffsetDateTime.now());
-        } else if (aiReviewPlanned) {
+        if (aiReviewPlanned) {
             run.markRunning(OffsetDateTime.now());
+        } else if (result.blocksGeneration()) {
+            run.markNeedsAttention("DETERMINISTIC_PREFLIGHT_BLOCKED", OffsetDateTime.now());
         } else {
             run.markPassed("DETERMINISTIC_PREFLIGHT_PASSED", OffsetDateTime.now());
         }
@@ -457,7 +457,7 @@ public class ReportPreflightReviewFlowService {
         metadata.put("workerActionCandidates", workerActionSubmission.candidates());
         metadata.put("workerActionSubmission", workerActionSubmission.toMetadata());
         metadata.put("aiReviewPlanned", aiReviewPlanned);
-        metadata.put("aiReviewSkipped", result.blocksGeneration() || !aiReviewPlanned);
+        metadata.put("aiReviewSkipped", !aiReviewPlanned);
         return Map.copyOf(metadata);
     }
 
