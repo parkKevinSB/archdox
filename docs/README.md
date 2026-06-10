@@ -10,15 +10,18 @@ needed for the change.
 
 ## Read First
 
-1. [architecture/ARCHDOX_PLATFORM_IDENTITY.md](architecture/ARCHDOX_PLATFORM_IDENTITY.md)
+1. [architecture/SYSTEM_MAP.md](architecture/SYSTEM_MAP.md)
+   - One-page system map for modules, runtime boundaries, data flow, Engine,
+     Worker, AI Harness, Agent, Legal, MCP, and deployment hosts.
+2. [architecture/ARCHDOX_PLATFORM_IDENTITY.md](architecture/ARCHDOX_PLATFORM_IDENTITY.md)
    - Defines ArchDox as a document workflow orchestration platform, not a
      narrow document generator.
-2. [development/AGENT_RULES.md](development/AGENT_RULES.md)
+3. [development/AGENT_RULES.md](development/AGENT_RULES.md)
    - Non-negotiable development rules for AI agents and human contributors.
-3. [CURRENT_STATE.md](CURRENT_STATE.md)
+4. [CURRENT_STATE.md](CURRENT_STATE.md)
    - Current implementation state, local runtime addresses, test accounts, and
      active architectural policies.
-4. [architecture/DOMAIN_MODEL.md](architecture/DOMAIN_MODEL.md)
+5. [architecture/DOMAIN_MODEL.md](architecture/DOMAIN_MODEL.md)
    - Core domain concepts: office, user, project, site, target, report, photo,
      template, document job, agent, and artifact.
 
@@ -26,6 +29,7 @@ needed for the change.
 
 | Work area | Read these files |
 | --- | --- |
+| Top-level system map | [architecture/SYSTEM_MAP.md](architecture/SYSTEM_MAP.md) |
 | REST API contracts | [architecture/API_CONTRACT.md](architecture/API_CONTRACT.md) |
 | Database migrations | [development/DB_MIGRATION_RULES.md](development/DB_MIGRATION_RULES.md) |
 | DDD events, Bloom, Flower | [development/DDD_EVENT_ORCHESTRATION_RULES.md](development/DDD_EVENT_ORCHESTRATION_RULES.md), [architecture/FLOW_RECOVERY_POLICY.md](architecture/FLOW_RECOVERY_POLICY.md) |
@@ -62,9 +66,10 @@ needed for the change.
 Use this order:
 
 1. Read this file.
-2. Read `CURRENT_STATE.md`.
-3. Read `development/AGENT_RULES.md`.
-4. Read only the topic-specific files for the requested task.
+2. Read `architecture/SYSTEM_MAP.md`.
+3. Read `CURRENT_STATE.md`.
+4. Read `development/AGENT_RULES.md`.
+5. Read only the topic-specific files for the requested task.
 
 If documents appear to conflict, prefer the stricter platform rule in this
 order:
