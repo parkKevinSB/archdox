@@ -51,6 +51,8 @@ class AiWorkerEvaluationTokenControlServiceTest {
                 .thenReturn(runnable(AiHarnessPolicyKey.PLATFORM_OPS_DIAGNOSIS, provider, 2, 90));
         when(policyExecutionService.resolve(AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH))
                 .thenReturn(runnable(AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH, provider, 2, 90));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(runnable(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW, provider, 2, 90));
         when(pricingRuleRepository.existsByProviderCodeAndModelNameAndStatus(
                 eq("openai-main"),
                 eq("gpt-4.1-mini"),
@@ -84,6 +86,10 @@ class AiWorkerEvaluationTokenControlServiceTest {
         when(policyExecutionService.resolve(AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH))
                 .thenReturn(AiHarnessPolicyResolution.unavailable(
                         AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH,
+                        "PROVIDER_NOT_ASSIGNED"));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
                         "PROVIDER_NOT_ASSIGNED"));
         when(officePolicyRepository.findAll()).thenReturn(List.of(officePolicy(false)));
         when(callLogRepository.findAllByOrderByCompletedAtDesc(any(Pageable.class))).thenReturn(burstLogs());

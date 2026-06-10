@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-final class ReportComplianceReviewGuide {
+public final class ReportComplianceReviewGuide {
     private static final List<String> DEFAULT_GUIDE = List.of(
             "Confirm that required dates, project/site identifiers, inspector/supervisor names, and target information are present.",
             "Check whether checklist answers are supported by narrative notes or photos when the answer implies a risk, defect, or corrective action.",
@@ -28,7 +28,7 @@ final class ReportComplianceReviewGuide {
     private ReportComplianceReviewGuide() {
     }
 
-    static List<String> forReportType(String reportType) {
+    public static List<String> forReportType(String reportType) {
         if (reportType == null || reportType.isBlank()) {
             return DEFAULT_GUIDE;
         }

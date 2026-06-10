@@ -104,7 +104,8 @@ class ReportPreflightHarnessFactoryTest {
                 .contains("normally use LOW or MEDIUM")
                 .contains("Do not translate stable code/category/severity enum values")
                 .contains("sourceBackedLegalReferences")
-                .contains("SOURCE_BACKED_LEGAL_DRY_RUN")
+                .contains("separate ArchDox source-backed legal review harness")
+                .contains("Do not claim that legal review passed")
                 .contains("replacement to the exact full Korean text")
                 .contains("The replacement value must be final report prose");
         assertThat(prompt.messages().get(1).content())

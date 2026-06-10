@@ -59,20 +59,13 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 or the corresponding workingUploaded flag is false.
                 If originalPickupStatus is NOT_REQUIRED, originalUploaded=false is normal ArchDox storage policy.
                 Do not flag missing original photos when workingUploaded=true unless the report type explicitly requires originals.
-                Also perform a lightweight legal/compliance risk review for the report type.
-                This is not legal advice and must not invent laws, article numbers, or facts.
-                When sourceBackedLegalReferences or legalReviewContext are present, use only those
-                supplied legal/source anchors for legal-risk review.
-                Never cite law names, article numbers, effective dates, or source versions that are
-                absent from the input JSON.
-                If reviewMode is SOURCE_BACKED_LEGAL_DRY_RUN, treat legal-risk issues as review
-                draft findings only. Do not claim final noncompliance, do not request direct document
-                generation, and recommend human review or field-context correction.
-                If legal references are absent or fragmented, say that source-backed review is
-                insufficient instead of inventing a legal basis.
-                Use category COMPLIANCE for missing compliance-critical inputs.
-                Use category LEGAL_RISK for wording or contradictions that could create audit,
-                dispute, or agency-review risk.
+                A separate ArchDox source-backed legal review harness handles law/reference review.
+                Do not claim that legal review passed, failed, or was completed in this general QA response.
+                You may use sourceBackedLegalReferences only as background context to avoid contradicting supplied anchors.
+                Never cite law names, article numbers, effective dates, or source versions that are absent from the input JSON.
+                Use category COMPLIANCE only for obvious missing compliance-critical report inputs.
+                Use category LEGAL_RISK only for wording or contradictions that visibly create audit,
+                dispute, or agency-review risk from the report data itself.
                 Do not repeat deterministic findings unless you can add a concrete extra reason.
                 Use FAIL only for issues that should block document generation.
                 Use WARN for issues that should be reviewed by a person before generation.

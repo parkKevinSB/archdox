@@ -981,7 +981,7 @@ function PreflightReviewPanel({
               <span>
                 <strong>{finding.message}</strong>
                 <small>
-                  {preflightSourceLabel(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
+                  {preflightSourceLabelV2(finding)} / {findingSeverityLabel(finding.severity)} / {findingMetaLabel(finding)}
                 </small>
                 <small className="preflight-resolution">{findingResolutionLabel(finding)}</small>
                 {fixSuggestion ? (
@@ -1075,7 +1075,7 @@ function PreflightLegalReviewSummary({
   run: ReportPreflightReviewRunResponse | null;
   stale: boolean;
 }) {
-  const summary = preflightLegalSummary(findings, run, stale);
+  const summary = preflightLegalSummaryV2(findings, run, stale);
   const visibleReferences = summary.references.slice(0, 5);
 
   return (
@@ -1553,6 +1553,169 @@ function preflightStatusLabel(run: ReportPreflightReviewRunResponse | null, stal
   return "검토 중";
 }
 
+function preflightLegalSummaryV2(
+  findings: ReportPreflightReviewFindingResponse[],
+  run: ReportPreflightReviewRunResponse | null,
+  stale: boolean
+) {
+  const legalFindings = findings.filter(isLegalPreflightFinding);
+  const resultFinding = legalReviewResultFinding(findings);
+  const legalReviewStatus = resultFinding?.attributes?.legalReviewStatus ?? "";
+  const passReason = resultFinding?.attributes?.passReason?.trim() ?? "";
+  const limitations = resultFinding?.attributes?.limitations?.trim() ?? "";
+  const legalReviewScope = resultFinding?.attributes?.legalReviewScope?.trim() ?? "";
+  const references = legalReviewReferences(findings);
+  const openAttention = legalFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
+  const evidence = references.length > 0 ? `법령 근거 ${references.length}건 사용됨` : "표시된 법령 근거 없음";
+
+  if (!run) {
+    return {
+      kind: "pending",
+      badge: "검토 전",
+      status: "생성 전 검토를 실행하면 법령 근거와 리스크를 함께 확인합니다.",
+      evidence: "검토 전",
+      risk: "검토 전",
+      reason: "아직 Engine/AI 검토 결과가 없습니다.",
+      references
+    };
+  }
+  if (stale) {
+    return {
+      kind: "warning",
+      badge: "재검토 필요",
+      status: "현재 리포트 내용이 이전 검토 revision과 다릅니다.",
+      evidence,
+      risk: "다시 검토 필요",
+      reason: "리포트가 변경되어 이전 법령검토 결과를 그대로 신뢰할 수 없습니다.",
+      references
+    };
+  }
+  if (isPreflightActive(run) || isPreflightAiPending(run)) {
+    return {
+      kind: "pending",
+      badge: "검토 중",
+      status: "법령 근거와 전용 법령검토 결과를 정리하는 중입니다.",
+      evidence,
+      risk: "검토 중",
+      reason: "검토 run이 아직 완료되지 않았습니다.",
+      references
+    };
+  }
+  if (run.status === "FAILED") {
+    return {
+      kind: "warning",
+      badge: "실패",
+      status: "법령검토 결과를 확정하지 못했습니다.",
+      evidence,
+      risk: "확인 불가",
+      reason: run.terminalReason ?? "생성 전 검토 run이 실패했습니다.",
+      references
+    };
+  }
+  if (openAttention > 0) {
+    return {
+      kind: "warning",
+      badge: "확인 필요",
+      status: `법령/준법 관련 확인 필요 항목 ${openAttention}건이 있습니다.`,
+      evidence,
+      risk: `확인 필요 ${openAttention}건`,
+      reason: resultFinding?.message || "열린 법령/준법 finding을 수정 완료하거나 리스크 수용해야 생성할 수 있습니다.",
+      references
+    };
+  }
+  if (resultFinding && legalReviewStatus === "PASS") {
+    return {
+      kind: "pass",
+      badge: "통과",
+      status: resultFinding.message || "법령 근거 기반 검토가 통과되었습니다.",
+      evidence,
+      risk: "표시된 법률 리스크 없음",
+      reason: passReason || legalReviewScope || "전용 법령검토 AI가 제공된 근거 안에서 확인 필요 항목을 찾지 못했습니다.",
+      references
+    };
+  }
+  if (resultFinding && legalReviewStatus === "INSUFFICIENT_CONTEXT") {
+    return {
+      kind: "warning",
+      badge: "근거 부족",
+      status: resultFinding.message || "법령 근거 기반 검토에 필요한 근거가 충분하지 않습니다.",
+      evidence,
+      risk: "사람 확인 필요",
+      reason: limitations || "업무-법령 매핑이나 리포트 증빙 맥락을 보강한 뒤 다시 검토해야 합니다.",
+      references
+    };
+  }
+  if (resultFinding && legalReviewStatus === "SKIPPED") {
+    return {
+      kind: "warning",
+      badge: "설정 필요",
+      status: resultFinding.message || "법령검토 AI 설정이 없어 전용 법령검토가 생략되었습니다.",
+      evidence,
+      risk: "전용 검토 생략",
+      reason: resultFinding.attributes?.skipReason || "AI 하네스 정책에서 법령 근거 기반 검토 AI를 설정해야 합니다.",
+      references
+    };
+  }
+  if (resultFinding && ["WARN", "FAIL", "FAILED"].includes(legalReviewStatus)) {
+    return {
+      kind: "warning",
+      badge: "확인 필요",
+      status: resultFinding.message,
+      evidence,
+      risk: legalReviewStatus === "FAIL" ? "생성 전 처리 필요" : "사람 확인 필요",
+      reason: limitations || "법령검토 finding을 확인하고 처리해야 합니다.",
+      references
+    };
+  }
+  if (run.status === "PASSED" && references.length > 0) {
+    return {
+      kind: "pass",
+      badge: "통과",
+      status: "표시된 법률 리스크 없이 근거 기반 검토가 통과했습니다.",
+      evidence,
+      risk: "표시된 법률 리스크 없음",
+      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다.",
+      references
+    };
+  }
+  if (run.status === "PASSED") {
+    return {
+      kind: "pass",
+      badge: "통과",
+      status: "표시된 법률 리스크는 없습니다.",
+      evidence,
+      risk: "표시된 법률 리스크 없음",
+      reason: "현재 응답에는 별도로 표시할 법령 근거 조문이 없습니다. 업무-법령 매핑이 없는 항목일 수 있습니다.",
+      references
+    };
+  }
+  return {
+    kind: "pending",
+    badge: "확인 중",
+    status: "법령검토 결과를 정리하는 중입니다.",
+    evidence,
+    risk: "확인 중",
+    reason: run.terminalReason ?? "검토 상태가 아직 최종 통과/확인 필요로 정리되지 않았습니다.",
+    references
+  };
+}
+
+function legalReviewResultFinding(findings: ReportPreflightReviewFindingResponse[]) {
+  return findings.find((finding) =>
+    finding.source === "LEGAL_REVIEW"
+    && [
+      "LEGAL_REVIEW_PASSED",
+      "LEGAL_REVIEW_NEEDS_HUMAN_REVIEW",
+      "LEGAL_REVIEW_BLOCKED",
+      "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
+      "LEGAL_REVIEW_SKIPPED",
+      "LEGAL_REVIEW_AI_FAILED",
+      "LEGAL_REVIEW_AI_TIMEOUT",
+      "LEGAL_REVIEW_RESULT_INVALID"
+    ].includes(finding.code)
+  ) ?? null;
+}
+
 function preflightLegalSummary(
   findings: ReportPreflightReviewFindingResponse[],
   run: ReportPreflightReviewRunResponse | null,
@@ -1674,7 +1837,8 @@ function legalReviewReferences(findings: ReportPreflightReviewFindingResponse[])
 function isLegalPreflightFinding(finding: ReportPreflightReviewFindingResponse) {
   const category = finding.attributes?.category ?? "";
   const code = finding.code ?? "";
-  return code.includes("LEGAL")
+  return finding.source === "LEGAL_REVIEW"
+    || code.includes("LEGAL")
     || ["LEGAL_CONTEXT", "LEGAL_RISK", "COMPLIANCE"].includes(category)
     || finding.legalReferences.length > 0
     || finding.legalReferenceDetails.length > 0
@@ -1771,6 +1935,19 @@ function canApplyPreflightFindingFix(finding: ReportPreflightReviewFindingRespon
   return finding.attributes?.category === "WORDING";
 }
 
+function preflightSourceLabelV2(finding: ReportPreflightReviewFindingResponse) {
+  if (finding.source === "DETERMINISTIC") {
+    return "코드 검증";
+  }
+  if (finding.source === "AI") {
+    return "AI 검토";
+  }
+  if (finding.source === "LEGAL_REVIEW") {
+    return "법령검토";
+  }
+  return finding.source;
+}
+
 function preflightSourceLabel(finding: ReportPreflightReviewFindingResponse) {
   if (finding.source === "DETERMINISTIC") {
     return "코드 검증";
@@ -1855,6 +2032,12 @@ function isOpenBlockingFinding(finding: ReportPreflightReviewFindingResponse) {
 
 function requiresPreflightFindingAction(finding: ReportPreflightReviewFindingResponse) {
   if (finding.resolutionStatus !== "OPEN") {
+    return false;
+  }
+  if (finding.attributes?.approvalRequired === "true") {
+    return true;
+  }
+  if (finding.source === "LEGAL_REVIEW") {
     return false;
   }
   if (isBlockingFinding(finding)) {

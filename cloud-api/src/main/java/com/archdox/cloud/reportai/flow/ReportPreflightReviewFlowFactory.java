@@ -5,6 +5,7 @@ import com.archdox.cloud.reportai.flow.step.AwaitReportPreflightAiHarnessStep;
 import com.archdox.cloud.reportai.flow.step.CompleteReportPreflightReviewStep;
 import com.archdox.cloud.reportai.flow.step.LoadReportPreflightReviewContextStep;
 import com.archdox.cloud.reportai.flow.step.RunReportPreflightDeterministicValidationStep;
+import com.archdox.cloud.reportai.flow.step.RunReportPreflightLegalReviewStep;
 import com.archdox.cloud.reportai.flow.step.SubmitReportPreflightAiHarnessStep;
 import com.archdox.cloud.reportai.flow.step.SummarizeReportPreflightAiResultStep;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
@@ -36,6 +37,7 @@ public class ReportPreflightReviewFlowFactory {
                 .step("run-deterministic-preflight-validation", new RunReportPreflightDeterministicValidationStep(flowService, request))
                 .step("submit-report-preflight-ai-harness", new SubmitReportPreflightAiHarnessStep(flowService, aiReviewWorker, request, aiHarnessFlow))
                 .step("await-report-preflight-ai-harness", new AwaitReportPreflightAiHarnessStep(flowService, request))
+                .step("run-source-backed-legal-review", new RunReportPreflightLegalReviewStep(flowService, request))
                 .step("summarize-report-preflight-ai-result", new SummarizeReportPreflightAiResultStep(flowService, request))
                 .step("complete-preflight-review", new CompleteReportPreflightReviewStep(flowService, request))
                 .build();

@@ -37,6 +37,7 @@ public class ReportPreflightReviewFlowService {
     private final ReportPreflightEngineBoundaryService engineBoundaryService;
     private final EngineWorkerActionSubmissionService workerActionSubmissionService;
     private final ReportPreflightAiHarnessFlowService aiHarnessFlowService;
+    private final ReportPreflightLegalReviewHarnessService legalReviewHarnessService;
     private final OperationEventService operationEventService;
     private final ReportPreflightFieldValueResolver fieldValueResolver;
 
@@ -48,6 +49,7 @@ public class ReportPreflightReviewFlowService {
             ReportPreflightEngineBoundaryService engineBoundaryService,
             EngineWorkerActionSubmissionService workerActionSubmissionService,
             ReportPreflightAiHarnessFlowService aiHarnessFlowService,
+            ReportPreflightLegalReviewHarnessService legalReviewHarnessService,
             OperationEventService operationEventService,
             ReportPreflightFieldValueResolver fieldValueResolver
     ) {
@@ -58,6 +60,7 @@ public class ReportPreflightReviewFlowService {
         this.engineBoundaryService = engineBoundaryService;
         this.workerActionSubmissionService = workerActionSubmissionService;
         this.aiHarnessFlowService = aiHarnessFlowService;
+        this.legalReviewHarnessService = legalReviewHarnessService;
         this.operationEventService = operationEventService;
         this.fieldValueResolver = fieldValueResolver;
     }
@@ -187,13 +190,10 @@ public class ReportPreflightReviewFlowService {
     public void summarizeAiResult(ReportPreflightReviewRequest request) {
         var run = runRepository.findByIdAndOfficeIdAndReportId(request.reviewRunId(), request.officeId(), request.reportId())
                 .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
-        if (!run.hasHarness()) {
-            return;
-        }
         if (run.status() == com.archdox.cloud.reportai.domain.ReportPreflightReviewStatus.FAILED) {
             return;
         }
-        if (!run.harnessTerminal()) {
+        if (run.hasHarness() && !run.harnessTerminal()) {
             return;
         }
         var findings = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), request.reviewRunId());
@@ -224,6 +224,23 @@ public class ReportPreflightReviewFlowService {
                         "reviewRunId", request.reviewRunId(),
                         "findingCount", findings.size(),
                         "attentionFindingCount", attentionCount));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean shouldRunSourceBackedLegalReview(ReportPreflightReviewRequest request) {
+        var run = runRepository.findByIdAndOfficeIdAndReportId(request.reviewRunId(), request.officeId(), request.reportId())
+                .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
+        if (run.status() == com.archdox.cloud.reportai.domain.ReportPreflightReviewStatus.FAILED) {
+            return false;
+        }
+        if ("DETERMINISTIC_PREFLIGHT_BLOCKED".equals(run.terminalReason())) {
+            return false;
+        }
+        return true;
+    }
+
+    public void runSourceBackedLegalReview(ReportPreflightReviewRequest request) {
+        legalReviewHarnessService.run(request);
     }
 
     @Transactional

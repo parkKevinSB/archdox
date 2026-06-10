@@ -35,6 +35,7 @@ class ReportPreflightReviewFlowServiceTest {
     private final ReportPreflightEngineBoundaryService engineBoundaryService = mock(ReportPreflightEngineBoundaryService.class);
     private final EngineWorkerActionSubmissionService workerActionSubmissionService = mock(EngineWorkerActionSubmissionService.class);
     private final ReportPreflightAiHarnessFlowService aiHarnessFlowService = mock(ReportPreflightAiHarnessFlowService.class);
+    private final ReportPreflightLegalReviewHarnessService legalReviewHarnessService = mock(ReportPreflightLegalReviewHarnessService.class);
     private final OperationEventService operationEventService = mock(OperationEventService.class);
     private final ReportPreflightFieldValueResolver fieldValueResolver = mock(ReportPreflightFieldValueResolver.class);
 
@@ -46,6 +47,7 @@ class ReportPreflightReviewFlowServiceTest {
             engineBoundaryService,
             workerActionSubmissionService,
             aiHarnessFlowService,
+            legalReviewHarnessService,
             operationEventService,
             fieldValueResolver);
 

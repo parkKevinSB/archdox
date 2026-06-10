@@ -30,6 +30,7 @@ public class ArchDoxRuntimeConfiguration {
     public static final String DOCUMENT_AI_REVIEW_WORKER = "document-ai-review";
     public static final String REPORT_PREFLIGHT_REVIEW_WORKER = "report-preflight-review";
     public static final String REPORT_PREFLIGHT_AI_REVIEW_WORKER = "report-preflight-ai-review";
+    public static final String REPORT_PREFLIGHT_LEGAL_REVIEW_AI_WORKER = "report-preflight-legal-review-ai";
     public static final String MONITORING_WORKER = "monitoring";
     public static final String PLATFORM_OPS_WORKER = "platform-ops";
     public static final String PLATFORM_OPS_AI_WORKER = "platform-ops-ai";
@@ -81,6 +82,9 @@ public class ArchDoxRuntimeConfiguration {
                         .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(REPORT_PREFLIGHT_AI_REVIEW_WORKER)
+                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
+                        .build())
+                .worker(Worker.builder(REPORT_PREFLIGHT_LEGAL_REVIEW_AI_WORKER)
                         .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(MONITORING_WORKER)

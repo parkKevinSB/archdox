@@ -61,6 +61,13 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
                         new ModelId("openai-main", "gpt-4.1-mini"),
                         2,
                         Duration.ofSeconds(90))));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
+                        provider,
+                        new ModelId("openai-main", "gpt-4.1-mini"),
+                        2,
+                        Duration.ofSeconds(90))));
         when(connectionTestService.testProvider(principal, 4L))
                 .thenReturn(new AiProviderConnectionTestResponse(
                         4L,
@@ -80,8 +87,8 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
         var summary = service.runtimeProbe(principal);
 
         assertThat(summary.evaluationMode()).isEqualTo("RUNTIME_PROVIDER_PROBE");
-        assertThat(summary.totalCases()).isEqualTo(51);
-        assertThat(summary.passedCases()).isEqualTo(51);
+        assertThat(summary.totalCases()).isEqualTo(52);
+        assertThat(summary.passedCases()).isEqualTo(52);
         assertThat(summary.warningCases()).isZero();
         assertThat(summary.failedCases()).isZero();
         assertThat(summary.groups()).hasSize(6);
@@ -115,6 +122,13 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
         when(policyExecutionService.resolve(AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH))
                 .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
                         AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH,
+                        provider,
+                        new ModelId("fake-review", "fake-review-model"),
+                        2,
+                        Duration.ofSeconds(90))));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.runnable(new AiHarnessExecutionPlan(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
                         provider,
                         new ModelId("fake-review", "fake-review-model"),
                         2,
