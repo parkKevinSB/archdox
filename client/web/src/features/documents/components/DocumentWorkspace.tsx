@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { AlertTriangle, CheckCircle2, Download, Eye, FileClock, FileText, Loader2, PenLine, RefreshCw, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Download, Eye, FileClock, FileText, Loader2, PenLine, RefreshCw, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 import {
   EmptyState,
   InlineAlert,
@@ -66,19 +66,28 @@ export function DocumentWorkspace({
   } | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const [narrativeDraftsByReport, setNarrativeDraftsByReport] = useState<Record<number, Record<string, string>>>({});
-  const [pendingScrollReportId, setPendingScrollReportId] = useState<number | null>(null);
-  const reportCardRefs = useRef(new Map<number, HTMLElement>());
+  const [selectedDocumentReportId, setSelectedDocumentReportId] = useState<number | null>(null);
   const documentReportIds = workspace.documentReports.map((report) => report.id).join(",");
+  const documentContexts = workspace.documentReports.map((report) => {
+    const project = projects.find((item) => item.id === report.projectId);
+    const jobs = workspace.jobsByReport[report.id] ?? [];
+    const preflightRun = workspace.preflightRunsByReport[report.id]?.[0] ?? null;
+    const preflightFindings = preflightRun ? workspace.preflightFindingsByRun[preflightRun.id] ?? [] : [];
+    return {
+      jobs,
+      preflightFindings,
+      preflightRun,
+      projectName: project?.name,
+      report
+    };
+  });
+  const selectedDocumentContext = selectedDocumentReportId
+    ? documentContexts.find((context) => context.report.id === selectedDocumentReportId) ?? null
+    : null;
+
   const requestSignedGeneration = (report: InspectionReport, outputFormat: DocumentOutputFormat) => {
     setSignatureError(null);
     setSignatureRequest({ outputFormat, report });
-  };
-  const rememberReportCardNode = (reportId: number) => (node: HTMLElement | null) => {
-    if (node) {
-      reportCardRefs.current.set(reportId, node);
-      return;
-    }
-    reportCardRefs.current.delete(reportId);
   };
   const rememberNarrativeDraft = (reportId: number, values: Record<string, string>) => {
     setNarrativeDraftsByReport((current) => ({
@@ -88,28 +97,16 @@ export function DocumentWorkspace({
   };
 
   useEffect(() => {
-    if (!pendingScrollReportId || signatureRequest) {
-      return;
+    if (selectedDocumentReportId && !workspace.documentReports.some((report) => report.id === selectedDocumentReportId)) {
+      setSelectedDocumentReportId(null);
     }
-    const frame = window.requestAnimationFrame(() => {
-      const card = reportCardRefs.current.get(pendingScrollReportId);
-      if (!card) {
-        return;
-      }
-      card.scrollIntoView({ block: "start", behavior: "smooth" });
-      card.classList.add("document-card-scroll-highlight");
-      window.setTimeout(() => card.classList.remove("document-card-scroll-highlight"), 1200);
-      setPendingScrollReportId(null);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [documentReportIds, pendingScrollReportId, signatureRequest]);
+  }, [documentReportIds, selectedDocumentReportId, workspace.documentReports]);
 
   const submitSignature = async (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => {
     if (!signatureRequest) {
       return;
     }
     const reportId = signatureRequest.report.id;
-    setPendingScrollReportId(reportId);
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
@@ -128,7 +125,6 @@ export function DocumentWorkspace({
       return;
     }
     const reportId = signatureRequest.report.id;
-    setPendingScrollReportId(reportId);
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
@@ -155,7 +151,7 @@ export function DocumentWorkspace({
 
       <div className="document-workspace">
         <Panel
-          title="문서 생성과 이력"
+          title={selectedDocumentContext ? "문서 생성 상세" : "생성 가능한 문서"}
           action={
             <button className="text-button" onClick={() => workspace.refreshJobs()} type="button">
               {workspace.loading ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
@@ -165,47 +161,60 @@ export function DocumentWorkspace({
         >
           {workspace.documentReports.length === 0 ? (
             <EmptyState title="문서 작업 대상이 없습니다" text="리포트를 작성하고 제출하면 문서 탭에 표시됩니다." />
+          ) : selectedDocumentContext ? (
+            <div className="document-detail-view">
+              <div className="document-detail-toolbar">
+                <button className="secondary-button compact-button" onClick={() => setSelectedDocumentReportId(null)} type="button">
+                  <ArrowLeft size={16} />
+                  목록으로
+                </button>
+                <div>
+                  <strong>{selectedDocumentContext.report.title || selectedDocumentContext.report.reportNo}</strong>
+                  <span>{selectedDocumentContext.projectName ?? `project #${selectedDocumentContext.report.projectId}`} / {reportTypeLabel(selectedDocumentContext.report.reportType)}</span>
+                </div>
+              </div>
+              <DocumentReportCard
+                creating={workspace.creatingReportId === selectedDocumentContext.report.id}
+                creatingOutputFormat={workspace.creatingOutputFormat}
+                deliveriesByArtifact={workspace.deliveriesByArtifact}
+                downloadingArtifactId={workspace.downloadingArtifactId}
+                jobs={selectedDocumentContext.jobs}
+                preflightFindings={selectedDocumentContext.preflightFindings}
+                preflightRun={selectedDocumentContext.preflightRun}
+                previewingArtifactId={workspace.previewingArtifactId}
+                projectName={selectedDocumentContext.projectName}
+                report={selectedDocumentContext.report}
+                requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
+                reviewing={workspace.reviewingReportId === selectedDocumentContext.report.id}
+                applyingPreflightFindingId={workspace.applyingPreflightFindingId}
+                resolvingPreflightFindingId={workspace.resolvingPreflightFindingId}
+                onCreate={() => requestSignedGeneration(selectedDocumentContext.report, "DOCX")}
+                onCreatePdf={() => requestSignedGeneration(selectedDocumentContext.report, "PDF")}
+                onCreatePreview={() => requestSignedGeneration(selectedDocumentContext.report, "HTML")}
+                onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
+                onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
+                onRequestPreflightReview={() => workspace.requestPreflightReview(selectedDocumentContext.report.id)}
+                onApplyPreflightFindingFix={(runId, findingId) =>
+                  workspace.applyPreflightFindingFix({ reportId: selectedDocumentContext.report.id, runId, findingId })
+                }
+                onResolvePreflightFinding={(runId, findingId, status) =>
+                  workspace.resolvePreflightFinding({ reportId: selectedDocumentContext.report.id, runId, findingId, status })
+                }
+                onRequestDelivery={(artifact, job) => workspace.requestArtifactDelivery({ artifact, job })}
+              />
+            </div>
           ) : (
-            <div className="document-list">
-              {workspace.documentReports.map((report) => {
-                const project = projects.find((item) => item.id === report.projectId);
-                const jobs = workspace.jobsByReport[report.id] ?? [];
-                const preflightRun = workspace.preflightRunsByReport[report.id]?.[0] ?? null;
-                const preflightFindings = preflightRun ? workspace.preflightFindingsByRun[preflightRun.id] ?? [] : [];
-                return (
-                  <DocumentReportCard
-                    creating={workspace.creatingReportId === report.id}
-                    creatingOutputFormat={workspace.creatingOutputFormat}
-                    deliveriesByArtifact={workspace.deliveriesByArtifact}
-                    downloadingArtifactId={workspace.downloadingArtifactId}
-                    jobs={jobs}
-                    key={report.id}
-                    preflightFindings={preflightFindings}
-                    preflightRun={preflightRun}
-                    previewingArtifactId={workspace.previewingArtifactId}
-                    projectName={project?.name}
-                    cardRef={rememberReportCardNode(report.id)}
-                    report={report}
-                    requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
-                    reviewing={workspace.reviewingReportId === report.id}
-                    applyingPreflightFindingId={workspace.applyingPreflightFindingId}
-                    resolvingPreflightFindingId={workspace.resolvingPreflightFindingId}
-                    onCreate={() => requestSignedGeneration(report, "DOCX")}
-                    onCreatePdf={() => requestSignedGeneration(report, "PDF")}
-                    onCreatePreview={() => requestSignedGeneration(report, "HTML")}
-                    onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
-                    onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
-                    onRequestPreflightReview={() => workspace.requestPreflightReview(report.id)}
-                    onApplyPreflightFindingFix={(runId, findingId) =>
-                      workspace.applyPreflightFindingFix({ reportId: report.id, runId, findingId })
-                    }
-                    onResolvePreflightFinding={(runId, findingId, status) =>
-                      workspace.resolvePreflightFinding({ reportId: report.id, runId, findingId, status })
-                    }
-                    onRequestDelivery={(artifact, job) => workspace.requestArtifactDelivery({ artifact, job })}
-                  />
-                );
-              })}
+            <div className="document-simple-list">
+              {documentContexts.map((context) => (
+                <DocumentReportListItem
+                  jobs={context.jobs}
+                  key={context.report.id}
+                  preflightRun={context.preflightRun}
+                  projectName={context.projectName}
+                  report={context.report}
+                  onOpen={() => setSelectedDocumentReportId(context.report.id)}
+                />
+              ))}
             </div>
           )}
         </Panel>
@@ -239,9 +248,6 @@ export function DocumentWorkspace({
           onApplyNarrativeToReport={(fields) => workspace.applyDocumentNarrativeToReport({
             fields,
             reportId: signatureRequest.report.id
-          }).then((response) => {
-            setPendingScrollReportId(signatureRequest.report.id);
-            return response;
           })}
           onRememberNarrativeValues={(values) => rememberNarrativeDraft(signatureRequest.report.id, values)}
           onSubmit={submitSignature}
@@ -251,8 +257,45 @@ export function DocumentWorkspace({
   );
 }
 
+function DocumentReportListItem({
+  jobs,
+  preflightRun,
+  projectName,
+  report,
+  onOpen
+}: {
+  jobs: DocumentJobResponse[];
+  preflightRun: ReportPreflightReviewRunResponse | null;
+  projectName?: string;
+  report: InspectionReport;
+  onOpen: () => void;
+}) {
+  const latestJob = jobs[0] ?? null;
+  const generatedCount = jobs.filter((job) => job.status === "GENERATED").length;
+  const status = documentListStatus(report, latestJob, preflightRun);
+  return (
+    <button className="document-simple-row" onClick={onOpen} type="button">
+      <span className="document-simple-icon">
+        <FileText size={18} />
+      </span>
+      <span className="document-simple-main">
+        <strong>{report.title || report.reportNo}</strong>
+        <small>{projectName ?? `project #${report.projectId}`} / {reportTypeLabel(report.reportType)}</small>
+      </span>
+      <span className="document-simple-meta">
+        <span className={`status-badge ${status.tone}`}>{status.label}</span>
+        <small>{status.detail}</small>
+      </span>
+      <span className="document-simple-meta">
+        <strong>{latestJob ? statusLabel(latestJob.status) : statusLabel(report.status)}</strong>
+        <small>{generatedCount > 0 ? `완료 파일 ${generatedCount}건` : "생성 이력 없음"}</small>
+      </span>
+      <ChevronRight className="document-simple-arrow" size={18} />
+    </button>
+  );
+}
+
 function DocumentReportCard({
-  cardRef,
   creating,
   creatingOutputFormat,
   deliveriesByArtifact,
@@ -277,7 +320,6 @@ function DocumentReportCard({
   onResolvePreflightFinding,
   onRequestDelivery
 }: {
-  cardRef?: (node: HTMLElement | null) => void;
   creating: boolean;
   creatingOutputFormat: string | null;
   deliveriesByArtifact: Record<number, DocumentDeliveryRequestResponse>;
@@ -336,7 +378,7 @@ function DocumentReportCard({
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
-    <article className="document-card" ref={cardRef}>
+    <article className="document-card">
       <div className="document-card-head">
         <div className="row-icon blue">
           <FileText size={18} />
@@ -1316,7 +1358,7 @@ function PreflightReviewPanel({
       ) : null}
 
       <div className="preflight-actions">
-        <button className="secondary-button compact-button" disabled={!canReview || reviewing} onClick={onRequestReview} type="button">
+        <button className="primary-button preflight-review-button" disabled={!canReview || reviewing} onClick={onRequestReview} type="button">
           {reviewing ? <Loader2 className="spin" size={15} /> : <ShieldCheck size={15} />}
           생성 전 검토
         </button>
@@ -2358,6 +2400,68 @@ function documentStatusSummary(latestJob: DocumentJobResponse | null, report: In
     return `진행 중 ${latestJob.progressPercent}%`;
   }
   return jobStatusLabel(latestJob.status);
+}
+
+function documentListStatus(
+  report: InspectionReport,
+  latestJob: DocumentJobResponse | null,
+  preflightRun: ReportPreflightReviewRunResponse | null
+) {
+  if (latestJob && ["REQUESTED", "GENERATING"].includes(latestJob.status)) {
+    return {
+      detail: `문서 생성 ${latestJob.progressPercent}%`,
+      label: "생성 중",
+      tone: "slate"
+    };
+  }
+  if (needsSubmitBeforeGeneration(report)) {
+    return {
+      detail: "수정본 제출 후 검토/생성 가능",
+      label: "제출 필요",
+      tone: "amber"
+    };
+  }
+  const current = preflightRun ? preflightRun.reportRevision === report.contentRevision : false;
+  if (!preflightRun || !current) {
+    return {
+      detail: "상세에서 생성 전 검토 필요",
+      label: "검토 필요",
+      tone: "amber"
+    };
+  }
+  if (isPreflightActive(preflightRun)) {
+    return {
+      detail: "검토 결과 정리 중",
+      label: "검토 중",
+      tone: "slate"
+    };
+  }
+  if (preflightRun.status === "FAILED") {
+    return {
+      detail: "상세에서 다시 검토 필요",
+      label: "검토 실패",
+      tone: "red"
+    };
+  }
+  if (isPreflightBlocking(preflightRun)) {
+    return {
+      detail: "수정/수용 후 생성 가능",
+      label: "확인 필요",
+      tone: "amber"
+    };
+  }
+  if (preflightRun.status === "PASSED" && !isPreflightAiPending(preflightRun)) {
+    return {
+      detail: "DOCX/PDF/HTML 생성 가능",
+      label: "생성 가능",
+      tone: "green"
+    };
+  }
+  return {
+    detail: preflightStatusLabel(preflightRun, false),
+    label: "확인 필요",
+    tone: "amber"
+  };
 }
 
 function jobStatusLabel(status: string) {

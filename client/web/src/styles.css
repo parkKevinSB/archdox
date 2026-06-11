@@ -655,6 +655,125 @@ button {
   padding: 12px;
 }
 
+.document-simple-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.document-simple-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(118px, auto) minmax(118px, auto) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid #d9e5e2;
+  border-radius: 8px;
+  color: inherit;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(21, 40, 37, 0.06);
+  text-align: left;
+}
+
+.document-simple-row:hover {
+  border-color: #9fc8bf;
+  background: #f8fcfb;
+}
+
+.document-simple-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #216b5e;
+  background: #e9f6f2;
+}
+
+.document-simple-main,
+.document-simple-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.document-simple-main strong,
+.document-simple-main small,
+.document-simple-meta strong,
+.document-simple-meta small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-simple-main strong {
+  color: #14201f;
+  font-size: 14px;
+}
+
+.document-simple-main small,
+.document-simple-meta small {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.document-simple-meta strong {
+  color: #243b37;
+  font-size: 12px;
+}
+
+.document-simple-arrow {
+  color: #6f817d;
+}
+
+.document-detail-view {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.document-detail-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d9e5e2;
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.document-detail-toolbar div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.document-detail-toolbar strong,
+.document-detail-toolbar span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-detail-toolbar strong {
+  color: #14201f;
+  font-size: 14px;
+}
+
+.document-detail-toolbar span {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .document-card {
   display: grid;
   gap: 12px;
@@ -664,13 +783,6 @@ button {
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(21, 40, 37, 0.1);
-}
-
-.document-card.document-card-scroll-highlight {
-  border-color: #75b8aa;
-  border-left-color: #0f8f78;
-  box-shadow: 0 0 0 3px rgba(117, 184, 170, 0.22), 0 10px 24px rgba(21, 40, 37, 0.1);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .document-card-head {
@@ -1275,7 +1387,14 @@ button {
 
 .preflight-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: stretch;
+}
+
+.preflight-review-button {
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  padding-inline: 16px;
 }
 
 .document-history {
@@ -4954,6 +5073,8 @@ button.list-row {
   .support-grid,
   .workflow-path,
   .document-workspace,
+  .document-simple-row,
+  .document-detail-toolbar,
   .preflight-gate-grid,
   .preflight-legal-review-grid,
   .photo-workspace,
@@ -4969,6 +5090,19 @@ button.list-row {
   .preflight-summary,
   .preflight-finding {
     grid-template-columns: 1fr;
+  }
+
+  .document-simple-row {
+    align-items: stretch;
+  }
+
+  .document-simple-icon,
+  .document-simple-arrow {
+    display: none;
+  }
+
+  .document-simple-meta {
+    align-items: start;
   }
 
   .legal-update-detail header {
