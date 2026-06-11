@@ -66,9 +66,19 @@ export function DocumentWorkspace({
   } | null>(null);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const [narrativeDraftsByReport, setNarrativeDraftsByReport] = useState<Record<number, Record<string, string>>>({});
+  const [pendingScrollReportId, setPendingScrollReportId] = useState<number | null>(null);
+  const reportCardRefs = useRef(new Map<number, HTMLElement>());
+  const documentReportIds = workspace.documentReports.map((report) => report.id).join(",");
   const requestSignedGeneration = (report: InspectionReport, outputFormat: DocumentOutputFormat) => {
     setSignatureError(null);
     setSignatureRequest({ outputFormat, report });
+  };
+  const rememberReportCardNode = (reportId: number) => (node: HTMLElement | null) => {
+    if (node) {
+      reportCardRefs.current.set(reportId, node);
+      return;
+    }
+    reportCardRefs.current.delete(reportId);
   };
   const rememberNarrativeDraft = (reportId: number, values: Record<string, string>) => {
     setNarrativeDraftsByReport((current) => ({
@@ -76,15 +86,35 @@ export function DocumentWorkspace({
       [reportId]: values
     }));
   };
+
+  useEffect(() => {
+    if (!pendingScrollReportId || signatureRequest) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const card = reportCardRefs.current.get(pendingScrollReportId);
+      if (!card) {
+        return;
+      }
+      card.scrollIntoView({ block: "start", behavior: "smooth" });
+      card.classList.add("document-card-scroll-highlight");
+      window.setTimeout(() => card.classList.remove("document-card-scroll-highlight"), 1200);
+      setPendingScrollReportId(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [documentReportIds, pendingScrollReportId, signatureRequest]);
+
   const submitSignature = async (signature: DocumentSignatureInput, renderOverrides: DocumentRenderOverrideInput[]) => {
     if (!signatureRequest) {
       return;
     }
+    const reportId = signatureRequest.report.id;
+    setPendingScrollReportId(reportId);
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
         renderOverrides,
-        reportId: signatureRequest.report.id,
+        reportId,
         signature
       });
       setSignatureRequest(null);
@@ -97,11 +127,13 @@ export function DocumentWorkspace({
     if (!signatureRequest) {
       return;
     }
+    const reportId = signatureRequest.report.id;
+    setPendingScrollReportId(reportId);
     try {
       await workspace.createDocumentJob({
         outputFormat: signatureRequest.outputFormat,
         renderOverrides,
-        reportId: signatureRequest.report.id
+        reportId
       });
       setSignatureRequest(null);
       setSignatureError(null);
@@ -152,6 +184,7 @@ export function DocumentWorkspace({
                     preflightRun={preflightRun}
                     previewingArtifactId={workspace.previewingArtifactId}
                     projectName={project?.name}
+                    cardRef={rememberReportCardNode(report.id)}
                     report={report}
                     requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
                     reviewing={workspace.reviewingReportId === report.id}
@@ -206,6 +239,9 @@ export function DocumentWorkspace({
           onApplyNarrativeToReport={(fields) => workspace.applyDocumentNarrativeToReport({
             fields,
             reportId: signatureRequest.report.id
+          }).then((response) => {
+            setPendingScrollReportId(signatureRequest.report.id);
+            return response;
           })}
           onRememberNarrativeValues={(values) => rememberNarrativeDraft(signatureRequest.report.id, values)}
           onSubmit={submitSignature}
@@ -216,6 +252,7 @@ export function DocumentWorkspace({
 }
 
 function DocumentReportCard({
+  cardRef,
   creating,
   creatingOutputFormat,
   deliveriesByArtifact,
@@ -240,6 +277,7 @@ function DocumentReportCard({
   onResolvePreflightFinding,
   onRequestDelivery
 }: {
+  cardRef?: (node: HTMLElement | null) => void;
   creating: boolean;
   creatingOutputFormat: string | null;
   deliveriesByArtifact: Record<number, DocumentDeliveryRequestResponse>;
@@ -298,7 +336,7 @@ function DocumentReportCard({
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
-    <article className="document-card">
+    <article className="document-card" ref={cardRef}>
       <div className="document-card-head">
         <div className="row-icon blue">
           <FileText size={18} />

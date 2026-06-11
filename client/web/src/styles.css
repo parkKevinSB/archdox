@@ -666,6 +666,13 @@ button {
   box-shadow: 0 10px 24px rgba(21, 40, 37, 0.1);
 }
 
+.document-card.document-card-scroll-highlight {
+  border-color: #75b8aa;
+  border-left-color: #0f8f78;
+  box-shadow: 0 0 0 3px rgba(117, 184, 170, 0.22), 0 10px 24px rgba(21, 40, 37, 0.1);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
 .document-card-head {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) auto;
