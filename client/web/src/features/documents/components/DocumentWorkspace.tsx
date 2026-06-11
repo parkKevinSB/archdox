@@ -372,9 +372,7 @@ function DocumentReportCard({
   const creatingPdf = creating && creatingOutputFormat === "PDF";
   const preflightStatus = preflightStatusLabel(preflightRun, Boolean(preflightRun && !preflightCurrent));
   const preflightBusy = reviewing || preflightActive;
-  const detailOpen = preflightBusy
-    || Boolean(preflightRun && !preflightCurrent)
-    || (!preflightReady && ["READY_TO_GENERATE", "GENERATED", "FAILED"].includes(report.status));
+  const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
 
   return (
@@ -407,9 +405,31 @@ function DocumentReportCard({
         </div>
       </div>
 
+      <div className="document-actions document-actions-top">
+        <span className="document-action-hint">{actionHint}</span>
+        <button className="primary-button document-review-action" disabled={!canReview || reviewing} onClick={onRequestPreflightReview} type="button">
+          {reviewing ? <Loader2 className="spin" size={17} /> : <ShieldCheck size={17} />}
+          생성 전 검토
+        </button>
+        <div className="document-action-buttons">
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
+            {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+            HTML 생성
+          </button>
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
+            {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+            PDF 생성
+          </button>
+          <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
+            {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+            {action.label}
+          </button>
+        </div>
+      </div>
+
       <InlineDocumentGuide report={report} latestGeneratedJob={latestGeneratedJob} />
 
-      <details className="document-detail-section" open={detailOpen}>
+      <details className="document-detail-section">
         <summary>
           <span>
             <strong>생성 전 검토</strong>
@@ -426,7 +446,6 @@ function DocumentReportCard({
           applyingFindingId={applyingPreflightFindingId}
           resolvingFindingId={resolvingPreflightFindingId}
           run={preflightRun}
-          onRequestReview={onRequestPreflightReview}
           onApplyFindingFix={onApplyPreflightFindingFix}
           onResolveFinding={onResolvePreflightFinding}
         />
@@ -489,24 +508,6 @@ function DocumentReportCard({
         <RevisionStrip report={report} latestJob={latestJob} latestGeneratedJob={latestGeneratedJob} />
         {!latestJob ? <p className="document-muted">아직 문서 생성 요청이 없습니다.</p> : null}
       </details>
-
-      <div className="document-actions">
-        <span className="document-action-hint">{actionHint}</span>
-        <div className="document-action-buttons">
-          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
-            {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-            HTML 생성
-          </button>
-          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
-            {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
-            PDF 생성
-          </button>
-          <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
-            {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
-            {action.label}
-          </button>
-        </div>
-      </div>
     </article>
   );
 }
@@ -1158,7 +1159,6 @@ function PreflightReviewPanel({
   applyingFindingId,
   resolvingFindingId,
   run,
-  onRequestReview,
   onApplyFindingFix,
   onResolveFinding
 }: {
@@ -1169,7 +1169,6 @@ function PreflightReviewPanel({
   applyingFindingId: number | null;
   resolvingFindingId: number | null;
   run: ReportPreflightReviewRunResponse | null;
-  onRequestReview: () => Promise<ReportPreflightReviewRunResponse>;
   onApplyFindingFix: (
     runId: number,
     findingId: number
@@ -1187,7 +1186,6 @@ function PreflightReviewPanel({
   const deterministicBlockingCount = deterministicFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const aiAttentionCount = aiFindings.filter((finding) => requiresPreflightFindingAction(finding)).length;
   const warningCount = listFindings.filter((finding) => !requiresPreflightFindingAction(finding)).length;
-  const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const stale = run ? run.reportRevision !== currentRevision : false;
   const warning = stale || (run && isPreflightBlocking(run));
   const aiMode = run ? preflightAiMode(run) : null;
@@ -1357,12 +1355,6 @@ function PreflightReviewPanel({
         </div>
       ) : null}
 
-      <div className="preflight-actions">
-        <button className="primary-button preflight-review-button" disabled={!canReview || reviewing} onClick={onRequestReview} type="button">
-          {reviewing ? <Loader2 className="spin" size={15} /> : <ShieldCheck size={15} />}
-          생성 전 검토
-        </button>
-      </div>
     </section>
   );
 }

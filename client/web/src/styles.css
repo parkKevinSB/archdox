@@ -1576,10 +1576,23 @@ button {
   gap: 8px;
 }
 
+.document-actions-top {
+  padding: 12px;
+  border: 1px solid #cfe4df;
+  border-radius: 8px;
+  background: #f6fbf9;
+}
+
 .document-action-hint {
   color: #60746f;
   font-size: 12px;
   font-weight: 800;
+}
+
+.document-review-action {
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
 }
 
 .document-action-buttons {
