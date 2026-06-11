@@ -1919,11 +1919,11 @@ function preflightLegalSummaryV2(
   if (resultFinding && legalReviewStatus === "PASS") {
     return {
       kind: "pass",
-      badge: "통과",
-      status: resultFinding.message || "법령 근거 기반 검토가 통과되었습니다.",
+      badge: "근거범위 확인",
+      status: resultFinding.message || "제공된 법령 근거 범위에서 추가 확인 필요 항목이 표시되지 않았습니다.",
       evidence,
-      risk: "표시된 법률 리스크 없음",
-      reason: passReason || legalReviewScope || "전용 법령검토 AI가 제공된 근거 안에서 확인 필요 항목을 찾지 못했습니다.",
+      risk: "표시된 추가 법률 리스크 없음",
+      reason: passReason || legalReviewScope || "전용 법령검토 AI가 제공된 근거와 리포트 입력 범위 안에서만 확인했습니다.",
       references
     };
   }
@@ -1963,21 +1963,21 @@ function preflightLegalSummaryV2(
   if (run.status === "PASSED" && references.length > 0) {
     return {
       kind: "pass",
-      badge: "통과",
-      status: "표시된 법률 리스크 없이 근거 기반 검토가 통과했습니다.",
+      badge: "근거범위 확인",
+      status: "제공된 법령 근거 범위에서 열린 확인 필요 항목이 없습니다.",
       evidence,
-      risk: "표시된 법률 리스크 없음",
-      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다.",
+      risk: "표시된 추가 법률 리스크 없음",
+      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다. 최종 법률 적합 판정은 아닙니다.",
       references
     };
   }
   if (run.status === "PASSED") {
     return {
       kind: "pass",
-      badge: "통과",
-      status: "표시된 법률 리스크는 없습니다.",
+      badge: "검토 완료",
+      status: "현재 검토 결과에 열린 법령/준법 finding이 없습니다.",
       evidence,
-      risk: "표시된 법률 리스크 없음",
+      risk: "표시된 추가 법률 리스크 없음",
       reason: "현재 응답에는 별도로 표시할 법령 근거 조문이 없습니다. 업무-법령 매핑이 없는 항목일 수 있습니다.",
       references
     };
@@ -2099,21 +2099,21 @@ function preflightLegalSummary(
   if (run.status === "PASSED" && references.length > 0) {
     return {
       kind: "pass",
-      badge: "통과",
-      status: "표시된 법률 리스크 없이 근거 기반 검토가 통과했습니다.",
+      badge: "근거범위 확인",
+      status: "제공된 법령 근거 범위에서 열린 확인 필요 항목이 없습니다.",
       evidence,
-      risk: "표시된 법률 리스크 없음",
-      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다.",
+      risk: "표시된 추가 법률 리스크 없음",
+      reason: "Engine이 법령 근거를 찾았고, 열린 법령/준법 finding이 남아 있지 않습니다. 최종 법률 적합 판정은 아닙니다.",
       references
     };
   }
   if (run.status === "PASSED") {
     return {
       kind: "pass",
-      badge: "통과",
-      status: "표시된 법률 리스크는 없습니다.",
+      badge: "검토 완료",
+      status: "현재 검토 결과에 열린 법령/준법 finding이 없습니다.",
       evidence,
-      risk: "표시된 법률 리스크 없음",
+      risk: "표시된 추가 법률 리스크 없음",
       reason: "현재 응답에는 별도로 표시할 법령 근거 조문이 없습니다. 업무-법령 매핑이 없는 항목일 수 있습니다.",
       references
     };

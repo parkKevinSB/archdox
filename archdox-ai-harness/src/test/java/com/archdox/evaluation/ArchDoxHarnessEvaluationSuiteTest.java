@@ -13,6 +13,10 @@ import com.archdox.legalai.LegalDigestHarnessFactory;
 import com.archdox.legalai.LegalDigestInput;
 import com.archdox.legalai.LegalDigestResult;
 import com.archdox.legalai.LegalDigestStatus;
+import com.archdox.legalai.SourceBackedLegalReviewHarnessFactory;
+import com.archdox.legalai.SourceBackedLegalReviewInput;
+import com.archdox.legalai.SourceBackedLegalReviewResult;
+import com.archdox.legalai.SourceBackedLegalReviewStatus;
 import com.archdox.workerai.ConversationPlannerActionOption;
 import com.archdox.workerai.ConversationPlannerDecision;
 import com.archdox.workerai.ConversationPlannerHarnessFactory;
@@ -185,6 +189,100 @@ class ArchDoxHarnessEvaluationSuiteTest {
             if (result.status() == LegalDigestStatus.PUBLISHABLE) {
                 assertThat(result.title()).as(testCase.name()).isNotBlank();
                 assertThat(result.summary()).as(testCase.name()).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    void sourceBackedLegalReviewEvaluationSetKeepsDryRunBoundaries() {
+        var cases = List.of(
+                new SourceBackedLegalReviewEvaluationCase(
+                        "strong domain anchor allows cautious pass",
+                        sourceBackedLegalReviewInput(true),
+                        """
+                                {
+                                  "status": "PASS",
+                                  "summary": "제공된 근거와 입력 범위에서는 추가 법률 리스크가 표시되지 않습니다.",
+                                  "confidence": "HIGH",
+                                  "legalReviewScope": "감리일지 체크리스트, 감리내용, 사진 증거 연결성을 제공된 법령 근거 범위에서 검토했습니다.",
+                                  "passReason": "주요 도메인 바인딩 근거와 리포트 입력 범위 안에서는 추가 확인 필요 항목이 표시되지 않았습니다.",
+                                  "limitations": "제공된 근거와 입력에 한정한 dry-run 검토이며 최종 법률 판단은 아닙니다.",
+                                  "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                                  "issues": []
+                                }
+                                """,
+                        SourceBackedLegalReviewStatus.PASS,
+                        List.of("BUILDING_ACT:0025001@v1"),
+                        List.of()),
+                new SourceBackedLegalReviewEvaluationCase(
+                        "candidate-only context remains insufficient",
+                        sourceBackedLegalReviewInput(false),
+                        """
+                                {
+                                  "status": "INSUFFICIENT_CONTEXT",
+                                  "summary": "법령 검색 후보만으로는 생성 전 법령검토를 확정할 수 없습니다.",
+                                  "confidence": "MEDIUM",
+                                  "legalReviewScope": "법령 검색 후보와 리포트 입력의 관련성을 검토했습니다.",
+                                  "passReason": "",
+                                  "limitations": "제공된 근거가 검색 후보 중심이어서 업무 항목 단위 도메인 바인딩 근거가 필요합니다.",
+                                  "reviewedReferenceIds": ["CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1"],
+                                  "issues": []
+                                }
+                                """,
+                        SourceBackedLegalReviewStatus.INSUFFICIENT_CONTEXT,
+                        List.of("CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1"),
+                        List.of()),
+                new SourceBackedLegalReviewEvaluationCase(
+                        "vague supervision evidence requires human review",
+                        sourceBackedLegalReviewInput(true),
+                        """
+                                {
+                                  "status": "WARN",
+                                  "summary": "감리 내용의 현장 증빙 맥락을 사람이 확인해야 합니다.",
+                                  "confidence": "MEDIUM",
+                                  "legalReviewScope": "제공된 도메인 바인딩 근거와 감리일지 감리내용, 사진 증거 연결성을 검토했습니다.",
+                                  "passReason": "",
+                                  "limitations": "AI는 제출된 리포트 입력과 제공된 근거 범위만 검토했습니다.",
+                                  "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                                  "issues": [
+                                    {
+                                      "code": "LEGAL_EVIDENCE_CONTEXT_REVIEW_REQUIRED",
+                                      "category": "EVIDENCE",
+                                      "severity": "MEDIUM",
+                                      "location": "DAILY_LOG.groups[0].entries[0].supervisionContent",
+                                      "message": "감리 내용이 포괄적이어서 제공된 근거와 사진 증거가 어떤 시공 위치를 뒷받침하는지 확인이 필요합니다.",
+                                      "evidence": "리포트에는 감리 확인 문장이 있으나 위치와 대상 부재가 제한적으로 기재되어 있고, 제공된 근거는 감리 업무 기록과 연결되어 있습니다.",
+                                      "suggestion": "검사 대상, 위치, 사진 증거의 대응 관계를 사람이 확인하십시오.",
+                                      "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].supervisionContent"
+                                    }
+                                  ]
+                                }
+                                """,
+                        SourceBackedLegalReviewStatus.WARN,
+                        List.of("BUILDING_ACT:0025001@v1"),
+                        List.of("LEGAL_EVIDENCE_CONTEXT_REVIEW_REQUIRED")));
+
+        harness.gateway().respondToAny(new FakeResponseProgram.Sequence(
+                cases.stream()
+                        .map(testCase -> (FakeResponseProgram) new FakeResponseProgram.ImmediateText(testCase.modelResponse()))
+                        .toList()));
+        var spec = new SourceBackedLegalReviewHarnessFactory(objectMapper).spec(new RecordingFindingSink());
+
+        for (var testCase : cases) {
+            var run = harness.runHarness(spec, testCase.input());
+
+            assertThat(run.flow().state()).as(testCase.name()).isEqualTo(FlowState.FINISHED);
+            var result = validValue(run.context().latestValidation(), SourceBackedLegalReviewResult.class);
+
+            assertThat(result.status()).as(testCase.name()).isEqualTo(testCase.expectedStatus());
+            assertThat(result.reviewedReferenceIds()).as(testCase.name()).containsAll(testCase.requiredReviewedReferences());
+            assertThat(result.issues().stream().map(issue -> issue.code()).toList())
+                    .as(testCase.name())
+                    .containsAll(testCase.requiredIssueCodes());
+            if (result.status() == SourceBackedLegalReviewStatus.PASS) {
+                assertThat(result.passReason()).as(testCase.name()).contains("추가 확인 필요 항목");
+                assertThat(result.limitations()).as(testCase.name()).contains("최종 법률 판단은 아닙니다");
             }
         }
     }
@@ -513,6 +611,63 @@ class ArchDoxHarnessEvaluationSuiteTest {
                 deterministicFindings);
     }
 
+    private static SourceBackedLegalReviewInput sourceBackedLegalReviewInput(boolean strongDomainBinding) {
+        var reference = new java.util.LinkedHashMap<String, Object>();
+        if (strongDomainBinding) {
+            reference.put("referenceId", "BUILDING_ACT:0025001@v1");
+            reference.put("label", "건축법 25 건축물의 공사감리");
+            reference.put("resolutionSource", "LEGAL_DOMAIN_BINDING");
+            reference.put("bindingScope", "CATALOG_ITEM");
+            reference.put("bindingKey", "STEEL_MEMBER_SYMBOL");
+            reference.put("relevance", "PRIMARY");
+            reference.put("catalogCode", "CONSTRUCTION_SUPERVISION_CHECKLIST");
+            reference.put("catalogVersion", "v1");
+            reference.put("checklistItemCode", "STEEL_MEMBER_SYMBOL");
+            reference.put("anchorRole", "BUSINESS_ITEM_ANCHOR");
+            reference.put("referencePriorityScore", 795);
+        } else {
+            reference.put("referenceId", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1");
+            reference.put("label", "건축공사 감리세부기준 본문");
+            reference.put("resolutionSource", "LEGAL_SEARCH");
+            reference.put("bindingScope", "LEGAL_CORPUS_SEARCH");
+            reference.put("bindingKey", "");
+            reference.put("relevance", "CANDIDATE");
+            reference.put("catalogCode", "");
+            reference.put("catalogVersion", "");
+            reference.put("checklistItemCode", "");
+            reference.put("anchorRole", "SEARCH_CANDIDATE");
+            reference.put("referencePriorityScore", 160);
+        }
+        return new SourceBackedLegalReviewInput(
+                "1",
+                "100",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                "공사감리일지",
+                3,
+                Map.of(
+                        "photoEvidenceStatus", Map.of("allDailyLogPhotoRefsResolved", true),
+                        "reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                Map.of(
+                        "DAILY_LOG", Map.of("payload", Map.of(
+                                "dailyItems", Map.of("groups", List.of(Map.of(
+                                        "entries", List.of(Map.of(
+                                                "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
+                                                "supervisionContent", "철골 부재의 기둥·보 부호와 사진 증거를 확인했습니다.",
+                                                "photoIds", List.of(10))))))))),
+                List.of(),
+                List.of(Map.copyOf(reference)),
+                Map.of(
+                        "referenceCoverage", Map.of(
+                                "passEligibleForPass", strongDomainBinding,
+                                "reviewStrength", strongDomainBinding ? "HIGH" : "LOW"),
+                        "reportEvidenceChecklist", Map.of(
+                                "dailyLogEntryCount", 1,
+                                "dailyLogEntriesWithSupervisionContent", 1,
+                                "dailyLogEntriesWithPhotoIds", 1,
+                                "allDailyLogPhotoRefsResolved", true),
+                        "rules", List.of("PASS is allowed only when referenceCoverage.passEligibleForPass is true.")));
+    }
+
     private static <T> T validValue(Optional<ValidationResult<?>> validation, Class<T> type) {
         assertThat(validation).isPresent();
         var value = validation.orElseThrow();
@@ -558,6 +713,16 @@ class ArchDoxHarnessEvaluationSuiteTest {
             ReportPreflightInput input,
             String modelResponse,
             ReportPreflightStatus expectedStatus,
+            List<String> requiredIssueCodes
+    ) {
+    }
+
+    private record SourceBackedLegalReviewEvaluationCase(
+            String name,
+            SourceBackedLegalReviewInput input,
+            String modelResponse,
+            SourceBackedLegalReviewStatus expectedStatus,
+            List<String> requiredReviewedReferences,
             List<String> requiredIssueCodes
     ) {
     }

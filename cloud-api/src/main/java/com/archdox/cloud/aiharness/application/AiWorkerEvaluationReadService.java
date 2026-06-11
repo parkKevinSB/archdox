@@ -76,7 +76,15 @@ public class AiWorkerEvaluationReadService {
                 testCase("AI-H-011", "Report preflight fails when signature slot is missing", "AI_HARNESS",
                         "ArchDoxHarnessEvaluationSuiteTest.reportPreflightEvaluationSetKeepsFindingsStructured"),
                 testCase("AI-H-012", "Report preflight warns when legal evidence context is missing", "AI_HARNESS",
-                        "ArchDoxHarnessEvaluationSuiteTest.reportPreflightEvaluationSetKeepsFindingsStructured"));
+                        "ArchDoxHarnessEvaluationSuiteTest.reportPreflightEvaluationSetKeepsFindingsStructured"),
+                testCase("AI-H-013", "Source-backed legal review allows only cautious PASS wording", "AI_HARNESS",
+                        "ArchDoxHarnessEvaluationSuiteTest.sourceBackedLegalReviewEvaluationSetKeepsDryRunBoundaries + SourceBackedLegalReviewHarnessFactoryTest.finalComplianceWordingIsRefinedBeforePass"),
+                testCase("AI-H-014", "Source-backed legal review keeps candidate-only evidence insufficient", "AI_HARNESS",
+                        "ArchDoxHarnessEvaluationSuiteTest.sourceBackedLegalReviewEvaluationSetKeepsDryRunBoundaries + ReportPreflightLegalReviewHarnessServiceTest.candidateOnlyCoverageIsNotPassEligible"),
+                testCase("AI-H-015", "Source-backed legal review distinguishes business item anchors from search candidates", "AI_HARNESS",
+                        "ReportPreflightLegalReviewHarnessServiceTest.businessItemDomainBindingCoverageIsHighStrength"),
+                testCase("AI-H-016", "Source-backed legal review turns vague evidence into human-review findings", "AI_HARNESS",
+                        "ArchDoxHarnessEvaluationSuiteTest.sourceBackedLegalReviewEvaluationSetKeepsDryRunBoundaries"));
         return group("AI_HARNESS_BASELINE", "AI Harness evaluation baseline", "AI_HARNESS", cases);
     }
 

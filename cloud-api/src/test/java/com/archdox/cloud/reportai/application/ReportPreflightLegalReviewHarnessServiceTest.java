@@ -175,6 +175,50 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 .containsEntry("anchorRole", "SEARCH_CANDIDATE");
     }
 
+    @Test
+    void candidateOnlyCoverageIsNotPassEligible() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(legalSearchCandidateFinding(now)));
+        var coverage = ReflectionTestUtils.invokeMethod(service, "legalReferenceCoverage", references);
+
+        @SuppressWarnings("unchecked")
+        var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
+        assertThat(coverageMap)
+                .containsEntry("passEligibleForPass", false)
+                .containsEntry("reviewStrength", "LOW")
+                .containsEntry("candidateCount", 1)
+                .containsEntry("businessItemAnchorCount", 0);
+        assertThat((List<?>) coverageMap.get("limitations"))
+                .extracting(String::valueOf)
+                .contains("PASS 판정에는 PRIMARY/SUPPORTING 도메인 바인딩 근거가 필요합니다.")
+                .contains("일부 근거는 법령 검색 후보이므로 사람 확인이 필요합니다.");
+    }
+
+    @Test
+    void businessItemDomainBindingCoverageIsHighStrength() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(businessItemLegalContextFinding(now)));
+        var coverage = ReflectionTestUtils.invokeMethod(service, "legalReferenceCoverage", references);
+
+        @SuppressWarnings("unchecked")
+        var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
+        assertThat(coverageMap)
+                .containsEntry("passEligibleForPass", true)
+                .containsEntry("reviewStrength", "HIGH")
+                .containsEntry("primaryCount", 1)
+                .containsEntry("businessItemAnchorCount", 1);
+    }
+
     private InspectionReport report(OffsetDateTime now) {
         var report = new InspectionReport(
                 10L,
@@ -229,6 +273,24 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                         "legalReferences", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1",
                         "legalReferenceDetails",
                         "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1\t건축공사 감리세부기준 본문\tLEGAL_SEARCH\tLEGAL_CORPUS_SEARCH\t\tCANDIDATE\t\t\t"),
+                now);
+    }
+
+    private ReportPreflightReviewFinding businessItemLegalContextFinding(OffsetDateTime now) {
+        return new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "DETERMINISTIC",
+                "LEGAL_EVIDENCE_CONTEXT_USED",
+                "INFO",
+                "LEGAL_CONTEXT",
+                "법령 근거를 사용해 생성 전 검토를 수행했습니다.",
+                "legalReferences=BUILDING_ACT:0025001@0018232025082621035",
+                Map.of(
+                        "legalReferences", "BUILDING_ACT:0025001@0018232025082621035",
+                        "legalReferenceDetails",
+                        "BUILDING_ACT:0025001@0018232025082621035\t건축법 25 건축물의 공사감리\tLEGAL_DOMAIN_BINDING\tCATALOG_ITEM\tSTEEL_MEMBER_SYMBOL\tPRIMARY\tCONSTRUCTION_SUPERVISION_CHECKLIST\tv1\tSTEEL_MEMBER_SYMBOL"),
                 now);
     }
 
