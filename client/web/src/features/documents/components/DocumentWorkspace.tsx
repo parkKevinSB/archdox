@@ -585,10 +585,14 @@ function DocumentSignatureDialog({
   };
 
   useEffect(() => {
+    if (screen !== "generate" || isHtmlOutput) {
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
     }
+    let frame = 0;
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       const scale = window.devicePixelRatio || 1;
@@ -605,10 +609,17 @@ function DocumentSignatureDialog({
       context.strokeStyle = "#111827";
       setEmpty(true);
     };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
+    const scheduleResize = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(resizeCanvas);
+    };
+    scheduleResize();
+    window.addEventListener("resize", scheduleResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scheduleResize);
+    };
+  }, [isHtmlOutput, screen]);
 
   const point = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -691,7 +702,7 @@ function DocumentSignatureDialog({
       <div className="document-narrative-polish-head">
         <span>
           <strong>문장 다듬기</strong>
-          <small>{appliedNarrativeCount > 0 ? `${appliedNarrativeCount}개 문장 생성본 반영` : "원본 문장으로 생성"}</small>
+          <small>{appliedNarrativeCount > 0 ? `${appliedNarrativeCount}개 문장 생성 문서에 반영됨` : "원본 문장으로 생성"}</small>
         </span>
         <em>{outputFormat}</em>
       </div>
@@ -705,8 +716,8 @@ function DocumentSignatureDialog({
           <small>확인 대상</small>
         </span>
         <span>
-          <strong>원본 보존</strong>
-          <small>생성만 하면 리포트 데이터는 수정하지 않음</small>
+          <strong>원본 저장 선택</strong>
+          <small>저장하지 않아도 이번 문서 생성에는 반영</small>
         </span>
         {outputFormat === "HTML" ? (
           <span>
@@ -716,7 +727,7 @@ function DocumentSignatureDialog({
         ) : null}
       </div>
       <div className="document-narrative-polish-actions">
-        <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 필요하면 직접 고친 뒤 생성하거나 원본 리포트에 적용할 수 있습니다.</p>
+        <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 이 상태로 생성하면 문서에 적용되고, 원본 리포트 저장은 별도 선택입니다.</p>
         <button
           className="primary-button compact-button"
           disabled={submitting || polishing || applyingNarrative}
@@ -810,7 +821,7 @@ function DocumentSignatureDialog({
             </button>
             <button className="secondary-button" disabled={submitting || applyingNarrative || appliedNarrativeCount === 0} onClick={applyNarrativeToReport} type="button">
               {applyingNarrative ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
-              원본 리포트에 적용
+              선택: 원본에도 저장
             </button>
             {outputFormat === "HTML" ? (
               <button className="primary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
@@ -822,7 +833,7 @@ function DocumentSignatureDialog({
                 rememberDraft();
                 setScreen("generate");
               }} type="button">
-                생성 설정으로 이동
+                이 문장으로 생성 설정 이동
               </button>
             )}
           </footer>
@@ -858,7 +869,7 @@ function DocumentSignatureDialog({
                 </span>
                 <p>
                   {appliedNarrativeCount > 0
-                    ? `${appliedNarrativeCount}개 문장이 생성본에 반영되어 있습니다. DOCX/PDF/HTML 생성에 같은 문장을 사용합니다.`
+                    ? `${appliedNarrativeCount}개 문장이 이번 생성 문서에 반영됩니다. 원본 리포트에 저장하지 않아도 DOCX/PDF/HTML 생성에는 같은 문장을 사용합니다.`
                     : `확인 대상 ${narrativeFields.length}개가 있습니다. 원본 문장 그대로 생성하거나 별도 화면에서 다듬을 수 있습니다.`}
                 </p>
               </div>
