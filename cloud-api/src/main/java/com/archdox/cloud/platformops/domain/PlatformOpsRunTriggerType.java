@@ -4,5 +4,5 @@ public enum PlatformOpsRunTriggerType {
     MANUAL_DETECT_STUCK,
     MANUAL_DIAGNOSIS,
     DETECTOR_TRIGGERED,
-    FUTURE_MONITOR_FLOW
+    AUTO_DAILY_REPORT
 }

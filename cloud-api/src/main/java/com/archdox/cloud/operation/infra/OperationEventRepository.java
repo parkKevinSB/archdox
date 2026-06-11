@@ -9,6 +9,26 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface OperationEventRepository extends JpaRepository<OperationEvent, Long> {
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(OffsetDateTime from, OffsetDateTime to);
+
+    List<OperationEvent> findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Pageable pageable);
+
+    @Query("""
+            select event.severity as severity,
+                   count(event.id) as eventCount
+            from OperationEvent event
+            where event.createdAt >= :from
+              and event.createdAt < :to
+            group by event.severity
+            order by count(event.id) desc
+            """)
+    List<OperationEventSeverityCountProjection> summarizeSeverity(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
     @Query("""
             select event
             from OperationEvent event
@@ -125,6 +145,12 @@ public interface OperationEventRepository extends JpaRepository<OperationEvent, 
         String getEventType();
 
         String getReasonCode();
+
+        Long getEventCount();
+    }
+
+    interface OperationEventSeverityCountProjection {
+        com.archdox.cloud.operation.domain.OperationEventSeverity getSeverity();
 
         Long getEventCount();
     }

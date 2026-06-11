@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 public class LegalSyncProperties {
     private long workerIntervalMs = 250;
     private OpenApi openApi = new OpenApi();
+    private Monitor monitor = new Monitor();
 
     public long getWorkerIntervalMs() {
         return workerIntervalMs;
@@ -27,8 +28,72 @@ public class LegalSyncProperties {
         this.openApi = openApi == null ? new OpenApi() : openApi;
     }
 
+    public Monitor getMonitor() {
+        return monitor;
+    }
+
+    public void setMonitor(Monitor monitor) {
+        this.monitor = monitor == null ? new Monitor() : monitor;
+    }
+
     public long safeWorkerIntervalMs() {
         return Math.max(50, workerIntervalMs);
+    }
+
+    public static class Monitor {
+        private boolean enabled = false;
+        private String runTimes = "03:00,15:00";
+        private String zoneId = "Asia/Seoul";
+        private long checkIntervalMs = 60_000;
+        private long catchUpGraceMinutes = 120;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getRunTimes() {
+            return runTimes;
+        }
+
+        public void setRunTimes(String runTimes) {
+            this.runTimes = runTimes == null || runTimes.isBlank() ? "03:00,15:00" : runTimes;
+        }
+
+        public String getZoneId() {
+            return zoneId;
+        }
+
+        public void setZoneId(String zoneId) {
+            this.zoneId = zoneId == null || zoneId.isBlank() ? "Asia/Seoul" : zoneId;
+        }
+
+        public long getCheckIntervalMs() {
+            return checkIntervalMs;
+        }
+
+        public void setCheckIntervalMs(long checkIntervalMs) {
+            this.checkIntervalMs = checkIntervalMs;
+        }
+
+        public long getCatchUpGraceMinutes() {
+            return catchUpGraceMinutes;
+        }
+
+        public void setCatchUpGraceMinutes(long catchUpGraceMinutes) {
+            this.catchUpGraceMinutes = catchUpGraceMinutes;
+        }
+
+        public long safeCheckIntervalMs() {
+            return Math.max(1_000, checkIntervalMs);
+        }
+
+        public long safeCatchUpGraceMinutes() {
+            return Math.max(0, catchUpGraceMinutes);
+        }
     }
 
     public static class OpenApi {

@@ -957,6 +957,25 @@ CHECK
 That monitor flow should keep only lightweight state and submit child diagnosis
 flows when an actual abnormal condition is found.
 
+Implemented monitor pattern:
+
+```text
+platform-ops-daily-report-monitor
+  CHECK due slot / duplicate / running state
+  -> generate AUTO_DAILY_REPORT run
+  -> write sanitized Markdown report file
+  -> record SYSTEM_DIAGNOSIS finding and operation event
+  -> WAIT until next check
+```
+
+The daily report currently stores counts and operational metadata only: open
+incident count, failed ops run count, operation-event severity counts,
+platform-ops finding counts, AI token/call summary, Engine/MCP usage summary,
+and recent event metadata. It intentionally excludes raw payloads, prompts,
+provider responses, tokens, signed URLs, raw files, and secrets. A future
+OpsDiagnosisHarness may summarize this daily snapshot, but AI findings remain
+operator review material and do not execute repair actions.
+
 ### Operator Action Policy
 
 AI findings are not repair actions. Suggested actions must remain suggestions

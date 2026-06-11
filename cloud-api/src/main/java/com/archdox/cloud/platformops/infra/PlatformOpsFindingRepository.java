@@ -3,6 +3,7 @@ package com.archdox.cloud.platformops.infra;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSource;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,21 @@ public interface PlatformOpsFindingRepository extends JpaRepository<PlatformOpsF
     void deleteByRunIdAndSource(Long runId, PlatformOpsFindingSource source);
 
     long countByRunIdAndSource(Long runId, PlatformOpsFindingSource source);
+
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(OffsetDateTime from, OffsetDateTime to);
+
+    @Query("""
+            select finding.severity as severity,
+                   count(finding.id) as findingCount
+            from PlatformOpsFinding finding
+            where finding.createdAt >= :from
+              and finding.createdAt < :to
+            group by finding.severity
+            order by count(finding.id) desc
+            """)
+    List<FindingSeverityCountProjection> summarizeSeverity(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
 
     @Query("""
             select finding
@@ -35,4 +51,10 @@ public interface PlatformOpsFindingRepository extends JpaRepository<PlatformOpsF
             @Param("source") PlatformOpsFindingSource source,
             @Param("category") String category,
             Pageable pageable);
+
+    interface FindingSeverityCountProjection {
+        PlatformOpsFindingSeverity getSeverity();
+
+        Long getFindingCount();
+    }
 }

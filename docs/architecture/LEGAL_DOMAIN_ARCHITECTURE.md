@@ -218,7 +218,8 @@ Rules:
 - Manual sync is allowed from platform admin.
 - Manual Open API sync must be blocked before creating a sync run unless the
   connector is enabled, OC is configured, and at least one exact target exists.
-- Scheduled sync is allowed later only as a trigger that submits Flower flow.
+- Scheduled sync must be a Flower monitor control loop, not ad-hoc scheduler
+  business logic.
 - Keep `display` small for exact-name search.
 - Keep request interval and retry count configurable.
 - Sync failures should preserve stable failure codes such as
@@ -392,10 +393,17 @@ changed even if source metadata is noisy.
 
 Legal operations should not be implemented as ad-hoc scheduler logic.
 
-The scheduler may trigger work, but business orchestration belongs to Flower.
+Current scheduled sync uses a long-lived `legal-sync-monitor` Flower flow on the
+shared `monitoring` worker. The monitor checks configured due slots, skips when
+Open API is not ready, skips when a sync is already running, skips when the due
+slot was already handled by a manual or automatic run, and submits the existing
+`LegalSyncFlow` only when work is actually due.
+
+The monitor flow owns the periodic control decision. The child `LegalSyncFlow`
+owns source fetch, normalization, diff, digest, and failure recording.
 
 ```text
-Scheduler or admin button
+legal-sync-monitor or admin button
   -> submit LegalSyncFlow
   -> FetchTrackedActsStep
   -> FetchActVersionStep

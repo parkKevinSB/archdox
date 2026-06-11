@@ -18,6 +18,8 @@ public interface PlatformOpsIncidentRepository extends JpaRepository<PlatformOps
             String primaryResourceType,
             String primaryResourceId);
 
+    long countByStatusIn(Collection<PlatformOpsIncidentStatus> statuses);
+
     @Query("""
             select incident
             from PlatformOpsIncident incident

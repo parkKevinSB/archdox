@@ -227,7 +227,8 @@ MCP is not the core engine. It is an adapter over the external Engine API.
 
 ```mermaid
 flowchart TB
-    LawOpenApi["National Law Open API<br/>manual/admin-triggered sync"]
+    LawOpenApi["National Law Open API<br/>admin or monitor-triggered sync"]
+    LegalMonitor["legal-sync-monitor<br/>long-lived Flower control loop"]
     LegalSync["LegalSyncFlow / LegalSyncWorker"]
     Corpus[("Legal corpus DB<br/>acts / versions / articles")]
     Diff[("Article diffs / change sets")]
@@ -237,6 +238,7 @@ flowchart TB
     Engine["Engine legal reference binding"]
     AI["Legal digest AI draft worker<br/>draft only"]
 
+    LegalMonitor --> LegalSync
     LawOpenApi --> LegalSync
     LegalSync --> Corpus
     Corpus --> Diff
@@ -310,6 +312,23 @@ Current AI use cases:
 | Platform ops diagnosis | Redacted diagnosis snapshot. | Platform operator. |
 | Worker chat planner | Proposal card. | User confirmation and Worker policy. |
 | Evaluation suite | Scored checks for AI/Worker control quality. | Platform/operator interpretation. |
+
+## Operational Monitor Flows
+
+Periodic platform work should be modeled as long-lived Flower control loops
+when the work needs skip decisions, duplicate prevention, audit events, and
+operator visibility.
+
+Current monitor flows run on the shared `monitoring` Flower worker:
+
+| Flow | Responsibility | Child Work |
+| --- | --- | --- |
+| `agent-connection-health-monitor` | Detect stale ArchDox Agent sessions. | Marks timed-out sessions disconnected. |
+| `legal-sync-monitor` | Checks configured Open API due slots such as 03:00 and 15:00. | Submits the existing `legal-sync` flow only when the due slot has not already been handled. |
+| `platform-ops-daily-report-monitor` | Checks the daily operations report due slot. | Generates a sanitized `AUTO_DAILY_REPORT` run and Markdown report file. |
+
+These are not ad-hoc Spring schedulers. The Flower flow owns the periodic
+decision, while durable business state remains in DB rows and operation events.
 
 ## Deployment Hosts
 
