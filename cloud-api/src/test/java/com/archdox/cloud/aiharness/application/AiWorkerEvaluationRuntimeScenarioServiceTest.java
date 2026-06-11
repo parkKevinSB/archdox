@@ -16,6 +16,7 @@ import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
+import com.archdox.cloud.reportai.flow.ReportPreflightLegalReviewAiWorker;
 import com.archdox.cloud.worker.ArchDoxWorkerServiceWorker;
 import com.archdox.worker.domain.ArchDoxWorkerAction;
 import com.archdox.worker.domain.ArchDoxWorkerActionResult;
@@ -23,6 +24,9 @@ import com.archdox.worker.domain.ArchDoxWorkerRequest;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionFlowFactory;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionHandle;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionSession;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
+import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import io.github.parkkevinsb.flower.core.step.Step;
 import io.github.parkkevinsb.flower.core.step.StepContext;
@@ -43,32 +47,54 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
     private final ArchDoxWorkerServiceWorker workerServiceWorker = mock(ArchDoxWorkerServiceWorker.class);
     private final AiHarnessPolicyExecutionService aiHarnessPolicyExecutionService = mock(AiHarnessPolicyExecutionService.class);
     private final AiWorkerEvaluationTokenControlService tokenControlService = mock(AiWorkerEvaluationTokenControlService.class);
+    private final ReportPreflightLegalReviewAiWorker legalReviewAiWorker = mock(ReportPreflightLegalReviewAiWorker.class);
+    private final AiModelGateway aiModelGateway = mock(AiModelGateway.class);
+    private final TraceListener traceListener = mock(TraceListener.class);
     private final AiWorkerEvaluationRuntimeScenarioService service = new AiWorkerEvaluationRuntimeScenarioService(
             readService,
             digestRepository,
             workerFlowFactory,
             workerServiceWorker,
             aiHarnessPolicyExecutionService,
-            tokenControlService);
+            tokenControlService,
+            legalReviewAiWorker,
+            aiModelGateway,
+            new ObjectMapper(),
+            traceListener);
 
     @Test
     void runtimeScenarioWarnsWhenNoNonFakeLegalDigestExists() {
         var principal = new UserPrincipal(7L, "platform@test.co.kr");
         when(digestRepository.findAllExcludingSourceCode(any(), any(Pageable.class))).thenReturn(List.of());
+        when(aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
+                        "PROVIDER_NOT_ASSIGNED"));
         when(tokenControlService.tokenControlGroups()).thenReturn(List.of());
         when(tokenControlService.tokenControlSignals(List.of())).thenReturn(List.of());
 
         var summary = service.runtimeScenario(principal);
 
         assertThat(summary.evaluationMode()).isEqualTo("RUNTIME_WORKER_SCENARIO");
-        assertThat(summary.groups()).hasSize(6);
-        assertThat(summary.groups().getLast().groupKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
-        assertThat(summary.groups().getLast().warningCases()).isEqualTo(1);
+        assertThat(summary.groups()).hasSize(7);
+        assertThat(summary.groups()).anySatisfy(group -> {
+            assertThat(group.groupKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
+            assertThat(group.warningCases()).isEqualTo(1);
+        });
+        assertThat(summary.groups()).anySatisfy(group -> {
+            assertThat(group.groupKey()).isEqualTo("RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO");
+            assertThat(group.warningCases()).isEqualTo(1);
+        });
         assertThat(summary.signals()).anySatisfy(signal -> {
             assertThat(signal.signalKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
             assertThat(signal.status()).isEqualTo("WARN");
         });
+        assertThat(summary.signals()).anySatisfy(signal -> {
+            assertThat(signal.signalKey()).isEqualTo("RUNTIME_DOCUMENT_LEGAL_REVIEW");
+            assertThat(signal.status()).isEqualTo("WARN");
+        });
         verify(workerServiceWorker, never()).submitAndAwait(any(), any());
+        verify(legalReviewAiWorker, never()).submitAndAwait(any(), any());
     }
 
     @Test
@@ -79,6 +105,10 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
         when(aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT))
                 .thenReturn(AiHarnessPolicyResolution.unavailable(
                         AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT,
+                        "PROVIDER_NOT_ASSIGNED"));
+        when(aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.unavailable(
+                        AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
                         "PROVIDER_NOT_ASSIGNED"));
         when(workerFlowFactory.createHandle(any(ArchDoxWorkerRequest.class), any(ArchDoxWorkerAction.class)))
                 .thenAnswer(invocation -> {
@@ -102,9 +132,15 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
         var summary = service.runtimeScenario(principal);
 
         assertThat(summary.evaluationMode()).isEqualTo("RUNTIME_WORKER_SCENARIO");
-        assertThat(summary.groups().getLast().groupKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
-        assertThat(summary.groups().getLast().passedCases()).isEqualTo(4);
-        assertThat(summary.groups().getLast().warningCases()).isZero();
+        assertThat(summary.groups()).anySatisfy(group -> {
+            assertThat(group.groupKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
+            assertThat(group.passedCases()).isEqualTo(4);
+            assertThat(group.warningCases()).isZero();
+        });
+        assertThat(summary.groups()).anySatisfy(group -> {
+            assertThat(group.groupKey()).isEqualTo("RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO");
+            assertThat(group.warningCases()).isEqualTo(1);
+        });
         assertThat(summary.signals()).anySatisfy(signal -> {
             assertThat(signal.signalKey()).isEqualTo("RUNTIME_WORKER_SCENARIO");
             assertThat(signal.status()).isEqualTo("PASS");

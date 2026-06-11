@@ -43,18 +43,18 @@ class AiWorkerEvaluationRunServiceTest {
         assertThat(saved.triggerType()).isEqualTo("PLATFORM_ADMIN_SNAPSHOT");
         assertThat(saved.status()).isEqualTo("WARN");
         assertThat(saved.evaluationMode()).isEqualTo("STATIC_BASELINE");
-        assertThat(saved.totalCases()).isEqualTo(47);
-        assertThat(saved.automatedCases()).isEqualTo(47);
-        assertThat(saved.passedCases()).isEqualTo(47);
+        assertThat(saved.totalCases()).isEqualTo(51);
+        assertThat(saved.automatedCases()).isEqualTo(51);
+        assertThat(saved.passedCases()).isEqualTo(51);
         assertThat(saved.warningCases()).isZero();
         assertThat(saved.failedCases()).isZero();
         assertThat(saved.groupCount()).isEqualTo(5);
         assertThat(saved.signalCount()).isEqualTo(11);
         assertThat(saved.warningSignalCount()).isEqualTo(1);
         assertThat(saved.failedSignalCount()).isZero();
-        assertThat(saved.summaryJson()).containsEntry("totalCases", 47);
+        assertThat(saved.summaryJson()).containsEntry("totalCases", 51);
         assertThat(response.status()).isEqualTo("WARN");
-        assertThat(response.summary().totalCases()).isEqualTo(47);
+        assertThat(response.summary().totalCases()).isEqualTo(51);
         assertThat(response.summary().signals()).anySatisfy(signal -> {
             assertThat(signal.signalKey()).isEqualTo("REAL_MODEL_EVALUATION");
             assertThat(signal.status()).isEqualTo("WARN");

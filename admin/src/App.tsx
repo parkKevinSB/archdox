@@ -1518,7 +1518,7 @@ export default function App() {
     if (!auth || !platformAdmin) {
       return null;
     }
-    if (!window.confirm("Worker 시나리오 평가는 Legal Digest Worker를 dry-run으로 실행합니다. 실제 provider가 배정되어 있으면 외부 모델 호출이 발생할 수 있습니다. 진행할까요?")) {
+    if (!window.confirm("시나리오 평가는 Legal Digest Worker dry-run과 문서 법령검토 하네스 평가를 실행합니다. 실제 provider가 배정되어 있으면 외부 모델 호출이 발생할 수 있습니다. 진행할까요?")) {
       return null;
     }
     setLoading(true);
@@ -7661,7 +7661,7 @@ function AiWorkerEvaluationControlPanel({
           </button>
           <button className="button compact" disabled={busy} onClick={() => createAndSelectRun(onCreateRuntimeScenarioRun)} type="button">
             {busy ? <Loader2 className="spin" size={14} /> : <Command size={14} />}
-            Worker 시나리오 평가
+            시나리오 평가
           </button>
         </div>
       }
@@ -7975,6 +7975,7 @@ function evaluationGroupLabel(groupKey: string, fallback: string) {
     WORKER_POLICY_GOVERNANCE: "Worker 정책 / 승인 / 관측",
     RUNTIME_AI_PROVIDER_PROBE: "런타임 AI provider 연결",
     RUNTIME_WORKER_SCENARIO: "Worker dry-run 시나리오",
+    RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO: "문서 법령검토 실제 모델 시나리오",
     TOKEN_COST_CONTROL: "토큰 / 비용 통제"
   };
   return labels[groupKey] ?? fallback;
@@ -7989,6 +7990,7 @@ function evaluationGroupDescription(groupKey: string) {
     WORKER_POLICY_GOVERNANCE: "권한, 사전조건, 승인 요청, 운영 지표가 분리되는지 봅니다.",
     RUNTIME_AI_PROVIDER_PROBE: "운영 설정에서 하네스 정책과 provider 연결이 실제로 가능한지 봅니다.",
     RUNTIME_WORKER_SCENARIO: "실제 Worker 실행 통로를 dry-run으로 지나가며 통제와 출력 안전성을 봅니다.",
+    RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO: "평가용 감리일지와 법령 근거를 실제 법령검토 하네스에 넣어 모델 응답 품질을 봅니다.",
     TOKEN_COST_CONTROL: "하네스 하드캡, 실제 토큰 사용량, 가격 규칙, 사무소/사용자/플랫폼 예산 제한, 최근 폭주 징후를 봅니다."
   };
   return descriptions[groupKey] ?? "선택한 영역의 자동 평가 결과입니다.";
@@ -8003,6 +8005,7 @@ function evaluationGroupFocus(groupKey: string) {
     WORKER_POLICY_GOVERNANCE: "핵심은 위험 action이 승인 없이 실행되지 않고 운영 지표가 왜곡되지 않는지입니다.",
     RUNTIME_AI_PROVIDER_PROBE: "핵심은 fake provider와 실제 provider를 구분하고, 실제 연결 실패를 분리해 보는 것입니다.",
     RUNTIME_WORKER_SCENARIO: "핵심은 Worker flow, policy gate, run-control, executor, output safety가 실제 dry-run에서도 지켜지는지입니다.",
+    RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO: "핵심은 실제 모델이 제공된 법령 근거 안에서만 판단하고, 최종 법률판정처럼 말하지 않는지입니다.",
     TOKEN_COST_CONTROL: "핵심은 특정 하네스나 Worker가 반복 호출로 토큰을 과소비하지 않도록 실행 상한, 예산 Guard, 관측 지표가 함께 있는지입니다."
   };
   return focus[groupKey] ?? "이 그룹의 평가 케이스와 근거를 확인합니다.";
@@ -8012,7 +8015,7 @@ function evaluationRunTriggerLabel(triggerType: string) {
   const labels: Record<string, string> = {
     PLATFORM_ADMIN_SNAPSHOT: "기준 기록",
     PLATFORM_ADMIN_RUNTIME_PROBE: "런타임 연결 평가",
-    PLATFORM_ADMIN_RUNTIME_SCENARIO: "Worker 시나리오 평가"
+    PLATFORM_ADMIN_RUNTIME_SCENARIO: "시나리오 평가"
   };
   return labels[triggerType] ?? displayLabel(triggerType);
 }
@@ -8046,6 +8049,7 @@ function evaluationSignalLabel(signalKey: string, fallback: string) {
     RUNTIME_HARNESS_POLICY: "런타임 하네스 정책 해석",
     RUNTIME_PROVIDER_CONNECTIVITY: "런타임 provider 연결성",
     RUNTIME_WORKER_SCENARIO: "Worker dry-run 시나리오",
+    RUNTIME_DOCUMENT_LEGAL_REVIEW: "문서 법령검토 실제 모델 시나리오",
     TOKEN_COST_CONTROL: "토큰 / 비용 통제"
   };
   return labels[signalKey] ?? fallback;
@@ -8067,6 +8071,17 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
       "RUN-SCENARIO-LEGAL-DIGEST-004": "평가 시나리오 저장 경계 확인"
     };
     return labels[caseId] ?? "법령 게시글 Worker 시나리오";
+  }
+  if (caseId.startsWith("RUN-SCENARIO-DOC-LEGAL-")) {
+    const labels: Record<string, string> = {
+      "RUN-SCENARIO-DOC-LEGAL-000": "문서 법령검토 실행 조건 확인",
+      "RUN-SCENARIO-DOC-LEGAL-001": "실제 모델 법령검토 하네스 실행",
+      "RUN-SCENARIO-DOC-LEGAL-002": "제공된 법령 근거 안에서만 인용",
+      "RUN-SCENARIO-DOC-LEGAL-003": "법령검토 판정 품질 확인",
+      "RUN-SCENARIO-DOC-LEGAL-004": "최종 법률판정 문구 차단",
+      "RUN-SCENARIO-DOC-LEGAL-005": "평가 데이터 저장/변경 없음"
+    };
+    return labels[caseId] ?? "문서 법령검토 실제 모델 시나리오";
   }
   if (caseId.startsWith("RUN-TOKEN-")) {
     const labels: Record<string, string> = {
@@ -8143,6 +8158,7 @@ function evaluationVerificationLabel(verification: string) {
     WORKER_DRY_RUN: "Worker dry-run",
     WORKER_OUTPUT_SAFETY: "출력 안전성 점검",
     WORKER_TRACE_SCENARIO: "실행 추적 점검",
+    REAL_MODEL_LEGAL_REVIEW: "실제 모델 법령검토",
     TOKEN_USAGE_POLICY: "토큰 사용 정책",
     TOKEN_COST_POLICY: "비용 / 예산 정책",
     TOKEN_USAGE_TELEMETRY: "토큰 사용량 관측"
