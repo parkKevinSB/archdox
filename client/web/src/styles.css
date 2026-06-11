@@ -1576,13 +1576,6 @@ button {
   gap: 8px;
 }
 
-.document-actions-top {
-  padding: 12px;
-  border: 1px solid #cfe4df;
-  border-radius: 8px;
-  background: #f6fbf9;
-}
-
 .document-action-hint {
   color: #60746f;
   font-size: 12px;
@@ -1591,13 +1584,11 @@ button {
 
 .document-review-action {
   justify-content: center;
-  width: 100%;
-  min-height: 40px;
 }
 
 .document-action-buttons {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 

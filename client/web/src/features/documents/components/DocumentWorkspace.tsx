@@ -405,28 +405,6 @@ function DocumentReportCard({
         </div>
       </div>
 
-      <div className="document-actions document-actions-top">
-        <span className="document-action-hint">{actionHint}</span>
-        <button className="primary-button document-review-action" disabled={!canReview || reviewing} onClick={onRequestPreflightReview} type="button">
-          {reviewing ? <Loader2 className="spin" size={17} /> : <ShieldCheck size={17} />}
-          생성 전 검토
-        </button>
-        <div className="document-action-buttons">
-          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
-            {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-            HTML 생성
-          </button>
-          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
-            {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
-            PDF 생성
-          </button>
-          <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
-            {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
-            {action.label}
-          </button>
-        </div>
-      </div>
-
       <InlineDocumentGuide report={report} latestGeneratedJob={latestGeneratedJob} />
 
       <details className="document-detail-section">
@@ -508,6 +486,28 @@ function DocumentReportCard({
         <RevisionStrip report={report} latestJob={latestJob} latestGeneratedJob={latestGeneratedJob} />
         {!latestJob ? <p className="document-muted">아직 문서 생성 요청이 없습니다.</p> : null}
       </details>
+
+      <div className="document-actions">
+        <span className="document-action-hint">{actionHint}</span>
+        <div className="document-action-buttons">
+          <button className="primary-button document-review-action" disabled={!canReview || reviewing} onClick={onRequestPreflightReview} type="button">
+            {reviewing ? <Loader2 className="spin" size={17} /> : <ShieldCheck size={17} />}
+            생성 전 검토
+          </button>
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePreview} type="button">
+            {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+            HTML 생성
+          </button>
+          <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
+            {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+            PDF 생성
+          </button>
+          <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
+            {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
+            {action.label}
+          </button>
+        </div>
+      </div>
     </article>
   );
 }
