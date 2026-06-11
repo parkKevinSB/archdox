@@ -55,12 +55,18 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Never invent law names, article numbers, effective dates, source versions, URLs, legal conclusions, or facts.
                 - If legal references are absent, fragmented, or too generic for the report content, return INSUFFICIENT_CONTEXT.
                 - Include only referenceId values that are present in sourceBackedLegalReferences.
+                - sourceBackedLegalReferences include referencePriorityScore and anchorRole. Prefer higher priority anchors.
+                - legalReviewContext.referenceCoverage.passEligibleForPass=false means PASS is not allowed. Return WARN or INSUFFICIENT_CONTEXT.
+                - Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거. They can support human review, but they cannot alone justify PASS.
+                - Prefer BUSINESS_ITEM_ANCHOR and REPORT_TYPE_ANCHOR references when explaining scope and reviewedReferenceIds.
                 - This is a dry-run review draft for ArchDox users. It is not legal advice.
 
                 Review rules:
                 - Separate legal/compliance risk from ordinary wording cleanup.
                 - Do not flag typos or prose style unless they create audit, dispute, agency-review, or compliance ambiguity.
                 - Check whether selected checklist/business items, supervision content, issue/action text, and photo/evidence context are aligned with supplied legal anchors.
+                - Use legalReviewContext.reportEvidenceChecklist to check whether report evidence exists before claiming the input was reviewed.
+                - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.
                 - PASS must explain the legal review scope, reviewed references, and why no additional legal-risk issue was found within the supplied anchors.

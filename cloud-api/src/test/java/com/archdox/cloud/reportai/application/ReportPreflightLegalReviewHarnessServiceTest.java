@@ -150,6 +150,31 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(captor.getValue().resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");
     }
 
+    @Test
+    void legalReferencesArePrioritizedAndAnnotatedForSourceBackedReview() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(
+                        legalSearchCandidateFinding(now),
+                        legalContextFinding(now)));
+
+        assertThat(references).isNotNull();
+        assertThat(references).hasSize(2);
+        assertThat(references.get(0))
+                .containsEntry("referenceId", "BUILDING_ACT:0025001@0018232025082621035")
+                .containsEntry("anchorRole", "REPORT_TYPE_ANCHOR")
+                .containsEntry("sourceFindingCode", "LEGAL_EVIDENCE_CONTEXT_USED");
+        assertThat((Integer) references.get(0).get("referencePriorityScore"))
+                .isGreaterThan((Integer) references.get(1).get("referencePriorityScore"));
+        assertThat(references.get(1))
+                .containsEntry("referenceId", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1")
+                .containsEntry("anchorRole", "SEARCH_CANDIDATE");
+    }
+
     private InspectionReport report(OffsetDateTime now) {
         var report = new InspectionReport(
                 10L,
@@ -186,6 +211,24 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                         "legalReferences", "BUILDING_ACT:0025001@0018232025082621035",
                         "legalReferenceDetails",
                         "BUILDING_ACT:0025001@0018232025082621035\t건축법 25 건축물의 공사감리\tLEGAL_DOMAIN_BINDING\tREPORT_TYPE\tCONSTRUCTION_DAILY_SUPERVISION_LOG:BUILDING_ACT_SUPERVISION\tPRIMARY\t\t\t"),
+                now);
+    }
+
+    private ReportPreflightReviewFinding legalSearchCandidateFinding(OffsetDateTime now) {
+        return new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "DETERMINISTIC",
+                "LEGAL_SEARCH_CANDIDATE_USED",
+                "INFO",
+                "LEGAL_CONTEXT",
+                "법령 검색 후보를 사용했습니다.",
+                "legalReferences=CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1",
+                Map.of(
+                        "legalReferences", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1",
+                        "legalReferenceDetails",
+                        "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:BODY@v1\t건축공사 감리세부기준 본문\tLEGAL_SEARCH\tLEGAL_CORPUS_SEARCH\t\tCANDIDATE\t\t\t"),
                 now);
     }
 

@@ -107,16 +107,60 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         var prompt = new SourceBackedLegalReviewPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("0.1.0");
+        assertThat(prompt.version().version()).isEqualTo("0.2.0");
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
+                .contains("referenceCoverage.passEligibleForPass=false means PASS is not allowed")
+                .contains("Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거")
                 .contains("PASS must explain the legal review scope")
                 .contains("PASS does not mean final legal compliance")
                 .contains("Never say the report \"meets legal requirements\"");
         assertThat(prompt.messages().get(1).content())
                 .contains("\"sourceBackedLegalReferences\"")
                 .contains("\"BUILDING_ACT:0025001@v1\"");
+    }
+
+    @Test
+    void finalComplianceWordingIsRefinedBeforePass() {
+        var sink = new RecordingFindingSink();
+        harness.gateway().respondToAny(new FakeResponseProgram.Sequence(List.of(
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "PASS",
+                          "summary": "공사감리일지가 제공된 법령 근거에 부합하여 법적 위험이 없습니다.",
+                          "confidence": "HIGH",
+                          "legalReviewScope": "감리일지 체크리스트와 사진 증거를 검토했습니다.",
+                          "passReason": "제공된 입력은 법적 요구사항을 충족합니다.",
+                          "limitations": "Dry-run review only.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": []
+                        }
+                        """),
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "PASS",
+                          "summary": "제공된 근거와 입력 범위에서는 추가 법률 리스크가 표시되지 않습니다.",
+                          "confidence": "HIGH",
+                          "legalReviewScope": "감리일지 체크리스트, 감리내용, 사진 증거 연결성을 제공된 근거 범위에서 검토했습니다.",
+                          "passReason": "제공된 주요 근거와 입력 범위 안에서는 추가 확인 필요 항목이 표시되지 않았습니다.",
+                          "limitations": "제공된 근거와 입력에 한정한 dry-run 검토이며 최종 법률 판단은 아닙니다.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": []
+                        }
+                        """))));
+
+        var spec = new SourceBackedLegalReviewHarnessFactory(new ObjectMapper()).spec(sink);
+        var flow = harness.runHarness(spec, input());
+
+        assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
+        assertThat(flow.context().attempt()).isEqualTo(2);
+        assertThat(flow.context().latestValidation()).hasValueSatisfying(validation -> {
+            assertThat(validation).isInstanceOf(ValidationResult.Valid.class);
+            @SuppressWarnings("unchecked")
+            var valid = (ValidationResult.Valid<SourceBackedLegalReviewResult>) validation;
+            assertThat(valid.value().passReason()).contains("추가 확인 필요 항목");
+        });
     }
 
     private static SourceBackedLegalReviewInput input() {

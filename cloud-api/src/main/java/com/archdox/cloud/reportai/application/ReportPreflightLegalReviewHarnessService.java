@@ -31,9 +31,12 @@ import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
 import io.github.parkkevinsb.flower.ai.harness.validate.ValidationResult;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -47,6 +50,7 @@ public class ReportPreflightLegalReviewHarnessService {
     public static final String SOURCE = "LEGAL_REVIEW";
     public static final String REVIEW_MODE = "SOURCE_BACKED_LEGAL_REVIEW_DRAFT";
     private static final Duration WAIT_GRACE = Duration.ofSeconds(3);
+    private static final int LEGAL_REFERENCE_REVIEW_LIMIT = 16;
 
     private final InspectionReportRepository reportRepository;
     private final InspectionReportStepRepository stepRepository;
@@ -92,6 +96,7 @@ public class ReportPreflightLegalReviewHarnessService {
     public void run(ReportPreflightReviewRequest request) {
         var context = context(request);
         var references = legalReferences(context.findings());
+        var coverage = legalReferenceCoverage(references);
         if (references.isEmpty()) {
             saveSingleFinding(context, insufficientContextFinding(context, List.of()));
             recordEvent(context, OperationEventSeverity.WARN, "REPORT_PREFLIGHT_LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
@@ -118,7 +123,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 new MaxAttemptsRefinePolicy(plan.maxAttempts()),
                 aiHarnessTraceListener);
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, java.time.Instant::now)
-                .createFlow(input(context, references), AiHarnessFlowFactory.RunOverrides.builder()
+                .createFlow(input(context, references, coverage), AiHarnessFlowFactory.RunOverrides.builder()
                         .modelId(plan.modelId())
                         .timeout(plan.timeout())
                         .providerOptions(AiModelCallMetadata.options(
@@ -162,7 +167,7 @@ public class ReportPreflightLegalReviewHarnessService {
             saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_RESULT_INVALID", "법령검토 AI 응답을 해석하지 못했습니다."));
             return;
         }
-        saveResult(context, references, result.get(), plan.provider().providerCode(), plan.modelId().asString(), flow.context().runId().value());
+        saveResult(context, references, coverage, result.get(), plan.provider().providerCode(), plan.modelId().asString(), flow.context().runId().value());
         recordEvent(context, OperationEventSeverity.INFO, "REPORT_PREFLIGHT_LEGAL_REVIEW_COMPLETED",
                 "Source-backed legal review completed.",
                 Map.of(
@@ -185,19 +190,22 @@ public class ReportPreflightLegalReviewHarnessService {
 
     private SourceBackedLegalReviewInput input(
             LegalReviewContext context,
-            List<Map<String, Object>> references
+            List<Map<String, Object>> references,
+            LegalReferenceCoverage coverage
     ) {
+        var reportSnapshot = reportSnapshot(context.report());
+        var steps = stepSnapshot(context.report());
         return new SourceBackedLegalReviewInput(
                 String.valueOf(context.report().officeId()),
                 String.valueOf(context.report().id()),
                 context.report().reportType(),
                 context.report().title(),
                 context.report().contentRevision(),
-                reportSnapshot(context.report()),
-                stepSnapshot(context.report()),
+                reportSnapshot,
+                steps,
                 findingSummaries(context.findings()),
                 references,
-                legalReviewContext(context.findings(), references));
+                legalReviewContext(context.findings(), references, coverage, steps, reportSnapshot));
     }
 
     private Map<String, Object> reportSnapshot(InspectionReport report) {
@@ -245,13 +253,18 @@ public class ReportPreflightLegalReviewHarnessService {
 
     private Map<String, Object> legalReviewContext(
             List<ReportPreflightReviewFinding> findings,
-            List<Map<String, Object>> references
+            List<Map<String, Object>> references,
+            LegalReferenceCoverage coverage,
+            Map<String, Object> steps,
+            Map<String, Object> reportSnapshot
     ) {
         var context = new LinkedHashMap<String, Object>();
         context.put("purpose", "SOURCE_BACKED_LEGAL_REVIEW_DRAFT");
         context.put("mode", REVIEW_MODE);
         context.put("sourceBackedOnly", true);
         context.put("legalReferenceCount", references.size());
+        context.put("referenceCoverage", coverage.toMap());
+        context.put("reportEvidenceChecklist", reportEvidenceChecklist(steps, reportSnapshot));
         context.put("legalFindings", findings.stream()
                 .filter(finding -> finding.code().contains("LEGAL")
                         || !text(finding.attributesJson().get("legalReferences")).isBlank()
@@ -267,7 +280,9 @@ public class ReportPreflightLegalReviewHarnessService {
         context.put("instructions", List.of(
                 "Use only supplied legal references as legal anchors.",
                 "Return a dry-run legal review draft, not final legal advice.",
-                "Do not modify report data or legal corpus."));
+                "Do not modify report data or legal corpus.",
+                "PASS is allowed only when referenceCoverage.passEligibleForPass is true.",
+                "If references are only search candidates or generic anchors, return WARN or INSUFFICIENT_CONTEXT instead of PASS."));
         return Map.copyOf(context);
     }
 
@@ -275,12 +290,64 @@ public class ReportPreflightLegalReviewHarnessService {
         var byId = new LinkedHashMap<String, Map<String, Object>>();
         for (var finding : findings) {
             parseLegalReferenceDetails(finding.attributesJson().get("legalReferenceDetails"))
-                    .forEach(reference -> byId.putIfAbsent(text(reference.get("referenceId")), reference));
-            csvList(finding.attributesJson().get("legalReferences")).forEach(referenceId -> byId.putIfAbsent(
-                    referenceId,
-                    Map.of("referenceId", referenceId)));
+                    .forEach(reference -> mergeReference(byId, enrichReference(reference, finding)));
+            csvList(finding.attributesJson().get("legalReferences"))
+                    .forEach(referenceId -> mergeReference(byId, enrichReference(Map.of("referenceId", referenceId), finding)));
         }
-        return byId.values().stream().toList();
+        return byId.values().stream()
+                .sorted(Comparator
+                        .<Map<String, Object>>comparingInt(reference -> intValue(reference.get("referencePriorityScore")))
+                        .reversed()
+                        .thenComparing(reference -> text(reference.get("referenceId"))))
+                .limit(LEGAL_REFERENCE_REVIEW_LIMIT)
+                .map(Map::copyOf)
+                .toList();
+    }
+
+    private void mergeReference(
+            LinkedHashMap<String, Map<String, Object>> byId,
+            Map<String, Object> reference
+    ) {
+        var referenceId = text(reference.get("referenceId"));
+        if (referenceId.isBlank()) {
+            return;
+        }
+        byId.merge(referenceId, reference, this::preferredReference);
+    }
+
+    private Map<String, Object> preferredReference(
+            Map<String, Object> left,
+            Map<String, Object> right
+    ) {
+        var merged = new LinkedHashMap<String, Object>();
+        var leftWins = intValue(left.get("referencePriorityScore")) >= intValue(right.get("referencePriorityScore"));
+        var primary = leftWins ? left : right;
+        var fallback = leftWins ? right : left;
+        fallback.forEach((key, value) -> {
+            if (!text(value).isBlank()) {
+                merged.put(key, value);
+            }
+        });
+        primary.forEach((key, value) -> {
+            if (!text(value).isBlank()) {
+                merged.put(key, value);
+            }
+        });
+        return Map.copyOf(merged);
+    }
+
+    private Map<String, Object> enrichReference(
+            Map<String, Object> reference,
+            ReportPreflightReviewFinding finding
+    ) {
+        var enriched = new LinkedHashMap<String, Object>(reference);
+        enriched.putIfAbsent("sourceFindingCode", finding.code());
+        enriched.putIfAbsent("sourceFindingSeverity", finding.severity());
+        enriched.putIfAbsent("sourceFindingLocation", finding.location() == null ? "" : finding.location());
+        enriched.putIfAbsent("sourceFindingMessage", finding.message());
+        enriched.put("anchorRole", legalReferenceAnchorRole(enriched));
+        enriched.put("referencePriorityScore", referencePriorityScore(enriched, finding));
+        return Map.copyOf(enriched);
     }
 
     private List<Map<String, Object>> parseLegalReferenceDetails(String value) {
@@ -310,6 +377,184 @@ public class ReportPreflightLegalReviewHarnessService {
         return Map.copyOf(reference);
     }
 
+    private String legalReferenceAnchorRole(Map<String, Object> reference) {
+        var resolutionSource = upper(reference.get("resolutionSource"));
+        var bindingScope = upper(reference.get("bindingScope"));
+        var relevance = upper(reference.get("relevance"));
+        if ("CANDIDATE".equals(relevance) || "LEGAL_CORPUS_SEARCH".equals(bindingScope)) {
+            return "SEARCH_CANDIDATE";
+        }
+        if ("LEGAL_DOMAIN_BINDING".equals(resolutionSource) && "CATALOG_ITEM".equals(bindingScope)) {
+            return "BUSINESS_ITEM_ANCHOR";
+        }
+        if ("LEGAL_DOMAIN_BINDING".equals(resolutionSource) && "REPORT_TYPE".equals(bindingScope)) {
+            return "REPORT_TYPE_ANCHOR";
+        }
+        if ("LEGAL_DOMAIN_BINDING".equals(resolutionSource)) {
+            return "DOMAIN_ANCHOR";
+        }
+        return "REFERENCE_ANCHOR";
+    }
+
+    private int referencePriorityScore(
+            Map<String, Object> reference,
+            ReportPreflightReviewFinding finding
+    ) {
+        var score = switch (upper(reference.get("relevance"))) {
+            case "PRIMARY" -> 500;
+            case "SUPPORTING" -> 410;
+            case "REFERENCE" -> 300;
+            case "CANDIDATE" -> 150;
+            default -> 100;
+        };
+        if ("LEGAL_DOMAIN_BINDING".equals(upper(reference.get("resolutionSource")))) {
+            score += 120;
+        }
+        score += switch (upper(reference.get("bindingScope"))) {
+            case "CATALOG_ITEM" -> 90;
+            case "REPORT_TYPE" -> 60;
+            case "LEGAL_CORPUS_SEARCH" -> 10;
+            default -> 0;
+        };
+        if (!text(reference.get("checklistItemCode")).isBlank()) {
+            score += 55;
+        }
+        if (!text(reference.get("catalogCode")).isBlank()) {
+            score += 30;
+        }
+        score += switch (upper(finding.severity())) {
+            case "CRITICAL" -> 40;
+            case "HIGH" -> 30;
+            case "MEDIUM" -> 15;
+            default -> 0;
+        };
+        if (finding.code().contains("LEGAL")) {
+            score += 10;
+        }
+        return score;
+    }
+
+    private LegalReferenceCoverage legalReferenceCoverage(List<Map<String, Object>> references) {
+        var total = references.size();
+        var primary = 0;
+        var supporting = 0;
+        var reference = 0;
+        var candidate = 0;
+        var domainBinding = 0;
+        var catalogItem = 0;
+        var reportType = 0;
+        var corpusSearch = 0;
+        var businessItemAnchor = 0;
+        for (var item : references) {
+            switch (upper(item.get("relevance"))) {
+                case "PRIMARY" -> primary++;
+                case "SUPPORTING" -> supporting++;
+                case "REFERENCE" -> reference++;
+                case "CANDIDATE" -> candidate++;
+                default -> {
+                }
+            }
+            if ("LEGAL_DOMAIN_BINDING".equals(upper(item.get("resolutionSource")))) {
+                domainBinding++;
+            }
+            if ("CATALOG_ITEM".equals(upper(item.get("bindingScope")))) {
+                catalogItem++;
+            }
+            if ("REPORT_TYPE".equals(upper(item.get("bindingScope")))) {
+                reportType++;
+            }
+            if ("LEGAL_CORPUS_SEARCH".equals(upper(item.get("bindingScope")))) {
+                corpusSearch++;
+            }
+            if ("BUSINESS_ITEM_ANCHOR".equals(upper(item.get("anchorRole")))) {
+                businessItemAnchor++;
+            }
+        }
+        var passEligible = domainBinding > 0 && (primary + supporting) > 0 && (catalogItem + reportType) > 0;
+        var strength = passEligible && businessItemAnchor > 0
+                ? "HIGH"
+                : passEligible
+                ? "MEDIUM"
+                : total == 0
+                ? "NONE"
+                : "LOW";
+        var limitations = new ArrayList<String>();
+        if (!passEligible) {
+            limitations.add("PASS 판정에는 PRIMARY/SUPPORTING 도메인 바인딩 근거가 필요합니다.");
+        }
+        if (businessItemAnchor == 0) {
+            limitations.add("체크리스트 항목 단위 업무-법령 바인딩 근거가 부족합니다.");
+        }
+        if (candidate > 0) {
+            limitations.add("일부 근거는 법령 검색 후보이므로 사람 확인이 필요합니다.");
+        }
+        if (total >= LEGAL_REFERENCE_REVIEW_LIMIT) {
+            limitations.add("근거 후보가 많아 우선순위 상위 근거만 AI 검토에 사용했습니다.");
+        }
+        return new LegalReferenceCoverage(
+                total,
+                primary,
+                supporting,
+                reference,
+                candidate,
+                domainBinding,
+                catalogItem,
+                reportType,
+                corpusSearch,
+                businessItemAnchor,
+                passEligible,
+                strength,
+                List.copyOf(limitations));
+    }
+
+    private Map<String, Object> reportEvidenceChecklist(
+            Map<String, Object> steps,
+            Map<String, Object> reportSnapshot
+    ) {
+        var checklist = new LinkedHashMap<String, Object>();
+        var dailyLogStep = objectMap(steps.get("DAILY_LOG"));
+        var dailyLogPayload = objectMap(dailyLogStep.get("payload"));
+        var dailyItems = objectMap(dailyLogPayload.get("dailyItems"));
+        var groups = listValue(dailyItems.get("groups"));
+        var entryCount = 0;
+        var entriesWithSupervisionContent = 0;
+        var entriesWithPhotoIds = 0;
+        var entriesWithChecklistItemCode = 0;
+        for (var groupValue : groups) {
+            var group = objectMap(groupValue);
+            for (var entryValue : listValue(group.get("entries"))) {
+                var entry = objectMap(entryValue);
+                entryCount++;
+                if (!text(entry.get("supervisionContent")).isBlank()) {
+                    entriesWithSupervisionContent++;
+                }
+                if (!listValue(entry.get("photoIds")).isEmpty()) {
+                    entriesWithPhotoIds++;
+                }
+                if (!text(entry.get("inspectionItemCode")).isBlank()
+                        || !text(entry.get("checklistItemCode")).isBlank()) {
+                    entriesWithChecklistItemCode++;
+                }
+            }
+        }
+        var remarksStep = objectMap(steps.get("REMARKS"));
+        var remarksPayload = objectMap(remarksStep.get("payload"));
+        var photoEvidenceStatus = objectMap(reportSnapshot.get("photoEvidenceStatus"));
+        checklist.put("dailyLogGroupCount", groups.size());
+        checklist.put("dailyLogEntryCount", entryCount);
+        checklist.put("dailyLogEntriesWithSupervisionContent", entriesWithSupervisionContent);
+        checklist.put("dailyLogEntriesWithPhotoIds", entriesWithPhotoIds);
+        checklist.put("dailyLogEntriesWithChecklistItemCode", entriesWithChecklistItemCode);
+        checklist.put("hasIssueAndAction", !text(dailyLogPayload.get("issueAndAction")).isBlank()
+                || !text(remarksPayload.get("issueAndAction")).isBlank());
+        checklist.put("hasNextAction", !text(dailyLogPayload.get("nextAction")).isBlank()
+                || !text(remarksPayload.get("nextAction")).isBlank());
+        checklist.put("allDailyLogPhotoRefsResolved", Boolean.TRUE.equals(photoEvidenceStatus.get("allDailyLogPhotoRefsResolved")));
+        checklist.put("generationBlockingPhotoIssue", Boolean.TRUE.equals(photoEvidenceStatus.get("generationBlockingPhotoIssue")));
+        checklist.put("photoEvidenceSource", text(photoEvidenceStatus.get("photoSourceOfTruth")));
+        return Map.copyOf(checklist);
+    }
+
     private Optional<SourceBackedLegalReviewResult> result(Optional<ValidationResult<?>> validation) {
         return validation
                 .filter(ValidationResult::isValid)
@@ -333,6 +578,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private void saveResult(
             LegalReviewContext context,
             List<Map<String, Object>> references,
+            LegalReferenceCoverage coverage,
             SourceBackedLegalReviewResult result,
             String providerCode,
             String modelId,
@@ -345,8 +591,12 @@ public class ReportPreflightLegalReviewHarnessService {
             saveSingleFinding(context, insufficientContextFinding(context, references));
             return;
         }
+        if (status == SourceBackedLegalReviewStatus.PASS && !coverage.passEligibleForPass()) {
+            saveSingleFinding(context, insufficientContextFinding(context, references, String.join(" ", coverage.limitations())));
+            return;
+        }
         var findings = new java.util.ArrayList<ReportPreflightReviewFinding>();
-        findings.add(summaryFinding(context, referencesById, result, reviewedIds, providerCode, modelId, harnessRunId));
+        findings.add(summaryFinding(context, referencesById, coverage, result, reviewedIds, providerCode, modelId, harnessRunId));
         for (var issue : result.issues()) {
             findings.add(issueFinding(context, referencesById, result, issue, providerCode, modelId, harnessRunId));
         }
@@ -364,6 +614,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private ReportPreflightReviewFinding summaryFinding(
             LegalReviewContext context,
             Map<String, Map<String, Object>> referencesById,
+            LegalReferenceCoverage coverage,
             SourceBackedLegalReviewResult result,
             List<String> reviewedIds,
             String providerCode,
@@ -377,6 +628,7 @@ public class ReportPreflightLegalReviewHarnessService {
         attributes.put("passReason", result.passReason());
         attributes.put("limitations", result.limitations());
         attributes.put("reviewedReferenceCount", String.valueOf(reviewedIds.size()));
+        addCoverageAttributes(attributes, coverage);
         if (!reviewedIds.isEmpty()) {
             attributes.put("legalReferences", String.join(",", reviewedIds));
             attributes.put("legalReferenceDetails", referenceDetails(reviewedIds, referencesById));
@@ -434,6 +686,14 @@ public class ReportPreflightLegalReviewHarnessService {
             LegalReviewContext context,
             List<Map<String, Object>> references
     ) {
+        return insufficientContextFinding(context, references, "법령검토에 사용할 업무-법령 근거가 없거나 충분하지 않습니다.");
+    }
+
+    private ReportPreflightReviewFinding insufficientContextFinding(
+            LegalReviewContext context,
+            List<Map<String, Object>> references,
+            String limitations
+    ) {
         var attributes = new LinkedHashMap<String, String>();
         attributes.put("source", SOURCE);
         attributes.put("category", "LEGAL_REVIEW");
@@ -441,7 +701,10 @@ public class ReportPreflightLegalReviewHarnessService {
         attributes.put("reviewMode", REVIEW_MODE);
         attributes.put("draftOnly", "true");
         attributes.put("approvalRequired", "true");
-        attributes.put("limitations", "법령검토에 사용할 업무-법령 근거가 없거나 충분하지 않습니다.");
+        attributes.put("limitations", text(limitations).isBlank()
+                ? "법령검토에 사용할 업무-법령 근거가 없거나 충분하지 않습니다."
+                : text(limitations));
+        addCoverageAttributes(attributes, legalReferenceCoverage(references));
         var ids = references.stream().map(reference -> text(reference.get("referenceId"))).filter(value -> !value.isBlank()).toList();
         if (!ids.isEmpty()) {
             attributes.put("legalReferences", String.join(",", ids));
@@ -459,6 +722,21 @@ public class ReportPreflightLegalReviewHarnessService {
                 "legalReferenceCount=" + ids.size(),
                 Map.copyOf(attributes),
                 OffsetDateTime.now());
+    }
+
+    private void addCoverageAttributes(
+            LinkedHashMap<String, String> attributes,
+            LegalReferenceCoverage coverage
+    ) {
+        attributes.put("referenceCoverageStrength", coverage.reviewStrength());
+        attributes.put("passEligibleForPass", String.valueOf(coverage.passEligibleForPass()));
+        attributes.put("primaryReferenceCount", String.valueOf(coverage.primaryCount()));
+        attributes.put("supportingReferenceCount", String.valueOf(coverage.supportingCount()));
+        attributes.put("candidateReferenceCount", String.valueOf(coverage.candidateCount()));
+        attributes.put("businessItemAnchorCount", String.valueOf(coverage.businessItemAnchorCount()));
+        if (!coverage.limitations().isEmpty()) {
+            attributes.put("referenceCoverageLimitations", String.join(" ", coverage.limitations()));
+        }
     }
 
     private ReportPreflightReviewFinding skippedFinding(
@@ -671,8 +949,78 @@ public class ReportPreflightLegalReviewHarnessService {
         return value == null ? "" : value.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim();
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new LinkedHashMap<String, Object>();
+            map.forEach((key, item) -> result.put(String.valueOf(key), item));
+            return Map.copyOf(result);
+        }
+        return Map.of();
+    }
+
+    private List<Object> listValue(Object value) {
+        if (value instanceof List<?> list) {
+            return List.copyOf(list);
+        }
+        return List.of();
+    }
+
+    private int intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        var text = text(value);
+        if (text.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private String upper(Object value) {
+        return text(value).toUpperCase(Locale.ROOT);
+    }
+
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private record LegalReferenceCoverage(
+            int totalCount,
+            int primaryCount,
+            int supportingCount,
+            int referenceCount,
+            int candidateCount,
+            int domainBindingCount,
+            int catalogItemBindingCount,
+            int reportTypeBindingCount,
+            int corpusSearchCount,
+            int businessItemAnchorCount,
+            boolean passEligibleForPass,
+            String reviewStrength,
+            List<String> limitations
+    ) {
+        private Map<String, Object> toMap() {
+            var values = new LinkedHashMap<String, Object>();
+            values.put("totalCount", totalCount);
+            values.put("primaryCount", primaryCount);
+            values.put("supportingCount", supportingCount);
+            values.put("referenceCount", referenceCount);
+            values.put("candidateCount", candidateCount);
+            values.put("domainBindingCount", domainBindingCount);
+            values.put("catalogItemBindingCount", catalogItemBindingCount);
+            values.put("reportTypeBindingCount", reportTypeBindingCount);
+            values.put("corpusSearchCount", corpusSearchCount);
+            values.put("businessItemAnchorCount", businessItemAnchorCount);
+            values.put("passEligibleForPass", passEligibleForPass);
+            values.put("reviewStrength", reviewStrength);
+            values.put("limitations", limitations);
+            return Map.copyOf(values);
+        }
     }
 
     private record LegalReviewContext(

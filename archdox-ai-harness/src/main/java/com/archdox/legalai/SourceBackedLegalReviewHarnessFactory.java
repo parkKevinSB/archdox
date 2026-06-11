@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class SourceBackedLegalReviewHarnessFactory {
     public static final String HARNESS_ID = "archdox.source-backed-legal-review";
     public static final ModelId DEFAULT_MODEL_ID = ModelId.parse("archdox:source-backed-legal-review");
-    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-source-backed-legal-review", "0.1.0");
+    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-source-backed-legal-review", "0.2.0");
 
     private final ObjectMapper objectMapper;
 

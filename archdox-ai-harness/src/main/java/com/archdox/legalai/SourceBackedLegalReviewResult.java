@@ -28,6 +28,10 @@ public record SourceBackedLegalReviewResult(
         if (status == SourceBackedLegalReviewStatus.PASS && passReason.isBlank()) {
             throw new IllegalArgumentException("PASS legal review requires passReason");
         }
+        if (status == SourceBackedLegalReviewStatus.PASS
+                && containsFinalComplianceWording(summary + "\n" + legalReviewScope + "\n" + passReason)) {
+            throw new IllegalArgumentException("PASS legal review must not use final legal compliance wording");
+        }
         if ((status == SourceBackedLegalReviewStatus.WARN || status == SourceBackedLegalReviewStatus.FAIL)
                 && issues.isEmpty()) {
             throw new IllegalArgumentException("WARN or FAIL legal review requires issues");
@@ -51,5 +55,22 @@ public record SourceBackedLegalReviewResult(
                 .distinct()
                 .limit(limit)
                 .toList();
+    }
+
+    private static boolean containsFinalComplianceWording(String value) {
+        var normalized = normalize(value).replace(" ", "");
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return normalized.contains("법적요구사항을충족")
+                || normalized.contains("법적요건을충족")
+                || normalized.contains("법령요건을충족")
+                || normalized.contains("법령에부합")
+                || normalized.contains("법에부합")
+                || normalized.contains("법령을준수")
+                || normalized.contains("법을준수")
+                || normalized.contains("위반사항없")
+                || normalized.contains("법적위험이없")
+                || normalized.contains("법률리스크가없");
     }
 }
