@@ -303,7 +303,7 @@ class ReportPreflightLegalReviewHarnessServiceTest {
     }
 
     @Test
-    void technicalCriteriaEvidenceBlocksFinalPassForPerformanceItems() {
+    void technicalCriteriaEvidenceGapLimitsScopeWithoutBlockingRecordReviewPass() {
         var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
 
         @SuppressWarnings("unchecked")
@@ -331,7 +331,7 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         @SuppressWarnings("unchecked")
         var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
         assertThat(coverageMap)
-                .containsEntry("passEligibleForPass", false)
+                .containsEntry("passEligibleForPass", true)
                 .containsEntry("legalReferenceGrade", "A")
                 .containsEntry("reviewStrength", "MEDIUM");
         assertThat(passEligibility(coverageMap))
@@ -339,9 +339,11 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 .containsEntry("evidenceEligible", true)
                 .containsEntry("technicalCriteriaEligible", false)
                 .containsEntry("applicabilityEligible", true)
-                .containsEntry("finalEligible", false);
-        assertThat(passBlockerCodes(coverageMap))
-                .contains("PASS_BLOCKED_MISSING_TECHNICAL_CRITERIA_EVIDENCE");
+                .containsEntry("finalEligible", true);
+        assertThat(passBlockerCodes(coverageMap)).isEmpty();
+        assertThat((List<?>) coverageMap.get("limitations"))
+                .map(String::valueOf)
+                .contains("성능·규격 등 실질 기술기준 적합성은 설계도서, 시방서, 시험성적서, 승인서 등 별도 근거 문서가 연결되지 않아 검토 범위에서 제외했습니다.");
     }
 
     @SuppressWarnings("unchecked")

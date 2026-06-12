@@ -61,7 +61,8 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Treat legalReviewContext.referenceCoverage.passBlockers as deterministic server blockers. Do not ignore them.
                 - legalReviewContext.referenceCoverage.legalReferenceGrade uses A/B/C/D/X. Grade C, D, or X cannot justify PASS.
                 - legalReviewContext.reportEvidenceChecklist.technicalCriteriaReviewRequired=true means the report item needs actual technical criteria evidence.
-                - If technicalCriteriaReviewRequired=true and legalReviewContext.referenceCoverage.technicalCriteriaPassEligible=false, do not PASS. Return WARN or INSUFFICIENT_CONTEXT.
+                - If technicalCriteriaReviewRequired=true and legalReviewContext.referenceCoverage.technicalCriteriaPassEligible=false, do not claim technical-standard compliance.
+                - In that case, PASS may only mean record/evidence linkage review found no additional legal-risk issue; limitations must say actual technical criteria were not verified.
                 - REPORT_TYPE_ANCHOR alone is broad report-type context and cannot justify checklist/business-item PASS.
                 - SUPPORTING references alone can support human review, but cannot justify final PASS.
                 - Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거. They can support human review, but they cannot alone justify PASS.
@@ -76,6 +77,7 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Do not treat "inspection content exists" plus "photo exists" as proof that actual technical standards were satisfied.
                 - For material/performance/specification items, technical-standard review needs anchors such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
                 - If those anchors are missing, state that only recording/evidence linkage was reviewed and that actual technical compliance cannot be determined from the submitted report data.
+                - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.

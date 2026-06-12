@@ -572,10 +572,10 @@ public class ReportPreflightLegalReviewHarnessService {
                 evidenceEligible,
                 technicalCriteriaEligible,
                 applicabilityEligible,
-                legalEligible && evidenceEligible && technicalCriteriaEligible && applicabilityEligible && blockers.isEmpty(),
+                legalEligible && evidenceEligible && applicabilityEligible && blockers.isEmpty(),
                 blockers);
         var passEligible = eligibility.finalEligible();
-        var strength = eligibility.finalEligible()
+        var strength = eligibility.finalEligible() && technicalCriteriaEligible
                 ? "HIGH"
                 : legalEligible && evidenceEligible
                 ? "MEDIUM"
@@ -588,6 +588,9 @@ public class ReportPreflightLegalReviewHarnessService {
                 .collect(Collectors.toCollection(ArrayList::new));
         if (total >= LEGAL_REFERENCE_REVIEW_LIMIT) {
             limitations.add("근거 후보가 많아 우선순위 상위 근거만 AI 검토에 사용했습니다.");
+        }
+        if (!technicalCriteriaEligible) {
+            limitations.add("성능·규격 등 실질 기술기준 적합성은 설계도서, 시방서, 시험성적서, 승인서 등 별도 근거 문서가 연결되지 않아 검토 범위에서 제외했습니다.");
         }
         return new LegalReferenceCoverage(
                 total,
@@ -726,12 +729,6 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         if (!evidenceEligible) {
             blockers.addAll(evidenceBlockers(evidenceChecklist));
-        }
-        if (!technicalCriteriaEligible) {
-            blockers.add(blocker(
-                    "PASS_BLOCKED_MISSING_TECHNICAL_CRITERIA_EVIDENCE",
-                    "TECHNICAL_CRITERIA",
-                    "설계도서, 시방서, 시험성적서, 승인서 등 실질 기준 검토 자료가 부족합니다."));
         }
         return List.copyOf(blockers);
     }
