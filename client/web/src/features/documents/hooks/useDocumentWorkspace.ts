@@ -468,6 +468,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     polishingNarrativeReportId: polishNarrativeMutation.isPending ? polishNarrativeMutation.variables?.reportId ?? null : null,
     preflightFindingsByRun: preflightFindingsQuery.data ?? {},
     preflightRunsByReport: preflightRunsQuery.data ?? {},
+    preflightRunsLoading: preflightRunsQuery.isLoading || preflightRunsQuery.isFetching,
     refreshJobs: async () => {
       await Promise.all([
         jobsQuery.refetch(),

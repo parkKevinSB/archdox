@@ -185,6 +185,41 @@ class ReportPreflightReviewServiceApprovalGateTest {
     }
 
     @Test
+    void applyingSafeAiFixToGeneratedReportUsesApprovedCorrectionPathWithoutReopen() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        report.submit(now);
+        report.requestGeneration(500L, report.generationRevision(), now.plusMinutes(1));
+        report.markGenerated(1, now.plusMinutes(2));
+        var run = run(now);
+        var finding = aiWordFixFinding(300L, "REMARKS.issueAndAction", now);
+        var step = new InspectionReportStep(
+                report,
+                "REMARKS",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                Map.of("issueAndAction", "특기사항 없이 좋음"),
+                7L,
+                now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS")).thenReturn(Optional.of(step));
+        when(inspectionReportService.applyPreflightFixStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any()))
+                .thenReturn(new InspectionStepResponse("REMARKS", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
+
+        service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        verify(inspectionReportService).applyPreflightFixStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any());
+        verify(inspectionReportService, org.mockito.Mockito.never()).saveStep(eq(100L), eq("REMARKS"), any(), any());
+        assertThat(report.contentRevision()).isEqualTo(1);
+        assertThat(report.submittedRevision()).isEqualTo(1);
+    }
+
+    @Test
     void applyingAmbiguousAiFixIsRejectedBeforeSavingStep() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");

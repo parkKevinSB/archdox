@@ -47,6 +47,25 @@ class InspectionReportWorkflowTest {
     }
 
     @Test
+    void approvedTextCorrectionAfterGenerationReturnsToReadyWithoutReopenRevision() {
+        var now = OffsetDateTime.now();
+        var report = new InspectionReport(10L, 100L, null, "RPT-1", "DAILY", "Daily", null, 1L, now);
+
+        report.markStepSaved("DAILY_LOG", now.plusMinutes(1));
+        report.submit(now.plusMinutes(2));
+        report.requestGeneration(500L, report.generationRevision(), now.plusMinutes(3));
+        report.markGenerated(1, now.plusMinutes(4));
+        report.markSubmittedPreflightFixApplied("REMARKS", now.plusMinutes(5));
+
+        assertEquals(InspectionReportStatus.READY_TO_GENERATE, report.status());
+        assertEquals(1, report.contentRevision());
+        assertEquals(1, report.submittedRevision());
+        assertEquals(1, report.generatedRevision());
+        assertEquals(1, report.generationRevision());
+        assertTrue(report.canRequestGeneration());
+    }
+
+    @Test
     void cancelledReportCannotBeEditedOrSubmittedAgain() {
         var now = OffsetDateTime.now();
         var report = new InspectionReport(10L, 100L, null, "RPT-1", "DAILY", "Daily", null, 1L, now);

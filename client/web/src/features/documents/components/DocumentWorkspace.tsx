@@ -223,6 +223,7 @@ export function DocumentWorkspace({
                   jobs={context.jobs}
                   key={context.report.id}
                   preflightRun={context.preflightRun}
+                  preflightRunLoading={workspace.preflightRunsLoading}
                   projectName={context.projectName}
                   report={context.report}
                   onOpen={() => setSelectedDocumentReportId(context.report.id)}
@@ -273,19 +274,21 @@ export function DocumentWorkspace({
 function DocumentReportListItem({
   jobs,
   preflightRun,
+  preflightRunLoading,
   projectName,
   report,
   onOpen
 }: {
   jobs: DocumentJobResponse[];
   preflightRun: ReportPreflightReviewRunResponse | null;
+  preflightRunLoading: boolean;
   projectName?: string;
   report: InspectionReport;
   onOpen: () => void;
 }) {
   const latestJob = jobs[0] ?? null;
   const generatedCount = jobs.filter((job) => job.status === "GENERATED").length;
-  const status = documentListStatus(report, latestJob, preflightRun);
+  const status = documentListStatus(report, latestJob, preflightRun, preflightRunLoading);
   return (
     <button className="document-simple-row" onClick={onOpen} type="button">
       <span className="document-simple-icon">
@@ -2548,7 +2551,8 @@ function documentStatusSummary(latestJob: DocumentJobResponse | null, report: In
 function documentListStatus(
   report: InspectionReport,
   latestJob: DocumentJobResponse | null,
-  preflightRun: ReportPreflightReviewRunResponse | null
+  preflightRun: ReportPreflightReviewRunResponse | null,
+  preflightRunLoading = false
 ) {
   if (latestJob && ["REQUESTED", "GENERATING"].includes(latestJob.status)) {
     return {
@@ -2562,6 +2566,13 @@ function documentListStatus(
       detail: "수정본 제출 후 검토/생성 가능",
       label: "제출 필요",
       tone: "amber"
+    };
+  }
+  if (!preflightRun && preflightRunLoading) {
+    return {
+      detail: "최근 검토 상태를 불러오는 중",
+      label: "확인 중",
+      tone: "slate"
     };
   }
   const current = preflightRun ? preflightRun.reportRevision === report.contentRevision : false;

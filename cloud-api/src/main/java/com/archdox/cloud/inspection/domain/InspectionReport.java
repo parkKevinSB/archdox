@@ -110,7 +110,9 @@ public class InspectionReport {
     }
 
     public boolean canApplyPreflightFixToSubmittedRevision() {
-        return status == InspectionReportStatus.READY_TO_GENERATE;
+        return status == InspectionReportStatus.READY_TO_GENERATE
+                || status == InspectionReportStatus.GENERATED
+                || status == InspectionReportStatus.FAILED;
     }
 
     public boolean canSubmit() {
@@ -138,6 +140,9 @@ public class InspectionReport {
 
     public void markSubmittedPreflightFixApplied(String stepCode, OffsetDateTime now) {
         this.currentStep = stepCode;
+        if (status == InspectionReportStatus.GENERATED || status == InspectionReportStatus.FAILED) {
+            this.status = InspectionReportStatus.READY_TO_GENERATE;
+        }
         this.updatedAt = now;
     }
 
