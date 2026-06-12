@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -225,6 +226,40 @@ class ArchDoxProviderAiModelGatewayTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void returnsFailedCallWhenModelGatewayExecutorRejectsSubmission() {
+        var repository = mock(AiProviderCredentialRepository.class);
+        var callLogService = mock(AiModelCallLogService.class);
+        var properties = new AiCredentialProperties();
+        properties.setMasterKey("test-master-key");
+        var gateway = new ArchDoxProviderAiModelGateway(
+                repository,
+                new AiCredentialCipher(properties),
+                callLogService,
+                new ObjectMapper(),
+                new AiFakeProviderProperties(),
+                new AiFakeResponseFactory(),
+                new AiSpringAiAdapterProperties(),
+                Optional.empty(),
+                command -> {
+                    throw new RejectedExecutionException("queue full");
+                });
+
+        var call = gateway.submit(request("local-openai", "gpt-test"));
+
+        assertThat(call.poll()).isEqualTo(AiModelCallStatus.FAILED);
+        assertThat(call.error())
+                .isInstanceOf(GatewayException.class)
+                .hasMessageContaining("AI_MODEL_GATEWAY_QUEUE_FULL");
+        verify(callLogService).recordFailure(
+                any(),
+                isNull(),
+                any(AiModelRequest.class),
+                any(GatewayException.class),
+                any(),
+                any());
     }
 
     private ArchDoxProviderAiModelGateway gateway(AiProviderCredential provider, String providerCode) {

@@ -134,7 +134,7 @@ class PlatformOpsDiagnosisFakeAiHarnessFlowTest {
         when(findingRepository.countByRunIdAndSource(77L, PlatformOpsFindingSource.AI_HARNESS)).thenReturn(1L);
 
         var parentWorker = Worker.builder("platform-ops-parent-test").build();
-        var aiWorker = Worker.builder(ArchDoxRuntimeConfiguration.PLATFORM_OPS_AI_WORKER).build();
+        var aiWorker = Worker.builder(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER).build();
         var engine = Engine.builder()
                 .worker(parentWorker)
                 .worker(aiWorker)

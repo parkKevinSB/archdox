@@ -1861,6 +1861,94 @@ button {
   font: inherit;
 }
 
+.flower-runtime-decision {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #cfe0dc;
+  border-radius: 8px;
+  background: #f7fbfa;
+}
+
+.flower-runtime-decision.green {
+  border-color: #bfe2d5;
+  background: #f0faf6;
+}
+
+.flower-runtime-decision.amber {
+  border-color: #f0d6a8;
+  background: #fff8ea;
+}
+
+.flower-runtime-decision.red {
+  border-color: #f2b9b2;
+  background: #fff1ef;
+}
+
+.flower-runtime-decision-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.flower-runtime-decision-main > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.flower-runtime-decision-main strong {
+  color: #172724;
+  font-size: 15px;
+}
+
+.flower-runtime-decision-main span,
+.flower-runtime-decision-detail p {
+  margin: 0;
+  color: #435d58;
+  line-height: 1.5;
+}
+
+.flower-runtime-decision-detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.flower-runtime-decision-detail > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgb(22 48 43 / 8%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 70%);
+}
+
+.flower-runtime-decision-detail small {
+  display: block;
+  margin-bottom: 4px;
+  color: #718680;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.flower-runtime-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.flower-runtime-checks span {
+  padding: 4px 7px;
+  border: 1px solid rgb(22 48 43 / 10%);
+  border-radius: 999px;
+  color: #4e6761;
+  background: #ffffff;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 750;
+}
+
 .flower-flow-list {
   display: grid;
   gap: 10px;
@@ -3471,6 +3559,10 @@ tbody tr:hover {
   .evaluation-group-list,
   .evaluation-run-list,
   .evaluation-operator-brief {
+    grid-template-columns: 1fr;
+  }
+
+  .flower-runtime-decision-detail {
     grid-template-columns: 1fr;
   }
 

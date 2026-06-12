@@ -26,8 +26,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +48,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
     private final Optional<SpringAiModelGateway> springAiModelGateway;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final Executor aiModelGatewayExecutor;
 
     @Autowired
     public ArchDoxProviderAiModelGateway(
@@ -55,7 +60,8 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             AiFakeResponseFactory fakeResponseFactory,
             AiSpringAiAdapterProperties springAiAdapterProperties,
             AiObservationBufferService observationBufferService,
-            Optional<SpringAiModelGateway> springAiModelGateway
+            Optional<SpringAiModelGateway> springAiModelGateway,
+            @Qualifier(AiModelGatewayExecutionConfiguration.AI_MODEL_GATEWAY_EXECUTOR) Executor aiModelGatewayExecutor
     ) {
         this.providerRepository = providerRepository;
         this.credentialCipher = credentialCipher;
@@ -66,6 +72,9 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         this.observationBufferService = observationBufferService;
         this.springAiModelGateway = springAiModelGateway == null ? Optional.empty() : springAiModelGateway;
         this.objectMapper = objectMapper;
+        this.aiModelGatewayExecutor = aiModelGatewayExecutor == null
+                ? ForkJoinPool.commonPool()
+                : aiModelGatewayExecutor;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(15))
                 .build();
@@ -90,14 +99,50 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 fakeResponseFactory,
                 springAiAdapterProperties,
                 AiObservationBufferService.disabled(),
-                springAiModelGateway);
+                springAiModelGateway,
+                ForkJoinPool.commonPool());
+    }
+
+    ArchDoxProviderAiModelGateway(
+            AiProviderCredentialRepository providerRepository,
+            AiCredentialCipher credentialCipher,
+            AiModelCallLogService callLogService,
+            ObjectMapper objectMapper,
+            AiFakeProviderProperties fakeProviderProperties,
+            AiFakeResponseFactory fakeResponseFactory,
+            AiSpringAiAdapterProperties springAiAdapterProperties,
+            Optional<SpringAiModelGateway> springAiModelGateway,
+            Executor aiModelGatewayExecutor
+    ) {
+        this(
+                providerRepository,
+                credentialCipher,
+                callLogService,
+                objectMapper,
+                fakeProviderProperties,
+                fakeResponseFactory,
+                springAiAdapterProperties,
+                AiObservationBufferService.disabled(),
+                springAiModelGateway,
+                aiModelGatewayExecutor);
     }
 
     @Override
     public AiModelCall submit(AiModelRequest request) {
         var callId = "archdox-ai-" + UUID.randomUUID();
         observationBufferService.observeSubmitted(callId, request, OffsetDateTime.now());
-        var future = CompletableFuture.supplyAsync(() -> callProvider(callId, request));
+        CompletableFuture<AiModelResponse> future;
+        try {
+            future = CompletableFuture.supplyAsync(
+                    () -> callProvider(callId, request),
+                    aiModelGatewayExecutor);
+        } catch (RejectedExecutionException ex) {
+            var failure = new GatewayException(
+                    "AI_MODEL_GATEWAY_QUEUE_FULL: AI model gateway execution queue is full", ex);
+            recordFailureSafely(callId, null, request, failure, OffsetDateTime.now());
+            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+            future = CompletableFuture.failedFuture(failure);
+        }
         return new ArchDoxAiModelCall(callId, future.orTimeout(
                 request.timeout().toMillis(),
                 java.util.concurrent.TimeUnit.MILLISECONDS));

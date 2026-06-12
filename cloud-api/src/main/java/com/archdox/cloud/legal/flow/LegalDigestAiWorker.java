@@ -16,7 +16,7 @@ public class LegalDigestAiWorker {
     }
 
     public boolean submitAndAwait(AiHarnessFlow flow, Duration timeout) {
-        engine.worker(ArchDoxRuntimeConfiguration.LEGAL_DIGEST_AI_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER)
                 .submit(flow.flow(), DuplicatePolicy.REJECT);
         var deadline = System.nanoTime() + timeout.toNanos();
         while (System.nanoTime() < deadline) {

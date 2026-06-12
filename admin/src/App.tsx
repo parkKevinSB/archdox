@@ -170,6 +170,7 @@ import type {
   EngineApiUsageEvent,
   EngineApiUsageSummary,
   FlowerRuntimeDump,
+  FlowerRuntimeExecutor,
   FlowerRuntimeFlow,
   FlowerRuntimeWorker,
   LegalArticleDiff,
@@ -5894,6 +5895,9 @@ function FlowerRuntimePanel({
   const [intervalMs, setIntervalMs] = useState(3000);
   const activeWorkers = dump?.workers.filter((worker) => worker.activeFlowCount > 0) ?? [];
   const activeFlows = activeWorkers.flatMap((worker) => worker.flows.map((flow) => ({ worker, flow })));
+  const executors = dump?.executors ?? [];
+  const overloadEvents = dump?.overloadEvents ?? [];
+  const runtimeDecision = dump ? flowerRuntimeDecision(dump, executors, overloadEvents) : null;
 
   useEffect(() => {
     if (!polling) {
@@ -5948,8 +5952,10 @@ function FlowerRuntimePanel({
               <MetricCard icon={<Gauge size={20} />} label="Engine" value={dump.engineState} detail={formatDate(dump.capturedAt)} tone={dump.engineState === "RUNNING" ? "green" : "amber"} />
               <MetricCard icon={<Server size={20} />} label="Workers" value={dump.workerCount} detail={`${activeWorkers.length} active`} tone="blue" />
               <MetricCard icon={<Activity size={20} />} label="Flows" value={dump.activeFlowCount} detail="current active flows" tone={dump.activeFlowCount > 0 ? "amber" : "green"} />
+              <MetricCard icon={<Command size={20} />} label="Executors" value={dump.executorCount ?? executors.length} detail={`${dump.queuedTaskCount ?? 0} queued`} tone={(dump.saturatedExecutorCount ?? 0) > 0 ? "red" : "green"} />
               <MetricCard icon={<Clock3 size={20} />} label="Polling" value={polling ? "ON" : "OFF"} detail={`${intervalMs}ms`} tone={polling ? "green" : "slate"} />
             </div>
+            {runtimeDecision ? <FlowerRuntimeDecisionView decision={runtimeDecision} /> : null}
             <Table
               columns={["Worker", "State", "Interval", "Active flows"]}
               empty="Flower worker가 없습니다."
@@ -5966,6 +5972,35 @@ function FlowerRuntimePanel({
         )}
       </Panel>
 
+      <Panel title="실행 Lane / Executor" icon={<Gauge size={18} />} count={executors.length}>
+        <Table
+          columns={["Lane", "상태", "스레드", "대기열", "처리량", "생명주기"]}
+          empty="Runtime executor 상태가 아직 없습니다."
+          rows={executors.map((executor) => [
+            <CellTitle key="executor" title={displayExecutorName(executor.beanName)} subtitle={`${executor.beanName} / ${executor.queueType}`} />,
+            <StatusBadge key="state" status={executor.state} />,
+            `${executor.activeCount}/${executor.poolSize} active · max ${executor.maximumPoolSize}`,
+            executorQueueDetail(executor),
+            `${executor.completedTaskCount}/${executor.taskCount}`,
+            executor.terminated ? "terminated" : executor.shutdown ? "shutdown" : "running"
+          ])}
+        />
+      </Panel>
+
+      <Panel title="최근 과부하 이벤트" icon={<AlertTriangle size={18} />} count={overloadEvents.length}>
+        <Table
+          columns={["시간", "이벤트", "심각도", "Workflow", "메시지"]}
+          empty="최근 runtime 과부하 이벤트가 없습니다."
+          rows={overloadEvents.map((event) => [
+            formatDate(event.createdAt),
+            <StatusBadge key="event" status={event.eventType} />,
+            <StatusBadge key="severity" status={event.severity} />,
+            event.workflowType ?? "-",
+            event.message
+          ])}
+        />
+      </Panel>
+
       <Panel title="Active Flower Flows" icon={<Command size={18} />} count={activeFlows.length}>
         {activeFlows.length === 0 ? (
           <InlineNotice message="현재 실행 중인 Flower flow가 없습니다." />
@@ -5979,6 +6014,141 @@ function FlowerRuntimePanel({
       </Panel>
     </div>
   );
+}
+
+type FlowerRuntimeDecision = {
+  tone: "green" | "amber" | "red" | "slate";
+  title: string;
+  summary: string;
+  reason: string;
+  action: string;
+  checks: string[];
+};
+
+function FlowerRuntimeDecisionView({ decision }: { decision: FlowerRuntimeDecision }) {
+  return (
+    <div className={`flower-runtime-decision ${decision.tone}`}>
+      <div className="flower-runtime-decision-main">
+        <StatusIcon status={decision.tone === "red" ? "FAILED" : decision.tone === "amber" ? "WARN" : "PASS"} />
+        <div>
+          <strong>{decision.title}</strong>
+          <span>{decision.summary}</span>
+        </div>
+      </div>
+      <div className="flower-runtime-decision-detail">
+        <div>
+          <small>판정 이유</small>
+          <p>{decision.reason}</p>
+        </div>
+        <div>
+          <small>다음 조치</small>
+          <p>{decision.action}</p>
+        </div>
+      </div>
+      <div className="flower-runtime-checks">
+        {decision.checks.map((check) => (
+          <span key={check}>{check}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function flowerRuntimeDecision(
+  dump: FlowerRuntimeDump,
+  executors: FlowerRuntimeExecutor[],
+  overloadEvents: OperationEvent[]
+): FlowerRuntimeDecision {
+  const saturated = executors.filter((executor) => executor.state === "SATURATED");
+  const active = executors.filter((executor) => executor.state === "ACTIVE" || executor.state === "SATURATED");
+  const queuedTaskCount = dump.queuedTaskCount ?? executors.reduce((sum, executor) => sum + executor.queueSize, 0);
+  const checks = [
+    `workers ${dump.workerCount}`,
+    `flows ${dump.activeFlowCount}`,
+    `executors ${dump.executorCount ?? executors.length}`,
+    `queued ${queuedTaskCount}`,
+    `overload events ${overloadEvents.length}`
+  ];
+
+  if (dump.engineState !== "RUNNING") {
+    return {
+      tone: "red",
+      title: "Flower 엔진 확인 필요",
+      summary: `현재 engine 상태가 ${dump.engineState}입니다.`,
+      reason: "Flower worker가 flow를 계속 진행하지 못할 수 있습니다.",
+      action: "서버 런타임 상태와 최근 배포/재시작 로그를 먼저 확인하세요.",
+      checks
+    };
+  }
+
+  if (saturated.length > 0) {
+    const lanes = saturated.map((executor) => displayExecutorName(executor.beanName)).join(", ");
+    return {
+      tone: "red",
+      title: "실행 Lane 포화",
+      summary: `${lanes} 대기열이 가득 찼습니다.`,
+      reason: "해당 lane에 새 작업이 들어오면 거절되거나 지연될 수 있습니다.",
+      action: "같은 시간대의 과부하 이벤트와 작업 요청량을 확인하고, 필요하면 lane limit 또는 호출 빈도를 조정하세요.",
+      checks
+    };
+  }
+
+  if (overloadEvents.length > 0) {
+    return {
+      tone: "amber",
+      title: "최근 과부하 이벤트 있음",
+      summary: `최근 runtime 과부하 이벤트 ${overloadEvents.length}건이 기록되었습니다.`,
+      reason: "현재는 포화 상태가 아니더라도 짧은 시간 안에 queue full 또는 호출 제한이 발생했습니다.",
+      action: "아래 이벤트의 workflow와 메시지를 보고 어떤 lane에서 반복되는지 확인하세요.",
+      checks
+    };
+  }
+
+  if (queuedTaskCount > 0) {
+    return {
+      tone: "amber",
+      title: "처리 대기 있음",
+      summary: `${queuedTaskCount}개 작업이 executor queue에서 대기 중입니다.`,
+      reason: "작업은 접수됐고 실행 순서를 기다리는 상태입니다.",
+      action: "대기 수가 계속 증가하는지 polling을 켜고 확인하세요. 일시적이면 정상 처리 중입니다.",
+      checks
+    };
+  }
+
+  if (active.length > 0 || dump.activeFlowCount > 0) {
+    return {
+      tone: "green",
+      title: "정상 처리 중",
+      summary: "실행 중인 flow 또는 executor 작업이 있지만 queue 포화는 없습니다.",
+      reason: "현재 작업은 처리 중이고, 새 작업을 받을 여유가 남아 있습니다.",
+      action: "특별한 조치는 필요 없습니다. 느려 보이면 active flow 상세에서 현재 step을 확인하세요.",
+      checks
+    };
+  }
+
+  return {
+    tone: "green",
+    title: "정상 대기",
+    summary: "실행 중인 flow와 executor 대기열이 없습니다.",
+    reason: "Flower runtime과 실행 lane이 idle 상태입니다.",
+    action: "새 요청이 들어오면 worker flow와 executor 상태가 이 화면에 표시됩니다.",
+    checks
+  };
+}
+
+function displayExecutorName(beanName: string) {
+  return beanName
+    .replace(/Executor$/, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+}
+
+function executorQueueDetail(executor: { queueSize: number; remainingQueueCapacity?: number | null }) {
+  const remaining = executor.remainingQueueCapacity;
+  if (remaining === null || remaining === undefined) {
+    return `${executor.queueSize} queued`;
+  }
+  return `${executor.queueSize} queued · ${remaining} remaining`;
 }
 
 function FlowerRuntimeFlowItem({ flow, worker }: { flow: FlowerRuntimeFlow; worker: FlowerRuntimeWorker }) {

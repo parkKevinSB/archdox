@@ -2947,9 +2947,9 @@ operation events, and writes an `OPS_DIAGNOSIS_SNAPSHOT_READY` finding with
 source `SYSTEM_DIAGNOSIS`.
 
 If platform ops AI diagnosis is enabled and configured, the flow submits
-`OpsDiagnosisHarness` as child work to the `platform-ops-ai` Flower worker and
-stores resulting findings with source `AI_HARNESS`. If AI diagnosis is disabled
-or not configured, the same endpoint completes as deterministic-only.
+`OpsDiagnosisHarness` as child work to the shared `ai-harness` Flower worker
+lane and stores resulting findings with source `AI_HARNESS`. If AI diagnosis is
+disabled or not configured, the same endpoint completes as deterministic-only.
 
 Example response:
 

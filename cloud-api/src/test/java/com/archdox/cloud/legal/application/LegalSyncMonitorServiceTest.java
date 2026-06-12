@@ -18,6 +18,7 @@ import io.github.parkkevinsb.flower.core.flow.Flow;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class LegalSyncMonitorServiceTest {
     private final LegalSyncProperties properties = readyProperties();
@@ -66,6 +67,21 @@ class LegalSyncMonitorServiceTest {
         assertThat(decision.status()).isEqualTo("SKIPPED");
         assertThat(decision.reason()).isEqualTo("DUE_SLOT_ALREADY_HANDLED");
         verify(syncService, never()).createRun(any(), any(), any());
+        verify(worker, never()).submit(any());
+    }
+
+    @Test
+    void skipsWhenRunningRunIsCreatedByAnotherRequestAfterCheck() {
+        var now = OffsetDateTime.parse("2026-06-10T06:00:00Z");
+        when(repository.existsBySourceCodeAndStatus("NATIONAL_LAW_OPEN_DATA", LegalSyncRunStatus.RUNNING)).thenReturn(false);
+        when(repository.findFirstBySourceCodeOrderByStartedAtDescIdDesc("NATIONAL_LAW_OPEN_DATA")).thenReturn(Optional.empty());
+        when(syncService.createRun(LegalSyncMonitorService.TRIGGER_TYPE, "NATIONAL_LAW_OPEN_DATA", null))
+                .thenThrow(new DataIntegrityViolationException("running sync already exists"));
+
+        var decision = service.checkAndSubmitIfDue(now);
+
+        assertThat(decision.status()).isEqualTo("SKIPPED");
+        assertThat(decision.reason()).isEqualTo("SYNC_ALREADY_RUNNING");
         verify(worker, never()).submit(any());
     }
 

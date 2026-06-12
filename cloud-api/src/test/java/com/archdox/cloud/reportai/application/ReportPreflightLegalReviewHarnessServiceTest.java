@@ -79,11 +79,12 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of());
         when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
-        service.run(request);
+        var submission = service.submit(request);
 
         var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
         org.mockito.Mockito.verify(findingRepository).deleteByReviewRunIdAndSource(200L, ReportPreflightLegalReviewHarnessService.SOURCE);
         org.mockito.Mockito.verify(findingRepository).save(captor.capture());
+        assertThat(submission.submitted()).isFalse();
         assertThat(captor.getValue().source()).isEqualTo("LEGAL_REVIEW");
         assertThat(captor.getValue().code()).isEqualTo("LEGAL_REVIEW_INSUFFICIENT_CONTEXT");
         assertThat(captor.getValue().attributesJson())
@@ -117,12 +118,13 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                         new ModelId("openai-main", "gpt-4.1-mini"),
                         2,
                         Duration.ofSeconds(90))));
-        when(aiWorker.submitAndAwait(any(), any())).thenReturn(true);
         when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
-        service.run(request);
+        var submission = service.submit(request);
 
-        verify(aiWorker).submitAndAwait(any(), any());
+        assertThat(submission.submitted()).isTrue();
+        assertThat(submission.flow()).isNotNull();
+        verify(aiWorker).submit(any());
     }
 
     @Test
@@ -141,10 +143,11 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                         "POLICY_DISABLED"));
         when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
-        service.run(request);
+        var submission = service.submit(request);
 
         var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
         org.mockito.Mockito.verify(findingRepository).save(captor.capture());
+        assertThat(submission.submitted()).isFalse();
         assertThat(captor.getValue().code()).isEqualTo("LEGAL_REVIEW_SKIPPED");
         assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
         assertThat(captor.getValue().resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");

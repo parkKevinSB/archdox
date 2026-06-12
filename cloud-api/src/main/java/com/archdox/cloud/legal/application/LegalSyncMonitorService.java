@@ -1,5 +1,6 @@
 package com.archdox.cloud.legal.application;
 
+import com.archdox.cloud.legal.domain.LegalSyncRun;
 import com.archdox.cloud.legal.domain.LegalSyncRunStatus;
 import com.archdox.cloud.legal.event.LegalSyncRequested;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
@@ -16,6 +17,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -70,7 +72,12 @@ public class LegalSyncMonitorService {
             return LegalSyncMonitorDecision.skipped("DUE_SLOT_ALREADY_HANDLED", sourceCode, dueAt);
         }
 
-        var run = syncService.createRun(TRIGGER_TYPE, sourceCode, null);
+        LegalSyncRun run;
+        try {
+            run = syncService.createRun(TRIGGER_TYPE, sourceCode, null);
+        } catch (DataIntegrityViolationException ex) {
+            return LegalSyncMonitorDecision.skipped("SYNC_ALREADY_RUNNING", sourceCode, dueAt);
+        }
         worker.submit(flowFactory.create(new LegalSyncRequested(run.id(), run.sourceCode())));
         recordSubmitted(run.id(), sourceCode, dueAt, now);
         return LegalSyncMonitorDecision.submitted(sourceCode, dueAt, run.id());

@@ -68,7 +68,7 @@ Flower is appropriate for:
   non-Spring runtime object truly needs a shorter lifecycle.
 - `photo-derivative-generation`
   - Trigger: `PhotoUploadConfirmed`
-  - Worker: `photo-derivatives`
+  - Worker: `document-io`
   - Steps: `prepare-source`, `generate-working`, `generate-thumbnail`,
     `finalize`
   - Retry cursor: stepNo `0` submit, `10` observe, `20` backoff
@@ -76,8 +76,8 @@ Flower is appropriate for:
   - Trigger: REST entrypoint directly submits the flow after creating
     `document_jobs`
   - Flow input: `DocumentGenerationRequested`
-  - Worker: `document-generation`
-  - Steps: `validate-job`, `render-cloud-document`
+  - Worker: `document-io`
+  - Steps: `validate-job`, `render-archdox-agent-document`
   - Retry cursor: stepNo `0` submit, `10` observe, `20` backoff
   - Completion event: `DocumentGeneratedEvent`
   - Retry exhaustion event: `DocumentGenerationFailedEvent`
@@ -107,6 +107,63 @@ Flower step rules:
 12. Do not introduce Spring `@Scheduled`, cron jobs, polling loops, or ad-hoc
     background schedulers for orchestration unless the user explicitly confirms
     that a scheduler is needed.
+
+## Flower Worker Lane Rules
+
+Flower workers are execution lanes, not feature names. Do not add a new worker
+just because a new flow, AI harness, or button exists.
+
+Create or keep a separate worker only when the flow has a different execution
+risk profile:
+
+- it still contains `submitAndAwait`, polling sleep, blocking external IO, or
+  other tick-blocking behavior;
+- it can wait on a slow external system and must not delay unrelated flows;
+- it has a different operational priority, retry cadence, or isolation need;
+- it runs CPU/memory-heavy work that is not already moved to a bounded
+  executor or external runtime;
+- it needs a different concurrency/backpressure policy.
+
+Prefer a shared lane when flows have the same execution character:
+
+- the step starts external work and then observes completion by event, stored
+  state, timeout, or `CompletableFuture` status;
+- waiting is represented with `stepNo`, `ctx.startTimeout(...)`, and
+  `StepResult.stay()`;
+- heavy work is delegated to a bounded executor, ArchDox Agent, or another
+  explicit runtime boundary;
+- a delay/failure in one flow should not consume the worker thread for the
+  duration of that delay.
+
+Current lane direction:
+
+| Lane | Owns | Rule |
+| --- | --- | --- |
+| `document-io` | photo derivative, photo pickup, document generation, document delivery orchestration | Shared because these flows delegate heavy work to executors or ArchDox Agent commands and wait by state/event. |
+| `monitoring` | long-lived monitor/control flows | Shared for lightweight periodic control loops that use `stepNo` and timeouts. |
+| `document-review` | deterministic review orchestration | May absorb more review flows once they do not block worker ticks. |
+| `ai-harness` | AI child harness flows such as document AI review, report preflight AI review, source-backed legal review AI, platform ops diagnosis AI, document narrative polish AI, worker chat planner AI, and legal digest draft AI. | Shared because these flows are bounded AI execution units and provider calls are protected by the model gateway bulkhead. Workflow type names such as `document-ai-review` remain separate from the worker lane name. Narrative polish, worker chat planner, and legal digest draft may still wait from their caller, but they no longer own dedicated Flower worker lanes. |
+| `legal-sync` | Law Open Data sync | Keep isolated because Law Open Data fetch is slow external I/O. The fetch step must submit source fetch work to the bounded `legal-sync-fetch-*` executor, move to `stepNo=10`, and observe completion on later ticks instead of performing HTTP/retry waits inside the Flower tick. The executor is configured by `archdox.legal.sync.fetch-executor-threads` and `archdox.legal.sync.fetch-executor-queue-capacity`. |
+| `archdox-worker` | controlled SaaS action execution | A worker action that waits on AI, external I/O, or a child flow must implement `ArchDoxWorkerAsyncActionExecutor`. The generic execution step submits the action future, moves to a waiting `stepNo`, and observes completion on later ticks. Do not hide long waits inside the synchronous `execute()` method. |
+
+AI harness model calls must not use the JVM common pool as the concurrency
+boundary. In Cloud API, `ArchDoxProviderAiModelGateway` runs provider calls
+through the bounded `ai-model-gateway-*` executor, configured by
+`archdox.ai.model-gateway.execution.threads` and
+`archdox.ai.model-gateway.execution.queue-capacity`. If that queue is full, the
+call fails as an observable gateway overload instead of silently consuming
+unbounded threads.
+
+ArchDox worker async actions run their blocking bridge code through the bounded
+`archdox-worker-action-*` executor, configured by
+`archdox.worker.action-executor-threads` and
+`archdox.worker.action-executor-queue-capacity`. This executor is not a new
+Flower worker lane; it is a backpressure boundary for action code that still
+needs to wait on a child runtime while the Flower worker keeps ticking.
+
+When a new feature needs orchestration, first choose an existing lane by
+execution character. A new worker name requires an explicit isolation reason in
+code review and the relevant architecture document.
 
 ## Boundary Between Bloom And Flower
 

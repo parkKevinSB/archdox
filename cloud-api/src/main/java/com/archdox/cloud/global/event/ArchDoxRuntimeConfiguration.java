@@ -16,31 +16,26 @@ import io.github.parkkevinsb.flower.core.engine.Engine;
 import io.github.parkkevinsb.flower.core.listener.FlowerListener;
 import io.github.parkkevinsb.flower.core.worker.Worker;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ArchDoxRuntimeConfiguration {
-    public static final String PHOTO_DERIVATIVE_WORKER = "photo-derivatives";
-    public static final String PHOTO_PICKUP_WORKER = "photo-pickup";
-    public static final String DOCUMENT_GENERATION_WORKER = "document-generation";
-    public static final String DOCUMENT_DELIVERY_WORKER = "document-delivery";
+    public static final String DOCUMENT_IO_WORKER = "document-io";
     public static final String DOCUMENT_REVIEW_WORKER = "document-review";
-    public static final String DOCUMENT_AI_REVIEW_WORKER = "document-ai-review";
     public static final String REPORT_PREFLIGHT_REVIEW_WORKER = "report-preflight-review";
-    public static final String REPORT_PREFLIGHT_AI_REVIEW_WORKER = "report-preflight-ai-review";
-    public static final String REPORT_PREFLIGHT_LEGAL_REVIEW_AI_WORKER = "report-preflight-legal-review-ai";
+    public static final String AI_HARNESS_WORKER = "ai-harness";
     public static final String MONITORING_WORKER = "monitoring";
     public static final String PLATFORM_OPS_WORKER = "platform-ops";
-    public static final String PLATFORM_OPS_AI_WORKER = "platform-ops-ai";
     public static final String ARCHDOX_WORKER_SERVICE_WORKER = "archdox-worker";
-    public static final String ARCHDOX_WORKER_PLANNER_AI_WORKER = "archdox-worker-planner-ai";
     public static final String LEGAL_SYNC_WORKER = "legal-sync";
-    public static final String LEGAL_DIGEST_AI_WORKER = "legal-digest-ai";
-    public static final String DOCUMENT_NARRATIVE_POLISH_AI_WORKER = "document-narrative-polish-ai";
 
     @Bean
     EventBus archDoxEventBus() {
@@ -63,31 +58,20 @@ public class ArchDoxRuntimeConfiguration {
     ) {
         var builder = Engine.builder()
                 .eventBus(BloomEventBus.wrap(eventBus))
-                .worker(Worker.builder(PHOTO_DERIVATIVE_WORKER)
-                        .intervalMillis(photoProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(PHOTO_PICKUP_WORKER)
-                        .intervalMillis(photoPickupProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(DOCUMENT_GENERATION_WORKER)
-                        .intervalMillis(documentProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(DOCUMENT_DELIVERY_WORKER)
-                        .intervalMillis(documentDeliveryProperties.safeWorkerIntervalMs())
+                .worker(Worker.builder(DOCUMENT_IO_WORKER)
+                        .intervalMillis(minPositive(
+                                photoProperties.safeWorkerIntervalMs(),
+                                photoPickupProperties.safeWorkerIntervalMs(),
+                                documentProperties.safeWorkerIntervalMs(),
+                                documentDeliveryProperties.safeWorkerIntervalMs()))
                         .build())
                 .worker(Worker.builder(DOCUMENT_REVIEW_WORKER)
-                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(DOCUMENT_AI_REVIEW_WORKER)
                         .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(REPORT_PREFLIGHT_REVIEW_WORKER)
                         .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
                         .build())
-                .worker(Worker.builder(REPORT_PREFLIGHT_AI_REVIEW_WORKER)
-                        .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(REPORT_PREFLIGHT_LEGAL_REVIEW_AI_WORKER)
+                .worker(Worker.builder(AI_HARNESS_WORKER)
                         .intervalMillis(documentAiReviewProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(MONITORING_WORKER)
@@ -96,26 +80,22 @@ public class ArchDoxRuntimeConfiguration {
                 .worker(Worker.builder(PLATFORM_OPS_WORKER)
                         .intervalMillis(platformOpsDetectionProperties.safeWorkerIntervalMs())
                         .build())
-                .worker(Worker.builder(PLATFORM_OPS_AI_WORKER)
-                        .intervalMillis(platformOpsDetectionProperties.safeWorkerIntervalMs())
-                        .build())
                 .worker(Worker.builder(ARCHDOX_WORKER_SERVICE_WORKER)
-                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(ARCHDOX_WORKER_PLANNER_AI_WORKER)
                         .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
                         .build())
                 .worker(Worker.builder(LEGAL_SYNC_WORKER)
                         .intervalMillis(legalSyncProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(LEGAL_DIGEST_AI_WORKER)
-                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
-                        .build())
-                .worker(Worker.builder(DOCUMENT_NARRATIVE_POLISH_AI_WORKER)
-                        .intervalMillis(archDoxWorkerRuntimeProperties.safeWorkerIntervalMs())
                         .build());
         flowerListeners.forEach(builder::listener);
         return builder.build();
+    }
+
+    private static long minPositive(long first, long... rest) {
+        var result = Math.max(1L, first);
+        for (var value : rest) {
+            result = Math.min(result, Math.max(1L, value));
+        }
+        return result;
     }
 
     @Bean(destroyMethod = "shutdown")
@@ -136,5 +116,47 @@ public class ArchDoxRuntimeConfiguration {
             thread.setDaemon(true);
             return thread;
         });
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    ExecutorService legalSyncFetchExecutor(LegalSyncProperties properties) {
+        var sequence = new AtomicInteger();
+        var threadFactory = new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                var thread = new Thread(runnable, "legal-sync-fetch-" + sequence.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            }
+        };
+        return new ThreadPoolExecutor(
+                properties.safeFetchExecutorThreads(),
+                properties.safeFetchExecutorThreads(),
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(properties.safeFetchExecutorQueueCapacity()),
+                threadFactory,
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    ExecutorService archDoxWorkerActionExecutor(ArchDoxWorkerRuntimeProperties properties) {
+        var sequence = new AtomicInteger();
+        var threadFactory = new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable runnable) {
+                var thread = new Thread(runnable, "archdox-worker-action-" + sequence.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            }
+        };
+        return new ThreadPoolExecutor(
+                properties.safeActionExecutorThreads(),
+                properties.safeActionExecutorThreads(),
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(properties.safeActionExecutorQueueCapacity()),
+                threadFactory,
+                new ThreadPoolExecutor.AbortPolicy());
     }
 }

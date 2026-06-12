@@ -9,6 +9,8 @@ import com.archdox.cloud.legal.domain.LegalChangeDigest;
 import com.archdox.cloud.legal.domain.LegalChangeDigestSource;
 import com.archdox.cloud.legal.domain.LegalDigestAiDraft;
 import com.archdox.cloud.legal.domain.LegalDigestAiDraftStatus;
+import com.archdox.cloud.legal.domain.LegalSyncRun;
+import com.archdox.cloud.legal.domain.LegalSyncRunStatus;
 import com.archdox.cloud.legal.dto.LegalChangeSetResponse;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.dto.LegalDigestAiDraftResponse;
@@ -43,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -137,17 +140,13 @@ public class LegalPlatformAdminService {
 
     public LegalSyncRunResponse startFakeSync(UserPrincipal principal) {
         platformAdminService.requirePlatformAdmin(principal);
-        var run = syncService.createRun("PLATFORM_ADMIN_MANUAL", FakeLegalSourceClient.DEFAULT_SOURCE_CODE, principal.userId());
-        worker.submit(flowFactory.create(new LegalSyncRequested(run.id(), run.sourceCode())));
-        return toRunResponse(run);
+        return startSyncRun(FakeLegalSourceClient.DEFAULT_SOURCE_CODE, principal.userId());
     }
 
     public LegalSyncRunResponse startOpenDataSync(UserPrincipal principal) {
         platformAdminService.requirePlatformAdmin(principal);
         requireOpenDataSyncReady();
-        var run = syncService.createRun("PLATFORM_ADMIN_MANUAL", LawOpenDataLegalSourceClient.SOURCE_CODE, principal.userId());
-        worker.submit(flowFactory.create(new LegalSyncRequested(run.id(), run.sourceCode())));
-        return toRunResponse(run);
+        return startSyncRun(LawOpenDataLegalSourceClient.SOURCE_CODE, principal.userId());
     }
 
     public List<LegalSyncRunResponse> syncRuns(UserPrincipal principal, String sourceCode, Integer limit) {
@@ -394,6 +393,30 @@ public class LegalPlatformAdminService {
                 run.completedAt(),
                 run.failureCode(),
                 run.summaryJson());
+    }
+
+    private LegalSyncRunResponse startSyncRun(String sourceCode, Long userId) {
+        var running = runningRun(sourceCode);
+        if (running != null) {
+            return toRunResponse(running);
+        }
+        try {
+            var run = syncService.createRun("PLATFORM_ADMIN_MANUAL", sourceCode, userId);
+            worker.submit(flowFactory.create(new LegalSyncRequested(run.id(), run.sourceCode())));
+            return toRunResponse(run);
+        } catch (DataIntegrityViolationException ex) {
+            var raced = runningRun(sourceCode);
+            if (raced != null) {
+                return toRunResponse(raced);
+            }
+            throw ex;
+        }
+    }
+
+    private LegalSyncRun runningRun(String sourceCode) {
+        return syncRunRepository
+                .findFirstBySourceCodeAndStatusOrderByStartedAtDescIdDesc(sourceCode, LegalSyncRunStatus.RUNNING)
+                .orElse(null);
     }
 
     private int limit(Integer limit) {

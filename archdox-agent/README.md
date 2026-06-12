@@ -20,6 +20,21 @@ uploads artifacts, and reports command status back to Cloud API.
 - Use configured storage profiles: `LOCAL_FILE`, `NAS`, or `S3_COMPATIBLE`.
 - Report ACK, COMPLETE, and FAIL events with machine-readable error codes.
 
+## Execution Limits
+
+The Agent must not execute unbounded command work on the JVM common pool.
+Commands are dispatched through bounded lanes:
+
+| Lane | Default concurrency | Default queue |
+| --- | ---: | ---: |
+| Document render | 2 | 50 |
+| Photo pickup | 4 | 100 |
+| Artifact delivery | 4 | 100 |
+
+When a lane is full, the Agent reports `AGENT_COMMAND_QUEUE_FULL` as a
+retryable command failure. Cloud orchestration can then retry or keep the user
+in a queued/waiting state instead of overloading the local runtime.
+
 ## Not Responsibilities
 
 - AI prompt planning or model calls.

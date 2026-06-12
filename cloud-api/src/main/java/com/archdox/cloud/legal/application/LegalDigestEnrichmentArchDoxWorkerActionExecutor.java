@@ -7,6 +7,7 @@ import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.legal.flow.LegalDigestAiWorker;
 import com.archdox.legalai.LegalDigestHarnessFactory;
 import com.archdox.legalai.LegalDigestResult;
+import com.archdox.worker.application.ArchDoxWorkerAsyncActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerExecutionContext;
 import com.archdox.worker.domain.ArchDoxWorkerActionResult;
@@ -24,12 +25,15 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDoxWorkerActionExecutor {
+public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDoxWorkerAsyncActionExecutor {
     private static final Duration WAIT_GRACE = Duration.ofSeconds(3);
 
     private final LegalDigestAiInputService inputService;
@@ -38,6 +42,7 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
     private final AiModelGateway aiModelGateway;
     private final ObjectMapper objectMapper;
     private final TraceListener aiHarnessTraceListener;
+    private final Executor workerActionExecutor;
 
     public LegalDigestEnrichmentArchDoxWorkerActionExecutor(
             LegalDigestAiInputService inputService,
@@ -45,7 +50,8 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
             LegalDigestAiWorker aiWorker,
             AiModelGateway aiModelGateway,
             ObjectMapper objectMapper,
-            TraceListener aiHarnessTraceListener
+            TraceListener aiHarnessTraceListener,
+            @Qualifier("archDoxWorkerActionExecutor") Executor workerActionExecutor
     ) {
         this.inputService = inputService;
         this.aiHarnessPolicyExecutionService = aiHarnessPolicyExecutionService;
@@ -53,6 +59,7 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
         this.aiModelGateway = aiModelGateway;
         this.objectMapper = objectMapper;
         this.aiHarnessTraceListener = aiHarnessTraceListener;
+        this.workerActionExecutor = workerActionExecutor;
     }
 
     @Override
@@ -61,8 +68,12 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
     }
 
     @Override
+    public CompletableFuture<ArchDoxWorkerActionResult> executeAsync(ArchDoxWorkerExecutionContext context) {
+        return CompletableFuture.supplyAsync(() -> executeBlocking(context), workerActionExecutor);
+    }
+
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public ArchDoxWorkerActionResult execute(ArchDoxWorkerExecutionContext context) {
+    private ArchDoxWorkerActionResult executeBlocking(ArchDoxWorkerExecutionContext context) {
         var payload = context.action().payload();
         if (!booleanValue(payload.get("dryRun"))) {
             return ArchDoxWorkerActionResult.rejected(

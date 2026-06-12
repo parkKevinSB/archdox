@@ -27,6 +27,7 @@ public class ArchDoxAgentProperties {
     private int websocketMaxBinaryMessageBufferBytes = 2 * 1024 * 1024;
     private String localStorageRoot = "build/archdox-agent-storage";
     private Storage storage = new Storage();
+    private Execution execution = new Execution();
 
     public String getCloudWsUrl() {
         return cloudWsUrl;
@@ -189,6 +190,14 @@ public class ArchDoxAgentProperties {
         this.storage = storage == null ? new Storage() : storage;
     }
 
+    public Execution getExecution() {
+        return execution;
+    }
+
+    public void setExecution(Execution execution) {
+        this.execution = execution == null ? new Execution() : execution;
+    }
+
     public String originalRootPath() {
         return originalStorageProfile().rootPath();
     }
@@ -275,6 +284,87 @@ public class ArchDoxAgentProperties {
 
         public void setS3Compatible(S3Compatible s3Compatible) {
             this.s3Compatible = s3Compatible == null ? new S3Compatible() : s3Compatible;
+        }
+    }
+
+    public static class Execution {
+        private int documentRenderConcurrency = 2;
+        private int documentRenderQueueCapacity = 50;
+        private int photoPickupConcurrency = 4;
+        private int photoPickupQueueCapacity = 100;
+        private int artifactDeliveryConcurrency = 4;
+        private int artifactDeliveryQueueCapacity = 100;
+
+        public int getDocumentRenderConcurrency() {
+            return documentRenderConcurrency;
+        }
+
+        public void setDocumentRenderConcurrency(int documentRenderConcurrency) {
+            this.documentRenderConcurrency = documentRenderConcurrency;
+        }
+
+        public int getDocumentRenderQueueCapacity() {
+            return documentRenderQueueCapacity;
+        }
+
+        public void setDocumentRenderQueueCapacity(int documentRenderQueueCapacity) {
+            this.documentRenderQueueCapacity = documentRenderQueueCapacity;
+        }
+
+        public int getPhotoPickupConcurrency() {
+            return photoPickupConcurrency;
+        }
+
+        public void setPhotoPickupConcurrency(int photoPickupConcurrency) {
+            this.photoPickupConcurrency = photoPickupConcurrency;
+        }
+
+        public int getPhotoPickupQueueCapacity() {
+            return photoPickupQueueCapacity;
+        }
+
+        public void setPhotoPickupQueueCapacity(int photoPickupQueueCapacity) {
+            this.photoPickupQueueCapacity = photoPickupQueueCapacity;
+        }
+
+        public int getArtifactDeliveryConcurrency() {
+            return artifactDeliveryConcurrency;
+        }
+
+        public void setArtifactDeliveryConcurrency(int artifactDeliveryConcurrency) {
+            this.artifactDeliveryConcurrency = artifactDeliveryConcurrency;
+        }
+
+        public int getArtifactDeliveryQueueCapacity() {
+            return artifactDeliveryQueueCapacity;
+        }
+
+        public void setArtifactDeliveryQueueCapacity(int artifactDeliveryQueueCapacity) {
+            this.artifactDeliveryQueueCapacity = artifactDeliveryQueueCapacity;
+        }
+
+        public int safeDocumentRenderConcurrency() {
+            return Math.max(1, documentRenderConcurrency);
+        }
+
+        public int safeDocumentRenderQueueCapacity() {
+            return Math.max(0, documentRenderQueueCapacity);
+        }
+
+        public int safePhotoPickupConcurrency() {
+            return Math.max(1, photoPickupConcurrency);
+        }
+
+        public int safePhotoPickupQueueCapacity() {
+            return Math.max(0, photoPickupQueueCapacity);
+        }
+
+        public int safeArtifactDeliveryConcurrency() {
+            return Math.max(1, artifactDeliveryConcurrency);
+        }
+
+        public int safeArtifactDeliveryQueueCapacity() {
+            return Math.max(0, artifactDeliveryQueueCapacity);
         }
     }
 

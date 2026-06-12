@@ -22,6 +22,7 @@ import com.archdox.legalai.SourceBackedLegalReviewIssue;
 import com.archdox.legalai.SourceBackedLegalReviewResult;
 import com.archdox.legalai.SourceBackedLegalReviewStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlowFactory;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
 import io.github.parkkevinsb.flower.ai.harness.refine.MaxAttemptsRefinePolicy;
@@ -93,7 +94,7 @@ public class ReportPreflightLegalReviewHarnessService {
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    public void run(ReportPreflightReviewRequest request) {
+    public LegalReviewSubmission submit(ReportPreflightReviewRequest request) {
         var context = context(request);
         var references = legalReferences(context.findings());
         var coverage = legalReferenceCoverage(references);
@@ -102,7 +103,7 @@ public class ReportPreflightLegalReviewHarnessService {
             recordEvent(context, OperationEventSeverity.WARN, "REPORT_PREFLIGHT_LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
                     "Source-backed legal review skipped because no legal references were available.",
                     Map.of("legalReferenceCount", 0));
-            return;
+            return LegalReviewSubmission.completed();
         }
 
         var policy = policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW);
@@ -111,7 +112,7 @@ public class ReportPreflightLegalReviewHarnessService {
             recordEvent(context, OperationEventSeverity.WARN, "REPORT_PREFLIGHT_LEGAL_REVIEW_SKIPPED",
                     "Source-backed legal review AI policy is not runnable.",
                     Map.of("reason", policy.unavailableReason(), "legalReferenceCount", references.size()));
-            return;
+            return LegalReviewSubmission.completed();
         }
 
         var plan = policy.plan();
@@ -142,11 +143,37 @@ public class ReportPreflightLegalReviewHarnessService {
                                 plan.maxOutputTokens()))
                         .build());
 
-        if (!aiWorker.submitAndAwait(flow, plan.timeout().plus(WAIT_GRACE))) {
-            saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_AI_TIMEOUT", "법령검토 AI 응답 시간이 초과되었습니다."));
-            recordEvent(context, OperationEventSeverity.ERROR, "REPORT_PREFLIGHT_LEGAL_REVIEW_TIMEOUT",
-                    "Source-backed legal review AI timed out.",
-                    Map.of("harnessRunId", flow.context().runId().value()));
+        aiWorker.submit(flow);
+        recordEvent(context, OperationEventSeverity.INFO, "REPORT_PREFLIGHT_LEGAL_REVIEW_AI_SUBMITTED",
+                "Source-backed legal review AI harness was submitted.",
+                Map.of(
+                        "harnessRunId", flow.context().runId().value(),
+                        "legalReferenceCount", references.size()));
+        return LegalReviewSubmission.submitted(flow, plan.timeout().plus(WAIT_GRACE));
+    }
+
+    public boolean terminal(AiHarnessFlow flow) {
+        return flow == null || flow.flow().state().isTerminal();
+    }
+
+    public void timeout(ReportPreflightReviewRequest request, AiHarnessFlow flow) {
+        if (flow != null && !flow.flow().state().isTerminal()) {
+            flow.flow().cancel();
+        }
+        var context = context(request);
+        var references = legalReferences(context.findings());
+        saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_AI_TIMEOUT", "법령검토 AI 응답 시간이 초과되었습니다."));
+        recordEvent(context, OperationEventSeverity.ERROR, "REPORT_PREFLIGHT_LEGAL_REVIEW_TIMEOUT",
+                "Source-backed legal review AI timed out.",
+                Map.of("harnessRunId", flow == null ? "" : flow.context().runId().value()));
+    }
+
+    public void complete(ReportPreflightReviewRequest request, AiHarnessFlow flow) {
+        var context = context(request);
+        var references = legalReferences(context.findings());
+        var coverage = legalReferenceCoverage(references);
+        if (references.isEmpty()) {
+            saveSingleFinding(context, insufficientContextFinding(context, List.of()));
             return;
         }
         if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
@@ -167,7 +194,10 @@ public class ReportPreflightLegalReviewHarnessService {
             saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_RESULT_INVALID", "법령검토 AI 응답을 해석하지 못했습니다."));
             return;
         }
-        saveResult(context, references, coverage, result.get(), plan.provider().providerCode(), plan.modelId().asString(), flow.context().runId().value());
+        var modelRequest = flow.context().currentRequest();
+        var providerCode = modelRequest == null ? "" : modelRequest.modelId().provider();
+        var modelId = modelRequest == null ? "" : modelRequest.modelId().asString();
+        saveResult(context, references, coverage, result.get(), providerCode, modelId, flow.context().runId().value());
         recordEvent(context, OperationEventSeverity.INFO, "REPORT_PREFLIGHT_LEGAL_REVIEW_COMPLETED",
                 "Source-backed legal review completed.",
                 Map.of(
@@ -175,6 +205,20 @@ public class ReportPreflightLegalReviewHarnessService {
                         "status", result.get().status().name(),
                         "legalReferenceCount", references.size(),
                         "issueCount", result.get().issues().size()));
+    }
+
+    public record LegalReviewSubmission(
+            boolean submitted,
+            AiHarnessFlow flow,
+            Duration timeout
+    ) {
+        private static LegalReviewSubmission completed() {
+            return new LegalReviewSubmission(false, null, Duration.ZERO);
+        }
+
+        private static LegalReviewSubmission submitted(AiHarnessFlow flow, Duration timeout) {
+            return new LegalReviewSubmission(true, flow, timeout);
+        }
     }
 
     private LegalReviewContext context(ReportPreflightReviewRequest request) {

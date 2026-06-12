@@ -49,6 +49,10 @@ public record CloudOutboundMessage(
     }
 
     public static CloudOutboundMessage heartbeat(ArchDoxAgentProperties properties) {
+        return heartbeat(properties, 0, 0);
+    }
+
+    public static CloudOutboundMessage heartbeat(ArchDoxAgentProperties properties, int pendingJobs, int recentErrorCount) {
         return new CloudOutboundMessage(
                 "HEARTBEAT",
                 null,
@@ -64,8 +68,8 @@ public record CloudOutboundMessage(
                 properties.storageProfile(),
                 null,
                 null,
-                0,
-                0,
+                Math.max(0, pendingJobs),
+                Math.max(0, recentErrorCount),
                 null,
                 null,
                 null,

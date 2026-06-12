@@ -241,9 +241,11 @@ builds a redacted deterministic snapshot and records an
 
 If `archdox.platform-admin.ops.ai-diagnosis.enabled=true` and a provider/model
 are configured, the same parent flow submits child `OpsDiagnosisHarness` work to
-the `platform-ops-ai` Flower worker, waits for the harness terminal state, and
-stores AI findings with source `AI_HARNESS`. If the option is disabled or
-misconfigured, the flow completes deterministically without calling AI.
+the shared `ai-harness` Flower worker lane, waits for the harness terminal
+state, and stores AI findings with source `AI_HARNESS`. The platform ops
+workflow type remains separate from the worker lane name. If the option is
+disabled or misconfigured, the flow completes deterministically without calling
+AI.
 
 ## User-Facing Document Flow Policy
 
@@ -396,7 +398,10 @@ openai-main:gpt-4.1-mini
 The parent ArchDox flow owns the business operation. The child harness flow owns
 one safe AI execution unit. The provider call itself is made through the
 `AiModelGateway` port, backed in ArchDox by platform-managed provider
-credentials.
+credentials. Cloud API must run those provider calls through a bounded executor,
+not the JVM common pool. The current ArchDox gateway uses the
+`ai-model-gateway-*` executor and fails fast with an observable gateway overload
+when the configured queue is full.
 
 Future gates may add user permission, plan quota, and workflow definition
 constraints.

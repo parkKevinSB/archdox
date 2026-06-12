@@ -15,7 +15,7 @@ public class DocumentAiReviewWorker {
     }
 
     public void submit(AiHarnessFlow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_AI_REVIEW_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER)
                 .submit(flow.flow(), DuplicatePolicy.REJECT);
     }
 }

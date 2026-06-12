@@ -71,6 +71,30 @@ flowchart TB
 | `flower-core` | Generic flow/step runtime. | ArchDox domain policy or tenant business state. |
 | `domain-shared` | Shared domain value types used across modules. | Application services or persistence. |
 
+## Flower Worker Lanes
+
+Cloud API Flower workers are execution lanes, not feature names. A new feature
+should not create a new worker unless it has a distinct blocking, priority,
+isolation, or concurrency profile.
+
+Current direction:
+
+| Lane | Responsibility | Notes |
+| --- | --- | --- |
+| `document-io` | Photo derivative generation, photo pickup, document generation, document delivery orchestration. | Shared lane because these flows delegate heavy work to bounded executors or ArchDox Agent commands and wait by future/event/state. |
+| `monitoring` | Long-lived control loops such as Agent connection health, legal sync monitor, and platform ops daily report monitor. | Uses `stepNo` and timeout-based waiting. |
+| `document-review` | Deterministic document/report review orchestration. | Can absorb more non-blocking review flows over time. |
+| `ai-harness` | AI child harness execution for document AI review, report preflight AI review, source-backed legal review AI, platform ops diagnosis AI, document narrative polish AI, worker chat planner AI, and legal digest draft AI. | Workflow type names remain task-specific, but they share one execution lane because they have the same bounded AI execution character and model calls are protected by the provider bulkhead. Narrative polish, worker chat planner, and legal digest draft are still synchronous from the caller's perspective, but they no longer own dedicated Flower worker lanes. |
+| `legal-sync` | Law Open Data sync execution. | Still isolated because Law Open Data calls are slow external I/O. The fetch step submits the blocking source fetch to the bounded `legal-sync-fetch-*` executor and observes completion by `stepNo`, so the Flower worker tick is not held while HTTP/retry waits run. |
+| `archdox-worker` | Controlled SaaS action execution: policy, approval, run control, audit trace. | Separate from AI harness and Agent document rendering. Long-running actions must implement the async action executor contract so the worker lane observes completion instead of blocking inside `execute()`. |
+
+AI provider calls inside `ai-harness` are protected by the bounded
+`ai-model-gateway-*` executor. This keeps the shared AI lane from becoming an
+unbounded provider-call fan-out point when many harness requests arrive at once.
+
+Detailed rules live in
+[`docs/development/DDD_EVENT_ORCHESTRATION_RULES.md`](../development/DDD_EVENT_ORCHESTRATION_RULES.md).
+
 ## Core Business Flow
 
 This is the current construction-supervision MVP path.
@@ -282,7 +306,10 @@ Current principle:
 User/system/AI/Engine may request or suggest.
 Only registered Worker actions may execute.
 Execution goes through policy, approval/cancel gates, Flower flow, trace, and
-domain services.
+domain services. If a registered action waits on AI harness, external I/O, or a
+slow child flow, it should expose an async action future. The `archdox-worker`
+lane records `ACTION_STARTED`, moves to a waiting `stepNo`, and records the
+terminal result only after the future completes.
 ```
 
 ## AI Harness Map
@@ -324,7 +351,7 @@ Current monitor flows run on the shared `monitoring` Flower worker:
 | Flow | Responsibility | Child Work |
 | --- | --- | --- |
 | `agent-connection-health-monitor` | Detect stale ArchDox Agent sessions. | Marks timed-out sessions disconnected. |
-| `legal-sync-monitor` | Checks configured Open API due slots such as 03:00 and 15:00. | Submits the existing `legal-sync` flow only when the due slot has not already been handled. |
+| `legal-sync-monitor` | Checks configured Open API due slots such as 03:00 and 15:00. | Submits the existing `legal-sync` flow only when the due slot has not already been handled. Concurrent manual/monitor requests are single-flight guarded by the `RUNNING` sync run state. |
 | `platform-ops-daily-report-monitor` | Checks the daily operations report due slot. | Generates a sanitized `AUTO_DAILY_REPORT` run and Markdown report file. |
 
 These are not ad-hoc Spring schedulers. The Flower flow owns the periodic

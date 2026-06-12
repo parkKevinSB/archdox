@@ -29,6 +29,13 @@ archdox:
     websocket-max-text-message-buffer-bytes: ${AGENT_WS_MAX_TEXT_MESSAGE_BUFFER_BYTES:2097152}
     websocket-max-binary-message-buffer-bytes: ${AGENT_WS_MAX_BINARY_MESSAGE_BUFFER_BYTES:2097152}
     local-storage-root: ${AGENT_LOCAL_STORAGE_ROOT:build/archdox-agent-storage}
+    execution:
+      document-render-concurrency: ${AGENT_DOCUMENT_RENDER_CONCURRENCY:2}
+      document-render-queue-capacity: ${AGENT_DOCUMENT_RENDER_QUEUE_CAPACITY:50}
+      photo-pickup-concurrency: ${AGENT_PHOTO_PICKUP_CONCURRENCY:4}
+      photo-pickup-queue-capacity: ${AGENT_PHOTO_PICKUP_QUEUE_CAPACITY:100}
+      artifact-delivery-concurrency: ${AGENT_ARTIFACT_DELIVERY_CONCURRENCY:4}
+      artifact-delivery-queue-capacity: ${AGENT_ARTIFACT_DELIVERY_QUEUE_CAPACITY:100}
     storage:
       original:
         kind: ${AGENT_ORIGINAL_STORAGE_KIND:LOCAL_FILE}

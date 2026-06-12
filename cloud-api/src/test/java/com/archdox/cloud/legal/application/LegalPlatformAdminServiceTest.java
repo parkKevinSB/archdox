@@ -22,6 +22,8 @@ import com.archdox.cloud.legal.domain.LegalChangeDigestStatus;
 import com.archdox.cloud.legal.domain.LegalChangeSet;
 import com.archdox.cloud.legal.domain.LegalDigestAiDraft;
 import com.archdox.cloud.legal.domain.LegalDigestAiDraftStatus;
+import com.archdox.cloud.legal.domain.LegalSyncRun;
+import com.archdox.cloud.legal.domain.LegalSyncRunStatus;
 import com.archdox.cloud.legal.dto.LegalChangeDigestResponse;
 import com.archdox.cloud.legal.flow.LegalSyncFlowFactory;
 import com.archdox.cloud.legal.flow.LegalSyncWorker;
@@ -162,6 +164,29 @@ class LegalPlatformAdminServiceTest {
         verify(platformAdminService).requirePlatformAdmin(principal);
         verify(changeDigestService).ensureDeterministicDigest(eq(deterministicChangeSet), eq(act), eq(List.of()), any());
         verifyNoInteractions(syncService, flowFactory, worker, syncRunRepository, updateReadService);
+    }
+
+    @Test
+    void startFakeSyncReturnsRunningRunWithoutSubmittingDuplicateFlow() throws Exception {
+        var now = OffsetDateTime.parse("2026-06-05T09:00:00+09:00");
+        var principal = new UserPrincipal(3L, "vvzerg@test.co.kr");
+        var running = new LegalSyncRun(
+                "PLATFORM_ADMIN_MANUAL",
+                FakeLegalSourceClient.DEFAULT_SOURCE_CODE,
+                principal.userId(),
+                now);
+        setId(running, 77L);
+        when(syncRunRepository.findFirstBySourceCodeAndStatusOrderByStartedAtDescIdDesc(
+                FakeLegalSourceClient.DEFAULT_SOURCE_CODE,
+                LegalSyncRunStatus.RUNNING))
+                .thenReturn(Optional.of(running));
+
+        var response = service.startFakeSync(principal);
+
+        assertThat(response.id()).isEqualTo(77L);
+        assertThat(response.status()).isEqualTo(LegalSyncRunStatus.RUNNING);
+        verify(platformAdminService).requirePlatformAdmin(principal);
+        verifyNoInteractions(syncService, flowFactory, worker, updateReadService);
     }
 
     @Test

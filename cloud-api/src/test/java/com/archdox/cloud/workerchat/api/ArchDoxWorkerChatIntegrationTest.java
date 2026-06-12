@@ -2,6 +2,7 @@ package com.archdox.cloud.workerchat.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -217,6 +218,8 @@ class ArchDoxWorkerChatIntegrationTest {
         assertThat(preflightRunId).isPositive();
         assertThat(preflightReply.get("metadata").get("actionType").asText()).isEqualTo("RUN_PREFLIGHT_REVIEW");
         assertThat(preflightReply.get("metadata").get("nextAction").asText()).isEqualTo("REQUEST_DOCUMENT_GENERATION");
+        waitForPreflightStatus(user, createdReportId, preflightRunId, "NEEDS_ATTENTION");
+        resolveOpenPreflightFindings(user, createdReportId, preflightRunId);
         waitForPreflightStatus(user, createdReportId, preflightRunId, "PASSED");
         var syncedAfterPreflight = openWorkerChat(user, projectId);
         assertThat(syncedAfterPreflight.get("workflowState").get("latestPreflightRun").get("status").asText()).isEqualTo("PASSED");
@@ -445,6 +448,34 @@ class ArchDoxWorkerChatIntegrationTest {
             Thread.sleep(50);
         }
         throw new AssertionError("Preflight review " + runId + " did not reach " + expectedStatus);
+    }
+
+    private void resolveOpenPreflightFindings(TestUser user, long reportId, long runId) throws Exception {
+        var result = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs/{runId}/findings", reportId, runId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andReturn();
+        var findings = objectMapper.readTree(result.getResponse().getContentAsString());
+        for (var finding : findings) {
+            if (!"OPEN".equals(finding.get("resolutionStatus").asText())) {
+                continue;
+            }
+            mockMvc.perform(patch("/api/v1/inspection-reports/{reportId}/preflight-review-runs/{runId}/findings/{findingId}/resolution",
+                            reportId,
+                            runId,
+                            finding.get("id").asLong())
+                            .header("Authorization", bearer(user.accessToken()))
+                            .header("X-Office-Id", user.officeId())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "resolutionStatus": "ACCEPTED",
+                                      "resolutionNote": "Smoke test accepted the generated preflight finding."
+                                    }
+                                    """))
+                    .andExpect(status().isOk());
+        }
     }
 
     private void registerDocumentAgent(long officeId) {

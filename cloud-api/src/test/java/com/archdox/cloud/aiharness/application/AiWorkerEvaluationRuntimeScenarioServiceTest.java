@@ -94,7 +94,7 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
             assertThat(signal.status()).isEqualTo("WARN");
         });
         verify(workerServiceWorker, never()).submitAndAwait(any(), any());
-        verify(legalReviewAiWorker, never()).submitAndAwait(any(), any());
+        verify(legalReviewAiWorker, never()).submit(any());
     }
 
     @Test

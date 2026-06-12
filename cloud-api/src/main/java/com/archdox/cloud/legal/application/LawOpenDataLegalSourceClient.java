@@ -77,14 +77,17 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
     private final ObjectMapper objectMapper;
     private final LegalSyncProperties properties;
     private final HttpClient httpClient;
-    private final Object requestGate = new Object();
-    private long lastRequestAtMillis = 0;
+    private final LawOpenDataRequestThrottle requestThrottle;
 
     @Autowired
-    public LawOpenDataLegalSourceClient(ObjectMapper objectMapper, LegalSyncProperties properties) {
+    public LawOpenDataLegalSourceClient(
+            ObjectMapper objectMapper,
+            LegalSyncProperties properties,
+            LawOpenDataRequestThrottle requestThrottle
+    ) {
         this(objectMapper, properties, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(1000, properties.getOpenApi().getRequestTimeoutMs())))
-                .build());
+                .build(), requestThrottle);
     }
 
     LawOpenDataLegalSourceClient(
@@ -92,9 +95,19 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
             LegalSyncProperties properties,
             HttpClient httpClient
     ) {
+        this(objectMapper, properties, httpClient, new LawOpenDataRequestThrottle());
+    }
+
+    LawOpenDataLegalSourceClient(
+            ObjectMapper objectMapper,
+            LegalSyncProperties properties,
+            HttpClient httpClient,
+            LawOpenDataRequestThrottle requestThrottle
+    ) {
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.httpClient = httpClient;
+        this.requestThrottle = requestThrottle;
     }
 
     @Override
@@ -348,7 +361,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                             retryable,
                             "Law Open Data API returned HTTP " + response.statusCode() + " for " + path);
                     if (retryable && attempt < maxAttempts) {
-                        sleepBeforeRetry(attempt);
+                        requestThrottle.waitBeforeRetry(attempt);
                         continue;
                     }
                     throw error;
@@ -361,12 +374,12 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 if (attempt == maxAttempts) {
                     break;
                 }
-                sleepBeforeRetry(attempt);
+                requestThrottle.waitBeforeRetry(attempt);
             } catch (LawOpenDataException ex) {
                 if (!ex.retryable() || attempt == maxAttempts) {
                     throw ex;
                 }
-                sleepBeforeRetry(attempt);
+                requestThrottle.waitBeforeRetry(attempt);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Law Open Data API request was interrupted for " + path, ex);
@@ -388,18 +401,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
     }
 
     private void waitForRequestSlot() {
-        var intervalMs = Math.max(0, properties.getOpenApi().getRequestIntervalMs());
-        if (intervalMs == 0) {
-            return;
-        }
-        synchronized (requestGate) {
-            var now = System.currentTimeMillis();
-            var waitMs = lastRequestAtMillis + intervalMs - now;
-            if (waitMs > 0) {
-                sleep(waitMs, "Interrupted while waiting for Law Open Data API request slot");
-            }
-            lastRequestAtMillis = System.currentTimeMillis();
-        }
+        requestThrottle.waitForRequestSlot(properties.getOpenApi().getRequestIntervalMs());
     }
 
     private JsonNode readJsonBody(HttpResponse<byte[]> response, String path) throws IOException {
@@ -420,19 +422,6 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 throw new IOException("Law Open Data API response is not valid JSON for " + path
                         + ": " + ex.getOriginalMessage(), ex);
             }
-        }
-    }
-
-    private static void sleepBeforeRetry(int attempt) {
-        sleep(500L * attempt, "Interrupted while waiting to retry Law Open Data API request");
-    }
-
-    private static void sleep(long millis, String message) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(message, ex);
         }
     }
 

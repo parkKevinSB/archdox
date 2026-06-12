@@ -2,7 +2,6 @@ package com.archdox.agent.cloud;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.websocket.ContainerProvider;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -27,6 +26,7 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
     private final PhotoPickupCommandExecutor photoPickupCommandExecutor;
     private final DocumentRenderCommandExecutor documentRenderCommandExecutor;
     private final DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor;
+    private final AgentCommandExecutionManager commandExecutionManager;
     private final Object sendLock = new Object();
     private final AtomicBoolean connecting = new AtomicBoolean(false);
     private volatile WebSocketSession session;
@@ -37,7 +37,8 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
             ArchDoxAgentCapabilityProvider capabilityProvider,
             PhotoPickupCommandExecutor photoPickupCommandExecutor,
             DocumentRenderCommandExecutor documentRenderCommandExecutor,
-            DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor
+            DocumentArtifactDeliveryCommandExecutor documentArtifactDeliveryCommandExecutor,
+            AgentCommandExecutionManager commandExecutionManager
     ) {
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -45,6 +46,7 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         this.photoPickupCommandExecutor = photoPickupCommandExecutor;
         this.documentRenderCommandExecutor = documentRenderCommandExecutor;
         this.documentArtifactDeliveryCommandExecutor = documentArtifactDeliveryCommandExecutor;
+        this.commandExecutionManager = commandExecutionManager;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -61,7 +63,8 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         if (!properties.isEnabled() || session == null || !session.isOpen()) {
             return;
         }
-        send(CloudOutboundMessage.heartbeat(properties));
+        var execution = commandExecutionManager.snapshot();
+        send(CloudOutboundMessage.heartbeat(properties, execution.pendingJobs(), 0));
     }
 
     @Scheduled(fixedDelayString = "${archdox.agent.reconnect-interval-ms:5000}")
@@ -154,16 +157,40 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         log.info("Received ArchDox Agent command {} type {}", inbound.commandId(), inbound.commandType());
         send(CloudOutboundMessage.ack(inbound.commandId()));
         if ("PHOTO_PICKUP".equals(inbound.commandType())) {
-            CompletableFuture.runAsync(() -> executePhotoPickup(inbound));
+            submitOrFailBusy(
+                    inbound,
+                    "PHOTO_PICKUP",
+                    commandExecutionManager.submitPhotoPickup(() -> executePhotoPickup(inbound)));
             return;
         }
         if ("GENERATE_DOCUMENT".equals(inbound.commandType()) || "DOCUMENT_RENDER".equals(inbound.commandType())) {
-            CompletableFuture.runAsync(() -> executeDocumentRender(inbound));
+            submitOrFailBusy(
+                    inbound,
+                    "GENERATE_DOCUMENT",
+                    commandExecutionManager.submitDocumentRender(() -> executeDocumentRender(inbound)));
             return;
         }
         if ("UPLOAD_DOCUMENT_ARTIFACT".equals(inbound.commandType())) {
-            CompletableFuture.runAsync(() -> executeDocumentArtifactDelivery(inbound));
+            submitOrFailBusy(
+                    inbound,
+                    "UPLOAD_DOCUMENT_ARTIFACT",
+                    commandExecutionManager.submitArtifactDelivery(() -> executeDocumentArtifactDelivery(inbound)));
+            return;
         }
+        send(CloudOutboundMessage.fail(inbound.commandId(), new AgentCommandFailure(
+                "AGENT_UNSUPPORTED_COMMAND_TYPE",
+                false,
+                "Unsupported ArchDox Agent command type: " + inbound.commandType())));
+    }
+
+    private void submitOrFailBusy(CloudInboundMessage inbound, String lane, boolean submitted) {
+        if (submitted) {
+            return;
+        }
+        send(CloudOutboundMessage.fail(inbound.commandId(), new AgentCommandFailure(
+                "AGENT_COMMAND_QUEUE_FULL",
+                true,
+                lane + " command queue is full. Retry after the Agent finishes queued work.")));
     }
 
     private void executePhotoPickup(CloudInboundMessage inbound) {

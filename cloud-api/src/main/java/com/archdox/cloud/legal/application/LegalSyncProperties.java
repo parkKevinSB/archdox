@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "archdox.legal.sync")
 public class LegalSyncProperties {
     private long workerIntervalMs = 250;
+    private int fetchExecutorThreads = 1;
+    private int fetchExecutorQueueCapacity = 10;
     private OpenApi openApi = new OpenApi();
     private Monitor monitor = new Monitor();
 
@@ -18,6 +20,22 @@ public class LegalSyncProperties {
 
     public void setWorkerIntervalMs(long workerIntervalMs) {
         this.workerIntervalMs = workerIntervalMs;
+    }
+
+    public int getFetchExecutorThreads() {
+        return fetchExecutorThreads;
+    }
+
+    public void setFetchExecutorThreads(int fetchExecutorThreads) {
+        this.fetchExecutorThreads = fetchExecutorThreads;
+    }
+
+    public int getFetchExecutorQueueCapacity() {
+        return fetchExecutorQueueCapacity;
+    }
+
+    public void setFetchExecutorQueueCapacity(int fetchExecutorQueueCapacity) {
+        this.fetchExecutorQueueCapacity = fetchExecutorQueueCapacity;
     }
 
     public OpenApi getOpenApi() {
@@ -38,6 +56,14 @@ public class LegalSyncProperties {
 
     public long safeWorkerIntervalMs() {
         return Math.max(50, workerIntervalMs);
+    }
+
+    public int safeFetchExecutorThreads() {
+        return Math.max(1, fetchExecutorThreads);
+    }
+
+    public int safeFetchExecutorQueueCapacity() {
+        return Math.max(1, fetchExecutorQueueCapacity);
     }
 
     public static class Monitor {

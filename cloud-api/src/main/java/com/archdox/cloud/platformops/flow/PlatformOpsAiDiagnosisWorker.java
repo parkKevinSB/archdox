@@ -15,7 +15,7 @@ public class PlatformOpsAiDiagnosisWorker {
     }
 
     public void submit(AiHarnessFlow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.PLATFORM_OPS_AI_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER)
                 .submit(flow.flow(), DuplicatePolicy.REJECT);
     }
 }

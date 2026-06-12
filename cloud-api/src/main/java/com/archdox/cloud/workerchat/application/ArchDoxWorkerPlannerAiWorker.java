@@ -16,7 +16,7 @@ public class ArchDoxWorkerPlannerAiWorker {
     }
 
     public boolean submitAndAwait(AiHarnessFlow flow, Duration timeout) {
-        engine.worker(ArchDoxRuntimeConfiguration.ARCHDOX_WORKER_PLANNER_AI_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER)
                 .submit(flow.flow(), DuplicatePolicy.REJECT);
         var deadline = System.nanoTime() + timeout.toNanos();
         while (System.nanoTime() < deadline) {

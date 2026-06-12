@@ -27,6 +27,7 @@ import com.archdox.worker.domain.ArchDoxWorkerRequestContext;
 import com.archdox.worker.domain.ArchDoxWorkerRequestSource;
 import com.archdox.worker.flow.ArchDoxWorkerExecutionFlowFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlowFactory;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
 import io.github.parkkevinsb.flower.ai.harness.refine.MaxAttemptsRefinePolicy;
@@ -279,7 +280,8 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                         .build());
 
         var startedAt = System.nanoTime();
-        var awaited = legalReviewAiWorker.submitAndAwait(flow, plan.timeout().plusSeconds(5));
+        legalReviewAiWorker.submit(flow);
+        var awaited = await(flow, plan.timeout().plusSeconds(5));
         var elapsedMs = Math.max(0L, (System.nanoTime() - startedAt) / 1_000_000L);
         if (!awaited) {
             return group(
@@ -582,6 +584,23 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                     }
                     return Optional.empty();
                 });
+    }
+
+    private boolean await(AiHarnessFlow flow, Duration timeout) {
+        var deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            if (flow.flow().state().isTerminal()) {
+                return true;
+            }
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        flow.flow().cancel();
+        return false;
     }
 
     private SourceBackedLegalReviewInput documentLegalReviewInput() {

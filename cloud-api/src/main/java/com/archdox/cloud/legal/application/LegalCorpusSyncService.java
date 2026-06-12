@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +45,7 @@ public class LegalCorpusSyncService {
     private final LegalDiffService diffService;
     private final LegalChangeDigestService changeDigestService;
     private final OperationEventService operationEventService;
+    private final Executor legalSyncFetchExecutor;
 
     public LegalCorpusSyncService(
             List<LegalSourceClient> sourceClients,
@@ -57,7 +61,8 @@ public class LegalCorpusSyncService {
             LegalArticleHashService hashService,
             LegalDiffService diffService,
             LegalChangeDigestService changeDigestService,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            @Qualifier("legalSyncFetchExecutor") Executor legalSyncFetchExecutor
     ) {
         this.sourceClients = List.copyOf(sourceClients);
         this.sourceRepository = sourceRepository;
@@ -73,11 +78,12 @@ public class LegalCorpusSyncService {
         this.diffService = diffService;
         this.changeDigestService = changeDigestService;
         this.operationEventService = operationEventService;
+        this.legalSyncFetchExecutor = legalSyncFetchExecutor;
     }
 
     @Transactional
     public LegalSyncRun createRun(String triggerType, String sourceCode, Long actorUserId) {
-        return syncRunRepository.save(new LegalSyncRun(
+        return syncRunRepository.saveAndFlush(new LegalSyncRun(
                 triggerType,
                 sourceCode == null || sourceCode.isBlank() ? FakeLegalSourceClient.DEFAULT_SOURCE_CODE : sourceCode.trim(),
                 actorUserId,
@@ -90,6 +96,10 @@ public class LegalCorpusSyncService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No legal source client supports source: " + sourceCode))
                 .fetch(sourceCode);
+    }
+
+    public CompletableFuture<LegalSourceSnapshot> fetchSnapshotAsync(String sourceCode) {
+        return CompletableFuture.supplyAsync(() -> fetchSnapshot(sourceCode), legalSyncFetchExecutor);
     }
 
     @Transactional

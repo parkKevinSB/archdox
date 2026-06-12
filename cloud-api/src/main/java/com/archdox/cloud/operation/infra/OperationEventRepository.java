@@ -2,6 +2,7 @@ package com.archdox.cloud.operation.infra;
 
 import com.archdox.cloud.operation.domain.OperationEvent;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -67,6 +68,10 @@ public interface OperationEventRepository extends JpaRepository<OperationEvent, 
             String workflowKey,
             String resourceType,
             String resourceId,
+            Pageable pageable);
+
+    List<OperationEvent> findByEventTypeInOrderByCreatedAtDescIdDesc(
+            Collection<String> eventTypes,
             Pageable pageable);
 
     @Query(value = """

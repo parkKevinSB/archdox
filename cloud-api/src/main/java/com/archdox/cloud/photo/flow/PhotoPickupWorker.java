@@ -15,7 +15,7 @@ public class PhotoPickupWorker {
     }
 
     public void submit(Flow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.PHOTO_PICKUP_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_IO_WORKER)
                 .submit(flow, DuplicatePolicy.REPLACE);
     }
 }

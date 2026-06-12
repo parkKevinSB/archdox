@@ -15,7 +15,7 @@ public class ReportPreflightAiReviewWorker {
     }
 
     public void submit(AiHarnessFlow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.REPORT_PREFLIGHT_AI_REVIEW_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.AI_HARNESS_WORKER)
                 .submit(flow.flow(), DuplicatePolicy.REJECT);
     }
 }

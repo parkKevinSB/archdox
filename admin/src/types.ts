@@ -338,7 +338,30 @@ export type FlowerRuntimeDump = {
   capturedAt: string;
   workerCount: number;
   activeFlowCount: number;
+  executorCount: number;
+  saturatedExecutorCount: number;
+  queuedTaskCount: number;
   workers: FlowerRuntimeWorker[];
+  executors: FlowerRuntimeExecutor[];
+  overloadEvents: OperationEvent[];
+};
+
+export type FlowerRuntimeExecutor = {
+  beanName: string;
+  state: string;
+  queueType: string;
+  corePoolSize: number;
+  maximumPoolSize: number;
+  poolSize: number;
+  largestPoolSize: number;
+  activeCount: number;
+  queueSize: number;
+  remainingQueueCapacity?: number | null;
+  taskCount: number;
+  completedTaskCount: number;
+  shutdown: boolean;
+  terminating: boolean;
+  terminated: boolean;
 };
 
 export type FlowerRuntimeWorker = {

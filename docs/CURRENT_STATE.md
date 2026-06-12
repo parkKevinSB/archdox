@@ -1,6 +1,6 @@
 ﻿# ArchDox Current State
 
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
@@ -77,6 +77,16 @@ These are development-only credentials.
   command routing foundation.
 - Document job, artifact, delivery, status/progress, and recovery foundations.
 - Agent-based document rendering with HTML, DOCX, and PDF export direction.
+- ArchDox Agent command execution is now bounded by command type. Document
+  rendering defaults to 2 concurrent jobs with a queue of 50; photo pickup and
+  artifact delivery default to 4 concurrent jobs with queues of 100. Queue
+  overflow returns retryable `AGENT_COMMAND_QUEUE_FULL` instead of allowing
+  unbounded JVM common-pool execution.
+- Cloud API Flower workers are being consolidated by execution lane rather than
+  feature name. `document-io` now owns photo derivative, photo pickup, document
+  generation, and document delivery orchestration. AI harness and legal sync
+  workers remain isolated until `submitAndAwait`, polling sleep, and blocking
+  legal Open API sync behavior are removed.
 - Template/configuration registry foundations, template upload/storage, output
   layout, and neutral document data model direction.
 - Office knowledge platform direction is documented: accumulated structured
@@ -305,7 +315,40 @@ These are development-only credentials.
 - Platform ops detection now runs through the `platform-ops` Flower worker;
   incident diagnosis also runs through the same worker, builds a redacted
   deterministic diagnosis snapshot, and can optionally submit `OpsDiagnosisHarness`
-  to the `platform-ops-ai` worker when platform ops AI diagnosis is enabled.
+  to the shared `ai-harness` worker lane when platform ops AI diagnosis is
+  enabled. The workflow type remains platform ops specific; the worker lane is
+  shared with other submit-only AI child harness flows.
+- Source-backed report preflight legal review no longer blocks its parent
+  Flower worker with `submitAndAwait`. The preflight flow submits the legal AI
+  child harness to the shared `ai-harness` lane, waits by `stepNo`/timeout, and
+  stores the legal review result only after the child flow reaches a terminal
+  state.
+- Report preflight review no longer marks a run `PASSED` during the
+  deterministic stage when downstream AI/legal review steps still remain. Final
+  `PASSED` or `NEEDS_ATTENTION` is assigned after the full preflight flow is
+  summarized, preventing transient "generation allowed" states.
+- Document narrative polish AI now also runs on the shared `ai-harness` Flower
+  lane instead of a dedicated `document-narrative-polish-ai` worker. The API
+  remains synchronous for the user-facing polish button, but the worker lane no
+  longer grows per harness type.
+- Worker chat planner AI now also runs on the shared `ai-harness` Flower lane
+  instead of a dedicated `archdox-worker-planner-ai` worker. The chat request may
+  still wait synchronously for a short planner result, but the Flower worker lane
+  no longer grows per harness type.
+- Legal digest draft AI now also submits its child harness to the shared
+  `ai-harness` Flower lane instead of a dedicated `legal-digest-ai` worker. The
+  surrounding ArchDox Worker action is still synchronous and audited in the
+  `archdox-worker` lane; only the child AI lane was consolidated.
+- Legal Open Data sync still owns the isolated `legal-sync` Flower lane because
+  it performs blocking provider HTTP/retry work. It is now single-flight per
+  `source_code`: manual/admin and monitor-triggered requests return or skip the
+  existing RUNNING sync run instead of submitting duplicate sync flows, backed by
+  a DB partial unique index on RUNNING sync runs.
+- AI provider calls are protected behind the bounded `ai-model-gateway-*`
+  executor instead of using the JVM common pool. Concurrency and queue capacity
+  are configured with `ARCHDOX_AI_MODEL_GATEWAY_THREADS` and
+  `ARCHDOX_AI_MODEL_GATEWAY_QUEUE_CAPACITY`; queue saturation becomes a logged
+  gateway failure rather than unbounded thread fan-out.
 - The platform admin UI can trigger incident diagnosis and show the latest
   diagnosis snapshot as operational summary, redaction policy, recent findings,
   and related operation events.

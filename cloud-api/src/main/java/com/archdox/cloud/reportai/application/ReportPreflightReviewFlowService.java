@@ -108,12 +108,10 @@ public class ReportPreflightReviewFlowService {
             ReportPreflightFindingClassifier.autoResolveOnCreate(entity, request.requestedBy(), now);
             findingRepository.save(entity);
         }
-        if (aiReviewPlanned) {
-            run.markRunning(OffsetDateTime.now());
-        } else if (result.blocksGeneration()) {
+        if (result.blocksGeneration() && !aiReviewPlanned) {
             run.markNeedsAttention("DETERMINISTIC_PREFLIGHT_BLOCKED", OffsetDateTime.now());
         } else {
-            run.markPassed("DETERMINISTIC_PREFLIGHT_PASSED", OffsetDateTime.now());
+            run.markRunning(OffsetDateTime.now());
         }
         operationEventService.record(
                 request.officeId(),
@@ -242,8 +240,28 @@ public class ReportPreflightReviewFlowService {
         return true;
     }
 
-    public void runSourceBackedLegalReview(ReportPreflightReviewRequest request) {
-        legalReviewHarnessService.run(request);
+    public ReportPreflightLegalReviewHarnessService.LegalReviewSubmission submitSourceBackedLegalReview(
+            ReportPreflightReviewRequest request
+    ) {
+        return legalReviewHarnessService.submit(request);
+    }
+
+    public boolean isSourceBackedLegalReviewTerminal(AiHarnessFlow flow) {
+        return legalReviewHarnessService.terminal(flow);
+    }
+
+    public void timeoutSourceBackedLegalReview(
+            ReportPreflightReviewRequest request,
+            AiHarnessFlow flow
+    ) {
+        legalReviewHarnessService.timeout(request, flow);
+    }
+
+    public void completeSourceBackedLegalReview(
+            ReportPreflightReviewRequest request,
+            AiHarnessFlow flow
+    ) {
+        legalReviewHarnessService.complete(request, flow);
     }
 
     @Transactional

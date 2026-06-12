@@ -1,5 +1,6 @@
 package com.archdox.worker.flow;
 
+import com.archdox.worker.application.ArchDoxWorkerAsyncActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerActionExecutor;
 import com.archdox.worker.application.ArchDoxWorkerActionRegistry;
 import com.archdox.worker.application.ArchDoxWorkerExecutionContext;
@@ -24,6 +25,7 @@ import io.github.parkkevinsb.flower.core.worker.Worker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -194,6 +196,40 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
         assertThat(sink.events().getLast().attributes()).containsEntry("status", "FAILED");
     }
 
+    @Test
+    void async_executor_does_not_complete_worker_flow_until_result_future_completes() {
+        var future = new CompletableFuture<ArchDoxWorkerActionResult>();
+        var executions = new AtomicInteger();
+        var executor = new AsyncStubExecutor(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW, context -> {
+            executions.incrementAndGet();
+            return future;
+        });
+        var sink = new RecordingTraceSink();
+        var flow = new ArchDoxWorkerExecutionFlowFactory(
+                new ArchDoxWorkerActionRegistry(List.of(executor)),
+                ArchDoxWorkerPolicyGate.allowAll(),
+                sink
+        ).create(sampleRequest(), sampleAction(ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW));
+        var worker = attachedWorker();
+
+        worker.submit(flow);
+        for (var i = 0; i < 5; i++) {
+            worker.tickOnce();
+        }
+
+        assertThat(flow.state().isTerminal()).isFalse();
+        assertThat(executions).hasValue(1);
+        assertThat(sink.eventTypes()).contains(ArchDoxWorkerTraceEventType.ACTION_STARTED);
+        assertThat(sink.eventTypes()).doesNotContain(ArchDoxWorkerTraceEventType.ACTION_SUCCEEDED);
+
+        future.complete(ArchDoxWorkerActionResult.succeeded(Map.of("findingCount", 0)));
+        tickUntilTerminal(worker, flow);
+
+        assertThat(flow.state()).isEqualTo(FlowState.FINISHED);
+        assertThat(sink.eventTypes()).contains(ArchDoxWorkerTraceEventType.ACTION_SUCCEEDED);
+        assertThat(sink.events().getLast().attributes()).containsEntry("status", "SUCCEEDED");
+    }
+
     private static Worker attachedWorker() {
         var worker = Worker.builder("archdox-worker-test").build();
         Engine.builder()
@@ -235,9 +271,24 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
         }
     }
 
+    private record AsyncStubExecutor(
+            ArchDoxWorkerActionType actionType,
+            AsyncExecutorBody body
+    ) implements ArchDoxWorkerAsyncActionExecutor {
+        @Override
+        public CompletableFuture<ArchDoxWorkerActionResult> executeAsync(ArchDoxWorkerExecutionContext context) {
+            return body.execute(context);
+        }
+    }
+
     @FunctionalInterface
     private interface ExecutorBody {
         ArchDoxWorkerActionResult execute(ArchDoxWorkerExecutionContext context);
+    }
+
+    @FunctionalInterface
+    private interface AsyncExecutorBody {
+        CompletableFuture<ArchDoxWorkerActionResult> execute(ArchDoxWorkerExecutionContext context);
     }
 
     private static final class RecordingTraceSink implements ArchDoxWorkerTraceSink {

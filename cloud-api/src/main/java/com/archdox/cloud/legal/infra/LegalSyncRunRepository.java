@@ -14,5 +14,10 @@ public interface LegalSyncRunRepository extends JpaRepository<LegalSyncRun, Long
 
     boolean existsBySourceCodeAndStatus(String sourceCode, LegalSyncRunStatus status);
 
+    Optional<LegalSyncRun> findFirstBySourceCodeAndStatusOrderByStartedAtDescIdDesc(
+            String sourceCode,
+            LegalSyncRunStatus status
+    );
+
     Optional<LegalSyncRun> findFirstBySourceCodeOrderByStartedAtDescIdDesc(String sourceCode);
 }

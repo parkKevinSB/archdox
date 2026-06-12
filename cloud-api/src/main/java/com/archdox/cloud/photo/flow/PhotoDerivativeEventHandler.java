@@ -22,7 +22,7 @@ public class PhotoDerivativeEventHandler {
 
     @Subscribe
     public void onPhotoUploadConfirmed(PhotoUploadConfirmed event) {
-        engine.worker(ArchDoxRuntimeConfiguration.PHOTO_DERIVATIVE_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_IO_WORKER)
                 .submit(flowFactory.create(event), DuplicatePolicy.REPLACE);
     }
 }

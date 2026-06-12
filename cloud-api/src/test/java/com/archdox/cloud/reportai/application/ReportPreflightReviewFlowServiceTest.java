@@ -107,7 +107,8 @@ class ReportPreflightReviewFlowServiceTest {
         var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
         org.mockito.Mockito.verify(findingRepository).save(captor.capture());
         assertThat(result.blocksGeneration()).isFalse();
-        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.RUNNING);
+        assertThat(currentRun.terminalReason()).isNull();
         assertThat(captor.getValue().code()).isEqualTo("LEGAL_EVIDENCE_CONTEXT_USED");
         assertThat(captor.getValue().severity()).isEqualTo("INFO");
         assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);

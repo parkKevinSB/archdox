@@ -2,11 +2,13 @@ package com.archdox.cloud.reportai.flow;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.reportai.application.ReportPreflightReviewFlowService;
 import com.archdox.cloud.reportai.application.ReportPreflightValidationResult;
+import com.archdox.cloud.reportai.application.ReportPreflightLegalReviewHarnessService;
 import io.github.parkkevinsb.bloom.LocalEventBus;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import io.github.parkkevinsb.flower.ai.harness.prompt.PromptVersion;
@@ -20,6 +22,7 @@ import io.github.parkkevinsb.flower.core.step.StepContext;
 import io.github.parkkevinsb.flower.core.step.StepResult;
 import io.github.parkkevinsb.flower.core.time.ManualClock;
 import io.github.parkkevinsb.flower.core.worker.Worker;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -77,7 +80,7 @@ class ReportPreflightReviewFlowFactoryTest {
         when(flowService.isAiHarnessTerminal(request)).thenReturn(true);
         when(flowService.shouldRunSourceBackedLegalReview(request)).thenReturn(true);
         doThrow(new IllegalStateException("legal review input failed"))
-                .when(flowService).runSourceBackedLegalReview(request);
+                .when(flowService).submitSourceBackedLegalReview(request);
 
         var worker = worker();
         worker.submit(new ReportPreflightReviewFlowFactory(flowService, aiReviewWorker).create(request));
@@ -85,8 +88,36 @@ class ReportPreflightReviewFlowFactoryTest {
 
         verify(flowService).validateContext(request);
         verify(flowService).runDeterministicValidation(request);
-        verify(flowService).runSourceBackedLegalReview(request);
+        verify(flowService).submitSourceBackedLegalReview(request);
         verify(flowService).fail(request, "legal review input failed");
+    }
+
+    @Test
+    void waitsForSourceBackedLegalReviewHarnessWithoutBlockingTick() {
+        var flowService = mock(ReportPreflightReviewFlowService.class);
+        var aiReviewWorker = mock(ReportPreflightAiReviewWorker.class);
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 300L);
+        var legalFlow = aiHarnessFlow();
+        when(flowService.runDeterministicValidation(request))
+                .thenReturn(new ReportPreflightValidationResult(List.of()));
+        when(flowService.isAiHarnessTerminal(request)).thenReturn(true);
+        when(flowService.shouldRunSourceBackedLegalReview(request)).thenReturn(true);
+        when(flowService.submitSourceBackedLegalReview(request))
+                .thenReturn(new ReportPreflightLegalReviewHarnessService.LegalReviewSubmission(
+                        true,
+                        legalFlow,
+                        Duration.ofSeconds(30)));
+        when(flowService.isSourceBackedLegalReviewTerminal(legalFlow)).thenReturn(false, true);
+
+        var worker = worker();
+        worker.submit(new ReportPreflightReviewFlowFactory(flowService, aiReviewWorker).create(request));
+        tick(worker, 10);
+
+        verify(flowService).submitSourceBackedLegalReview(request);
+        verify(flowService, times(2)).isSourceBackedLegalReviewTerminal(legalFlow);
+        verify(flowService).completeSourceBackedLegalReview(request, legalFlow);
+        verify(flowService).summarizeAiResult(request);
+        verify(flowService).complete(request);
     }
 
     private Worker worker() {

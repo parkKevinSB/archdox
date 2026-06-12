@@ -63,6 +63,10 @@ archdox:
   ai-review:
     enabled: ${DOCUMENT_AI_REVIEW_ENABLED:false}
     worker-interval-ms: ${DOCUMENT_AI_REVIEW_WORKER_INTERVAL_MS:250}
+  worker:
+    worker-interval-ms: ${ARCHDOX_WORKER_INTERVAL_MS:250}
+    action-executor-threads: ${ARCHDOX_WORKER_ACTION_EXECUTOR_THREADS:4}
+    action-executor-queue-capacity: ${ARCHDOX_WORKER_ACTION_EXECUTOR_QUEUE_CAPACITY:100}
   ai:
     credentials:
       master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:}
@@ -85,6 +89,10 @@ archdox:
       enabled: ${ARCHDOX_AI_SPRING_AI_ADAPTER_ENABLED:false}
       provider-code-prefix: ${ARCHDOX_AI_SPRING_AI_PROVIDER_CODE_PREFIX:spring-ai-}
       poll-interval-ms: ${ARCHDOX_AI_SPRING_AI_POLL_INTERVAL_MS:10}
+    model-gateway:
+      execution:
+        threads: ${ARCHDOX_AI_MODEL_GATEWAY_THREADS:8}
+        queue-capacity: ${ARCHDOX_AI_MODEL_GATEWAY_QUEUE_CAPACITY:200}
   jwt:
     secret: ${JWT_SECRET:dev-only-change-this-secret-for-archdox-local-256-bit}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
@@ -151,6 +159,8 @@ archdox:
   legal:
     sync:
       worker-interval-ms: ${LEGAL_SYNC_WORKER_INTERVAL_MS:250}
+      fetch-executor-threads: ${LEGAL_SYNC_FETCH_EXECUTOR_THREADS:1}
+      fetch-executor-queue-capacity: ${LEGAL_SYNC_FETCH_EXECUTOR_QUEUE_CAPACITY:10}
       monitor:
         enabled: ${LEGAL_SYNC_MONITOR_ENABLED:false}
         run-times: "${LEGAL_SYNC_MONITOR_RUN_TIMES:03:00,15:00}"

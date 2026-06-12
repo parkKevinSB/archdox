@@ -15,7 +15,7 @@ public class DocumentGenerationWorker {
     }
 
     public void submit(Flow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_GENERATION_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_IO_WORKER)
                 .submit(flow, DuplicatePolicy.REPLACE);
     }
 }

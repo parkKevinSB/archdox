@@ -103,7 +103,8 @@ class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
                 worker,
                 gateway,
                 new ObjectMapper(),
-                new TraceListener() {});
+                new TraceListener() {},
+                Runnable::run);
     }
 
     private ArchDoxWorkerExecutionContext context(Map<String, Object> payload) {

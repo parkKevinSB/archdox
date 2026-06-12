@@ -15,7 +15,7 @@ public class DocumentDeliveryWorker {
     }
 
     public void submit(Flow flow) {
-        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_DELIVERY_WORKER)
+        engine.worker(ArchDoxRuntimeConfiguration.DOCUMENT_IO_WORKER)
                 .submit(flow, DuplicatePolicy.REPLACE);
     }
 }

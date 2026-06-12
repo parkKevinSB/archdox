@@ -706,7 +706,7 @@ POST /api/v1/platform-admin/ops/incidents/{incidentId}/diagnose
 -> build a redacted snapshot from the incident, recent findings, and related
    operation_events
 -> persist OPS_DIAGNOSIS_SNAPSHOT_READY as source=SYSTEM_DIAGNOSIS
--> optionally submit OpsDiagnosisHarness to the platform-ops-ai Flower worker
+-> optionally submit OpsDiagnosisHarness to the shared ai-harness Flower worker lane
    when platform ops AI diagnosis is enabled and a provider/model is configured
 -> wait for the child harness terminal state
 -> persist AI_HARNESS findings separately from deterministic findings
