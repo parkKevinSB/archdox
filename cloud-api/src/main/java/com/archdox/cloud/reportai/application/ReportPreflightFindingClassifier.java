@@ -40,7 +40,11 @@ final class ReportPreflightFindingClassifier {
     }
 
     static boolean shouldAutoResolveOnCreate(ReportPreflightReviewFinding finding) {
-        return isDisplayOnlyLegalFinding(finding.source(), finding.code());
+        if (isDisplayOnlyLegalFinding(finding.source(), finding.code())) {
+            return true;
+        }
+        return "LEGAL_REVIEW".equals(finding.source())
+                && !requiresResolutionForGeneration(finding);
     }
 
     static void autoResolveOnCreate(ReportPreflightReviewFinding finding, Long resolvedBy, OffsetDateTime now) {

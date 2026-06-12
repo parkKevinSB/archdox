@@ -367,6 +367,33 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(approvalRequired).isEqualTo(false);
     }
 
+    @Test
+    void nonBlockingLegalReviewFindingIsAutoResolvedAsDisplayOnlyNotice() {
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "LEGAL_REVIEW",
+                "TECHNICAL_CRITERIA_EVIDENCE_MISSING",
+                "MEDIUM",
+                "DAILY_LOG",
+                "기술기준 적합성 증빙 자료가 연결되지 않았습니다.",
+                "scope limitation",
+                Map.of(
+                        "category", "EVIDENCE",
+                        "approvalRequired", "false",
+                        "legalReviewStatus", "WARN"),
+                OffsetDateTime.parse("2026-06-10T09:00:00+09:00"));
+
+        ReportPreflightFindingClassifier.autoResolveOnCreate(
+                finding,
+                7L,
+                OffsetDateTime.parse("2026-06-10T09:01:00+09:00"));
+
+        assertThat(finding.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
+        assertThat(finding.resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> passEligibility(Map<String, Object> coverageMap) {
         return (Map<String, Object>) coverageMap.get("passEligibility");
