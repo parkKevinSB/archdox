@@ -186,7 +186,13 @@ public class LegalCorpusSyncService {
             }
         }
 
-        var result = new LegalSyncResult(runId, actsSeen, versionsCreated, changeSetsCreated, articleDiffsCreated);
+        var result = new LegalSyncResult(
+                runId,
+                actsSeen,
+                versionsCreated,
+                changeSetsCreated,
+                articleDiffsCreated,
+                snapshot.metadata());
         run.complete(result.toSummaryJson(), now);
         operationEventService.record(
                 null,

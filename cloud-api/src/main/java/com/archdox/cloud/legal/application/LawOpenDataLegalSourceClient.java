@@ -180,25 +180,57 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                     "Law Open Data API sync target list is empty"));
         }
 
-        CompletableFuture<List<LegalActSnapshot>> actsFuture = CompletableFuture.completedFuture(new ArrayList<>());
+        CompletableFuture<FetchAccumulator> actsFuture = CompletableFuture.completedFuture(new FetchAccumulator());
         for (var target : targets) {
-            actsFuture = actsFuture.thenCompose(acts -> fetchTargetAsync(target)
+            actsFuture = actsFuture.thenCompose(accumulator -> fetchTargetAsync(target)
                     .thenApply(snapshot -> {
-                        acts.add(snapshot);
-                        return acts;
-                    }));
+                        accumulator.acts.add(snapshot);
+                        return accumulator;
+                    })
+                    .handle((acc, error) -> {
+                        if (error == null) {
+                            return CompletableFuture.completedFuture(acc);
+                        }
+                        var failure = unwrapCompletion(error);
+                        if (failure instanceof LawOpenDataException openDataException
+                                && "LAW_OPEN_DATA_ARTICLES_EMPTY".equals(openDataException.code())) {
+                            accumulator.skippedTargets.add(skippedTarget(target, openDataException));
+                            return CompletableFuture.completedFuture(accumulator);
+                        }
+                        return CompletableFuture.<FetchAccumulator>failedFuture(failure);
+                    })
+                    .thenCompose(Function.identity()));
         }
-        return actsFuture.thenApply(acts -> new LegalSourceSnapshot(
+        return actsFuture.thenApply(accumulator -> new LegalSourceSnapshot(
                 openApi.getSourceCode(),
                 "LAW_OPEN_DATA",
                 "\uAD6D\uAC00\uBC95\uB839\uC815\uBCF4 \uACF5\uB3D9\uD65C\uC6A9",
                 baseUrl(),
                 Map.of(
                         "provider", "law.go.kr",
-                        "targets", acts.size()),
-                acts.stream()
+                        "targetCount", targets.size(),
+                        "fetchedTargetCount", accumulator.acts.size(),
+                        "skippedTargetCount", accumulator.skippedTargets.size(),
+                        "skippedTargets", List.copyOf(accumulator.skippedTargets)),
+                accumulator.acts.stream()
                         .sorted(Comparator.comparing(LegalActSnapshot::actCode))
                         .toList()));
+    }
+
+    private Map<String, Object> skippedTarget(
+            LegalSyncProperties.Target target,
+            LawOpenDataException failure
+    ) {
+        return Map.of(
+                "actCode", firstNonBlank(target.getActCode(), "UNKNOWN"),
+                "target", firstNonBlank(target.getTarget(), "unknown"),
+                "query", firstNonBlank(target.getQuery(), ""),
+                "reason", failure.code());
+    }
+
+    private static final class FetchAccumulator {
+        private final List<LegalActSnapshot> acts = new ArrayList<>();
+        private final List<Map<String, Object>> skippedTargets = new ArrayList<>();
     }
 
     private CompletableFuture<LegalActSnapshot> fetchTargetAsync(LegalSyncProperties.Target target) {

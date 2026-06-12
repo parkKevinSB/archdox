@@ -99,6 +99,75 @@ class LawOpenDataLegalSourceClientTest {
     }
 
     @Test
+    void fetchSkipsAttachmentOnlyTargetsWithoutFailingWholeSnapshot() {
+        var attachmentOnlyTarget = new LegalSyncProperties.Target(
+                "admrul",
+                "\uD55C\uAD6D\uC804\uAE30\uC124\uBE44\uADDC\uC815",
+                "\uD55C\uAD6D\uC804\uAE30\uC124\uBE44\uADDC\uC815",
+                "KOREA_ELECTRICAL_CODE",
+                "ADMINISTRATIVE_RULE");
+        var lawTarget = new LegalSyncProperties.Target(
+                "law",
+                "\uAC74\uCD95\uBC95",
+                "\uAC74\uCD95\uBC95",
+                "BUILDING_ACT",
+                "LAW");
+        var properties = openApiProperties(List.of(attachmentOnlyTarget, lawTarget));
+        var httpClient = new RecordingHttpClient(List.of(
+                response(200, """
+                        {
+                          "AdmRulSearch": {
+                            "admrul": {
+                              "\uD589\uC815\uADDC\uCE59\uBA85": "\uD55C\uAD6D\uC804\uAE30\uC124\uBE44\uADDC\uC815",
+                              "\uD589\uC815\uADDC\uCE59\uC77C\uB828\uBC88\uD638": "2100000270772"
+                            }
+                          }
+                        }
+                        """),
+                response(200, """
+                        {
+                          "AdmRulService": {
+                            "\uD589\uC815\uADDC\uCE59\uAE30\uBCF8\uC815\uBCF4": {
+                              "\uD589\uC815\uADDC\uCE59\uBA85": "\uD55C\uAD6D\uC804\uAE30\uC124\uBE44\uADDC\uC815",
+                              "\uD589\uC815\uADDC\uCE59\uC77C\uB828\uBC88\uD638": "2100000270772",
+                              "\uBC1C\uB839\uBC88\uD638": "2025-227",
+                              "\uBC1C\uB839\uC77C\uC790": "20260105",
+                              "\uC2DC\uD589\uC77C\uC790": "20260105"
+                            }
+                          }
+                        }
+                        """),
+                response(200, """
+                        {
+                          "LawSearch": {
+                            "law": {
+                              "\uBC95\uB839ID": "001823",
+                              "\uBC95\uB839\uBA85\uD55C\uAE00": "\uAC74\uCD95\uBC95"
+                            }
+                          }
+                        }
+                        """),
+                response(200, lawDetailJson())));
+        var guardedClient = new LawOpenDataLegalSourceClient(objectMapper, properties, httpClient);
+
+        var snapshot = guardedClient.fetch(LawOpenDataLegalSourceClient.SOURCE_CODE);
+
+        assertThat(snapshot.acts()).singleElement()
+                .satisfies(act -> assertThat(act.actCode()).isEqualTo("BUILDING_ACT"));
+        assertThat(snapshot.metadata())
+                .containsEntry("targetCount", 2)
+                .containsEntry("fetchedTargetCount", 1)
+                .containsEntry("skippedTargetCount", 1);
+        assertThat((List<?>) snapshot.metadata().get("skippedTargets"))
+                .singleElement()
+                .satisfies(skipped -> {
+                    var skippedTarget = (Map<?, ?>) skipped;
+                    assertThat(skippedTarget.get("actCode")).isEqualTo("KOREA_ELECTRICAL_CODE");
+                    assertThat(skippedTarget.get("reason")).isEqualTo("LAW_OPEN_DATA_ARTICLES_EMPTY");
+                });
+    }
+
+    @Test
     void parsesLawDetailArticles() throws Exception {
         var target = new LegalSyncProperties.Target(
                 "law",
