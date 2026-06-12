@@ -29,7 +29,8 @@ public class FlowerRuntimeReadService {
             "AI_MODEL_GATEWAY_QUEUE_FULL",
             "AGENT_COMMAND_QUEUE_FULL",
             "ARCHDOX_WORKER_ACTION_QUEUE_FULL",
-            "LEGAL_SYNC_FETCH_QUEUE_FULL");
+            "LEGAL_SYNC_FETCH_QUEUE_FULL",
+            "SERVER_RUNTIME_LOAD_HIGH");
 
     private final PlatformAdminService platformAdminService;
     private final Engine engine;

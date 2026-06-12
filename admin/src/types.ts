@@ -533,7 +533,24 @@ export type PlatformOpsSummary = {
   photos: Record<string, number>;
   photoPickups: Record<string, number>;
   deliveries: Record<string, number>;
+  serverHealth?: ServerRuntimeHealthSnapshot | null;
   generatedAt: string;
+};
+
+export type ServerRuntimeHealthSnapshot = {
+  capturedAt: string;
+  status: string;
+  systemCpuLoadPercent?: number | null;
+  processCpuLoadPercent?: number | null;
+  systemLoadAverage?: number | null;
+  availableProcessors: number;
+  systemMemoryTotalBytes?: number | null;
+  systemMemoryUsedBytes?: number | null;
+  systemMemoryUsedPercent?: number | null;
+  jvmHeapMaxBytes: number;
+  jvmHeapUsedBytes: number;
+  jvmHeapUsedPercent?: number | null;
+  warnings: string[];
 };
 
 export type PlatformUserOps = {

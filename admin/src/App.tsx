@@ -5399,6 +5399,7 @@ function PlatformView({
   onRejectWorkerApproval: (approvalRequestId: number) => Promise<void>;
 }) {
   const summary = data.summary;
+  const serverHealth = summary?.serverHealth ?? null;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
   const failedCommands = (summary?.agentCommands.FAILED ?? 0) + (summary?.agentCommands.EXPIRED ?? 0);
   const failedPickups = summary?.photoPickups.FAILED ?? 0;
@@ -5520,14 +5521,49 @@ function PlatformView({
       ) : null}
 
       {showOverview ? (
-        <div className="metric-grid">
-        <MetricCard icon={<Users size={20} />} label="사용자" value={summary?.users ?? 0} detail="전체 계정" tone="blue" />
-        <MetricCard icon={<HardDrive size={20} />} label="사무소" value={summary?.offices ?? 0} detail="전체 테넌트" tone="slate" />
-        <MetricCard icon={<Server size={20} />} label="에이전트" value={sumCounts(summary?.agents)} detail={`${summary?.agents.ONLINE ?? 0} 온라인`} tone="green" />
-        <MetricCard icon={<Wifi size={20} />} label="세션" value={summary?.activeAgentSessions ?? 0} detail="활성 WebSocket" tone="blue" />
-        <MetricCard icon={<Command size={20} />} label="명령" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="진행 중" tone="amber" />
-        <MetricCard icon={<AlertTriangle size={20} />} label="확인 필요" value={attention} detail="실패/멈춤 후보" tone={attention > 0 ? "red" : "green"} />
-        </div>
+        <>
+          <div className="metric-grid">
+            <MetricCard icon={<Users size={20} />} label="사용자" value={summary?.users ?? 0} detail="전체 계정" tone="blue" />
+            <MetricCard icon={<HardDrive size={20} />} label="사무소" value={summary?.offices ?? 0} detail="전체 테넌트" tone="slate" />
+            <MetricCard icon={<Server size={20} />} label="에이전트" value={sumCounts(summary?.agents)} detail={`${summary?.agents.ONLINE ?? 0} 온라인`} tone="green" />
+            <MetricCard icon={<Wifi size={20} />} label="세션" value={summary?.activeAgentSessions ?? 0} detail="활성 WebSocket" tone="blue" />
+            <MetricCard icon={<Command size={20} />} label="명령" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="진행 중" tone="amber" />
+            <MetricCard icon={<AlertTriangle size={20} />} label="확인 필요" value={attention} detail="실패/멈춤 후보" tone={attention > 0 ? "red" : "green"} />
+          </div>
+          <div className="metric-grid compact">
+            <MetricCard
+              icon={<Gauge size={20} />}
+              label="서버 CPU"
+              value={formatPercent(serverHealth?.systemCpuLoadPercent ?? serverHealth?.processCpuLoadPercent)}
+              detail={serverHealth ? `프로세스 ${formatPercent(serverHealth.processCpuLoadPercent)} · ${serverHealth.availableProcessors} cores` : "수집 대기"}
+              tone={runtimeMetricTone(serverHealth?.systemCpuLoadPercent ?? serverHealth?.processCpuLoadPercent, serverHealth?.warnings.includes("CPU_LOAD_HIGH"))}
+            />
+            <MetricCard
+              icon={<Activity size={20} />}
+              label="서버 메모리"
+              value={formatPercent(serverHealth?.systemMemoryUsedPercent)}
+              detail={serverHealth ? `${formatBytes(serverHealth.systemMemoryUsedBytes)} / ${formatBytes(serverHealth.systemMemoryTotalBytes)}` : "수집 대기"}
+              tone={runtimeMetricTone(serverHealth?.systemMemoryUsedPercent, serverHealth?.warnings.includes("SYSTEM_MEMORY_HIGH"))}
+            />
+            <MetricCard
+              icon={<HardDrive size={20} />}
+              label="JVM Heap"
+              value={formatPercent(serverHealth?.jvmHeapUsedPercent)}
+              detail={serverHealth ? `${formatBytes(serverHealth.jvmHeapUsedBytes)} / ${formatBytes(serverHealth.jvmHeapMaxBytes)}` : "수집 대기"}
+              tone={runtimeMetricTone(serverHealth?.jvmHeapUsedPercent, serverHealth?.warnings.includes("JVM_HEAP_HIGH"))}
+            />
+            <MetricCard
+              icon={<Clock3 size={20} />}
+              label="수집 시각"
+              value={serverHealth?.status ?? "-"}
+              detail={serverHealth ? formatDate(serverHealth.capturedAt) : "5분 주기 monitoring flow"}
+              tone={serverHealthTone(serverHealth?.status)}
+            />
+          </div>
+          {serverHealth?.warnings.length ? (
+            <InlineNotice message={`서버 부하 경고: ${serverHealth.warnings.map(displayLabel).join(", ")}`} />
+          ) : null}
+        </>
       ) : null}
 
       {showOverview || showIncidents ? (
@@ -5952,7 +5988,7 @@ function FlowerRuntimePanel({
               <MetricCard icon={<Gauge size={20} />} label="Engine" value={dump.engineState} detail={formatDate(dump.capturedAt)} tone={dump.engineState === "RUNNING" ? "green" : "amber"} />
               <MetricCard icon={<Server size={20} />} label="Workers" value={dump.workerCount} detail={`${activeWorkers.length} active`} tone="blue" />
               <MetricCard icon={<Activity size={20} />} label="Flows" value={dump.activeFlowCount} detail="current active flows" tone={dump.activeFlowCount > 0 ? "amber" : "green"} />
-              <MetricCard icon={<Command size={20} />} label="Executors" value={dump.executorCount ?? executors.length} detail={`${dump.queuedTaskCount ?? 0} queued`} tone={(dump.saturatedExecutorCount ?? 0) > 0 ? "red" : "green"} />
+              <MetricCard icon={<Command size={20} />} label="Async executors" value={dump.executorCount ?? executors.length} detail={`${dump.queuedTaskCount ?? 0} queued`} tone={(dump.saturatedExecutorCount ?? 0) > 0 ? "red" : "green"} />
               <MetricCard icon={<Clock3 size={20} />} label="Polling" value={polling ? "ON" : "OFF"} detail={`${intervalMs}ms`} tone={polling ? "green" : "slate"} />
             </div>
             {runtimeDecision ? <FlowerRuntimeDecisionView decision={runtimeDecision} /> : null}
@@ -5972,9 +6008,9 @@ function FlowerRuntimePanel({
         )}
       </Panel>
 
-      <Panel title="실행 Lane / Executor" icon={<Gauge size={18} />} count={executors.length}>
+      <Panel title="비동기 실행 Executor" icon={<Gauge size={18} />} count={executors.length}>
         <Table
-          columns={["Lane", "상태", "스레드", "대기열", "처리량", "생명주기"]}
+          columns={["작업 풀", "상태", "현재/생성 스레드", "대기열", "완료/전체", "생명주기"]}
           empty="Runtime executor 상태가 아직 없습니다."
           rows={executors.map((executor) => [
             <CellTitle key="executor" title={displayExecutorName(executor.beanName)} subtitle={`${executor.beanName} / ${executor.queueType}`} />,
@@ -6082,13 +6118,13 @@ function flowerRuntimeDecision(
   }
 
   if (saturated.length > 0) {
-    const lanes = saturated.map((executor) => displayExecutorName(executor.beanName)).join(", ");
+    const pools = saturated.map((executor) => displayExecutorName(executor.beanName)).join(", ");
     return {
       tone: "red",
-      title: "실행 Lane 포화",
-      summary: `${lanes} 대기열이 가득 찼습니다.`,
-      reason: "해당 lane에 새 작업이 들어오면 거절되거나 지연될 수 있습니다.",
-      action: "같은 시간대의 과부하 이벤트와 작업 요청량을 확인하고, 필요하면 lane limit 또는 호출 빈도를 조정하세요.",
+      title: "비동기 Executor 포화",
+      summary: `${pools} 대기열이 가득 찼습니다.`,
+      reason: "해당 작업 풀에 새 작업이 들어오면 거절되거나 지연될 수 있습니다.",
+      action: "같은 시간대의 과부하 이벤트와 작업 요청량을 확인하고, 필요하면 executor limit 또는 호출 빈도를 조정하세요.",
       checks
     };
   }
@@ -9871,6 +9907,36 @@ function formatBytes(value?: number | null) {
     return `${(value / 1024).toFixed(1)} KB`;
   }
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatPercent(value?: number | null) {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "-";
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}%`;
+}
+
+function runtimeMetricTone(value?: number | null, warning?: boolean): "green" | "blue" | "amber" | "red" | "slate" {
+  if (warning) {
+    return "red";
+  }
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "slate";
+  }
+  if (value >= 80) {
+    return "amber";
+  }
+  return "green";
+}
+
+function serverHealthTone(status?: string | null): "green" | "blue" | "amber" | "red" | "slate" {
+  if (status === "WARN") {
+    return "red";
+  }
+  if (status === "OK") {
+    return "green";
+  }
+  return "slate";
 }
 
 function normalizeFormValue(value: string) {

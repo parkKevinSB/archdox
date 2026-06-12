@@ -17,6 +17,7 @@ import com.archdox.cloud.document.domain.DocumentJobStatus;
 import com.archdox.cloud.document.infra.DocumentDeliveryRequestRepository;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.monitoring.application.ServerRuntimeHealthService;
 import com.archdox.cloud.office.domain.Office;
 import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
@@ -65,6 +66,7 @@ public class PlatformOpsReadService {
     private final DocumentDeliveryRequestRepository deliveryRepository;
     private final OperationEventRepository eventRepository;
     private final OperationEventService operationEventService;
+    private final ServerRuntimeHealthService serverRuntimeHealthService;
 
     public PlatformOpsReadService(
             PlatformAdminService platformAdminService,
@@ -77,7 +79,8 @@ public class PlatformOpsReadService {
             PhotoRepository photoRepository,
             DocumentDeliveryRequestRepository deliveryRepository,
             OperationEventRepository eventRepository,
-            OperationEventService operationEventService
+            OperationEventService operationEventService,
+            ServerRuntimeHealthService serverRuntimeHealthService
     ) {
         this.platformAdminService = platformAdminService;
         this.userRepository = userRepository;
@@ -90,6 +93,7 @@ public class PlatformOpsReadService {
         this.deliveryRepository = deliveryRepository;
         this.eventRepository = eventRepository;
         this.operationEventService = operationEventService;
+        this.serverRuntimeHealthService = serverRuntimeHealthService;
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +109,7 @@ public class PlatformOpsReadService {
                 countGroup(PhotoStatus.values(), photoRepository::countByStatus),
                 countGroup(PhotoPickupStatus.values(), photoRepository::countByOriginalPickupStatus),
                 countGroup(DocumentDeliveryStatus.values(), deliveryRepository::countByStatus),
+                serverRuntimeHealthService.latestOrSample(),
                 OffsetDateTime.now());
     }
 
