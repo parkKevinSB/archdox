@@ -186,7 +186,14 @@ These are development-only credentials.
   construction-supervision context, Engine falls back to synchronized legal
   corpus candidates such as Building Act or construction-supervision detailed
   standard articles. This is the first source-backed legal reference bridge; it
-  is not yet full legal compliance judgment. The Engine now also runs a
+  is not yet full legal compliance judgment. Construction-supervision binding
+  auto-generation now keeps the broad checklist-to-supervision-standard binding
+  and additionally creates DB-backed secondary reference bindings by trade
+  group, such as energy-envelope, electrical, mechanical, fire, elevator,
+  structural, geotechnical, gas, communications, landscape, and safety
+  references. These secondary bindings are review anchors, not final compliance
+  rules, and platform admins can revise or deactivate them in the legal binding
+  admin screen. The Engine now also runs a
   deterministic legal-risk context recipe:
   when legal references exist but supervision narrative/work area/photo/evidence
   context is missing, it emits `LEGAL_EVIDENCE_CONTEXT_MISSING` and prepares

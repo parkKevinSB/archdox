@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class LegalDomainBindingAdminServiceTest {
@@ -224,6 +225,15 @@ class LegalDomainBindingAdminServiceTest {
                         "000100",
                         "제1조",
                         "목적")));
+        when(legalCorpusReadService.search("단열", "BUILDING_ENERGY_SAVING_DESIGN_STANDARD", null, null, null, 1))
+                .thenReturn(searchResponse(reference(
+                        12L,
+                        "BUILDING_ENERGY_SAVING_DESIGN_STANDARD",
+                        "건축물의 에너지절약설계기준",
+                        22L,
+                        "000400",
+                        "제4조",
+                        "건축부문의 의무사항")));
         when(bindingRepository.search(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of());
         when(bindingRepository.save(any(LegalDomainBinding.class))).thenAnswer(invocation -> {
@@ -243,11 +253,19 @@ class LegalDomainBindingAdminServiceTest {
         assertThat(response.catalogCode()).isEqualTo("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24");
         assertThat(response.catalogVersion()).isEqualTo(2);
         assertThat(response.catalogItemCount()).isGreaterThan(100);
-        assertThat(response.createdCount()).isEqualTo(response.catalogItemCount() + response.reportTypeCreatedCount());
+        assertThat(response.createdCount()).isGreaterThan(response.catalogItemCount() + response.reportTypeCreatedCount());
         assertThat(response.skippedCount()).isZero();
         assertThat(response.supportingReference()).contains("건축공사 감리세부기준");
         verify(platformAdminService).requirePlatformAdmin(principal);
-        verify(bindingRepository, atLeastOnce()).save(any(LegalDomainBinding.class));
+        var bindingCaptor = ArgumentCaptor.forClass(LegalDomainBinding.class);
+        verify(bindingRepository, atLeastOnce()).save(bindingCaptor.capture());
+        assertThat(bindingCaptor.getAllValues())
+                .anySatisfy(binding -> {
+                    assertThat(binding.bindingKey()).contains("BUILDING_ENERGY_SAVING_DESIGN_STANDARD");
+                    assertThat(binding.metadataJson())
+                            .containsEntry("autoGenerateMode", "CONSTRUCTION_SUPERVISION_SECONDARY")
+                            .containsEntry("ruleCode", "ENERGY_ENVELOPE");
+                });
     }
 
     @Test
