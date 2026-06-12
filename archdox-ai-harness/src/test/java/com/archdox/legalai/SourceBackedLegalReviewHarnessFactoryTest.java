@@ -107,7 +107,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         var prompt = new SourceBackedLegalReviewPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("0.2.0");
+        assertThat(prompt.version().version()).isEqualTo("0.2.1");
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
@@ -115,6 +115,8 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                 .contains("referenceCoverage.passEligibility.finalEligible=false means PASS is not allowed")
                 .contains("referenceCoverage.passBlockers as deterministic server blockers")
                 .contains("legalReferenceGrade uses A/B/C/D/X")
+                .contains("technicalCriteriaReviewRequired=true")
+                .contains("technicalCriteriaPassEligible=false")
                 .contains("REPORT_TYPE_ANCHOR alone is broad report-type context")
                 .contains("Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거")
                 .contains("PASS must explain the legal review scope")

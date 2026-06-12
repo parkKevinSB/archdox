@@ -228,6 +228,7 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(passEligibility(coverageMap))
                 .containsEntry("legalEligible", true)
                 .containsEntry("evidenceEligible", true)
+                .containsEntry("technicalCriteriaEligible", true)
                 .containsEntry("applicabilityEligible", true)
                 .containsEntry("finalEligible", true);
         assertThat(passBlockerCodes(coverageMap)).isEmpty();
@@ -294,10 +295,53 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(passEligibility(coverageMap))
                 .containsEntry("legalEligible", true)
                 .containsEntry("evidenceEligible", false)
+                .containsEntry("technicalCriteriaEligible", true)
                 .containsEntry("applicabilityEligible", true)
                 .containsEntry("finalEligible", false);
         assertThat(passBlockerCodes(coverageMap))
                 .contains("PASS_BLOCKED_MISSING_PHOTO_EVIDENCE");
+    }
+
+    @Test
+    void technicalCriteriaEvidenceBlocksFinalPassForPerformanceItems() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(businessItemLegalContextFinding(now)));
+        var evidenceChecklist = Map.<String, Object>of(
+                "reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                "dailyLogEntryCount", 1,
+                "dailyLogEntriesWithSupervisionContent", 1,
+                "dailyLogEntriesWithChecklistItemCode", 1,
+                "dailyLogEntriesWithPhotoIds", 1,
+                "allDailyLogPhotoRefsResolved", true,
+                "generationBlockingPhotoIssue", false,
+                "technicalCriteriaReviewRequired", true,
+                "dailyLogEntriesRequiringTechnicalCriteria", 1,
+                "dailyLogEntriesWithTechnicalCriteriaEvidence", 0);
+        var coverage = ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferenceCoverage",
+                references,
+                evidenceChecklist);
+
+        @SuppressWarnings("unchecked")
+        var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
+        assertThat(coverageMap)
+                .containsEntry("passEligibleForPass", false)
+                .containsEntry("legalReferenceGrade", "A")
+                .containsEntry("reviewStrength", "MEDIUM");
+        assertThat(passEligibility(coverageMap))
+                .containsEntry("legalEligible", true)
+                .containsEntry("evidenceEligible", true)
+                .containsEntry("technicalCriteriaEligible", false)
+                .containsEntry("applicabilityEligible", true)
+                .containsEntry("finalEligible", false);
+        assertThat(passBlockerCodes(coverageMap))
+                .contains("PASS_BLOCKED_MISSING_TECHNICAL_CRITERIA_EVIDENCE");
     }
 
     @SuppressWarnings("unchecked")

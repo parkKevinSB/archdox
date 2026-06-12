@@ -65,11 +65,18 @@ public record SourceBackedLegalReviewResult(
         return normalized.contains("법적요구사항을충족")
                 || normalized.contains("법적요건을충족")
                 || normalized.contains("법령요건을충족")
+                || normalized.contains("요구사항을충족")
+                || normalized.contains("요건을충족")
+                || normalized.contains("충족하는것으로판단")
                 || normalized.contains("법령에부합")
                 || normalized.contains("법에부합")
+                || normalized.contains("근거에부합")
+                || normalized.contains("적합한것으로판단")
+                || normalized.contains("적합합니다")
                 || normalized.contains("법령을준수")
                 || normalized.contains("법을준수")
                 || normalized.contains("위반사항없")
+                || normalized.contains("문제없")
                 || normalized.contains("법적위험이없")
                 || normalized.contains("법률리스크가없");
     }

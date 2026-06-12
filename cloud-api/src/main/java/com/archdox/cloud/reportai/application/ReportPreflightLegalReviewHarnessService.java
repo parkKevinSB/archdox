@@ -328,7 +328,9 @@ public class ReportPreflightLegalReviewHarnessService {
                 "PASS is allowed only when referenceCoverage.passEligibility.finalEligible is true.",
                 "Treat referenceCoverage.passBlockers as deterministic server blockers.",
                 "A checklist/business-item PASS requires a PRIMARY BUSINESS_ITEM_ANCHOR.",
-                "If references are only search candidates or generic anchors, return WARN or INSUFFICIENT_CONTEXT instead of PASS."));
+                "If references are only search candidates or generic anchors, return WARN or INSUFFICIENT_CONTEXT instead of PASS.",
+                "Do not treat checklist binding plus photo evidence as technical-standard compliance.",
+                "If technicalCriteriaReviewRequired=true and technicalCriteriaPassEligible=false, return WARN or INSUFFICIENT_CONTEXT instead of PASS."));
         return Map.copyOf(context);
     }
 
@@ -549,6 +551,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 reportTypeAnchor);
         var legalEligible = grade == LegalReferenceGrade.A || grade == LegalReferenceGrade.B;
         var evidenceEligible = evidenceEligible(evidenceChecklist);
+        var technicalCriteriaEligible = technicalCriteriaEligible(evidenceChecklist);
         var applicabilityEligible = grade == LegalReferenceGrade.A && primary > 0 && businessItemAnchor > 0;
         var blockers = passBlockers(
                 total,
@@ -562,12 +565,14 @@ public class ReportPreflightLegalReviewHarnessService {
                 evidenceChecklist,
                 legalEligible,
                 evidenceEligible,
+                technicalCriteriaEligible,
                 applicabilityEligible);
         var eligibility = new PassEligibility(
                 legalEligible,
                 evidenceEligible,
+                technicalCriteriaEligible,
                 applicabilityEligible,
-                legalEligible && evidenceEligible && applicabilityEligible && blockers.isEmpty(),
+                legalEligible && evidenceEligible && technicalCriteriaEligible && applicabilityEligible && blockers.isEmpty(),
                 blockers);
         var passEligible = eligibility.finalEligible();
         var strength = eligibility.finalEligible()
@@ -652,6 +657,21 @@ public class ReportPreflightLegalReviewHarnessService {
                 && !Boolean.TRUE.equals(evidenceChecklist.get("generationBlockingPhotoIssue"));
     }
 
+    private boolean technicalCriteriaEligible(Map<String, Object> evidenceChecklist) {
+        if (evidenceChecklist == null || evidenceChecklist.isEmpty()) {
+            return true;
+        }
+        if (!"CONSTRUCTION_DAILY_SUPERVISION_LOG".equals(upper(evidenceChecklist.get("reportType")))) {
+            return true;
+        }
+        if (!Boolean.TRUE.equals(evidenceChecklist.get("technicalCriteriaReviewRequired"))) {
+            return true;
+        }
+        return intValue(evidenceChecklist.get("dailyLogEntriesRequiringTechnicalCriteria")) > 0
+                && intValue(evidenceChecklist.get("dailyLogEntriesWithTechnicalCriteriaEvidence"))
+                >= intValue(evidenceChecklist.get("dailyLogEntriesRequiringTechnicalCriteria"));
+    }
+
     private List<PassBlocker> passBlockers(
             int total,
             int primary,
@@ -664,6 +684,7 @@ public class ReportPreflightLegalReviewHarnessService {
             Map<String, Object> evidenceChecklist,
             boolean legalEligible,
             boolean evidenceEligible,
+            boolean technicalCriteriaEligible,
             boolean applicabilityEligible
     ) {
         var blockers = new ArrayList<PassBlocker>();
@@ -705,6 +726,12 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         if (!evidenceEligible) {
             blockers.addAll(evidenceBlockers(evidenceChecklist));
+        }
+        if (!technicalCriteriaEligible) {
+            blockers.add(blocker(
+                    "PASS_BLOCKED_MISSING_TECHNICAL_CRITERIA_EVIDENCE",
+                    "TECHNICAL_CRITERIA",
+                    "설계도서, 시방서, 시험성적서, 승인서 등 실질 기준 검토 자료가 부족합니다."));
         }
         return List.copyOf(blockers);
     }
@@ -755,6 +782,8 @@ public class ReportPreflightLegalReviewHarnessService {
         var entriesWithSupervisionContent = 0;
         var entriesWithPhotoIds = 0;
         var entriesWithChecklistItemCode = 0;
+        var entriesRequiringTechnicalCriteria = 0;
+        var entriesWithTechnicalCriteriaEvidence = 0;
         for (var groupValue : groups) {
             var group = objectMap(groupValue);
             for (var entryValue : listValue(group.get("entries"))) {
@@ -770,6 +799,12 @@ public class ReportPreflightLegalReviewHarnessService {
                         || !text(entry.get("checklistItemCode")).isBlank()) {
                     entriesWithChecklistItemCode++;
                 }
+                if (requiresTechnicalCriteriaReview(group, entry)) {
+                    entriesRequiringTechnicalCriteria++;
+                    if (hasTechnicalCriteriaEvidence(group, entry)) {
+                        entriesWithTechnicalCriteriaEvidence++;
+                    }
+                }
             }
         }
         var remarksStep = objectMap(steps.get("REMARKS"));
@@ -781,6 +816,9 @@ public class ReportPreflightLegalReviewHarnessService {
         checklist.put("dailyLogEntriesWithSupervisionContent", entriesWithSupervisionContent);
         checklist.put("dailyLogEntriesWithPhotoIds", entriesWithPhotoIds);
         checklist.put("dailyLogEntriesWithChecklistItemCode", entriesWithChecklistItemCode);
+        checklist.put("technicalCriteriaReviewRequired", entriesRequiringTechnicalCriteria > 0);
+        checklist.put("dailyLogEntriesRequiringTechnicalCriteria", entriesRequiringTechnicalCriteria);
+        checklist.put("dailyLogEntriesWithTechnicalCriteriaEvidence", entriesWithTechnicalCriteriaEvidence);
         checklist.put("hasIssueAndAction", !text(dailyLogPayload.get("issueAndAction")).isBlank()
                 || !text(remarksPayload.get("issueAndAction")).isBlank());
         checklist.put("hasNextAction", !text(dailyLogPayload.get("nextAction")).isBlank()
@@ -789,6 +827,46 @@ public class ReportPreflightLegalReviewHarnessService {
         checklist.put("generationBlockingPhotoIssue", Boolean.TRUE.equals(photoEvidenceStatus.get("generationBlockingPhotoIssue")));
         checklist.put("photoEvidenceSource", text(photoEvidenceStatus.get("photoSourceOfTruth")));
         return Map.copyOf(checklist);
+    }
+
+    private boolean requiresTechnicalCriteriaReview(Map<String, Object> group, Map<String, Object> entry) {
+        var value = String.join(" ",
+                text(group.get("tradeName")),
+                text(group.get("processName")),
+                text(entry.get("inspectionItemName")),
+                text(entry.get("inspectionItemCode")),
+                text(entry.get("checklistItemCode")),
+                text(entry.get("supervisionContent")));
+        return containsAny(value,
+                "자재", "재료", "성능", "규격", "품질", "강도", "두께", "치수", "단열", "기밀",
+                "수밀", "내풍압", "방화", "차음", "시험", "인증", "설비", "배근", "철근",
+                "콘크리트", "창호", "접합", "부호");
+    }
+
+    private boolean hasTechnicalCriteriaEvidence(Map<String, Object> group, Map<String, Object> entry) {
+        var value = String.join(" ",
+                text(group.get("tradeName")),
+                text(group.get("processName")),
+                text(entry.get("inspectionItemName")),
+                text(entry.get("supervisionContent")));
+        return containsAny(value,
+                "설계도서", "설계 도서", "도면", "시방서", "시험성적서", "성적서", "납품승인",
+                "자재승인", "승인서", "인증서", "KS", "성능시험", "품질시험", "검사서",
+                "확인서", "승인 자재", "반입 자재", "제조사", "모델명", "규격 확인",
+                "도면과 일치", "시방서와 일치", "승인서와 일치");
+    }
+
+    private boolean containsAny(String value, String... needles) {
+        var normalized = text(value).replace(" ", "").toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        for (var needle : needles) {
+            if (normalized.contains(text(needle).replace(" ", "").toUpperCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Optional<SourceBackedLegalReviewResult> result(Optional<ValidationResult<?>> validation) {
@@ -969,6 +1047,7 @@ public class ReportPreflightLegalReviewHarnessService {
         attributes.put("passEligibleForPass", String.valueOf(coverage.passEligibleForPass()));
         attributes.put("legalPassEligible", String.valueOf(coverage.passEligibility().legalEligible()));
         attributes.put("evidencePassEligible", String.valueOf(coverage.passEligibility().evidenceEligible()));
+        attributes.put("technicalCriteriaPassEligible", String.valueOf(coverage.passEligibility().technicalCriteriaEligible()));
         attributes.put("applicabilityPassEligible", String.valueOf(coverage.passEligibility().applicabilityEligible()));
         attributes.put("finalPassEligible", String.valueOf(coverage.passEligibility().finalEligible()));
         attributes.put("primaryReferenceCount", String.valueOf(coverage.primaryCount()));
@@ -1263,6 +1342,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private record PassEligibility(
             boolean legalEligible,
             boolean evidenceEligible,
+            boolean technicalCriteriaEligible,
             boolean applicabilityEligible,
             boolean finalEligible,
             List<PassBlocker> blockers
@@ -1271,6 +1351,7 @@ public class ReportPreflightLegalReviewHarnessService {
             var values = new LinkedHashMap<String, Object>();
             values.put("legalEligible", legalEligible);
             values.put("evidenceEligible", evidenceEligible);
+            values.put("technicalCriteriaEligible", technicalCriteriaEligible);
             values.put("applicabilityEligible", applicabilityEligible);
             values.put("finalEligible", finalEligible);
             values.put("blockers", blockers.stream().map(PassBlocker::toMap).toList());
@@ -1312,6 +1393,7 @@ public class ReportPreflightLegalReviewHarnessService {
             values.put("passEligibleForPass", passEligibleForPass);
             values.put("reviewStrength", reviewStrength);
             values.put("legalReferenceGrade", legalReferenceGrade.name());
+            values.put("technicalCriteriaPassEligible", passEligibility.technicalCriteriaEligible());
             values.put("passEligibility", passEligibility.toMap());
             values.put("passBlockers", passEligibility.blockers().stream().map(PassBlocker::toMap).toList());
             values.put("limitations", limitations);

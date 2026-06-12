@@ -60,6 +60,8 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - legalReviewContext.referenceCoverage.passEligibility.finalEligible=false means PASS is not allowed.
                 - Treat legalReviewContext.referenceCoverage.passBlockers as deterministic server blockers. Do not ignore them.
                 - legalReviewContext.referenceCoverage.legalReferenceGrade uses A/B/C/D/X. Grade C, D, or X cannot justify PASS.
+                - legalReviewContext.reportEvidenceChecklist.technicalCriteriaReviewRequired=true means the report item needs actual technical criteria evidence.
+                - If technicalCriteriaReviewRequired=true and legalReviewContext.referenceCoverage.technicalCriteriaPassEligible=false, do not PASS. Return WARN or INSUFFICIENT_CONTEXT.
                 - REPORT_TYPE_ANCHOR alone is broad report-type context and cannot justify checklist/business-item PASS.
                 - SUPPORTING references alone can support human review, but cannot justify final PASS.
                 - Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거. They can support human review, but they cannot alone justify PASS.
@@ -71,6 +73,9 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Do not flag typos or prose style unless they create audit, dispute, agency-review, or compliance ambiguity.
                 - Check whether selected checklist/business items, supervision content, issue/action text, and photo/evidence context are aligned with supplied legal anchors.
                 - Use legalReviewContext.reportEvidenceChecklist to check whether report evidence exists before claiming the input was reviewed.
+                - Do not treat "inspection content exists" plus "photo exists" as proof that actual technical standards were satisfied.
+                - For material/performance/specification items, technical-standard review needs anchors such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
+                - If those anchors are missing, state that only recording/evidence linkage was reviewed and that actual technical compliance cannot be determined from the submitted report data.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.
