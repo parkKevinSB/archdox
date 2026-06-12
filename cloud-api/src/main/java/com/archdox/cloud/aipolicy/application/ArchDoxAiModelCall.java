@@ -10,10 +10,18 @@ import java.util.concurrent.CompletionException;
 final class ArchDoxAiModelCall implements AiModelCall {
     private final String callId;
     private final CompletableFuture<AiModelResponse> future;
+    private final Runnable cancelHook;
 
     ArchDoxAiModelCall(String callId, CompletableFuture<AiModelResponse> future) {
+        this(callId, future, () -> {
+        });
+    }
+
+    ArchDoxAiModelCall(String callId, CompletableFuture<AiModelResponse> future, Runnable cancelHook) {
         this.callId = callId;
         this.future = future;
+        this.cancelHook = cancelHook == null ? () -> {
+        } : cancelHook;
     }
 
     @Override
@@ -58,5 +66,6 @@ final class ArchDoxAiModelCall implements AiModelCall {
     @Override
     public void cancel() {
         future.cancel(true);
+        cancelHook.run();
     }
 }

@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -217,7 +218,7 @@ public class LegalPlatformAdminService {
         return new LegalDigestRefreshResponse(inspected, created, refreshed, skippedAi, skippedMissingActs);
     }
 
-    public LegalDigestAiDraftResponse generateDigestAiDraft(UserPrincipal principal, Long digestId) {
+    public CompletableFuture<LegalDigestAiDraftResponse> generateDigestAiDraft(UserPrincipal principal, Long digestId) {
         platformAdminService.requirePlatformAdmin(principal);
         var digest = changeDigestRepository.findById(digestId)
                 .orElseThrow(() -> new NotFoundException("Legal change digest not found"));
@@ -239,36 +240,46 @@ public class LegalPlatformAdminService {
                 ArchDoxWorkerActionOrigin.USER);
         var handle = workerFlowFactory.createHandle(request, action);
         var timeout = legalDigestAiDraftTimeout();
-        if (!workerServiceWorker.submitAndAwait(handle.flow(), timeout)) {
-            throw new BadRequestException(
-                    "LEGAL_DIGEST_AI_DRAFT_TIMEOUT",
-                    "errors.legal.digestAiDraftTimeout",
-                    "Legal digest AI draft worker timed out.");
-        }
-        var result = handle.result();
-        if (result == null) {
-            throw new BadRequestException(
-                    "LEGAL_DIGEST_AI_DRAFT_RESULT_MISSING",
-                    "errors.legal.digestAiDraftResultMissing",
-                    "Legal digest AI draft worker did not return a result.");
-        }
-        if (result.status() != ArchDoxWorkerActionExecutionStatus.SUCCEEDED) {
-            throw new BadRequestException(
-                    result.resultCode().isBlank() ? "LEGAL_DIGEST_AI_DRAFT_FAILED" : result.resultCode(),
-                    "errors.legal.digestAiDraftFailed",
-                    result.message().isBlank() ? "Legal digest AI draft worker failed." : result.message());
-        }
-        var now = OffsetDateTime.now();
-        var draft = toAiDraft(result.output(), result.status().name(), result.resultCode(), requestId, digest, principal.userId(), now);
-        requireSafeDraftOutput(draft);
-        var saved = aiDraftRepository.save(draft);
-        recordAiDraftEvent(
-                "LEGAL_DIGEST_AI_DRAFT_GENERATED",
-                "Legal digest AI draft was generated for platform admin review.",
-                digest,
-                saved,
-                principal);
-        return toAiDraftResponse(saved);
+        return workerServiceWorker.submitAndTrackAsync(handle.flow(), timeout)
+                .thenApply(awaited -> {
+                    if (!awaited) {
+                        throw new BadRequestException(
+                                "LEGAL_DIGEST_AI_DRAFT_TIMEOUT",
+                                "errors.legal.digestAiDraftTimeout",
+                                "Legal digest AI draft worker timed out.");
+                    }
+                    var result = handle.result();
+                    if (result == null) {
+                        throw new BadRequestException(
+                                "LEGAL_DIGEST_AI_DRAFT_RESULT_MISSING",
+                                "errors.legal.digestAiDraftResultMissing",
+                                "Legal digest AI draft worker did not return a result.");
+                    }
+                    if (result.status() != ArchDoxWorkerActionExecutionStatus.SUCCEEDED) {
+                        throw new BadRequestException(
+                                result.resultCode().isBlank() ? "LEGAL_DIGEST_AI_DRAFT_FAILED" : result.resultCode(),
+                                "errors.legal.digestAiDraftFailed",
+                                result.message().isBlank() ? "Legal digest AI draft worker failed." : result.message());
+                    }
+                    var now = OffsetDateTime.now();
+                    var draft = toAiDraft(
+                            result.output(),
+                            result.status().name(),
+                            result.resultCode(),
+                            requestId,
+                            digest,
+                            principal.userId(),
+                            now);
+                    requireSafeDraftOutput(draft);
+                    var saved = aiDraftRepository.save(draft);
+                    recordAiDraftEvent(
+                            "LEGAL_DIGEST_AI_DRAFT_GENERATED",
+                            "Legal digest AI draft was generated for platform admin review.",
+                            digest,
+                            saved,
+                            principal);
+                    return toAiDraftResponse(saved);
+                });
     }
 
     private Duration legalDigestAiDraftTimeout() {

@@ -143,7 +143,7 @@ class PlatformOpsDiagnosisFakeAiHarnessFlowTest {
 
         parentWorker.submit(new PlatformOpsDiagnosisFlowFactory(service, new PlatformOpsAiDiagnosisWorker(engine))
                 .create(new PlatformOpsDiagnosisRequested(77L, 55L, 1L)));
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 40 && run.status() != PlatformOpsRunStatus.COMPLETED; i++) {
             parentWorker.tickOnce();
             aiWorker.tickOnce();
         }

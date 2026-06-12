@@ -106,6 +106,15 @@ public class ArchDoxWorkerChatMessage {
         this.updatedAt = now;
     }
 
+    public void reviseCompleted(String content, Map<String, Object> metadataJson, OffsetDateTime now) {
+        if (this.status != ArchDoxWorkerChatMessageStatus.COMPLETED) {
+            return;
+        }
+        this.content = content;
+        this.metadataJson = metadataJson == null ? Map.of() : Map.copyOf(metadataJson);
+        this.updatedAt = now;
+    }
+
     public Long id() {
         return id;
     }

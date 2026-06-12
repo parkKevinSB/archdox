@@ -20,9 +20,9 @@ class AiWorkerEvaluationReadServiceTest {
         var summary = service.summary(principal);
 
         assertThat(summary.evaluationMode()).isEqualTo("STATIC_BASELINE");
-        assertThat(summary.totalCases()).isEqualTo(47);
-        assertThat(summary.automatedCases()).isEqualTo(47);
-        assertThat(summary.passedCases()).isEqualTo(47);
+        assertThat(summary.totalCases()).isEqualTo(51);
+        assertThat(summary.automatedCases()).isEqualTo(51);
+        assertThat(summary.passedCases()).isEqualTo(51);
         assertThat(summary.warningCases()).isZero();
         assertThat(summary.failedCases()).isZero();
         assertThat(summary.passRatePercent()).isEqualTo(100);

@@ -154,7 +154,7 @@ class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
         }
 
         @Override
-        public boolean submitAndAwait(AiHarnessFlow flow, Duration timeout) {
+        public java.util.concurrent.CompletableFuture<Boolean> submitAndTrackAsync(AiHarnessFlow flow, Duration timeout) {
             var worker = Worker.builder("legal-digest-ai-test").build();
             Engine.builder()
                     .worker(worker)
@@ -164,10 +164,10 @@ class LegalDigestEnrichmentArchDoxWorkerActionExecutorTest {
             for (var i = 0; i < 10; i++) {
                 worker.tickOnce();
                 if (flow.flow().state().isTerminal()) {
-                    return true;
+                    return java.util.concurrent.CompletableFuture.completedFuture(true);
                 }
             }
-            return false;
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
         }
     }
 

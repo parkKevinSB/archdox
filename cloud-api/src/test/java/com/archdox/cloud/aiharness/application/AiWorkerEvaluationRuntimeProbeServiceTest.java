@@ -87,8 +87,8 @@ class AiWorkerEvaluationRuntimeProbeServiceTest {
         var summary = service.runtimeProbe(principal);
 
         assertThat(summary.evaluationMode()).isEqualTo("RUNTIME_PROVIDER_PROBE");
-        assertThat(summary.totalCases()).isEqualTo(52);
-        assertThat(summary.passedCases()).isEqualTo(52);
+        assertThat(summary.totalCases()).isEqualTo(56);
+        assertThat(summary.passedCases()).isEqualTo(56);
         assertThat(summary.warningCases()).isZero();
         assertThat(summary.failedCases()).isZero();
         assertThat(summary.groups()).hasSize(6);

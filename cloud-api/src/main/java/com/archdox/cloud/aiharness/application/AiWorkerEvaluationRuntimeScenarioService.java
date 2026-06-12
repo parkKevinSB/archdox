@@ -142,7 +142,7 @@ public class AiWorkerEvaluationRuntimeScenarioService {
         var action = legalDigestAction(digest);
         var handle = workerFlowFactory.createHandle(request, action);
         var timeout = legalDigestTimeout();
-        if (!workerServiceWorker.submitAndAwait(handle.flow(), timeout)) {
+        if (!workerServiceWorker.submitAndTrackAsync(handle.flow(), timeout).join()) {
             return group(
                     "RUNTIME_WORKER_SCENARIO",
                     "Runtime worker dry-run scenario",

@@ -31,9 +31,15 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -87,6 +93,47 @@ class ArchDoxProviderAiModelGatewayTest {
         assertThat(capturedRequestBody.get()).contains("\"model\":\"gpt-test\"");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"system\"");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"user\"");
+    }
+
+    @Test
+    void openAiCompatibleRequestDoesNotOccupyModelGatewayExecutorWhileHttpIsPending() throws Exception {
+        var capturedRequestBody = new AtomicReference<String>();
+        var requestReceived = new CountDownLatch(1);
+        var releaseResponse = new CountDownLatch(1);
+        startDelayedServer("/chat/completions", """
+                {
+                  "id": "chatcmpl-delayed",
+                  "choices": [
+                    {"message": {"content": "{\\"status\\":\\"PASS\\"}"}, "finish_reason": "stop"}
+                  ],
+                  "usage": {"prompt_tokens": 2, "completion_tokens": 1}
+                }
+                """, capturedRequestBody, requestReceived, releaseResponse);
+        var provider = publishedProvider(
+                "local-openai",
+                AiProviderType.CUSTOM_HTTP,
+                "http://localhost:" + server.getAddress().getPort(),
+                "gpt-test");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            var gateway = gateway(provider, "local-openai", executor);
+
+            var call = gateway.submit(request("local-openai", "gpt-test"));
+
+            assertThat(requestReceived.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(call.poll()).isEqualTo(AiModelCallStatus.PENDING);
+            var executorAvailable = new CountDownLatch(1);
+            executor.execute(executorAvailable::countDown);
+            assertThat(executorAvailable.await(1, TimeUnit.SECONDS)).isTrue();
+
+            releaseResponse.countDown();
+            var response = await(call);
+
+            assertThat(response.rawText()).isEqualTo("{\"status\":\"PASS\"}");
+            assertThat(capturedRequestBody.get()).contains("\"model\":\"gpt-test\"");
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -229,6 +276,58 @@ class ArchDoxProviderAiModelGatewayTest {
     }
 
     @Test
+    void springAiAdapterDoesNotOccupyModelGatewayExecutorWhileSpringCallIsPending() throws Exception {
+        var repository = mock(AiProviderCredentialRepository.class);
+        var callLogService = mock(AiModelCallLogService.class);
+        var properties = new AiCredentialProperties();
+        properties.setMasterKey("test-master-key");
+        var springAiProperties = new AiSpringAiAdapterProperties();
+        springAiProperties.setEnabled(true);
+        springAiProperties.setPollIntervalMs(20);
+        var springGateway = mock(SpringAiModelGateway.class);
+        var springCall = new ControlledAiModelCall("spring-ai-controlled-1");
+        when(springGateway.submit(any(AiModelRequest.class))).thenReturn(springCall);
+        ExecutorService gatewayExecutor = Executors.newSingleThreadExecutor();
+        try {
+            var gateway = new ArchDoxProviderAiModelGateway(
+                    repository,
+                    new AiCredentialCipher(properties),
+                    callLogService,
+                    new ObjectMapper(),
+                    new AiFakeProviderProperties(),
+                    new AiFakeResponseFactory(),
+                    springAiProperties,
+                    Optional.of(springGateway),
+                    gatewayExecutor);
+
+            var call = gateway.submit(request("spring-ai-openai", "gpt-test"));
+
+            assertThat(springCall.pollObserved.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(call.poll()).isEqualTo(AiModelCallStatus.PENDING);
+            var executorAvailable = new CountDownLatch(1);
+            gatewayExecutor.execute(executorAvailable::countDown);
+            assertThat(executorAvailable.await(1, TimeUnit.SECONDS)).isTrue();
+
+            springCall.complete(aiResponse(
+                    "{\"status\":\"PASS\",\"summary\":\"spring ai controlled ok\"}",
+                    "spring-ai-openai",
+                    "gpt-test"));
+            var response = await(call);
+
+            assertThat(response.rawText()).contains("spring ai controlled ok");
+            verify(callLogService).recordSuccess(
+                    any(),
+                    isNull(),
+                    any(AiModelRequest.class),
+                    any(AiModelResponse.class),
+                    any(),
+                    any());
+        } finally {
+            gatewayExecutor.shutdownNow();
+        }
+    }
+
+    @Test
     void returnsFailedCallWhenModelGatewayExecutorRejectsSubmission() {
         var repository = mock(AiProviderCredentialRepository.class);
         var callLogService = mock(AiModelCallLogService.class);
@@ -263,10 +362,19 @@ class ArchDoxProviderAiModelGatewayTest {
     }
 
     private ArchDoxProviderAiModelGateway gateway(AiProviderCredential provider, String providerCode) {
+        return gateway(provider, providerCode, null);
+    }
+
+    private ArchDoxProviderAiModelGateway gateway(
+            AiProviderCredential provider,
+            String providerCode,
+            ExecutorService executor
+    ) {
         var repository = mock(AiProviderCredentialRepository.class);
         when(repository.findByProviderCode(providerCode)).thenReturn(Optional.of(provider));
         var properties = new AiCredentialProperties();
         properties.setMasterKey("test-master-key");
+        var gatewayExecutor = executor == null ? ForkJoinPool.commonPool() : executor;
         return new ArchDoxProviderAiModelGateway(
                 repository,
                 new AiCredentialCipher(properties),
@@ -275,7 +383,8 @@ class ArchDoxProviderAiModelGatewayTest {
                 new AiFakeProviderProperties(),
                 new AiFakeResponseFactory(),
                 new AiSpringAiAdapterProperties(),
-                Optional.empty());
+                Optional.empty(),
+                gatewayExecutor);
     }
 
     private AiProviderCredential publishedProvider(
@@ -327,6 +436,18 @@ class ArchDoxProviderAiModelGatewayTest {
                 Duration.ofSeconds(5));
     }
 
+    private AiModelResponse aiResponse(String rawText, String providerCode, String model) {
+        return new AiModelResponse(
+                rawText,
+                new ModelId(providerCode, model),
+                new AiModelResponse.ResponseMetadata(
+                        Optional.of(1),
+                        Optional.of(1),
+                        Optional.of(Duration.ofMillis(1)),
+                        Optional.of("stop"),
+                        Map.of("springAi.model", "controlled-spring-ai-model")));
+    }
+
     private AiModelResponse await(AiModelCall call) throws InterruptedException {
         for (int i = 0; i < 100; i++) {
             var status = call.poll();
@@ -353,6 +474,31 @@ class ArchDoxProviderAiModelGatewayTest {
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext(path, exchange -> {
             capturedRequestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            var response = responseJson.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startDelayedServer(
+            String path,
+            String responseJson,
+            AtomicReference<String> capturedRequestBody,
+            CountDownLatch requestReceived,
+            CountDownLatch releaseResponse
+    ) throws IOException {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext(path, exchange -> {
+            capturedRequestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            requestReceived.countDown();
+            try {
+                releaseResponse.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
             var response = responseJson.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, response.length);
@@ -413,6 +559,62 @@ class ArchDoxProviderAiModelGatewayTest {
         @Override
         public Object getNativeUsage() {
             return "test";
+        }
+    }
+
+    private static final class ControlledAiModelCall implements AiModelCall {
+        private final String callId;
+        private final CountDownLatch pollObserved = new CountDownLatch(1);
+        private final CompletableFuture<AiModelResponse> future = new CompletableFuture<>();
+
+        private ControlledAiModelCall(String callId) {
+            this.callId = callId;
+        }
+
+        @Override
+        public String callId() {
+            return callId;
+        }
+
+        @Override
+        public AiModelCallStatus poll() {
+            pollObserved.countDown();
+            if (future.isCancelled()) {
+                return AiModelCallStatus.CANCELLED;
+            }
+            if (!future.isDone()) {
+                return AiModelCallStatus.PENDING;
+            }
+            return error() == null ? AiModelCallStatus.READY : AiModelCallStatus.FAILED;
+        }
+
+        @Override
+        public AiModelResponse result() {
+            return future.join();
+        }
+
+        @Override
+        public Throwable error() {
+            if (!future.isDone() || future.isCancelled()) {
+                return null;
+            }
+            try {
+                future.join();
+                return null;
+            } catch (CompletionException ex) {
+                return ex.getCause() == null ? ex : ex.getCause();
+            } catch (CancellationException ex) {
+                return ex;
+            }
+        }
+
+        @Override
+        public void cancel() {
+            future.cancel(true);
+        }
+
+        private void complete(AiModelResponse response) {
+            future.complete(response);
         }
     }
 }

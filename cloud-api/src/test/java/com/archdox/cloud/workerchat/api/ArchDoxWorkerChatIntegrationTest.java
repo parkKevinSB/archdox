@@ -283,10 +283,11 @@ class ArchDoxWorkerChatIntegrationTest {
                                 """))
                 .andExpect(status().isOk());
 
-        var afterPlanner = awaitLastAssistantReply(user, projectId);
+        var afterPlanner = awaitLastAssistantPlannerReady(user, projectId);
         var reply = lastMessage(afterPlanner);
         var proposal = reply.get("metadata").get("plannerProposal");
         assertThat(proposal).isNotNull();
+        assertThat(proposal.get("status").asText()).isEqualTo("READY");
         assertThat(proposal.get("decision").asText()).isEqualTo("PROPOSE_ACTION");
         assertThat(proposal.get("actionType").asText()).isEqualTo("CREATE_SITE");
         assertThat(reply.get("metadata").get("nextAction").asText()).isEqualTo("CREATE_SITE");
@@ -347,6 +348,23 @@ class ArchDoxWorkerChatIntegrationTest {
             var last = lastMessage(latest);
             if ("ASSISTANT".equals(last.get("role").asText())
                     && "COMPLETED".equals(last.get("status").asText())) {
+                return latest;
+            }
+            Thread.sleep(150);
+        }
+        return latest;
+    }
+
+    private JsonNode awaitLastAssistantPlannerReady(TestUser user, long projectId) throws Exception {
+        JsonNode latest = null;
+        for (int i = 0; i < 40; i++) {
+            latest = openWorkerChat(user, projectId);
+            var last = lastMessage(latest);
+            var proposal = last.get("metadata").get("plannerProposal");
+            if ("ASSISTANT".equals(last.get("role").asText())
+                    && "COMPLETED".equals(last.get("status").asText())
+                    && proposal != null
+                    && "READY".equals(proposal.get("status").asText())) {
                 return latest;
             }
             Thread.sleep(150);

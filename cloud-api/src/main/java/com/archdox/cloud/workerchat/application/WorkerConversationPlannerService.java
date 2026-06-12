@@ -7,6 +7,7 @@ import com.archdox.workerai.ConversationPlannerHarnessFactory;
 import com.archdox.workerai.ConversationPlannerInput;
 import com.archdox.workerai.ConversationPlannerResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlow;
 import io.github.parkkevinsb.flower.ai.harness.flow.AiHarnessFlowFactory;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
 import io.github.parkkevinsb.flower.ai.harness.refine.MaxAttemptsRefinePolicy;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,14 +48,19 @@ public class WorkerConversationPlannerService {
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public Optional<ConversationPlannerResult> plan(Long officeId, Long userId, Long sessionId, ConversationPlannerInput input) {
+    public CompletableFuture<Optional<ConversationPlannerResult>> planAsync(
+            Long officeId,
+            Long userId,
+            Long sessionId,
+            ConversationPlannerInput input
+    ) {
         if (input == null || input.userMessage().isBlank() || input.availableActions().isEmpty()) {
-            return Optional.empty();
+            return CompletableFuture.completedFuture(Optional.empty());
         }
         var aiPlan = aiPolicyExecutionService.findAllowed(officeId, userId, AiFeature.DOCUMENT_GENERATION)
                 .or(() -> aiPolicyExecutionService.findAllowed(officeId, userId, AiFeature.DOCUMENT_REVIEW));
         if (aiPlan.isEmpty()) {
-            return Optional.empty();
+            return CompletableFuture.completedFuture(Optional.empty());
         }
         var spec = new ConversationPlannerHarnessFactory(objectMapper).spec(
                 (findings, ctx) -> {
@@ -77,9 +84,12 @@ public class WorkerConversationPlannerService {
                 .build();
         var flow = new AiHarnessFlowFactory<>(aiModelGateway, spec, Instant::now)
                 .createFlow(input, overrides);
-        if (!plannerAiWorker.submitAndAwait(flow, PLANNER_TIMEOUT.plusSeconds(2))) {
-            return Optional.empty();
-        }
+        return plannerAiWorker.submitAndTrackAsync(flow, PLANNER_TIMEOUT.plusSeconds(2))
+                .thenApply(completed -> completed ? validatedResult(flow) : Optional.<ConversationPlannerResult>empty())
+                .exceptionally(ex -> Optional.empty());
+    }
+
+    private Optional<ConversationPlannerResult> validatedResult(AiHarnessFlow flow) {
         if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
             return Optional.empty();
         }

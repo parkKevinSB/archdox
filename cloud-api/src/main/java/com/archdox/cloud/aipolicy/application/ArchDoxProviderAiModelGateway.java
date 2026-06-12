@@ -26,10 +26,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
@@ -131,11 +135,13 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
     public AiModelCall submit(AiModelRequest request) {
         var callId = "archdox-ai-" + UUID.randomUUID();
         observationBufferService.observeSubmitted(callId, request, OffsetDateTime.now());
+        var providerFutureRef = new AtomicReference<CompletableFuture<?>>();
         CompletableFuture<AiModelResponse> future;
         try {
             future = CompletableFuture.supplyAsync(
-                    () -> callProvider(callId, request),
-                    aiModelGatewayExecutor);
+                            () -> callProviderAsync(callId, request, providerFutureRef),
+                            aiModelGatewayExecutor)
+                    .thenCompose(Function.identity());
         } catch (RejectedExecutionException ex) {
             var failure = new GatewayException(
                     "AI_MODEL_GATEWAY_QUEUE_FULL: AI model gateway execution queue is full", ex);
@@ -143,12 +149,28 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
             future = CompletableFuture.failedFuture(failure);
         }
-        return new ArchDoxAiModelCall(callId, future.orTimeout(
-                request.timeout().toMillis(),
-                java.util.concurrent.TimeUnit.MILLISECONDS));
+        var timedFuture = future.orTimeout(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
+        timedFuture.whenComplete((response, error) -> {
+            if (isTimeout(error)) {
+                var providerFuture = providerFutureRef.get();
+                if (providerFuture != null) {
+                    providerFuture.cancel(true);
+                }
+            }
+        });
+        return new ArchDoxAiModelCall(callId, timedFuture, () -> {
+            var providerFuture = providerFutureRef.get();
+            if (providerFuture != null) {
+                providerFuture.cancel(true);
+            }
+        });
     }
 
-    private AiModelResponse callProvider(String callId, AiModelRequest request) {
+    private CompletableFuture<AiModelResponse> callProviderAsync(
+            String callId,
+            AiModelRequest request,
+            AtomicReference<CompletableFuture<?>> providerFutureRef
+    ) {
         var requestedAt = OffsetDateTime.now();
         AiProviderCredential provider = null;
         try {
@@ -157,14 +179,11 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 var response = fakeResponseFactory.create(request, fakeProviderProperties.safeLatencyMs());
                 recordSuccessSafely(callId, provider, request, response, requestedAt);
                 observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
-                return response;
+                return CompletableFuture.completedFuture(response);
             }
             if (springAiAdapterProperties.supports(request.modelId().provider())) {
                 provider = providerRepository.findByProviderCode(request.modelId().provider()).orElse(null);
-                var response = callSpringAiAdapter(request);
-                recordSuccessSafely(callId, provider, request, response, requestedAt);
-                observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
-                return response;
+                return callSpringAiAdapterAsync(callId, provider, request, requestedAt, providerFutureRef);
             }
             provider = providerRepository.findByProviderCode(request.modelId().provider())
                     .orElseThrow(() -> new GatewayException("No AI provider credential for provider code: "
@@ -172,43 +191,130 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             if (provider.status() != AiProviderCredentialStatus.ACTIVE && !providerConnectionTest(request)) {
                 throw new GatewayException("AI provider credential is not active: " + provider.providerCode());
             }
-            var response = switch (provider.providerType()) {
-                case OPENAI, CUSTOM_HTTP -> callOpenAiCompatible(provider, request);
-                case OLLAMA -> callOllama(provider, request);
+            return switch (provider.providerType()) {
+                case OPENAI, CUSTOM_HTTP -> callOpenAiCompatibleAsync(
+                        callId,
+                        provider,
+                        request,
+                        requestedAt,
+                        providerFutureRef);
+                case OLLAMA -> callOllamaAsync(
+                        callId,
+                        provider,
+                        request,
+                        requestedAt,
+                        providerFutureRef);
                 case GEMINI, ANTHROPIC -> throw new GatewayException(
                         "AI provider type is registered but not executable yet: " + provider.providerType().name()
                                 + ". Use CUSTOM_HTTP for OpenAI-compatible gateways.");
             };
-            recordSuccessSafely(callId, provider, request, response, requestedAt);
-            observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
-            return response;
         } catch (RuntimeException ex) {
             recordFailureSafely(callId, provider, request, ex, requestedAt);
             observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
-            throw ex;
+            return CompletableFuture.failedFuture(ex);
         }
     }
 
-    private AiModelResponse callSpringAiAdapter(AiModelRequest request) {
-        var gateway = springAiModelGateway.orElseThrow(() -> new GatewayException(
-                "Spring AI adapter is enabled but SpringAiModelGateway is not configured"));
-        var call = gateway.submit(withSpringAiModelOption(request));
-        var deadline = System.nanoTime() + request.timeout().toNanos();
-        while (System.nanoTime() < deadline) {
+    private CompletableFuture<AiModelResponse> callSpringAiAdapterAsync(
+            String callId,
+            AiProviderCredential provider,
+            AiModelRequest request,
+            OffsetDateTime requestedAt,
+            AtomicReference<CompletableFuture<?>> providerFutureRef
+    ) {
+        try {
+            var gateway = springAiModelGateway.orElseThrow(() -> new GatewayException(
+                    "Spring AI adapter is enabled but SpringAiModelGateway is not configured"));
+            var call = gateway.submit(withSpringAiModelOption(request));
+            var future = new CompletableFuture<AiModelResponse>();
+            providerFutureRef.set(future);
+            future.whenComplete((response, error) -> {
+                if (future.isCancelled()) {
+                    call.cancel();
+                }
+            });
+            pollSpringAiAdapter(call, future, System.nanoTime() + request.timeout().toNanos());
+            return future.handle((response, error) -> {
+                if (error == null) {
+                    recordSuccessSafely(callId, provider, request, response, requestedAt);
+                    observationBufferService.observeSuccess(callId, request, response, OffsetDateTime.now());
+                    return response;
+                }
+                var failure = providerFailure("Spring AI provider call failed", error);
+                recordFailureSafely(callId, provider, request, failure, requestedAt);
+                observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+                throw failure;
+            });
+        } catch (RejectedExecutionException ex) {
+            var failure = new GatewayException(
+                    "AI_MODEL_GATEWAY_QUEUE_FULL: AI model gateway execution queue is full", ex);
+            recordFailureSafely(callId, provider, request, failure, requestedAt);
+            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(failure);
+        }
+    }
+
+    private void pollSpringAiAdapter(
+            AiModelCall call,
+            CompletableFuture<AiModelResponse> resultFuture,
+            long deadlineNanos
+    ) {
+        if (resultFuture.isDone()) {
+            return;
+        }
+        try {
             var status = call.poll();
             if (status == AiModelCallStatus.READY) {
-                return call.result();
+                resultFuture.complete(call.result());
+                return;
             }
             if (status == AiModelCallStatus.FAILED) {
-                throw new GatewayException("Spring AI model call failed: " + call.callId(), call.error());
+                resultFuture.completeExceptionally(new GatewayException(
+                        "Spring AI model call failed: " + call.callId(),
+                        call.error()));
+                return;
             }
             if (status == AiModelCallStatus.CANCELLED) {
-                throw new GatewayException("Spring AI model call was cancelled: " + call.callId());
+                resultFuture.completeExceptionally(new GatewayException(
+                        "Spring AI model call was cancelled: " + call.callId()));
+                return;
             }
-            sleepSpringAiPollInterval();
+            if (System.nanoTime() >= deadlineNanos) {
+                call.cancel();
+                resultFuture.completeExceptionally(new GatewayException(
+                        "Spring AI model call timed out: " + call.callId()));
+                return;
+            }
+            scheduleSpringAiPoll(call, resultFuture, deadlineNanos);
+        } catch (RuntimeException ex) {
+            resultFuture.completeExceptionally(ex);
         }
-        call.cancel();
-        throw new GatewayException("Spring AI model call timed out: " + call.callId());
+    }
+
+    private void scheduleSpringAiPoll(
+            AiModelCall call,
+            CompletableFuture<AiModelResponse> resultFuture,
+            long deadlineNanos
+    ) {
+        try {
+            CompletableFuture.runAsync(
+                    () -> pollSpringAiAdapter(call, resultFuture, deadlineNanos),
+                    CompletableFuture.delayedExecutor(
+                            springAiAdapterProperties.safePollIntervalMs(),
+                            TimeUnit.MILLISECONDS,
+                            aiModelGatewayExecutor))
+                    .exceptionally(error -> {
+                        if (!resultFuture.isDone()) {
+                            resultFuture.completeExceptionally(providerFailure(
+                                    "Spring AI model polling failed: " + call.callId(),
+                                    error));
+                        }
+                        return null;
+                    });
+        } catch (RejectedExecutionException ex) {
+            resultFuture.completeExceptionally(new GatewayException(
+                    "AI_MODEL_GATEWAY_QUEUE_FULL: AI model gateway execution queue is full", ex));
+        }
     }
 
     private AiModelRequest withSpringAiModelOption(AiModelRequest request) {
@@ -218,16 +324,13 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         return request.withOptions(request.options().with("model", request.modelId().name()));
     }
 
-    private void sleepSpringAiPollInterval() {
-        try {
-            TimeUnit.MILLISECONDS.sleep(springAiAdapterProperties.safePollIntervalMs());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new GatewayException("Interrupted while waiting for Spring AI model call", ex);
-        }
-    }
-
-    private AiModelResponse callOpenAiCompatible(AiProviderCredential provider, AiModelRequest request) {
+    private CompletableFuture<AiModelResponse> callOpenAiCompatibleAsync(
+            String callId,
+            AiProviderCredential provider,
+            AiModelRequest request,
+            OffsetDateTime requestedAt,
+            AtomicReference<CompletableFuture<?>> providerFutureRef
+    ) {
         var startedAt = System.nanoTime();
         try {
             var body = new LinkedHashMap<String, Object>();
@@ -252,10 +355,54 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 builder.header("Authorization", "Bearer " + apiKey);
             }
 
-            var response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new GatewayException("AI provider returned HTTP " + response.statusCode());
-            }
+            var httpFuture = httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString());
+            providerFutureRef.set(httpFuture);
+            return httpFuture.handle((response, error) -> {
+                if (error != null) {
+                    var failure = providerFailure("AI provider call failed: " + provider.providerCode(), error);
+                    recordFailureSafely(callId, provider, request, failure, requestedAt);
+                    observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+                    throw failure;
+                }
+                try {
+                    var aiResponse = parseOpenAiCompatibleResponse(provider, request, response, startedAt);
+                    recordSuccessSafely(callId, provider, request, aiResponse, requestedAt);
+                    observationBufferService.observeSuccess(callId, request, aiResponse, OffsetDateTime.now());
+                    return aiResponse;
+                } catch (RuntimeException ex) {
+                    recordFailureSafely(callId, provider, request, ex, requestedAt);
+                    observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
+                    throw ex;
+                }
+            });
+        } catch (GatewayException ex) {
+            recordFailureSafely(callId, provider, request, ex, requestedAt);
+            observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(ex);
+        } catch (IllegalArgumentException ex) {
+            var failure = new GatewayException(
+                    "AI provider request contains an invalid header value: " + provider.providerCode(), ex);
+            recordFailureSafely(callId, provider, request, failure, requestedAt);
+            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(failure);
+        } catch (Exception ex) {
+            var failure = new GatewayException("AI provider call failed: " + provider.providerCode(), ex);
+            recordFailureSafely(callId, provider, request, failure, requestedAt);
+            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(failure);
+        }
+    }
+
+    private AiModelResponse parseOpenAiCompatibleResponse(
+            AiProviderCredential provider,
+            AiModelRequest request,
+            HttpResponse<String> response,
+            long startedAt
+    ) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new GatewayException("AI provider returned HTTP " + response.statusCode());
+        }
+        try {
             var json = objectMapper.readTree(response.body());
             var text = json.path("choices").path(0).path("message").path("content").asText("");
             var usage = json.path("usage");
@@ -271,16 +418,18 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                                     "providerCode", provider.providerCode(),
                                     "providerType", provider.providerType().name(),
                                     "providerResponseId", json.path("id").asText(""))));
-        } catch (GatewayException ex) {
-            throw ex;
-        } catch (IllegalArgumentException ex) {
-            throw new GatewayException("AI provider request contains an invalid header value: " + provider.providerCode(), ex);
         } catch (Exception ex) {
-            throw new GatewayException("AI provider call failed: " + provider.providerCode(), ex);
+            throw new GatewayException("AI provider response parsing failed: " + provider.providerCode(), ex);
         }
     }
 
-    private AiModelResponse callOllama(AiProviderCredential provider, AiModelRequest request) {
+    private CompletableFuture<AiModelResponse> callOllamaAsync(
+            String callId,
+            AiProviderCredential provider,
+            AiModelRequest request,
+            OffsetDateTime requestedAt,
+            AtomicReference<CompletableFuture<?>> providerFutureRef
+    ) {
         var startedAt = System.nanoTime();
         try {
             var body = new LinkedHashMap<String, Object>();
@@ -295,10 +444,48 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
-            var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new GatewayException("Ollama returned HTTP " + response.statusCode());
-            }
+            var httpFuture = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
+            providerFutureRef.set(httpFuture);
+            return httpFuture.handle((response, error) -> {
+                if (error != null) {
+                    var failure = providerFailure("Ollama AI provider call failed: " + provider.providerCode(), error);
+                    recordFailureSafely(callId, provider, request, failure, requestedAt);
+                    observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+                    throw failure;
+                }
+                try {
+                    var aiResponse = parseOllamaResponse(provider, request, response, startedAt);
+                    recordSuccessSafely(callId, provider, request, aiResponse, requestedAt);
+                    observationBufferService.observeSuccess(callId, request, aiResponse, OffsetDateTime.now());
+                    return aiResponse;
+                } catch (RuntimeException ex) {
+                    recordFailureSafely(callId, provider, request, ex, requestedAt);
+                    observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
+                    throw ex;
+                }
+            });
+        } catch (GatewayException ex) {
+            recordFailureSafely(callId, provider, request, ex, requestedAt);
+            observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(ex);
+        } catch (Exception ex) {
+            var failure = new GatewayException("Ollama AI provider call failed: " + provider.providerCode(), ex);
+            recordFailureSafely(callId, provider, request, failure, requestedAt);
+            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+            return CompletableFuture.failedFuture(failure);
+        }
+    }
+
+    private AiModelResponse parseOllamaResponse(
+            AiProviderCredential provider,
+            AiModelRequest request,
+            HttpResponse<String> response,
+            long startedAt
+    ) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new GatewayException("Ollama returned HTTP " + response.statusCode());
+        }
+        try {
             var json = objectMapper.readTree(response.body());
             var text = json.path("message").path("content").asText("");
             return new AiModelResponse(
@@ -312,10 +499,8 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                             Map.of(
                                     "providerCode", provider.providerCode(),
                                     "providerType", provider.providerType().name())));
-        } catch (GatewayException ex) {
-            throw ex;
         } catch (Exception ex) {
-            throw new GatewayException("Ollama AI provider call failed: " + provider.providerCode(), ex);
+            throw new GatewayException("Ollama AI provider response parsing failed: " + provider.providerCode(), ex);
         }
     }
 
@@ -388,6 +573,28 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             return Optional.empty();
         }
         return Optional.of(node.asInt());
+    }
+
+    private RuntimeException providerFailure(String fallbackMessage, Throwable error) {
+        var cause = error;
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        if (cause instanceof GatewayException gatewayException) {
+            return gatewayException;
+        }
+        if (cause instanceof RuntimeException runtimeException) {
+            return new GatewayException(fallbackMessage, runtimeException);
+        }
+        return new GatewayException(fallbackMessage, cause);
+    }
+
+    private boolean isTimeout(Throwable error) {
+        var cause = error;
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        return cause instanceof TimeoutException;
     }
 
     private void recordSuccessSafely(

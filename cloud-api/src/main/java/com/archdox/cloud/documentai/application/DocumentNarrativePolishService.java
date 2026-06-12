@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -79,7 +80,7 @@ public class DocumentNarrativePolishService {
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public DocumentNarrativePolishResponse polish(
+    public CompletableFuture<DocumentNarrativePolishResponse> polish(
             Long reportId,
             DocumentNarrativePolishRequest request,
             UserPrincipal principal
@@ -121,29 +122,32 @@ public class DocumentNarrativePolishService {
                                         "archdox.policyKey", AiHarnessPolicyKey.DOCUMENT_NARRATIVE_POLISH.name()),
                                 plan.maxOutputTokens()))
                         .build());
-        if (!aiWorker.submitAndAwait(flow, plan.timeout().plus(WAIT_GRACE))) {
-            throw new BadRequestException(
-                    "DOCUMENT_NARRATIVE_POLISH_TIMEOUT",
-                    "errors.aiHarness.timeout",
-                    "Document narrative polish AI timed out.");
-        }
-        if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
-            throw new BadRequestException(
-                    "DOCUMENT_NARRATIVE_POLISH_HARNESS_FAILED",
-                    "errors.aiHarness.failed",
-                    flow.context().terminalReason().orElse("Document narrative polish AI did not succeed."));
-        }
-        var result = result(flow.context().latestValidation())
-                .orElseThrow(() -> new BadRequestException(
-                        "DOCUMENT_NARRATIVE_POLISH_RESULT_INVALID",
-                        "errors.aiHarness.invalidResult",
-                        "Document narrative polish AI did not return a valid result."));
-        return response(
-                result,
-                fields,
-                plan.provider().providerCode(),
-                plan.modelId().asString(),
-                flow.context().runId().value());
+        return aiWorker.submitAndTrackAsync(flow, plan.timeout().plus(WAIT_GRACE))
+                .thenApply(awaited -> {
+                    if (!awaited) {
+                        throw new BadRequestException(
+                                "DOCUMENT_NARRATIVE_POLISH_TIMEOUT",
+                                "errors.aiHarness.timeout",
+                                "Document narrative polish AI timed out.");
+                    }
+                    if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
+                        throw new BadRequestException(
+                                "DOCUMENT_NARRATIVE_POLISH_HARNESS_FAILED",
+                                "errors.aiHarness.failed",
+                                flow.context().terminalReason().orElse("Document narrative polish AI did not succeed."));
+                    }
+                    var result = result(flow.context().latestValidation())
+                            .orElseThrow(() -> new BadRequestException(
+                                    "DOCUMENT_NARRATIVE_POLISH_RESULT_INVALID",
+                                    "errors.aiHarness.invalidResult",
+                                    "Document narrative polish AI did not return a valid result."));
+                    return response(
+                            result,
+                            fields,
+                            plan.provider().providerCode(),
+                            plan.modelId().asString(),
+                            flow.context().runId().value());
+                });
     }
 
     private NarrativePolishInput input(InspectionReport report, List<NarrativePolishField> fields) {

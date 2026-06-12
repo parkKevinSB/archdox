@@ -68,6 +68,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class ArchDoxWorkerChatService {
@@ -91,6 +92,7 @@ public class ArchDoxWorkerChatService {
     private final ObjectProvider<ArchDoxWorkerServiceWorker> workerProvider;
     private final OperationEventService operationEventService;
     private final WorkerConversationPlannerService conversationPlannerService;
+    private final TransactionTemplate transactionTemplate;
 
     public ArchDoxWorkerChatService(
             ArchDoxWorkerChatSessionRepository sessionRepository,
@@ -109,7 +111,8 @@ public class ArchDoxWorkerChatService {
             ObjectProvider<ArchDoxWorkerExecutionFlowFactory> flowFactoryProvider,
             ObjectProvider<ArchDoxWorkerServiceWorker> workerProvider,
             OperationEventService operationEventService,
-            WorkerConversationPlannerService conversationPlannerService
+            WorkerConversationPlannerService conversationPlannerService,
+            TransactionTemplate transactionTemplate
     ) {
         this.sessionRepository = sessionRepository;
         this.messageRepository = messageRepository;
@@ -128,6 +131,7 @@ public class ArchDoxWorkerChatService {
         this.workerProvider = workerProvider;
         this.operationEventService = operationEventService;
         this.conversationPlannerService = conversationPlannerService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Transactional
@@ -267,8 +271,9 @@ public class ArchDoxWorkerChatService {
         var session = requireSession(officeId, sessionId);
         var now = OffsetDateTime.now();
         var reply = buildFlowReply(session);
+        var plannerInput = plannerEligible ? conversationPlannerInput(session, userMessage) : null;
         if (plannerEligible) {
-            reply = withPlannerProposal(session, reply, userMessage);
+            reply = withPlannerProposalPending(reply);
         }
         completeAssistantMessage(
                 session,
@@ -276,6 +281,9 @@ public class ArchDoxWorkerChatService {
                 reply,
                 now,
                 ArchDoxWorkerActionType.WORKER_CHAT_ADVANCE);
+        if (plannerEligible && plannerInput != null) {
+            submitPlannerProposalAfterCommit(officeId, session.userId(), sessionId, assistantMessageId, plannerInput);
+        }
     }
 
     @Transactional
@@ -1103,32 +1111,158 @@ public class ArchDoxWorkerChatService {
         return metadata;
     }
 
-    private FlowReply withPlannerProposal(ArchDoxWorkerChatSession session, FlowReply baseReply, String userMessage) {
-        try {
-            var result = conversationPlannerService.plan(
-                    session.officeId(),
-                    session.userId(),
-                    session.id(),
-                    conversationPlannerInput(session, userMessage));
-            if (result.isEmpty()) {
-                return baseReply;
+    private FlowReply withPlannerProposalPending(FlowReply baseReply) {
+        var metadata = new LinkedHashMap<String, Object>(baseReply.metadata());
+        metadata.put("plannerProposal", Map.of(
+                "used", false,
+                "status", "RUNNING"));
+        metadata.put("plannerProposalStatus", "RUNNING");
+        return new FlowReply(baseReply.content(), metadata);
+    }
+
+    private void submitPlannerProposalAfterCommit(
+            Long officeId,
+            Long userId,
+            Long sessionId,
+            Long assistantMessageId,
+            ConversationPlannerInput plannerInput
+    ) {
+        var start = (Runnable) () -> startPlannerProposal(
+                officeId,
+                userId,
+                sessionId,
+                assistantMessageId,
+                plannerInput);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            start.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                start.run();
             }
-            return mergePlannerProposal(session, baseReply, result.get());
-        } catch (RuntimeException ex) {
+        });
+    }
+
+    private void startPlannerProposal(
+            Long officeId,
+            Long userId,
+            Long sessionId,
+            Long assistantMessageId,
+            ConversationPlannerInput plannerInput
+    ) {
+        conversationPlannerService.planAsync(officeId, userId, sessionId, plannerInput)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        updatePlannerProposalStatus(
+                                officeId,
+                                sessionId,
+                                assistantMessageId,
+                                "FAILED",
+                                reasonOf(plannerFailureMessage(ex)));
+                        return;
+                    }
+                    if (result == null || result.isEmpty()) {
+                        updatePlannerProposalStatus(
+                                officeId,
+                                sessionId,
+                                assistantMessageId,
+                                "SKIPPED",
+                                "Planner did not return an actionable proposal.");
+                        return;
+                    }
+                    applyPlannerProposal(officeId, sessionId, assistantMessageId, result.get());
+                });
+    }
+
+    private void applyPlannerProposal(
+            Long officeId,
+            Long sessionId,
+            Long assistantMessageId,
+            ConversationPlannerResult result
+    ) {
+        transactionTemplate.executeWithoutResult(status -> {
+            var session = requireSession(officeId, sessionId);
+            var message = requireAssistantMessage(officeId, sessionId, assistantMessageId);
+            if (message.status() != ArchDoxWorkerChatMessageStatus.COMPLETED) {
+                return;
+            }
+            var baseMetadata = new LinkedHashMap<String, Object>(message.metadataJson());
+            baseMetadata.remove("plannerProposal");
+            baseMetadata.remove("plannerProposalStatus");
+            var updated = mergePlannerProposal(session, new FlowReply(message.content(), baseMetadata), result);
+            var now = OffsetDateTime.now();
+            message.reviseCompleted(updated.content(), updated.metadata(), now);
+            session.touch(now);
             operationEventService.record(
                     session.officeId(),
-                    OperationEventSeverity.WARN,
-                    "ARCHDOX_WORKER_CHAT_PLANNER_SKIPPED",
+                    OperationEventSeverity.INFO,
+                    "ARCHDOX_WORKER_CHAT_PLANNER_READY",
                     "archdox-worker-chat",
                     workflowKey(session.id()),
-                    "ARCHDOX_WORKER_CHAT_SESSION",
-                    session.id(),
+                    "ARCHDOX_WORKER_CHAT_MESSAGE",
+                    assistantMessageId,
                     session.userId(),
-                    "WORKER_CHAT_PLANNER_FAILED",
-                    "ArchDox Worker chat planner failed; deterministic reply was used.",
-                    Map.of("reason", bounded(reasonOf(ex.getMessage()), 400)));
-            return baseReply;
+                    null,
+                    "ArchDox Worker chat planner proposal was attached to the assistant reply.",
+                    Map.of(
+                            "projectId", session.projectId(),
+                            "sessionId", session.id(),
+                            "assistantMessageId", assistantMessageId,
+                            "decision", result.decision().name()));
+        });
+    }
+
+    private void updatePlannerProposalStatus(
+            Long officeId,
+            Long sessionId,
+            Long assistantMessageId,
+            String plannerStatus,
+            String reason
+    ) {
+        transactionTemplate.executeWithoutResult(status -> {
+            var session = requireSession(officeId, sessionId);
+            var message = requireAssistantMessage(officeId, sessionId, assistantMessageId);
+            if (message.status() != ArchDoxWorkerChatMessageStatus.COMPLETED) {
+                return;
+            }
+            var metadata = new LinkedHashMap<String, Object>(message.metadataJson());
+            metadata.put("plannerProposal", Map.of(
+                    "used", false,
+                    "status", plannerStatus,
+                    "reason", bounded(reasonOf(reason), 400)));
+            metadata.put("plannerProposalStatus", plannerStatus);
+            var now = OffsetDateTime.now();
+            message.reviseCompleted(message.content(), metadata, now);
+            session.touch(now);
+            operationEventService.record(
+                    session.officeId(),
+                    "FAILED".equals(plannerStatus) ? OperationEventSeverity.WARN : OperationEventSeverity.INFO,
+                    "ARCHDOX_WORKER_CHAT_PLANNER_" + plannerStatus,
+                    "archdox-worker-chat",
+                    workflowKey(session.id()),
+                    "ARCHDOX_WORKER_CHAT_MESSAGE",
+                    assistantMessageId,
+                    session.userId(),
+                    "WORKER_CHAT_PLANNER_" + plannerStatus,
+                    "ArchDox Worker chat planner completed without changing the deterministic reply.",
+                    Map.of(
+                            "projectId", session.projectId(),
+                            "sessionId", session.id(),
+                            "assistantMessageId", assistantMessageId,
+                            "reason", bounded(reasonOf(reason), 400)));
+        });
+    }
+
+    private String plannerFailureMessage(Throwable ex) {
+        if (ex == null) {
+            return "";
         }
+        if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+            return ex.getCause().getMessage();
+        }
+        return ex.getMessage();
     }
 
     private FlowReply mergePlannerProposal(
@@ -1139,6 +1273,7 @@ public class ArchDoxWorkerChatService {
         var metadata = new LinkedHashMap<String, Object>(baseReply.metadata());
         var planner = new LinkedHashMap<String, Object>();
         planner.put("used", true);
+        planner.put("status", "READY");
         planner.put("decision", result.decision().name());
         planner.put("actionType", result.actionType());
         planner.put("requiresConfirmation", result.requiresConfirmation());
@@ -1147,6 +1282,7 @@ public class ArchDoxWorkerChatService {
         planner.put("userMessage", result.userMessage());
         planner.put("payload", result.payload());
         metadata.put("plannerProposal", planner);
+        metadata.put("plannerProposalStatus", "READY");
 
         var content = result.userMessage().isBlank()
                 ? baseReply.content()

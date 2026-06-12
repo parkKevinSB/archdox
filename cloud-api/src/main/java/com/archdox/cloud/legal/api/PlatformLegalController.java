@@ -18,6 +18,7 @@ import com.archdox.cloud.legal.dto.LegalSyncRunResponse;
 import com.archdox.cloud.legal.dto.UpdateLegalDomainBindingRequest;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,7 +61,7 @@ public class PlatformLegalController {
     }
 
     @PostMapping("/change-digests/{digestId}/ai-draft")
-    public LegalDigestAiDraftResponse generateDigestAiDraft(
+    public CompletableFuture<LegalDigestAiDraftResponse> generateDigestAiDraft(
             Authentication authentication,
             @PathVariable Long digestId
     ) {

@@ -1,18 +1,28 @@
 package com.archdox.cloud.worker;
 
 import com.archdox.cloud.global.event.ArchDoxRuntimeConfiguration;
+import com.archdox.cloud.global.flow.FlowerFlowAsyncCompletionService;
 import io.github.parkkevinsb.flower.core.engine.Engine;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import io.github.parkkevinsb.flower.core.worker.DuplicatePolicy;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ArchDoxWorkerServiceWorker {
     private final Engine engine;
+    private final FlowerFlowAsyncCompletionService flowCompletionService;
 
-    public ArchDoxWorkerServiceWorker(Engine engine) {
+    @Autowired
+    public ArchDoxWorkerServiceWorker(Engine engine, FlowerFlowAsyncCompletionService flowCompletionService) {
         this.engine = engine;
+        this.flowCompletionService = flowCompletionService;
+    }
+
+    protected ArchDoxWorkerServiceWorker(Engine engine) {
+        this(engine, null);
     }
 
     public void submit(Flow flow) {
@@ -20,25 +30,13 @@ public class ArchDoxWorkerServiceWorker {
                 .submit(flow, DuplicatePolicy.REJECT);
     }
 
-    public boolean submitAndAwait(Flow flow, Duration timeout) {
-        submit(flow);
-        var deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (flow.state().isTerminal()) {
-                return true;
-            }
-            sleep();
+    public CompletableFuture<Boolean> submitAndTrackAsync(Flow flow, Duration timeout) {
+        if (flowCompletionService == null) {
+            throw new IllegalStateException("Flower flow async completion service is not configured");
         }
-        flow.cancel();
-        return false;
-    }
-
-    private void sleep() {
-        try {
-            Thread.sleep(25);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting for ArchDox worker execution", ex);
-        }
+        return flowCompletionService.submitAndTrackTerminal(
+                ArchDoxRuntimeConfiguration.ARCHDOX_WORKER_SERVICE_WORKER,
+                flow,
+                timeout);
     }
 }

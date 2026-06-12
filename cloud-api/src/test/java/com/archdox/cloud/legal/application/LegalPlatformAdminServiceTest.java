@@ -231,7 +231,7 @@ class LegalPlatformAdminServiceTest {
                 aiDraftRepository,
                 operationEventService);
 
-        var result = draftService.generateDigestAiDraft(principal, 1L);
+        var result = draftService.generateDigestAiDraft(principal, 1L).join();
 
         assertThat(result.id()).isEqualTo(99L);
         assertThat(result.status()).isEqualTo(LegalDigestAiDraftStatus.NEEDS_HUMAN_REVIEW);
@@ -435,7 +435,7 @@ class LegalPlatformAdminServiceTest {
         }
 
         @Override
-        public boolean submitAndAwait(Flow flow, Duration timeout) {
+        public java.util.concurrent.CompletableFuture<Boolean> submitAndTrackAsync(Flow flow, Duration timeout) {
             var worker = Worker.builder("archdox-worker-test").build();
             Engine.builder()
                     .worker(worker)
@@ -445,10 +445,10 @@ class LegalPlatformAdminServiceTest {
             for (var i = 0; i < 10; i++) {
                 worker.tickOnce();
                 if (flow.state().isTerminal()) {
-                    return true;
+                    return java.util.concurrent.CompletableFuture.completedFuture(true);
                 }
             }
-            return false;
+            return java.util.concurrent.CompletableFuture.completedFuture(false);
         }
     }
 }

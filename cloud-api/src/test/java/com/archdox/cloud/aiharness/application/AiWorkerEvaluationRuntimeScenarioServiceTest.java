@@ -93,7 +93,7 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
             assertThat(signal.signalKey()).isEqualTo("RUNTIME_DOCUMENT_LEGAL_REVIEW");
             assertThat(signal.status()).isEqualTo("WARN");
         });
-        verify(workerServiceWorker, never()).submitAndAwait(any(), any());
+        verify(workerServiceWorker, never()).submitAndTrackAsync(any(), any());
         verify(legalReviewAiWorker, never()).submit(any());
     }
 
@@ -125,7 +125,8 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
                             "keyArticles", List.of("BUILDING_ACT:25"))));
                     return new ArchDoxWorkerExecutionHandle(noopFlow(), session);
                 });
-        when(workerServiceWorker.submitAndAwait(any(), any())).thenReturn(true);
+        when(workerServiceWorker.submitAndTrackAsync(any(), any()))
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(true));
         when(tokenControlService.tokenControlGroups()).thenReturn(List.of());
         when(tokenControlService.tokenControlSignals(List.of())).thenReturn(List.of());
 
@@ -146,7 +147,7 @@ class AiWorkerEvaluationRuntimeScenarioServiceTest {
             assertThat(signal.status()).isEqualTo("PASS");
         });
         verify(workerFlowFactory).createHandle(any(ArchDoxWorkerRequest.class), any(ArchDoxWorkerAction.class));
-        verify(workerServiceWorker).submitAndAwait(any(), any());
+        verify(workerServiceWorker).submitAndTrackAsync(any(), any());
     }
 
     private LegalChangeDigest digest(Long id, Long changeSetId) {

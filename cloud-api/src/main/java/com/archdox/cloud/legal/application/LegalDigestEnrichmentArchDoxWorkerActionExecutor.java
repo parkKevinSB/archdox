@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -69,28 +70,29 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
 
     @Override
     public CompletableFuture<ArchDoxWorkerActionResult> executeAsync(ArchDoxWorkerExecutionContext context) {
-        return CompletableFuture.supplyAsync(() -> executeBlocking(context), workerActionExecutor);
+        return CompletableFuture.supplyAsync(() -> prepareExecution(context), workerActionExecutor)
+                .thenCompose(Function.identity());
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    private ArchDoxWorkerActionResult executeBlocking(ArchDoxWorkerExecutionContext context) {
+    private CompletableFuture<ArchDoxWorkerActionResult> prepareExecution(ArchDoxWorkerExecutionContext context) {
         var payload = context.action().payload();
         if (!booleanValue(payload.get("dryRun"))) {
-            return ArchDoxWorkerActionResult.rejected(
+            return CompletableFuture.completedFuture(ArchDoxWorkerActionResult.rejected(
                     "LEGAL_DIGEST_AI_DRAFT_DRY_RUN_REQUIRED",
-                    "Legal digest AI enrichment is currently available only as a dry-run draft.");
+                    "Legal digest AI enrichment is currently available only as a dry-run draft."));
         }
         var policy = aiHarnessPolicyExecutionService.resolve(AiHarnessPolicyKey.LEGAL_DIGEST_ENRICHMENT);
         if (!policy.runnable()) {
-            return ArchDoxWorkerActionResult.failed(
+            return CompletableFuture.completedFuture(ArchDoxWorkerActionResult.failed(
                     "LEGAL_DIGEST_AI_NOT_CONFIGURED",
-                    "Legal digest AI draft generation is not runnable: " + policy.unavailableReason());
+                    "Legal digest AI draft generation is not runnable: " + policy.unavailableReason()));
         }
         var changeSetId = longValue(payload.get("changeSetId"));
         if (changeSetId == null) {
-            return ArchDoxWorkerActionResult.failed(
+            return CompletableFuture.completedFuture(ArchDoxWorkerActionResult.failed(
                     "LEGAL_DIGEST_CHANGE_SET_REQUIRED",
-                    "Legal digest AI draft generation requires changeSetId.");
+                    "Legal digest AI draft generation requires changeSetId."));
         }
 
         var input = inputService.buildInput(changeSetId);
@@ -98,7 +100,7 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
         try {
             aiHarnessPolicyExecutionService.requireWithinBudget(plan);
         } catch (BadRequestException ex) {
-            return ArchDoxWorkerActionResult.failed(ex.code(), ex.getMessage());
+            return CompletableFuture.completedFuture(ArchDoxWorkerActionResult.failed(ex.code(), ex.getMessage()));
         }
         var timeout = plan.timeout();
         var spec = new LegalDigestHarnessFactory(objectMapper).spec(
@@ -124,24 +126,30 @@ public class LegalDigestEnrichmentArchDoxWorkerActionExecutor implements ArchDox
                                         "archdox.legalDigestId", text(payload.get("digestId"))),
                                 plan.maxOutputTokens()))
                         .build());
-        var awaited = aiWorker.submitAndAwait(flow, timeout.plus(WAIT_GRACE));
-        if (!awaited) {
-            return ArchDoxWorkerActionResult.failed(
-                    "LEGAL_DIGEST_AI_TIMEOUT",
-                    "Legal digest AI draft generation timed out.");
-        }
-        if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
-            return ArchDoxWorkerActionResult.failed(
-                    "LEGAL_DIGEST_AI_HARNESS_FAILED",
-                    flow.context().terminalReason().orElse("Legal digest AI harness did not succeed."));
-        }
-        var result = result(flow.context().latestValidation());
-        if (result.isEmpty()) {
-            return ArchDoxWorkerActionResult.failed(
-                    "LEGAL_DIGEST_AI_RESULT_INVALID",
-                    "Legal digest AI harness did not return a valid draft result.");
-        }
-        return ArchDoxWorkerActionResult.succeeded(output(context, changeSetId, flow.context().runId().value(), result.get()));
+        return aiWorker.submitAndTrackAsync(flow, timeout.plus(WAIT_GRACE))
+                .thenApply(awaited -> {
+                    if (!awaited) {
+                        return ArchDoxWorkerActionResult.failed(
+                                "LEGAL_DIGEST_AI_TIMEOUT",
+                                "Legal digest AI draft generation timed out.");
+                    }
+                    if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
+                        return ArchDoxWorkerActionResult.failed(
+                                "LEGAL_DIGEST_AI_HARNESS_FAILED",
+                                flow.context().terminalReason().orElse("Legal digest AI harness did not succeed."));
+                    }
+                    var result = result(flow.context().latestValidation());
+                    if (result.isEmpty()) {
+                        return ArchDoxWorkerActionResult.failed(
+                                "LEGAL_DIGEST_AI_RESULT_INVALID",
+                                "Legal digest AI harness did not return a valid draft result.");
+                    }
+                    return ArchDoxWorkerActionResult.succeeded(output(
+                            context,
+                            changeSetId,
+                            flow.context().runId().value(),
+                            result.get()));
+                });
     }
 
     private Map<String, Object> output(

@@ -5,6 +5,7 @@ import com.archdox.cloud.documentai.dto.DocumentNarrativeApplyResponse;
 import com.archdox.cloud.documentai.dto.DocumentNarrativePolishRequest;
 import com.archdox.cloud.documentai.dto.DocumentNarrativePolishResponse;
 import com.archdox.cloud.global.security.UserPrincipal;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +23,7 @@ public class DocumentNarrativePolishController {
     }
 
     @PostMapping("/inspection-reports/{reportId}/document-narrative-polish")
-    public DocumentNarrativePolishResponse polish(
+    public CompletableFuture<DocumentNarrativePolishResponse> polish(
             @PathVariable Long reportId,
             @RequestBody DocumentNarrativePolishRequest request,
             Authentication authentication
