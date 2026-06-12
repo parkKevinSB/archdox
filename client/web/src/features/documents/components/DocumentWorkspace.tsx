@@ -634,7 +634,7 @@ function DocumentSignatureDialog({
       setPolishSuggestions(response.suggestions);
       setPolishSummary(response.summary || (applicable.length > 0
         ? `${applicable.length}개 문장 초안을 반영했습니다.`
-        : "다듬을 문장이 없습니다."));
+        : "AI가 바꿀 만한 문장을 찾지 못했습니다. 이미 정돈된 문장이거나, 사실을 보존한 채 안전하게 바꿀 근거가 부족합니다."));
       if (applicable.length > 0) {
         setNarrativeValues((current) => {
           const next = { ...current };
