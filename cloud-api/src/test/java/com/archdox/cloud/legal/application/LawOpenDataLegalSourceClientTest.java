@@ -70,6 +70,7 @@ class LawOpenDataLegalSourceClientTest {
         assertThat(httpClient.requestUris().get(0).toString()).contains("lawSearch.do");
         assertThat(httpClient.requestUris().get(1).toString()).contains("lawSearch.do");
         assertThat(httpClient.requestUris().get(2).toString()).contains("lawService.do");
+        assertThat(httpClient.asyncRequestCount()).isEqualTo(3);
     }
 
     @Test
@@ -255,6 +256,7 @@ class LawOpenDataLegalSourceClientTest {
     private static final class RecordingHttpClient extends HttpClient {
         private final ArrayDeque<QueuedResponse> responses;
         private final List<URI> requestUris = new java.util.ArrayList<>();
+        private int asyncRequestCount = 0;
 
         private RecordingHttpClient(List<QueuedResponse> responses) {
             this.responses = new ArrayDeque<>(responses);
@@ -262,6 +264,10 @@ class LawOpenDataLegalSourceClientTest {
 
         private List<URI> requestUris() {
             return List.copyOf(requestUris);
+        }
+
+        private int asyncRequestCount() {
+            return asyncRequestCount;
         }
 
         @Override
@@ -329,7 +335,15 @@ class LawOpenDataLegalSourceClientTest {
                 HttpRequest request,
                 HttpResponse.BodyHandler<T> responseBodyHandler
         ) {
-            throw new UnsupportedOperationException("sendAsync is not used in this test");
+            asyncRequestCount++;
+            try {
+                return CompletableFuture.completedFuture(send(request, responseBodyHandler));
+            } catch (IOException ex) {
+                return CompletableFuture.failedFuture(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return CompletableFuture.failedFuture(ex);
+            }
         }
 
         @Override
@@ -338,7 +352,7 @@ class LawOpenDataLegalSourceClientTest {
                 HttpResponse.BodyHandler<T> responseBodyHandler,
                 HttpResponse.PushPromiseHandler<T> pushPromiseHandler
         ) {
-            throw new UnsupportedOperationException("sendAsync is not used in this test");
+            return sendAsync(request, responseBodyHandler);
         }
     }
 

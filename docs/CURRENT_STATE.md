@@ -82,11 +82,13 @@ These are development-only credentials.
   artifact delivery default to 4 concurrent jobs with queues of 100. Queue
   overflow returns retryable `AGENT_COMMAND_QUEUE_FULL` instead of allowing
   unbounded JVM common-pool execution.
-- Cloud API Flower workers are being consolidated by execution lane rather than
+- Cloud API Flower workers are consolidated by execution lane rather than
   feature name. `document-io` now owns photo derivative, photo pickup, document
-  generation, and document delivery orchestration. AI harness and legal sync
-  workers remain isolated until `submitAndAwait`, polling sleep, and blocking
-  legal Open API sync behavior are removed.
+  generation, and document delivery orchestration. AI harness child flows share
+  the `ai-harness` lane, and legal sync remains isolated only because Law Open
+  Data is slow external I/O. Flower worker ticks must not sleep or block on
+  child flows, HTTP calls, AI provider calls, or retry waits; they submit work
+  and observe completion by future, event, durable state, timeout, or `stepNo`.
 - Template/configuration registry foundations, template upload/storage, output
   layout, and neutral document data model direction.
 - Office knowledge platform direction is documented: accumulated structured
@@ -340,7 +342,11 @@ These are development-only credentials.
   surrounding ArchDox Worker action is still synchronous and audited in the
   `archdox-worker` lane; only the child AI lane was consolidated.
 - Legal Open Data sync still owns the isolated `legal-sync` Flower lane because
-  it performs blocking provider HTTP/retry work. It is now single-flight per
+  the provider is slow external I/O. The official Open API client uses
+  `HttpClient.sendAsync(...)` and async throttle/retry delays; fallback source
+  clients are isolated behind the bounded `legal-sync-fetch-*` executor. The
+  Flower fetch step submits or starts the source fetch, moves to a waiting
+  `stepNo`, and observes completion on later ticks. Sync is single-flight per
   `source_code`: manual/admin and monitor-triggered requests return or skip the
   existing RUNNING sync run instead of submitting duplicate sync flows, backed by
   a DB partial unique index on RUNNING sync runs.
@@ -349,6 +355,10 @@ These are development-only credentials.
   are configured with `ARCHDOX_AI_MODEL_GATEWAY_THREADS` and
   `ARCHDOX_AI_MODEL_GATEWAY_QUEUE_CAPACITY`; queue saturation becomes a logged
   gateway failure rather than unbounded thread fan-out.
+- Admin AI provider connection tests and runtime AI/Worker evaluation scenarios
+  no longer use request-thread sleep polling. They use completion futures and
+  delayed observation, matching the Flower rule that long waits should be
+  observable rather than lane-blocking.
 - The platform admin UI can trigger incident diagnosis and show the latest
   diagnosis snapshot as operational summary, redaction policy, recent findings,
   and related operation events.

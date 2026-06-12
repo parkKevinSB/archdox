@@ -91,15 +91,22 @@ public class LegalCorpusSyncService {
     }
 
     public LegalSourceSnapshot fetchSnapshot(String sourceCode) {
-        return sourceClients.stream()
-                .filter(client -> client.supports(sourceCode))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No legal source client supports source: " + sourceCode))
-                .fetch(sourceCode);
+        return sourceClient(sourceCode).fetch(sourceCode);
     }
 
     public CompletableFuture<LegalSourceSnapshot> fetchSnapshotAsync(String sourceCode) {
-        return CompletableFuture.supplyAsync(() -> fetchSnapshot(sourceCode), legalSyncFetchExecutor);
+        var client = sourceClient(sourceCode);
+        if (client.nativeAsyncFetchSupported()) {
+            return client.fetchAsync(sourceCode);
+        }
+        return CompletableFuture.supplyAsync(() -> client.fetch(sourceCode), legalSyncFetchExecutor);
+    }
+
+    private LegalSourceClient sourceClient(String sourceCode) {
+        return sourceClients.stream()
+                .filter(client -> client.supports(sourceCode))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No legal source client supports source: " + sourceCode));
     }
 
     @Transactional

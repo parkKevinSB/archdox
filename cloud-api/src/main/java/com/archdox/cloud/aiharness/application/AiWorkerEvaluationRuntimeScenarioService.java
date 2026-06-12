@@ -280,8 +280,7 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                         .build());
 
         var startedAt = System.nanoTime();
-        legalReviewAiWorker.submit(flow);
-        var awaited = await(flow, plan.timeout().plusSeconds(5));
+        var awaited = legalReviewAiWorker.submitAndTrackAsync(flow, plan.timeout().plusSeconds(5)).join();
         var elapsedMs = Math.max(0L, (System.nanoTime() - startedAt) / 1_000_000L);
         if (!awaited) {
             return group(
@@ -584,23 +583,6 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                     }
                     return Optional.empty();
                 });
-    }
-
-    private boolean await(AiHarnessFlow flow, Duration timeout) {
-        var deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline) {
-            if (flow.flow().state().isTerminal()) {
-                return true;
-            }
-            try {
-                Thread.sleep(25);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }
-        flow.flow().cancel();
-        return false;
     }
 
     private SourceBackedLegalReviewInput documentLegalReviewInput() {

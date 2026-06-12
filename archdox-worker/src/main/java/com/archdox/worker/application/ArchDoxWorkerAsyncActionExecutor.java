@@ -8,6 +8,7 @@ public interface ArchDoxWorkerAsyncActionExecutor extends ArchDoxWorkerActionExe
 
     @Override
     default ArchDoxWorkerActionResult execute(ArchDoxWorkerExecutionContext context) {
-        return executeAsync(context).join();
+        throw new UnsupportedOperationException(
+                "Async worker action executors must be invoked through executeAsync");
     }
 }

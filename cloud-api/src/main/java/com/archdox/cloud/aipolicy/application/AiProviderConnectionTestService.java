@@ -11,6 +11,7 @@ import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelCall;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelCallStatus;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelRequest;
+import io.github.parkkevinsb.flower.ai.harness.model.AiModelResponse;
 import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
 import io.github.parkkevinsb.flower.ai.harness.prompt.PromptVersion;
 import io.github.parkkevinsb.flower.ai.harness.prompt.RenderedPrompt;
@@ -18,12 +19,16 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AiProviderConnectionTestService {
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration TEST_POLL_INTERVAL = Duration.ofMillis(100);
 
     private final PlatformAdminService platformAdminService;
     private final AiProviderCredentialRepository providerRepository;
@@ -48,7 +53,7 @@ public class AiProviderConnectionTestService {
         var startedAt = System.nanoTime();
         var request = request(provider, modelName, principal.userId());
         try {
-            var response = await(aiModelGateway.submit(request), TEST_TIMEOUT.plusSeconds(2));
+            var response = awaitAsync(aiModelGateway.submit(request), TEST_TIMEOUT.plusSeconds(2)).join();
             var latencyMs = response.metadata().latency()
                     .map(Duration::toMillis)
                     .orElse(Duration.ofNanos(System.nanoTime() - startedAt).toMillis());
@@ -124,38 +129,56 @@ public class AiProviderConnectionTestService {
                 TEST_TIMEOUT);
     }
 
-    private io.github.parkkevinsb.flower.ai.harness.model.AiModelResponse await(
+    private CompletableFuture<AiModelResponse> awaitAsync(
             AiModelCall call,
             Duration timeout
     ) {
-        var deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline) {
+        var result = new CompletableFuture<AiModelResponse>();
+        poll(call, result, System.nanoTime() + timeout.toNanos());
+        return result;
+    }
+
+    private void poll(
+            AiModelCall call,
+            CompletableFuture<AiModelResponse> result,
+            long deadlineNanos
+    ) {
+        if (result.isDone()) {
+            return;
+        }
+        try {
             var status = call.poll();
             if (status == AiModelCallStatus.READY) {
-                return call.result();
+                result.complete(call.result());
+                return;
             }
             if (status == AiModelCallStatus.FAILED) {
                 var error = call.error();
-                if (error instanceof RuntimeException runtimeException) {
-                    throw runtimeException;
-                }
-                throw new IllegalStateException("AI provider connection test failed", error);
+                result.completeExceptionally(error instanceof RuntimeException runtimeException
+                        ? runtimeException
+                        : new IllegalStateException("AI provider connection test failed", error));
+                return;
             }
             if (status == AiModelCallStatus.CANCELLED) {
-                throw new IllegalStateException("AI provider connection test was cancelled");
+                result.completeExceptionally(new IllegalStateException("AI provider connection test was cancelled"));
+                return;
             }
-            sleep();
-        }
-        call.cancel();
-        throw new IllegalStateException("AI provider connection test timed out");
-    }
-
-    private void sleep() {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while testing AI provider connection", ex);
+            if (System.nanoTime() >= deadlineNanos) {
+                call.cancel();
+                result.completeExceptionally(new IllegalStateException("AI provider connection test timed out"));
+                return;
+            }
+            CompletableFuture.runAsync(
+                    () -> poll(call, result, deadlineNanos),
+                    CompletableFuture.delayedExecutor(TEST_POLL_INTERVAL.toMillis(), TimeUnit.MILLISECONDS))
+                    .exceptionally(error -> {
+                        result.completeExceptionally(error);
+                        return null;
+                    });
+        } catch (RejectedExecutionException ex) {
+            result.completeExceptionally(ex);
+        } catch (RuntimeException ex) {
+            result.completeExceptionally(ex);
         }
     }
 

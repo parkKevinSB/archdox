@@ -21,6 +21,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -119,32 +122,54 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
 
     @Override
     public LegalSourceSnapshot fetch(String sourceCode) {
+        try {
+            return fetchAsync(sourceCode).join();
+        } catch (CompletionException ex) {
+            throw runtimeFailure(ex.getCause() == null ? ex : ex.getCause());
+        }
+    }
+
+    @Override
+    public boolean nativeAsyncFetchSupported() {
+        return true;
+    }
+
+    @Override
+    public CompletableFuture<LegalSourceSnapshot> fetchAsync(String sourceCode) {
         if (!supports(sourceCode)) {
-            throw new IllegalArgumentException("Unsupported legal source code: " + sourceCode);
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    "Unsupported legal source code: " + sourceCode));
         }
         var openApi = properties.getOpenApi();
         if (!openApi.isEnabled()) {
-            throw new IllegalStateException("Law Open Data API sync is disabled");
+            return CompletableFuture.failedFuture(new IllegalStateException("Law Open Data API sync is disabled"));
         }
         if (openApi.getOc() == null || openApi.getOc().isBlank()) {
-            throw new IllegalStateException("Law Open Data API OC is required");
+            return CompletableFuture.failedFuture(new IllegalStateException("Law Open Data API OC is required"));
         }
 
-        var acts = openApi.getTargets().stream()
+        var targets = openApi.getTargets().stream()
                 .filter(target -> target.getQuery() != null && !target.getQuery().isBlank())
-                .map(this::fetchTarget)
-                .sorted(Comparator.comparing(LegalActSnapshot::actCode))
                 .toList();
-        if (acts.isEmpty()) {
-            throw new LawOpenDataException(
+        if (targets.isEmpty()) {
+            return CompletableFuture.failedFuture(new LawOpenDataException(
                     "LAW_OPEN_DATA_TARGETS_EMPTY",
                     "fetch",
                     "",
                     0,
                     false,
-                    "Law Open Data API sync target list is empty");
+                    "Law Open Data API sync target list is empty"));
         }
-        return new LegalSourceSnapshot(
+
+        CompletableFuture<List<LegalActSnapshot>> actsFuture = CompletableFuture.completedFuture(new ArrayList<>());
+        for (var target : targets) {
+            actsFuture = actsFuture.thenCompose(acts -> fetchTargetAsync(target)
+                    .thenApply(snapshot -> {
+                        acts.add(snapshot);
+                        return acts;
+                    }));
+        }
+        return actsFuture.thenApply(acts -> new LegalSourceSnapshot(
                 openApi.getSourceCode(),
                 "LAW_OPEN_DATA",
                 "\uAD6D\uAC00\uBC95\uB839\uC815\uBCF4 \uACF5\uB3D9\uD65C\uC6A9",
@@ -152,63 +177,214 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 Map.of(
                         "provider", "law.go.kr",
                         "targets", acts.size()),
-                acts);
+                acts.stream()
+                        .sorted(Comparator.comparing(LegalActSnapshot::actCode))
+                        .toList()));
     }
 
-    private LegalActSnapshot fetchTarget(LegalSyncProperties.Target target) {
+    private CompletableFuture<LegalActSnapshot> fetchTargetAsync(LegalSyncProperties.Target target) {
         var normalizedTarget = normalizeTarget(target.getTarget());
-        try {
-            var search = fetchJson(
-                    "lawSearch.do",
-                    normalizedTarget,
-                    Map.of(
-                            "target", normalizedTarget,
-                            "type", "JSON",
-                            "query", target.getQuery(),
-                            "display", "10"));
+        return fetchJsonAsync(
+                "lawSearch.do",
+                normalizedTarget,
+                Map.of(
+                        "target", normalizedTarget,
+                        "type", "JSON",
+                        "query", target.getQuery(),
+                        "display", "10"))
+                .thenCompose(search -> {
             var item = selectSearchResult(target, normalizedTarget, search);
             var detailId = detailId(normalizedTarget, item);
             if (detailId.isBlank()) {
-                throw new LawOpenDataException(
+                return CompletableFuture.failedFuture(new LawOpenDataException(
                         "LAW_OPEN_DATA_DETAIL_ID_MISSING",
                         "lawSearch.do",
                         normalizedTarget,
                         0,
                         false,
-                        "Law Open Data search result has no detail ID for query: " + target.getQuery());
+                        "Law Open Data search result has no detail ID for query: " + target.getQuery()));
             }
-            var detail = fetchJson(
-                    "lawService.do",
-                    normalizedTarget,
-                    Map.of(
-                            "target", normalizedTarget,
-                            "type", "JSON",
-                            "ID", detailId));
-            var sourceUrl = serviceUrl(normalizedTarget, detailId);
-            var snapshot = TARGET_LAW.equals(normalizedTarget)
-                    ? parseLawDetail(target, detail, sourceUrl)
-                    : parseAdminRuleDetail(target, detail, sourceUrl);
-            if (snapshot.articles().isEmpty()) {
-                throw new LawOpenDataException(
-                        "LAW_OPEN_DATA_ARTICLES_EMPTY",
-                        "lawService.do",
-                        normalizedTarget,
-                        0,
-                        false,
-                        "Law Open Data detail response has no articles or annex body for query: " + target.getQuery());
-            }
-            return snapshot;
-        } catch (LawOpenDataException ex) {
-            throw ex;
-        } catch (RuntimeException ex) {
+            return fetchJsonAsync(
+                            "lawService.do",
+                            normalizedTarget,
+                            Map.of(
+                                    "target", normalizedTarget,
+                                    "type", "JSON",
+                                    "ID", detailId))
+                    .thenApply(detail -> {
+                        var sourceUrl = serviceUrl(normalizedTarget, detailId);
+                        var snapshot = TARGET_LAW.equals(normalizedTarget)
+                                ? parseLawDetail(target, detail, sourceUrl)
+                                : parseAdminRuleDetail(target, detail, sourceUrl);
+                        if (snapshot.articles().isEmpty()) {
+                            throw new LawOpenDataException(
+                                    "LAW_OPEN_DATA_ARTICLES_EMPTY",
+                                    "lawService.do",
+                                    normalizedTarget,
+                                    0,
+                                    false,
+                                    "Law Open Data detail response has no articles or annex body for query: "
+                                            + target.getQuery());
+                        }
+                        return snapshot;
+                    });
+        })
+                .handle((snapshot, error) -> {
+                    if (error == null) {
+                        return CompletableFuture.completedFuture(snapshot);
+                    }
+                    var failure = unwrapCompletion(error);
+                    if (failure instanceof LawOpenDataException openDataException) {
+                        return CompletableFuture.<LegalActSnapshot>failedFuture(openDataException);
+                    }
+                    return CompletableFuture.<LegalActSnapshot>failedFuture(new LawOpenDataException(
+                            "LAW_OPEN_DATA_TARGET_FAILED",
+                            "fetchTarget",
+                            normalizedTarget,
+                            0,
+                            false,
+                            "Law Open Data target failed for query '" + target.getQuery() + "': "
+                                    + failure.getMessage(),
+                            failure));
+                })
+                .thenCompose(Function.identity());
+    }
+
+    private CompletableFuture<JsonNode> fetchJsonAsync(String path, String target, Map<String, String> parameters) {
+        var uri = URI.create(baseUrl() + "/" + path + "?" + query(parameters));
+        var request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(Math.max(1000, properties.getOpenApi().getRequestTimeoutMs())))
+                .header("User-Agent", properties.getOpenApi().getUserAgent())
+                .GET()
+                .build();
+        return fetchJsonAttemptAsync(
+                request,
+                path,
+                target,
+                1,
+                Math.max(1, properties.getOpenApi().getMaxAttempts()),
+                null);
+    }
+
+    private CompletableFuture<JsonNode> fetchJsonAttemptAsync(
+            HttpRequest request,
+            String path,
+            String target,
+            int attempt,
+            int maxAttempts,
+            IOException lastIOException
+    ) {
+        return requestThrottle.requestSlotAsync(properties.getOpenApi().getRequestIntervalMs())
+                .thenCompose(ignored -> httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray()))
+                .thenApply(response -> responseJson(response, path, target))
+                .handle((json, error) -> {
+                    if (error == null) {
+                        return CompletableFuture.completedFuture(json);
+                    }
+                    var failure = unwrapCompletion(error);
+                    if (failure instanceof LawOpenDataException openDataException) {
+                        if (openDataException.retryable() && attempt < maxAttempts) {
+                            return retryFetchJson(request, path, target, attempt, maxAttempts, lastIOException);
+                        }
+                        return CompletableFuture.<JsonNode>failedFuture(openDataException);
+                    }
+                    if (failure instanceof IOException ioException) {
+                        if (attempt < maxAttempts) {
+                            return retryFetchJson(request, path, target, attempt, maxAttempts, ioException);
+                        }
+                        return CompletableFuture.<JsonNode>failedFuture(ioFailure(path, target, ioException));
+                    }
+                    return CompletableFuture.<JsonNode>failedFuture(runtimeFailure(failure));
+                })
+                .thenCompose(Function.identity());
+    }
+
+    private CompletableFuture<JsonNode> retryFetchJson(
+            HttpRequest request,
+            String path,
+            String target,
+            int attempt,
+            int maxAttempts,
+            IOException lastIOException
+    ) {
+        return requestThrottle.retryDelayAsync(attempt)
+                .thenCompose(ignored -> fetchJsonAttemptAsync(
+                        request,
+                        path,
+                        target,
+                        attempt + 1,
+                        maxAttempts,
+                        lastIOException));
+    }
+
+    private JsonNode responseJson(HttpResponse<byte[]> response, String path, String target) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new LawOpenDataException(
-                    "LAW_OPEN_DATA_TARGET_FAILED",
-                    "fetchTarget",
-                    normalizedTarget,
-                    0,
-                    false,
-                    "Law Open Data target failed for query '" + target.getQuery() + "': " + ex.getMessage(),
-                    ex);
+                    "LAW_OPEN_DATA_HTTP_" + response.statusCode(),
+                    path,
+                    target,
+                    response.statusCode(),
+                    retryableHttpStatus(response.statusCode()),
+                    "Law Open Data API returned HTTP " + response.statusCode() + " for " + path);
+        }
+        try {
+            var json = readJsonBody(response, path);
+            validateOpenDataResponse(json, path, target);
+            return json;
+        } catch (IOException ex) {
+            throw new CompletionException(ex);
+        }
+    }
+
+    private LawOpenDataException ioFailure(String path, String target, IOException lastIOException) {
+        return new LawOpenDataException(
+                "LAW_OPEN_DATA_IO_FAILURE",
+                path,
+                target,
+                0,
+                true,
+                "Failed to read Law Open Data API response for " + path
+                        + ": " + (lastIOException == null ? "unknown IO failure" : lastIOException.getMessage()),
+                lastIOException);
+    }
+
+    private RuntimeException runtimeFailure(Throwable failure) {
+        var unwrapped = unwrapCompletion(failure);
+        if (unwrapped instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new IllegalStateException(unwrapped.getMessage(), unwrapped);
+    }
+
+    private Throwable unwrapCompletion(Throwable failure) {
+        if (failure instanceof CompletionException completionException && completionException.getCause() != null) {
+            return unwrapCompletion(completionException.getCause());
+        }
+        return failure;
+    }
+
+    private static boolean retryableHttpStatus(int statusCode) {
+        return statusCode == 429 || statusCode >= 500;
+    }
+
+    private JsonNode readJsonBody(HttpResponse<byte[]> response, String path) throws IOException {
+        var body = response.body();
+        var charset = response.headers()
+                .firstValue("Content-Type")
+                .flatMap(LawOpenDataLegalSourceClient::charsetFromContentType)
+                .orElse(LAW_OPEN_DATA_DEFAULT_CHARSET);
+        try {
+            return objectMapper.readTree(new String(body, charset));
+        } catch (JsonProcessingException ex) {
+            if (charset.equals(LAW_OPEN_DATA_LEGACY_CHARSET)) {
+                throw ex;
+            }
+            try {
+                return objectMapper.readTree(new String(body, LAW_OPEN_DATA_LEGACY_CHARSET));
+            } catch (JsonProcessingException legacyEx) {
+                ex.addSuppressed(legacyEx);
+                throw ex;
+            }
         }
     }
 
@@ -336,93 +512,6 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                         "issueNo", text(base, K_ADMIN_ISSUE_NO, ""),
                         "revisionType", text(base, K_ADMIN_REVISION_TYPE, "")),
                 articles);
-    }
-
-    private JsonNode fetchJson(String path, String target, Map<String, String> parameters) {
-        var uri = URI.create(baseUrl() + "/" + path + "?" + query(parameters));
-        var request = HttpRequest.newBuilder(uri)
-                .timeout(Duration.ofMillis(Math.max(1000, properties.getOpenApi().getRequestTimeoutMs())))
-                .header("User-Agent", properties.getOpenApi().getUserAgent())
-                .GET()
-                .build();
-        IOException lastIOException = null;
-        var maxAttempts = Math.max(1, properties.getOpenApi().getMaxAttempts());
-        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                waitForRequestSlot();
-                var response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    var retryable = retryableHttpStatus(response.statusCode());
-                    var error = new LawOpenDataException(
-                            "LAW_OPEN_DATA_HTTP_" + response.statusCode(),
-                            path,
-                            target,
-                            response.statusCode(),
-                            retryable,
-                            "Law Open Data API returned HTTP " + response.statusCode() + " for " + path);
-                    if (retryable && attempt < maxAttempts) {
-                        requestThrottle.waitBeforeRetry(attempt);
-                        continue;
-                    }
-                    throw error;
-                }
-                var json = readJsonBody(response, path);
-                validateOpenDataResponse(json, path, target);
-                return json;
-            } catch (IOException ex) {
-                lastIOException = ex;
-                if (attempt == maxAttempts) {
-                    break;
-                }
-                requestThrottle.waitBeforeRetry(attempt);
-            } catch (LawOpenDataException ex) {
-                if (!ex.retryable() || attempt == maxAttempts) {
-                    throw ex;
-                }
-                requestThrottle.waitBeforeRetry(attempt);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Law Open Data API request was interrupted for " + path, ex);
-            }
-        }
-        throw new LawOpenDataException(
-                "LAW_OPEN_DATA_IO_FAILURE",
-                path,
-                target,
-                0,
-                true,
-                "Failed to read Law Open Data API response for " + path
-                        + ": " + (lastIOException == null ? "unknown IO failure" : lastIOException.getMessage()),
-                lastIOException);
-    }
-
-    private static boolean retryableHttpStatus(int statusCode) {
-        return statusCode == 429 || statusCode >= 500;
-    }
-
-    private void waitForRequestSlot() {
-        requestThrottle.waitForRequestSlot(properties.getOpenApi().getRequestIntervalMs());
-    }
-
-    private JsonNode readJsonBody(HttpResponse<byte[]> response, String path) throws IOException {
-        var body = response.body();
-        var charset = response.headers()
-                .firstValue("Content-Type")
-                .flatMap(LawOpenDataLegalSourceClient::charsetFromContentType)
-                .orElse(LAW_OPEN_DATA_DEFAULT_CHARSET);
-        try {
-            return objectMapper.readTree(new String(body, charset));
-        } catch (JsonProcessingException ex) {
-            if (charset.equals(LAW_OPEN_DATA_LEGACY_CHARSET)) {
-                throw ex;
-            }
-            try {
-                return objectMapper.readTree(new String(body, LAW_OPEN_DATA_LEGACY_CHARSET));
-            } catch (JsonProcessingException ignored) {
-                throw new IOException("Law Open Data API response is not valid JSON for " + path
-                        + ": " + ex.getOriginalMessage(), ex);
-            }
-        }
     }
 
     private static Optional<Charset> charsetFromContentType(String contentType) {

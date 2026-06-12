@@ -108,6 +108,55 @@ Flower step rules:
     background schedulers for orchestration unless the user explicitly confirms
     that a scheduler is needed.
 
+## Flower Async Execution Rule
+
+Flower workers must be treated as orchestration tick lanes. They should decide
+what happens next and then return control quickly. They must not become the
+place where ArchDox waits for slow work to finish.
+
+Default pattern:
+
+```text
+stepNo 0  = submit external or long-running work
+stepNo 10 = observe future/event/stored state/timeout
+stepNo 20 = backoff or recovery cursor when needed
+```
+
+Allowed waiting mechanisms:
+
+- observe a `CompletableFuture` with `isDone()` and `join()` only after it is
+  already done;
+- observe durable DB state or a Bloom/Flower event;
+- use `ctx.startTimeout(...)`, `stepNo`, and `StepResult.stay()`;
+- use `CompletableFuture.delayedExecutor(...)` for short delayed polling or
+  rate-limit waits outside the Flower worker tick;
+- delegate unavoidable blocking work to a bounded executor with a clear queue
+  and overload failure mode.
+
+Forbidden inside Flower worker ticks:
+
+- `Thread.sleep(...)`, `LockSupport.parkNanos(...)`, or equivalent sleep loops;
+- blocking HTTP calls such as `HttpClient.send(...)`;
+- `CompletableFuture.join()` or `get()` before completion is known;
+- `submitAndAwait`-style child-flow waits that hold the lane thread;
+- long database loops that repeatedly poll inside one tick.
+
+HTTP and AI provider calls should use native async APIs such as
+`HttpClient.sendAsync(...)` where available. If a library only exposes a
+blocking call, isolate it behind a bounded executor and make the Flower step
+observe the submitted future on later ticks.
+
+It is acceptable for a REST or admin API endpoint to return a synchronous
+response when the product UX requires it. In that case, the request boundary may
+wait on a completion future, but the Flower worker lane still must not block.
+
+Synchronous Flower execution is an exception, not a default. If a developer
+believes a synchronous step is truly necessary because no async alternative
+exists, the async version would be disproportionately complex, or synchronous
+execution is clearly safer, they must get explicit user/owner approval before
+implementing it and record the reason in the relevant architecture document or
+code review notes.
+
 ## Flower Worker Lane Rules
 
 Flower workers are execution lanes, not feature names. Do not add a new worker
@@ -143,7 +192,7 @@ Current lane direction:
 | `monitoring` | long-lived monitor/control flows | Shared for lightweight periodic control loops that use `stepNo` and timeouts. |
 | `document-review` | deterministic review orchestration | May absorb more review flows once they do not block worker ticks. |
 | `ai-harness` | AI child harness flows such as document AI review, report preflight AI review, source-backed legal review AI, platform ops diagnosis AI, document narrative polish AI, worker chat planner AI, and legal digest draft AI. | Shared because these flows are bounded AI execution units and provider calls are protected by the model gateway bulkhead. Workflow type names such as `document-ai-review` remain separate from the worker lane name. Narrative polish, worker chat planner, and legal digest draft may still wait from their caller, but they no longer own dedicated Flower worker lanes. |
-| `legal-sync` | Law Open Data sync | Keep isolated because Law Open Data fetch is slow external I/O. The fetch step must submit source fetch work to the bounded `legal-sync-fetch-*` executor, move to `stepNo=10`, and observe completion on later ticks instead of performing HTTP/retry waits inside the Flower tick. The executor is configured by `archdox.legal.sync.fetch-executor-threads` and `archdox.legal.sync.fetch-executor-queue-capacity`. |
+| `legal-sync` | Law Open Data sync | Keep isolated because Law Open Data fetch is slow external I/O. The official Open API client must use async HTTP and async throttle/retry delays. Fallback blocking source clients must run behind the bounded `legal-sync-fetch-*` executor. The fetch step moves to `stepNo=10` and observes completion on later ticks instead of performing HTTP/retry waits inside the Flower tick. The executor is configured by `archdox.legal.sync.fetch-executor-threads` and `archdox.legal.sync.fetch-executor-queue-capacity`. |
 | `archdox-worker` | controlled SaaS action execution | A worker action that waits on AI, external I/O, or a child flow must implement `ArchDoxWorkerAsyncActionExecutor`. The generic execution step submits the action future, moves to a waiting `stepNo`, and observes completion on later ticks. Do not hide long waits inside the synchronous `execute()` method. |
 
 AI harness model calls must not use the JVM common pool as the concurrency

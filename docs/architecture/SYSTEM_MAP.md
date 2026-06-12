@@ -85,14 +85,15 @@ Current direction:
 | `monitoring` | Long-lived control loops such as Agent connection health, legal sync monitor, and platform ops daily report monitor. | Uses `stepNo` and timeout-based waiting. |
 | `document-review` | Deterministic document/report review orchestration. | Can absorb more non-blocking review flows over time. |
 | `ai-harness` | AI child harness execution for document AI review, report preflight AI review, source-backed legal review AI, platform ops diagnosis AI, document narrative polish AI, worker chat planner AI, and legal digest draft AI. | Workflow type names remain task-specific, but they share one execution lane because they have the same bounded AI execution character and model calls are protected by the provider bulkhead. Narrative polish, worker chat planner, and legal digest draft are still synchronous from the caller's perspective, but they no longer own dedicated Flower worker lanes. |
-| `legal-sync` | Law Open Data sync execution. | Still isolated because Law Open Data calls are slow external I/O. The fetch step submits the blocking source fetch to the bounded `legal-sync-fetch-*` executor and observes completion by `stepNo`, so the Flower worker tick is not held while HTTP/retry waits run. |
+| `legal-sync` | Law Open Data sync execution. | Still isolated because Law Open Data calls are slow external I/O. The official Open API client uses async HTTP and async throttle/retry delays; fallback blocking source clients are isolated behind the bounded `legal-sync-fetch-*` executor. The Flower fetch step observes completion by `stepNo`, so the Flower worker tick is not held while HTTP/retry waits run. |
 | `archdox-worker` | Controlled SaaS action execution: policy, approval, run control, audit trace. | Separate from AI harness and Agent document rendering. Long-running actions must implement the async action executor contract so the worker lane observes completion instead of blocking inside `execute()`. |
 
 AI provider calls inside `ai-harness` are protected by the bounded
 `ai-model-gateway-*` executor. This keeps the shared AI lane from becoming an
 unbounded provider-call fan-out point when many harness requests arrive at once.
-
-Detailed rules live in
+Flower workers are orchestration lanes and must not sleep or block on child
+flows, HTTP calls, AI provider calls, or retry waits. Detailed async execution
+and exception-approval rules live in
 [`docs/development/DDD_EVENT_ORCHESTRATION_RULES.md`](../development/DDD_EVENT_ORCHESTRATION_RULES.md).
 
 ## Core Business Flow

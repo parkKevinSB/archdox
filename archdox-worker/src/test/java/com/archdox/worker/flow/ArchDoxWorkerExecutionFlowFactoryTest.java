@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ArchDoxWorkerExecutionFlowFactoryTest {
     @Test
@@ -228,6 +229,17 @@ class ArchDoxWorkerExecutionFlowFactoryTest {
         assertThat(flow.state()).isEqualTo(FlowState.FINISHED);
         assertThat(sink.eventTypes()).contains(ArchDoxWorkerTraceEventType.ACTION_SUCCEEDED);
         assertThat(sink.events().getLast().attributes()).containsEntry("status", "SUCCEEDED");
+    }
+
+    @Test
+    void async_executor_rejects_direct_blocking_execute_call() {
+        var executor = new AsyncStubExecutor(
+                ArchDoxWorkerActionType.RUN_PREFLIGHT_REVIEW,
+                context -> CompletableFuture.completedFuture(ArchDoxWorkerActionResult.succeeded(Map.of())));
+
+        assertThatThrownBy(() -> executor.execute(null))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("executeAsync");
     }
 
     private static Worker attachedWorker() {
