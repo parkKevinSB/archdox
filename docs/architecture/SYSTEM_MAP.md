@@ -354,6 +354,7 @@ Current monitor flows run on the shared `monitoring` Flower worker:
 | `agent-connection-health-monitor` | Detect stale ArchDox Agent sessions. | Marks timed-out sessions disconnected. |
 | `legal-sync-monitor` | Checks configured Open API due slots such as 03:00 and 15:00. | Submits the existing `legal-sync` flow only when the due slot has not already been handled. Concurrent manual/monitor requests are single-flight guarded by the `RUNNING` sync run state. |
 | `platform-ops-daily-report-monitor` | Checks the daily operations report due slot. | Generates a sanitized `AUTO_DAILY_REPORT` run and Markdown report file. |
+| `server-runtime-health-monitor` | Samples Cloud API host CPU, system memory pressure, and JVM heap. | Keeps the latest sample in memory and records only high-load operation events. |
 
 These are not ad-hoc Spring schedulers. The Flower flow owns the periodic
 decision, while durable business state remains in DB rows and operation events.

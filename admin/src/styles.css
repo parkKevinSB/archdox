@@ -2351,6 +2351,54 @@ button {
   min-height: auto;
 }
 
+.server-runtime-settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+
+.server-runtime-settings-form label {
+  display: grid;
+  gap: 6px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.server-runtime-settings-form input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  outline: 0;
+  color: #1f2c2b;
+  background: #ffffff;
+}
+
+.server-runtime-settings-form input:focus {
+  border-color: #2a7f70;
+  box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.server-runtime-settings-form .toggle-row {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #d8e1df;
+  border-radius: 6px;
+  background: #fbfcfc;
+}
+
+.server-runtime-settings-form .toggle-row input {
+  width: auto;
+  min-height: auto;
+}
+
 .issued-key-card {
   display: grid;
   gap: 12px;
@@ -3395,6 +3443,7 @@ tbody tr:hover {
 
   .config-form,
   .engine-key-form,
+  .server-runtime-settings-form,
   .revision-form,
   .override-form,
   .member-form,

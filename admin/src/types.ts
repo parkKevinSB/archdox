@@ -546,11 +546,28 @@ export type ServerRuntimeHealthSnapshot = {
   availableProcessors: number;
   systemMemoryTotalBytes?: number | null;
   systemMemoryUsedBytes?: number | null;
+  systemMemoryAvailableBytes?: number | null;
   systemMemoryUsedPercent?: number | null;
   jvmHeapMaxBytes: number;
   jvmHeapUsedBytes: number;
   jvmHeapUsedPercent?: number | null;
   warnings: string[];
+};
+
+export type ServerRuntimeHealthSettings = {
+  enabled: boolean;
+  checkIntervalMs: number;
+  cpuWarnPercent: number;
+  systemMemoryWarnPercent: number;
+  jvmHeapWarnPercent: number;
+  eventCooldownMs: number;
+  updatedByUserId?: number | null;
+  updatedAt?: string | null;
+};
+
+export type PlatformServerRuntimeHealth = {
+  snapshot: ServerRuntimeHealthSnapshot;
+  settings: ServerRuntimeHealthSettings;
 };
 
 export type PlatformUserOps = {

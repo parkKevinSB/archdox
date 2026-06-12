@@ -12,6 +12,7 @@ public record ServerRuntimeHealthSnapshotResponse(
         int availableProcessors,
         Long systemMemoryTotalBytes,
         Long systemMemoryUsedBytes,
+        Long systemMemoryAvailableBytes,
         Double systemMemoryUsedPercent,
         long jvmHeapMaxBytes,
         long jvmHeapUsedBytes,

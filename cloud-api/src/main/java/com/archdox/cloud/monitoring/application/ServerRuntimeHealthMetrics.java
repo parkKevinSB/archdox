@@ -10,6 +10,7 @@ public record ServerRuntimeHealthMetrics(
         int availableProcessors,
         Long systemMemoryTotalBytes,
         Long systemMemoryFreeBytes,
+        Long systemMemoryAvailableBytes,
         long jvmHeapMaxBytes,
         long jvmHeapUsedBytes
 ) {

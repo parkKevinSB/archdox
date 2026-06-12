@@ -7,14 +7,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.archdox.cloud.monitoring.domain.ServerRuntimeHealthSettings;
+import com.archdox.cloud.monitoring.infra.ServerRuntimeHealthSettingsRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ServerRuntimeHealthServiceTest {
     private final OperationEventService operationEventService = mock(OperationEventService.class);
+    private final ServerRuntimeHealthSettingsRepository settingsRepository = mock(ServerRuntimeHealthSettingsRepository.class);
 
     @Test
     void normalSampleDoesNotRecordOperationEvent() {
@@ -26,6 +31,7 @@ class ServerRuntimeHealthServiceTest {
                 0.3d,
                 2,
                 1_000L,
+                700L,
                 700L,
                 1_000L,
                 200L));
@@ -56,6 +62,7 @@ class ServerRuntimeHealthServiceTest {
                 2,
                 1_000L,
                 50L,
+                50L,
                 1_000L,
                 950L));
 
@@ -77,12 +84,35 @@ class ServerRuntimeHealthServiceTest {
                 any());
     }
 
+    @Test
+    void availableMemoryIsPreferredForSystemMemoryPressure() {
+        var now = OffsetDateTime.parse("2026-06-12T12:00:00+09:00");
+        var service = service(capturedAt -> new ServerRuntimeHealthMetrics(
+                capturedAt,
+                10.0d,
+                5.0d,
+                0.3d,
+                2,
+                1_000L,
+                50L,
+                400L,
+                1_000L,
+                200L));
+
+        var snapshot = service.sample(now, true);
+
+        org.assertj.core.api.Assertions.assertThat(snapshot.systemMemoryUsedBytes()).isEqualTo(600L);
+        org.assertj.core.api.Assertions.assertThat(snapshot.systemMemoryAvailableBytes()).isEqualTo(400L);
+        org.assertj.core.api.Assertions.assertThat(snapshot.warnings()).doesNotContain("SYSTEM_MEMORY_HIGH");
+    }
+
     private ServerRuntimeHealthService service(ServerRuntimeHealthProbe probe) {
         var properties = new ServerRuntimeHealthProperties();
         properties.setCpuWarnPercent(85.0d);
         properties.setSystemMemoryWarnPercent(90.0d);
         properties.setJvmHeapWarnPercent(90.0d);
         properties.setEventCooldownMs(60_000);
-        return new ServerRuntimeHealthService(properties, probe, operationEventService);
+        when(settingsRepository.findById(ServerRuntimeHealthSettings.SINGLETON_KEY)).thenReturn(Optional.empty());
+        return new ServerRuntimeHealthService(properties, probe, operationEventService, settingsRepository);
     }
 }

@@ -18,6 +18,9 @@ import com.archdox.cloud.document.infra.DocumentDeliveryRequestRepository;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.monitoring.application.ServerRuntimeHealthService;
+import com.archdox.cloud.monitoring.dto.PlatformServerRuntimeHealthResponse;
+import com.archdox.cloud.monitoring.dto.ServerRuntimeHealthSettingsResponse;
+import com.archdox.cloud.monitoring.dto.UpdateServerRuntimeHealthSettingsRequest;
 import com.archdox.cloud.office.domain.Office;
 import com.archdox.cloud.office.infra.OfficeRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
@@ -111,6 +114,23 @@ public class PlatformOpsReadService {
                 countGroup(DocumentDeliveryStatus.values(), deliveryRepository::countByStatus),
                 serverRuntimeHealthService.latestOrSample(),
                 OffsetDateTime.now());
+    }
+
+    @Transactional(readOnly = true)
+    public PlatformServerRuntimeHealthResponse serverRuntime(UserPrincipal principal) {
+        platformAdminService.requirePlatformAdmin(principal);
+        return new PlatformServerRuntimeHealthResponse(
+                serverRuntimeHealthService.latestOrSample(),
+                serverRuntimeHealthService.settings());
+    }
+
+    @Transactional
+    public ServerRuntimeHealthSettingsResponse updateServerRuntimeSettings(
+            UserPrincipal principal,
+            UpdateServerRuntimeHealthSettingsRequest request
+    ) {
+        platformAdminService.requirePlatformAdmin(principal);
+        return serverRuntimeHealthService.updateSettings(request, principal.userId());
     }
 
     @Transactional(readOnly = true)

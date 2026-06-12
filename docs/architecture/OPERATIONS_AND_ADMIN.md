@@ -53,6 +53,29 @@ It should eventually provide:
 Admin UI must not bypass Cloud API authorization. It should call admin REST APIs
 with explicit platform/admin roles.
 
+## Server Runtime Health Monitoring
+
+Cloud API runs a long-lived Flower monitoring flow for server runtime health.
+The monitor records only the latest in-memory sample for normal operation and
+creates a durable operation event only when configured warning thresholds are
+crossed.
+
+Platform Admin exposes this under `Platform Management > Server Resources`.
+Operators can adjust these runtime settings without changing code:
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| Enabled | `true` | Disables scheduled sampling and high-load event recording, but the control flow remains alive. |
+| Sampling interval | `300000ms` | Minimum accepted value is `30000ms`. |
+| CPU warning | `85%` | Uses the higher value of system CPU and process CPU. |
+| System memory warning | `90%` | Uses Linux `MemAvailable` when present, not naive `total - free`. |
+| JVM heap warning | `90%` | Uses JVM heap used/max. |
+| Event cooldown | `900000ms` | Prevents repeated high-load events during the same pressure window. |
+
+Normal samples are not written to DB or files. High-load events are recorded as
+`SERVER_RUNTIME_LOAD_HIGH` operation events so the platform ops harness can
+include them in later operational summaries.
+
 ## Implemented Admin UI Foundation
 
 Phase 5-2 adds the first React-based office operations console in the `admin`

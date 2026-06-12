@@ -55,6 +55,7 @@ import type {
   PlatformOpsSummary,
   PlatformPhotoOps,
   PlatformReportPreflightFinding,
+  PlatformServerRuntimeHealth,
   PlatformUserOps,
   OfficeAiPolicy,
   Photo,
@@ -576,6 +577,28 @@ export function getPlatformAdminMe(token: string) {
 
 export function getPlatformSummary(token: string) {
   return request<PlatformOpsSummary>("/api/v1/platform-admin/ops/summary", { token });
+}
+
+export function getPlatformServerRuntimeHealth(token: string) {
+  return request<PlatformServerRuntimeHealth>("/api/v1/platform-admin/ops/server-runtime", { token });
+}
+
+export function updatePlatformServerRuntimeHealthSettings(
+  token: string,
+  body: {
+    enabled?: boolean;
+    checkIntervalMs?: number;
+    cpuWarnPercent?: number;
+    systemMemoryWarnPercent?: number;
+    jvmHeapWarnPercent?: number;
+    eventCooldownMs?: number;
+  }
+) {
+  return request<PlatformServerRuntimeHealth["settings"]>("/api/v1/platform-admin/ops/server-runtime/settings", {
+    token,
+    method: "PUT",
+    body
+  });
 }
 
 export function getPlatformUsers(token: string, limit = 50) {

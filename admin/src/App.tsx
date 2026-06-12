@@ -115,6 +115,7 @@ import {
   getPlatformOpsIncidents,
   getPlatformOpsRuns,
   getPlatformPhotos,
+  getPlatformServerRuntimeHealth,
   getPlatformSummary,
   getPlatformUsers,
   getSummary,
@@ -138,6 +139,7 @@ import {
   updatePlatformAiProvider,
   updatePlatformLegalDomainBinding,
   updatePlatformOfficeAiPolicy,
+  updatePlatformServerRuntimeHealthSettings,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
   upsertProjectAssignment,
@@ -205,6 +207,7 @@ import type {
   PlatformOpsSummary,
   PlatformPhotoOps,
   PlatformReportPreflightFinding,
+  PlatformServerRuntimeHealth,
   PlatformUserOps,
   Photo,
   Project,
@@ -243,6 +246,7 @@ type ViewKey =
   | "platform-worker-governance"
   | "platform-worker-approvals"
   | "platform-flower-runtime"
+  | "platform-server-runtime"
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
@@ -272,6 +276,7 @@ type PlatformViewKey = Extract<
   | "platform-worker-governance"
   | "platform-worker-approvals"
   | "platform-flower-runtime"
+  | "platform-server-runtime"
   | "platform-events"
 >;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-budgets" | "ai-policies" | "ai-observer">;
@@ -320,6 +325,7 @@ type PlatformOpsData = {
   workerGovernance: WorkerGovernanceSummary | null;
   workerApprovals: WorkerApprovalRequest[];
   flowerRuntimeDump: FlowerRuntimeDump | null;
+  serverRuntime: PlatformServerRuntimeHealth | null;
   aiProviders: AiProviderCredential[];
   aiHarnessPolicies: AiHarnessPolicy[];
   officeAiPolicies: OfficeAiPolicy[];
@@ -392,6 +398,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   workerGovernance: null,
   workerApprovals: [],
   flowerRuntimeDump: null,
+  serverRuntime: null,
   aiProviders: [],
   aiHarnessPolicies: [],
   officeAiPolicies: [],
@@ -436,7 +443,8 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-engine-keys", label: "Engine API Key" },
   { key: "platform-worker-governance", label: "Worker Action Registry" },
   { key: "platform-worker-approvals", label: "Worker 승인" },
-  { key: "platform-flower-runtime", label: "Flower Runtime" }
+  { key: "platform-flower-runtime", label: "Flower Runtime" },
+  { key: "platform-server-runtime", label: "서버 리소스" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -950,6 +958,8 @@ export default function App() {
         next.workerApprovals = await getPlatformWorkerApprovals(token, 50);
       } else if (view === "platform-flower-runtime") {
         next.flowerRuntimeDump = await getPlatformFlowerRuntimeDump(token);
+      } else if (view === "platform-server-runtime") {
+        next.serverRuntime = await getPlatformServerRuntimeHealth(token);
       } else if (view === "ai-overview") {
         const [
           aiProviders,
@@ -1045,6 +1055,31 @@ export default function App() {
       if (!silent) {
         setLoading(false);
       }
+    }
+  }
+
+  async function handleUpdateServerRuntimeSettings(body: {
+    enabled: boolean;
+    checkIntervalMs: number;
+    cpuWarnPercent: number;
+    systemMemoryWarnPercent: number;
+    jvmHeapWarnPercent: number;
+    eventCooldownMs: number;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformServerRuntimeHealthSettings(auth.accessToken, body);
+      const serverRuntime = await getPlatformServerRuntimeHealth(auth.accessToken);
+      setPlatformData((current) => ({ ...current, serverRuntime }));
+      setNotice("서버 리소스 관측 설정을 저장했습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "서버 리소스 관측 설정을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -2043,6 +2078,7 @@ export default function App() {
               onDiagnoseIncident={runPlatformIncidentDiagnosis}
               onApproveWorkerApproval={handleApproveWorkerApproval}
               onRejectWorkerApproval={handleRejectWorkerApproval}
+              onUpdateServerRuntimeSettings={handleUpdateServerRuntimeSettings}
             />
           )}
           {isAiView(activeView) && (
@@ -5359,7 +5395,8 @@ function PlatformView({
   onDismissIssuedEngineApiKey,
   onDiagnoseIncident,
   onApproveWorkerApproval,
-  onRejectWorkerApproval
+  onRejectWorkerApproval,
+  onUpdateServerRuntimeSettings
 }: {
   view: PlatformViewKey;
   accessToken: string;
@@ -5397,9 +5434,16 @@ function PlatformView({
   onDiagnoseIncident: (incidentId: number) => void;
   onApproveWorkerApproval: (approvalRequestId: number) => Promise<void>;
   onRejectWorkerApproval: (approvalRequestId: number) => Promise<void>;
+  onUpdateServerRuntimeSettings: (body: {
+    enabled: boolean;
+    checkIntervalMs: number;
+    cpuWarnPercent: number;
+    systemMemoryWarnPercent: number;
+    jvmHeapWarnPercent: number;
+    eventCooldownMs: number;
+  }) => Promise<void>;
 }) {
   const summary = data.summary;
-  const serverHealth = summary?.serverHealth ?? null;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
   const failedCommands = (summary?.agentCommands.FAILED ?? 0) + (summary?.agentCommands.EXPIRED ?? 0);
   const failedPickups = summary?.photoPickups.FAILED ?? 0;
@@ -5430,6 +5474,7 @@ function PlatformView({
   const showWorkerGovernance = view === "platform-worker-governance";
   const showWorkerApprovals = view === "platform-worker-approvals";
   const showFlowerRuntime = view === "platform-flower-runtime";
+  const showServerRuntime = view === "platform-server-runtime";
   const showEvents = view === "platform-events";
 
   return (
@@ -5530,40 +5575,15 @@ function PlatformView({
             <MetricCard icon={<Command size={20} />} label="명령" value={summary?.agentCommands.IN_FLIGHT ?? 0} detail="진행 중" tone="amber" />
             <MetricCard icon={<AlertTriangle size={20} />} label="확인 필요" value={attention} detail="실패/멈춤 후보" tone={attention > 0 ? "red" : "green"} />
           </div>
-          <div className="metric-grid compact">
-            <MetricCard
-              icon={<Gauge size={20} />}
-              label="서버 CPU"
-              value={formatPercent(serverHealth?.systemCpuLoadPercent ?? serverHealth?.processCpuLoadPercent)}
-              detail={serverHealth ? `프로세스 ${formatPercent(serverHealth.processCpuLoadPercent)} · ${serverHealth.availableProcessors} cores` : "수집 대기"}
-              tone={runtimeMetricTone(serverHealth?.systemCpuLoadPercent ?? serverHealth?.processCpuLoadPercent, serverHealth?.warnings.includes("CPU_LOAD_HIGH"))}
-            />
-            <MetricCard
-              icon={<Activity size={20} />}
-              label="서버 메모리"
-              value={formatPercent(serverHealth?.systemMemoryUsedPercent)}
-              detail={serverHealth ? `${formatBytes(serverHealth.systemMemoryUsedBytes)} / ${formatBytes(serverHealth.systemMemoryTotalBytes)}` : "수집 대기"}
-              tone={runtimeMetricTone(serverHealth?.systemMemoryUsedPercent, serverHealth?.warnings.includes("SYSTEM_MEMORY_HIGH"))}
-            />
-            <MetricCard
-              icon={<HardDrive size={20} />}
-              label="JVM Heap"
-              value={formatPercent(serverHealth?.jvmHeapUsedPercent)}
-              detail={serverHealth ? `${formatBytes(serverHealth.jvmHeapUsedBytes)} / ${formatBytes(serverHealth.jvmHeapMaxBytes)}` : "수집 대기"}
-              tone={runtimeMetricTone(serverHealth?.jvmHeapUsedPercent, serverHealth?.warnings.includes("JVM_HEAP_HIGH"))}
-            />
-            <MetricCard
-              icon={<Clock3 size={20} />}
-              label="수집 시각"
-              value={serverHealth?.status ?? "-"}
-              detail={serverHealth ? formatDate(serverHealth.capturedAt) : "5분 주기 monitoring flow"}
-              tone={serverHealthTone(serverHealth?.status)}
-            />
-          </div>
-          {serverHealth?.warnings.length ? (
-            <InlineNotice message={`서버 부하 경고: ${serverHealth.warnings.map(displayLabel).join(", ")}`} />
-          ) : null}
         </>
+      ) : null}
+
+      {showServerRuntime ? (
+        <ServerRuntimeHealthPanel
+          busy={loading}
+          runtime={data.serverRuntime}
+          onSave={onUpdateServerRuntimeSettings}
+        />
       ) : null}
 
       {showOverview || showIncidents ? (
@@ -5907,6 +5927,203 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
           ])}
         />
       </Panel>
+    </div>
+  );
+}
+
+function ServerRuntimeHealthPanel({
+  runtime,
+  busy,
+  onSave
+}: {
+  runtime: PlatformServerRuntimeHealth | null;
+  busy: boolean;
+  onSave: (body: {
+    enabled: boolean;
+    checkIntervalMs: number;
+    cpuWarnPercent: number;
+    systemMemoryWarnPercent: number;
+    jvmHeapWarnPercent: number;
+    eventCooldownMs: number;
+  }) => Promise<void>;
+}) {
+  const snapshot = runtime?.snapshot ?? null;
+  const settings = runtime?.settings ?? null;
+  const [form, setForm] = useState({
+    enabled: true,
+    checkIntervalSeconds: "300",
+    cpuWarnPercent: "85",
+    systemMemoryWarnPercent: "90",
+    jvmHeapWarnPercent: "90",
+    eventCooldownMinutes: "15"
+  });
+
+  useEffect(() => {
+    if (!settings) {
+      return;
+    }
+    setForm({
+      enabled: settings.enabled,
+      checkIntervalSeconds: String(Math.round(settings.checkIntervalMs / 1000)),
+      cpuWarnPercent: String(settings.cpuWarnPercent),
+      systemMemoryWarnPercent: String(settings.systemMemoryWarnPercent),
+      jvmHeapWarnPercent: String(settings.jvmHeapWarnPercent),
+      eventCooldownMinutes: String(Math.round(settings.eventCooldownMs / 60_000))
+    });
+  }, [settings]);
+
+  function update(field: keyof typeof form, value: string | boolean) {
+    setForm((current) => ({ ...current, [field]: value } as typeof current));
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onSave({
+      enabled: form.enabled,
+      checkIntervalMs: Math.max(30, Number(form.checkIntervalSeconds || 0)) * 1000,
+      cpuWarnPercent: Number(form.cpuWarnPercent),
+      systemMemoryWarnPercent: Number(form.systemMemoryWarnPercent),
+      jvmHeapWarnPercent: Number(form.jvmHeapWarnPercent),
+      eventCooldownMs: Math.max(1, Number(form.eventCooldownMinutes || 0)) * 60_000
+    });
+  }
+
+  return (
+    <div className="view-stack">
+      <Panel
+        title="서버 리소스"
+        icon={<Server size={18} />}
+        action={<span className="panel-context">{snapshot ? formatDate(snapshot.capturedAt) : "수집 대기"}</span>}
+      >
+        {snapshot ? (
+          <>
+            <div className="metric-grid compact">
+              <MetricCard
+                icon={<Gauge size={20} />}
+                label="서버 CPU"
+                value={formatPercent(snapshot.systemCpuLoadPercent ?? snapshot.processCpuLoadPercent)}
+                detail={`프로세스 ${formatPercent(snapshot.processCpuLoadPercent)} · ${snapshot.availableProcessors} cores`}
+                tone={runtimeMetricTone(snapshot.systemCpuLoadPercent ?? snapshot.processCpuLoadPercent, snapshot.warnings.includes("CPU_LOAD_HIGH"))}
+              />
+              <MetricCard
+                icon={<Activity size={20} />}
+                label="서버 메모리 압박"
+                value={formatPercent(snapshot.systemMemoryUsedPercent)}
+                detail={`사용 가능 ${formatBytes(snapshot.systemMemoryAvailableBytes)} / 전체 ${formatBytes(snapshot.systemMemoryTotalBytes)}`}
+                tone={runtimeMetricTone(snapshot.systemMemoryUsedPercent, snapshot.warnings.includes("SYSTEM_MEMORY_HIGH"))}
+              />
+              <MetricCard
+                icon={<HardDrive size={20} />}
+                label="JVM Heap"
+                value={formatPercent(snapshot.jvmHeapUsedPercent)}
+                detail={`${formatBytes(snapshot.jvmHeapUsedBytes)} / ${formatBytes(snapshot.jvmHeapMaxBytes)}`}
+                tone={runtimeMetricTone(snapshot.jvmHeapUsedPercent, snapshot.warnings.includes("JVM_HEAP_HIGH"))}
+              />
+              <MetricCard
+                icon={<Clock3 size={20} />}
+                label="상태"
+                value={snapshot.status}
+                detail={snapshot.warnings.length > 0 ? snapshot.warnings.map(displayLabel).join(", ") : "경고 없음"}
+                tone={serverHealthTone(snapshot.status)}
+              />
+            </div>
+            <InlineNotice message="서버 메모리는 Linux MemAvailable 값을 우선 사용합니다. 파일 캐시 때문에 높게 보이는 단순 used 값보다 실제 메모리 압박을 더 잘 보여줍니다." />
+          </>
+        ) : (
+          <EmptyState message="서버 리소스 관측값을 불러오지 못했습니다." />
+        )}
+      </Panel>
+
+      <div className="dashboard-grid">
+        <Panel title="과부하 판단 기준" icon={<AlertTriangle size={18} />}>
+          <Table
+            columns={["항목", "현재 기준", "경고 이벤트"]}
+            empty="설정값이 없습니다."
+            rows={[
+              ["CPU", settings ? `${settings.cpuWarnPercent}% 이상` : "-", "CPU_LOAD_HIGH"],
+              ["시스템 메모리 압박", settings ? `${settings.systemMemoryWarnPercent}% 이상` : "-", "SYSTEM_MEMORY_HIGH"],
+              ["JVM Heap", settings ? `${settings.jvmHeapWarnPercent}% 이상` : "-", "JVM_HEAP_HIGH"],
+              ["수집 주기", settings ? formatDurationMillis(settings.checkIntervalMs) : "-", "monitoring flow tick"],
+              ["이벤트 쿨다운", settings ? formatDurationMillis(settings.eventCooldownMs) : "-", "중복 과부하 이벤트 억제"]
+            ]}
+          />
+        </Panel>
+
+        <Panel title="서버 리소스 설정" icon={<Gauge size={18} />}>
+          <form className="server-runtime-settings-form" onSubmit={submit}>
+            <label className="toggle-row">
+              <input
+                checked={form.enabled}
+                onChange={(event) => update("enabled", event.target.checked)}
+                type="checkbox"
+              />
+              주기 관측 활성화
+            </label>
+            <label>
+              수집 주기(초)
+              <input
+                min={30}
+                max={86400}
+                onChange={(event) => update("checkIntervalSeconds", event.target.value)}
+                type="number"
+                value={form.checkIntervalSeconds}
+              />
+            </label>
+            <label>
+              CPU 경고 기준(%)
+              <input
+                min={1}
+                max={100}
+                onChange={(event) => update("cpuWarnPercent", event.target.value)}
+                step="0.1"
+                type="number"
+                value={form.cpuWarnPercent}
+              />
+            </label>
+            <label>
+              시스템 메모리 경고 기준(%)
+              <input
+                min={1}
+                max={100}
+                onChange={(event) => update("systemMemoryWarnPercent", event.target.value)}
+                step="0.1"
+                type="number"
+                value={form.systemMemoryWarnPercent}
+              />
+            </label>
+            <label>
+              JVM Heap 경고 기준(%)
+              <input
+                min={1}
+                max={100}
+                onChange={(event) => update("jvmHeapWarnPercent", event.target.value)}
+                step="0.1"
+                type="number"
+                value={form.jvmHeapWarnPercent}
+              />
+            </label>
+            <label>
+              이벤트 쿨다운(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("eventCooldownMinutes", event.target.value)}
+                type="number"
+                value={form.eventCooldownMinutes}
+              />
+            </label>
+            <button className="button primary" disabled={busy || !settings} type="submit">
+              {busy ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+              설정 저장
+            </button>
+          </form>
+          {settings?.updatedAt ? (
+            <InlineNotice message={`마지막 변경: ${formatDate(settings.updatedAt)} / 사용자 #${settings.updatedByUserId ?? "-"}`} />
+          ) : (
+            <InlineNotice message="저장 전에는 애플리케이션 기본값을 사용합니다. 저장하면 재시작 후에도 DB 설정이 우선 적용됩니다." />
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -9914,6 +10131,19 @@ function formatPercent(value?: number | null) {
     return "-";
   }
   return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}%`;
+}
+
+function formatDurationMillis(value?: number | null) {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "-";
+  }
+  if (value >= 60_000 && value % 60_000 === 0) {
+    return `${value / 60_000}분`;
+  }
+  if (value >= 1000 && value % 1000 === 0) {
+    return `${value / 1000}초`;
+  }
+  return `${value}ms`;
 }
 
 function runtimeMetricTone(value?: number | null, warning?: boolean): "green" | "blue" | "amber" | "red" | "slate" {

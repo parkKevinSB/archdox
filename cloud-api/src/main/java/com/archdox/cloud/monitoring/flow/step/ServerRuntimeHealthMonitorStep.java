@@ -1,6 +1,5 @@
 package com.archdox.cloud.monitoring.flow.step;
 
-import com.archdox.cloud.monitoring.application.ServerRuntimeHealthProperties;
 import com.archdox.cloud.monitoring.application.ServerRuntimeHealthService;
 import io.github.parkkevinsb.flower.core.step.Step;
 import io.github.parkkevinsb.flower.core.step.StepContext;
@@ -17,21 +16,13 @@ public class ServerRuntimeHealthMonitorStep extends Step {
     private static final int WAIT = 100;
 
     private final ServerRuntimeHealthService healthService;
-    private final ServerRuntimeHealthProperties properties;
 
-    public ServerRuntimeHealthMonitorStep(
-            ServerRuntimeHealthService healthService,
-            ServerRuntimeHealthProperties properties
-    ) {
+    public ServerRuntimeHealthMonitorStep(ServerRuntimeHealthService healthService) {
         this.healthService = healthService;
-        this.properties = properties;
     }
 
     @Override
     protected StepResult onTick(StepContext ctx) {
-        if (!properties.isEnabled()) {
-            return StepResult.done();
-        }
         return switch (ctx.stepNo()) {
             case CHECK -> check(ctx);
             case WAIT -> waitUntilNextCheck(ctx);
@@ -41,14 +32,16 @@ public class ServerRuntimeHealthMonitorStep extends Step {
     }
 
     private StepResult check(StepContext ctx) {
-        try {
-            healthService.sample(
-                    OffsetDateTime.ofInstant(Instant.ofEpochMilli(ctx.clock().currentTimeMillis()), ZoneOffset.UTC),
-                    true);
-        } catch (Exception ex) {
-            log.warn("Server runtime health monitor check failed", ex);
+        if (healthService.monitoringEnabled()) {
+            try {
+                healthService.sample(
+                        OffsetDateTime.ofInstant(Instant.ofEpochMilli(ctx.clock().currentTimeMillis()), ZoneOffset.UTC),
+                        true);
+            } catch (Exception ex) {
+                log.warn("Server runtime health monitor check failed", ex);
+            }
         }
-        ctx.startTimeout(properties.safeCheckIntervalMs());
+        ctx.startTimeout(healthService.effectiveCheckIntervalMs());
         ctx.setStepNo(WAIT);
         return StepResult.stay();
     }

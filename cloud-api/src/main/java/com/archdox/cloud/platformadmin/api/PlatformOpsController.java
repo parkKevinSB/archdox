@@ -4,6 +4,9 @@ import com.archdox.cloud.agent.domain.ArchDoxAgentCommandStatus;
 import com.archdox.cloud.document.domain.DocumentDeliveryStatus;
 import com.archdox.cloud.document.domain.DocumentJobStatus;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.monitoring.dto.PlatformServerRuntimeHealthResponse;
+import com.archdox.cloud.monitoring.dto.ServerRuntimeHealthSettingsResponse;
+import com.archdox.cloud.monitoring.dto.UpdateServerRuntimeHealthSettingsRequest;
 import com.archdox.cloud.operation.dto.OperationEventResponse;
 import com.archdox.cloud.photo.domain.PhotoPickupStatus;
 import com.archdox.cloud.photo.domain.PhotoStatus;
@@ -22,6 +25,8 @@ import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +45,19 @@ public class PlatformOpsController {
     @GetMapping("/summary")
     public PlatformOpsSummaryResponse summary(Authentication authentication) {
         return service.summary(principal(authentication));
+    }
+
+    @GetMapping("/server-runtime")
+    public PlatformServerRuntimeHealthResponse serverRuntime(Authentication authentication) {
+        return service.serverRuntime(principal(authentication));
+    }
+
+    @PutMapping("/server-runtime/settings")
+    public ServerRuntimeHealthSettingsResponse updateServerRuntimeSettings(
+            Authentication authentication,
+            @RequestBody UpdateServerRuntimeHealthSettingsRequest request
+    ) {
+        return service.updateServerRuntimeSettings(principal(authentication), request);
     }
 
     @GetMapping("/users")
