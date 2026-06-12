@@ -107,7 +107,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         var prompt = new SourceBackedLegalReviewPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("0.2.1");
+        assertThat(prompt.version().version()).isEqualTo("0.2.2");
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
@@ -118,6 +118,9 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                 .contains("technicalCriteriaReviewRequired=true")
                 .contains("do not claim technical-standard compliance")
                 .contains("actual technical criteria were not verified")
+                .contains("For vague material/performance notes")
+                .contains("never claim that specifications, test reports, approval documents, or certificates were attached")
+                .contains("별도 확인 및 보관 대상으로 기록합니다")
                 .contains("REPORT_TYPE_ANCHOR alone is broad report-type context")
                 .contains("Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거")
                 .contains("PASS must explain the legal review scope")

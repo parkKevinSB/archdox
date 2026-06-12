@@ -330,7 +330,9 @@ public class ReportPreflightLegalReviewHarnessService {
                 "A checklist/business-item PASS requires a PRIMARY BUSINESS_ITEM_ANCHOR.",
                 "If references are only search candidates or generic anchors, return WARN or INSUFFICIENT_CONTEXT instead of PASS.",
                 "Do not treat checklist binding plus photo evidence as technical-standard compliance.",
-                "If technicalCriteriaReviewRequired=true and technicalCriteriaPassEligible=false, return WARN or INSUFFICIENT_CONTEXT instead of PASS."));
+                "If technicalCriteriaReviewRequired=true and technicalCriteriaPassEligible=false, return WARN or INSUFFICIENT_CONTEXT instead of PASS.",
+                "For vague material/performance notes, suggest safe report prose that names evidence classes such as specifications, test reports, approvals, certificates, product identity, or approved-vs-delivered material matching.",
+                "Never claim those technical documents were attached, stored, or verified unless the report input explicitly says so."));
         return Map.copyOf(context);
     }
 

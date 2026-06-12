@@ -93,7 +93,7 @@ class ReportPreflightHarnessFactoryTest {
         var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.2.0");
+        assertThat(prompt.version().version()).isEqualTo("1.2.1");
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
                 .contains("top-level photos array as the source of truth")
@@ -106,6 +106,10 @@ class ReportPreflightHarnessFactoryTest {
                 .contains("sourceBackedLegalReferences")
                 .contains("separate ArchDox source-backed legal review harness")
                 .contains("Do not claim that legal review passed")
+                .contains("Technical criteria wording guidance")
+                .contains("창호 자재 성능 확인시 이상 없음")
+                .contains("Never claim that specifications, test reports, material approvals, certificates, or attachments were actually attached")
+                .contains("별도 확인 및 보관 대상으로 기록합니다")
                 .contains("replacement to the exact full Korean text")
                 .contains("The replacement value must be final report prose");
         assertThat(prompt.messages().get(1).content())

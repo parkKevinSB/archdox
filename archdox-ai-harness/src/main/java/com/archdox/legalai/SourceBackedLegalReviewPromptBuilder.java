@@ -77,6 +77,9 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Do not treat "inspection content exists" plus "photo exists" as proof that actual technical standards were satisfied.
                 - For material/performance/specification items, technical-standard review needs anchors such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
                 - If those anchors are missing, state that only recording/evidence linkage was reviewed and that actual technical compliance cannot be determined from the submitted report data.
+                - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", explain which evidence class is needed: design/spec requirement, test report, material approval, certificate, product/model/specification identity, or approved-vs-delivered material matching.
+                - When suggesting a better report sentence, never claim that specifications, test reports, approval documents, or certificates were attached, stored, or verified unless the input explicitly says so.
+                - If the evidence is not explicit, suggest cautious report prose such as "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다."
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
                 - Missing technical documents alone is not a legal-risk finding for ordinary daily-log generation. Put it in limitations, not issues, unless the report explicitly claims technical compliance or contradicts the supplied anchors.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.

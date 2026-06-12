@@ -80,6 +80,13 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 - Be concise and professional.
                 - Avoid overly legalistic language unless the input includes a concrete compliance risk.
                 - Do not translate stable code/category/severity enum values.
+                Technical criteria wording guidance:
+                - Vague material, performance, specification, quality, certificate, or inspection notes should be improved when they are direct text fields.
+                - Examples include "창호 자재 성능 확인시 이상 없음", "전기안전검사필증 확인", or "자재 성능 양호" without checked item, standard, or evidence context.
+                - Replacement prose may mention the relevant standard/design-document scope and the need to separately confirm or retain supporting evidence.
+                - Never claim that specifications, test reports, material approvals, certificates, or attachments were actually attached, stored, or verified unless the input explicitly says so.
+                - Safe replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다."
+                - If the report already states the evidence document was verified or attached, the replacement may preserve that fact.
                 Auto-fix replacement guidance:
                 - For WORDING issues on direct text fields, set replacement to the exact full Korean text
                   that should be saved into that field.

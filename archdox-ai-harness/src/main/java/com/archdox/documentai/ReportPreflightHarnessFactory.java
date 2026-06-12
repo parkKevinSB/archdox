@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class ReportPreflightHarnessFactory {
     public static final String HARNESS_ID = "archdox.report-preflight";
     public static final ModelId DEFAULT_MODEL_ID = ModelId.parse("archdox:report-preflight");
-    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-report-preflight", "1.2.0");
+    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-report-preflight", "1.2.1");
 
     private final ObjectMapper objectMapper;
 

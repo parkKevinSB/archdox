@@ -1189,7 +1189,8 @@ button {
 
 .preflight-legal-review-head strong,
 .preflight-legal-review-grid strong,
-.preflight-legal-review-refs strong {
+.preflight-legal-review-refs strong,
+.preflight-legal-review-notes strong {
   display: block;
   color: #294d47;
   font-size: 12px;
@@ -1244,10 +1245,47 @@ button {
 
 .preflight-legal-review-refs {
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 
-.preflight-legal-review-refs > span {
+.preflight-legal-review-ref-groups {
+  display: grid;
+  gap: 6px;
+}
+
+.preflight-legal-review-ref-group {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #e0ece9;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.preflight-legal-review-ref-group > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preflight-legal-review-ref-group b {
+  color: #2a514b;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.preflight-legal-review-ref-group small {
+  color: #657a75;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.preflight-legal-review-ref-group > span {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -1266,6 +1304,26 @@ button {
   font-style: normal;
   font-weight: 850;
   overflow-wrap: anywhere;
+}
+
+.preflight-legal-review-notes {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: 1px dashed #dfc783;
+  border-radius: 6px;
+  background: rgba(255, 252, 241, 0.78);
+}
+
+.preflight-legal-review-notes ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 17px;
+  color: #6e5a1d;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .preflight-finding-list {
@@ -5107,6 +5165,15 @@ button.list-row {
 
   .document-simple-meta {
     align-items: start;
+  }
+
+  .preflight-legal-review-ref-group > div {
+    display: grid;
+    gap: 2px;
+  }
+
+  .preflight-legal-review-ref-group small {
+    text-align: left;
   }
 
   .legal-update-detail header {

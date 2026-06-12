@@ -48,6 +48,19 @@ type NarrativeRenderField = {
   value: string;
 };
 
+type LegalReferenceDisplayItem = {
+  key: string;
+  label: string;
+  detail?: ReportPreflightLegalReferenceResponse;
+};
+
+type LegalReferenceDisplayGroup = {
+  key: string;
+  title: string;
+  description: string;
+  items: LegalReferenceDisplayItem[];
+};
+
 const EMPTY_NARRATIVE_VALUES: Record<string, string> = {};
 
 export function DocumentWorkspace({
@@ -1369,7 +1382,8 @@ function PreflightLegalReviewSummary({
   stale: boolean;
 }) {
   const summary = preflightLegalSummaryV2(findings, run, stale);
-  const visibleReferences = summary.references.slice(0, 5);
+  const referenceGroups = legalReviewReferenceGroups(summary.references);
+  const constraintNotes = legalReviewConstraintNotes(findings);
 
   return (
     <div className={`preflight-legal-review ${summary.kind}`}>
@@ -1396,19 +1410,42 @@ function PreflightLegalReviewSummary({
       </div>
       <div className="preflight-legal-review-refs">
         <strong>검토된 조문</strong>
-        {visibleReferences.length > 0 ? (
-          <span>
-            {visibleReferences.map((reference) => (
-              <em key={reference.key}>{reference.label}</em>
-            ))}
-            {summary.references.length > visibleReferences.length ? (
-              <em>외 {summary.references.length - visibleReferences.length}건</em>
-            ) : null}
-          </span>
+        {referenceGroups.length > 0 ? (
+          <div className="preflight-legal-review-ref-groups">
+            {referenceGroups.map((group) => {
+              const visibleItems = group.items.slice(0, 4);
+              return (
+                <div className="preflight-legal-review-ref-group" key={group.key}>
+                  <div>
+                    <b>{group.title}</b>
+                    <small>{group.description}</small>
+                  </div>
+                  <span>
+                    {visibleItems.map((reference) => (
+                      <em key={reference.key}>{reference.label}</em>
+                    ))}
+                    {group.items.length > visibleItems.length ? (
+                      <em>외 {group.items.length - visibleItems.length}건</em>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <small>표시된 조문 근거가 없습니다.</small>
         )}
       </div>
+      {constraintNotes.length > 0 ? (
+        <div className="preflight-legal-review-notes">
+          <strong>PASS 차단/검토 제한</strong>
+          <ul>
+            {constraintNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2129,13 +2166,13 @@ function preflightLegalSummary(
   };
 }
 
-function legalReviewReferences(findings: ReportPreflightReviewFindingResponse[]) {
-  const references = new Map<string, { key: string; label: string }>();
+function legalReviewReferences(findings: ReportPreflightReviewFindingResponse[]): LegalReferenceDisplayItem[] {
+  const references = new Map<string, LegalReferenceDisplayItem>();
   findings.forEach((finding) => {
     finding.legalReferenceDetails.forEach((reference) => {
       const key = reference.referenceId || reference.label;
       if (key && !references.has(key)) {
-        references.set(key, { key, label: legalReferenceDetailDisplay(reference) });
+        references.set(key, { key, label: legalReferenceDetailDisplay(reference), detail: reference });
       }
     });
     finding.legalReferences.forEach((reference) => {
@@ -2145,6 +2182,120 @@ function legalReviewReferences(findings: ReportPreflightReviewFindingResponse[])
     });
   });
   return [...references.values()];
+}
+
+function legalReviewReferenceGroups(references: LegalReferenceDisplayItem[]): LegalReferenceDisplayGroup[] {
+  const groups: LegalReferenceDisplayGroup[] = [
+    {
+      key: "primary",
+      title: "기본 감리 근거",
+      description: "감리일지 형식과 공통 감리 책임을 보는 1차 근거입니다.",
+      items: []
+    },
+    {
+      key: "secondary",
+      title: "공종별 2차 근거",
+      description: "선택한 공종·검사항목과 직접 연결된 추가 기준입니다.",
+      items: []
+    },
+    {
+      key: "candidate",
+      title: "검색 후보",
+      description: "참고용 후보입니다. 이것만으로는 PASS 판정을 내리지 않습니다.",
+      items: []
+    },
+    {
+      key: "other",
+      title: "기타 근거",
+      description: "분류 규칙에 걸리지 않은 보조 근거입니다.",
+      items: []
+    }
+  ];
+
+  references.forEach((reference) => {
+    if (isLegalReferenceCandidate(reference)) {
+      groups[2].items.push(reference);
+    } else if (isBasicLegalReference(reference)) {
+      groups[0].items.push(reference);
+    } else if (isSecondaryLegalReference(reference)) {
+      groups[1].items.push(reference);
+    } else {
+      groups[3].items.push(reference);
+    }
+  });
+
+  return groups.filter((group) => group.items.length > 0);
+}
+
+function isLegalReferenceCandidate(reference: LegalReferenceDisplayItem) {
+  const detail = reference.detail;
+  return detail?.resolutionSource === "LEGAL_CORPUS_SEARCH"
+    || detail?.bindingScope === "LEGAL_CORPUS_SEARCH"
+    || detail?.relevance === "CANDIDATE";
+}
+
+function isBasicLegalReference(reference: LegalReferenceDisplayItem) {
+  const detail = reference.detail;
+  const referenceId = detail?.referenceId || reference.key;
+  const actCode = referenceId.split(":")[0];
+  return detail?.bindingScope === "REPORT_TYPE"
+    || [
+      "BUILDING_ACT",
+      "BUILDING_ACT_ENFORCEMENT_DECREE",
+      "BUILDING_ACT_ENFORCEMENT_RULE",
+      "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD"
+    ].includes(actCode);
+}
+
+function isSecondaryLegalReference(reference: LegalReferenceDisplayItem) {
+  const detail = reference.detail;
+  return detail?.resolutionSource === "LEGAL_DOMAIN_BINDING"
+    && detail?.bindingScope === "CATALOG_ITEM";
+}
+
+function legalReviewConstraintNotes(findings: ReportPreflightReviewFindingResponse[]) {
+  const resultFinding = legalReviewResultFinding(findings);
+  if (!resultFinding) {
+    return [];
+  }
+  const attributes = resultFinding.attributes ?? {};
+  const notes = splitCsv(attributes.passBlockerCodes).map(legalPassBlockerLabel);
+  const limitations = attributes.referenceCoverageLimitations?.trim();
+  if (limitations) {
+    notes.push(limitations);
+  }
+  if (attributes.technicalCriteriaPassEligible === "false") {
+    notes.push("성능·규격 적합성은 시방서, 시험성적서, 자재승인서 같은 별도 증빙이 있어야 확정할 수 있습니다.");
+  }
+  if (attributes.finalPassEligible === "false" && notes.length === 0) {
+    notes.push("현재 근거 강도 또는 증빙 범위가 PASS 판정 기준에 충분하지 않습니다.");
+  }
+  return [...new Set(notes)].slice(0, 5);
+}
+
+function splitCsv(value?: string | null) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function legalPassBlockerLabel(code: string) {
+  const labels: Record<string, string> = {
+    PASS_BLOCKED_NO_LEGAL_REFERENCE: "PASS 판정에 사용할 업무-법령 근거가 없습니다.",
+    PASS_BLOCKED_SEARCH_CANDIDATE_ONLY: "검색 후보 근거만으로는 PASS 판정을 내리지 않습니다.",
+    PASS_BLOCKED_NO_PRIMARY_REFERENCE: "PASS 판정에는 주요 근거 조문이 필요합니다.",
+    PASS_BLOCKED_LEGAL_REFERENCE_TOO_WEAK: "업무-법령 근거 강도가 PASS 판정에 충분하지 않습니다.",
+    PASS_BLOCKED_REPORT_TYPE_ANCHOR_ONLY: "리포트 유형 공통 근거만으로는 개별 검사항목을 통과 처리하지 않습니다.",
+    PASS_BLOCKED_NO_BUSINESS_ITEM_ANCHOR: "선택한 검사항목 단위의 업무-법령 바인딩 근거가 부족합니다.",
+    PASS_BLOCKED_NO_DAILY_LOG_ENTRY: "감리일지 검토 항목이 없습니다.",
+    PASS_BLOCKED_MISSING_SUPERVISION_CONTENT: "감리내용이 있는 검토 항목이 없습니다.",
+    PASS_BLOCKED_MISSING_CHECKLIST_ITEM: "검사항목 코드가 연결된 감리 항목이 없습니다.",
+    PASS_BLOCKED_MISSING_PHOTO_EVIDENCE: "검토 항목에 연결된 사진 증거가 없습니다.",
+    PASS_BLOCKED_UNRESOLVED_PHOTO_REFERENCE: "감리 항목의 사진 참조가 업로드 사진과 일치하지 않습니다.",
+    PASS_BLOCKED_GENERATION_BLOCKING_PHOTO_ISSUE: "문서 생성을 막는 사진 증거 문제가 있습니다."
+  };
+  return labels[code] ?? code;
 }
 
 function isLegalPreflightFinding(finding: ReportPreflightReviewFindingResponse) {
