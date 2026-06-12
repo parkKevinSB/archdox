@@ -25,6 +25,9 @@ import com.archdox.cloud.reportai.flow.ReportPreflightLegalReviewAiWorker;
 import com.archdox.cloud.reportai.flow.ReportPreflightReviewRequest;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewFindingRepository;
 import com.archdox.cloud.reportai.infra.ReportPreflightReviewRunRepository;
+import com.archdox.legalai.SourceBackedLegalReviewIssue;
+import com.archdox.legalai.SourceBackedLegalReviewIssueCategory;
+import com.archdox.legalai.SourceBackedLegalReviewIssueSeverity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.gateway.AiModelGateway;
 import io.github.parkkevinsb.flower.ai.harness.model.ModelId;
@@ -344,6 +347,24 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat((List<?>) coverageMap.get("limitations"))
                 .map(String::valueOf)
                 .contains("성능·규격 등 실질 기술기준 적합성은 설계도서, 시방서, 시험성적서, 승인서 등 별도 근거 문서가 연결되지 않아 검토 범위에서 제외했습니다.");
+    }
+
+    @Test
+    void technicalCriteriaScopeIssueDoesNotRequireGenerationBlockingResolution() {
+        var issue = new SourceBackedLegalReviewIssue(
+                "TECHNICAL_CRITERIA_MISSING",
+                SourceBackedLegalReviewIssueCategory.EVIDENCE,
+                SourceBackedLegalReviewIssueSeverity.MEDIUM,
+                "DAILY_LOG",
+                "창호 자재성능에 대한 실질 기술기준 증거가 제출되지 않아 기술기준 적합성 판단이 불가능합니다.",
+                "감리일지에는 기록과 사진이 있으나 성능·규격 근거 문서는 연결되지 않았습니다.",
+                "일반 감리일지 생성에서는 범위 제한으로 표시합니다.",
+                List.of("BUILDING_ACT:0025001@0018232025082621035"),
+                "DAILY_LOG.groups[0].entries[0].supervisionContent");
+
+        var approvalRequired = ReflectionTestUtils.invokeMethod(service, "legalIssueApprovalRequired", issue);
+
+        assertThat(approvalRequired).isEqualTo(false);
     }
 
     @SuppressWarnings("unchecked")

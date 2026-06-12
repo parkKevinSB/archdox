@@ -78,6 +78,7 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - For material/performance/specification items, technical-standard review needs anchors such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
                 - If those anchors are missing, state that only recording/evidence linkage was reviewed and that actual technical compliance cannot be determined from the submitted report data.
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
+                - Missing technical documents alone is not a legal-risk finding for ordinary daily-log generation. Put it in limitations, not issues, unless the report explicitly claims technical compliance or contradicts the supplied anchors.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.

@@ -970,7 +970,7 @@ public class ReportPreflightLegalReviewHarnessService {
         var referenceIds = safeReferenceIds(issue.legalReferenceIds(), referencesById);
         var attributes = baseAttributes(result.status(), result.confidence().name(), providerCode, modelId, harnessRunId);
         attributes.put("category", issue.category().name());
-        attributes.put("approvalRequired", "true");
+        attributes.put("approvalRequired", String.valueOf(legalIssueApprovalRequired(issue)));
         attributes.put("suggestion", issue.suggestion());
         if (!issue.relatedFieldPath().isBlank()) {
             attributes.put("relatedFieldPath", issue.relatedFieldPath());
@@ -991,6 +991,28 @@ public class ReportPreflightLegalReviewHarnessService {
                 issue.evidence(),
                 Map.copyOf(attributes),
                 OffsetDateTime.now());
+    }
+
+    private boolean legalIssueApprovalRequired(SourceBackedLegalReviewIssue issue) {
+        if (isTechnicalCriteriaScopeLimitation(issue)) {
+            return false;
+        }
+        return switch (issue.severity()) {
+            case HIGH, CRITICAL -> true;
+            case INFO, LOW -> false;
+            case MEDIUM -> issue.category() == com.archdox.legalai.SourceBackedLegalReviewIssueCategory.COMPLIANCE
+                    || issue.category() == com.archdox.legalai.SourceBackedLegalReviewIssueCategory.LEGAL_RISK;
+        };
+    }
+
+    private boolean isTechnicalCriteriaScopeLimitation(SourceBackedLegalReviewIssue issue) {
+        var value = String.join(" ",
+                issue.code(),
+                issue.message(),
+                issue.evidence(),
+                issue.suggestion(),
+                issue.location());
+        return containsAny(value, "TECHNICAL_CRITERIA", "TECHNICAL_STANDARD", "기술기준", "실질기준", "성능·규격");
     }
 
     private ReportPreflightReviewFinding insufficientContextFinding(
