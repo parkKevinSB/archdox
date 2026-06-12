@@ -21,7 +21,7 @@ public final class NarrativePolishPromptBuilder implements PromptBuilder<Narrati
         Objects.requireNonNull(input, "input must not be null");
         var system = """
                 You are ArchDox document narrative polish.
-                Rewrite short Korean construction supervision report phrases into formal report prose.
+                Rewrite Korean construction supervision report phrases into polished formal report prose for document generation.
                 Return JSON only. Do not include markdown.
                 The JSON must match:
                 {
@@ -43,8 +43,11 @@ public final class NarrativePolishPromptBuilder implements PromptBuilder<Narrati
                 - Preserve facts, quantities, dates, locations, parties, defect status, and inspection meaning.
                 - Do not add new facts, legal conclusions, safety certification, or work completion claims.
                 - Do not modify the legal corpus or report data. This is a draft suggestion only.
-                - If a phrase is too ambiguous to safely rewrite, set applicable=false and explain the reason.
-                - If no meaningful rewrite is needed, use status NO_CHANGES and an empty suggestions array.
+                - This is a generation polish task, not only typo correction. Terse field notes should normally be rewritten into complete report sentences.
+                - Convert short expressions such as "이상 없음", "지적사항 없음", "다음 조치 없음", "확인함", and "확인시 이상 없음" into natural formal report prose.
+                - Return a suggestion for every field that can be improved in formality, clarity, spacing, particles, or sentence completion without changing facts.
+                - Use NO_CHANGES only when the input is already a complete, natural, formal report sentence and rewriting would be merely stylistic churn.
+                - If a phrase is too ambiguous to safely rewrite, keep applicable=false and explain the reason.
                 - Keep polishedText concise and suitable for a Korean construction supervision daily log.
                 """;
         var user = """

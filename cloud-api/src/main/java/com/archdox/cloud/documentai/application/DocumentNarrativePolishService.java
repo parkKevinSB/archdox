@@ -203,8 +203,11 @@ public class DocumentNarrativePolishService {
                             applicable);
                 })
                 .toList();
+        suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, suggestions);
         var status = result.status();
-        if (status == NarrativePolishStatus.DRAFTED && suggestions.stream().noneMatch(DocumentNarrativePolishResponse.SuggestionResponse::applicable)) {
+        if (suggestions.stream().anyMatch(DocumentNarrativePolishResponse.SuggestionResponse::applicable)) {
+            status = NarrativePolishStatus.DRAFTED;
+        } else if (status == NarrativePolishStatus.DRAFTED) {
             status = NarrativePolishStatus.NO_CHANGES;
         }
         return new DocumentNarrativePolishResponse(
