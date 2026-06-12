@@ -33,6 +33,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
 
     private static final String TARGET_LAW = "law";
     private static final String TARGET_ADMIN_RULE = "admrul";
+    private static final String TARGET_ORDINANCE = "ordin";
     private static final Charset LAW_OPEN_DATA_DEFAULT_CHARSET = StandardCharsets.UTF_8;
     private static final Charset LAW_OPEN_DATA_LEGACY_CHARSET = Charset.forName("MS949");
 
@@ -76,6 +77,24 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
     private static final String K_ANNEX_KEY = "\uBCC4\uD45C\uD0A4";
     private static final String K_ANNEX_TEXT = "\uBCC4\uD45C\uB0B4\uC6A9";
     private static final String K_ANNEX_PDF_LINK = "\uBCC4\uD45C\uC11C\uC2DDPDF\uD30C\uC77C\uB9C1\uD06C";
+    private static final String K_ORDINANCE_SEARCH_ROOT = "OrdinSearch";
+    private static final String K_ORDINANCE_SERVICE_ROOT = "LawService";
+    private static final String K_ORDINANCE_BASE = "\uC790\uCE58\uBC95\uADDC\uAE30\uBCF8\uC815\uBCF4";
+    private static final String K_ORDINANCE_ID = "\uC790\uCE58\uBC95\uADDCID";
+    private static final String K_ORDINANCE_SERIAL_NO = "\uC790\uCE58\uBC95\uADDC\uC77C\uB828\uBC88\uD638";
+    private static final String K_ORDINANCE_NAME = "\uC790\uCE58\uBC95\uADDC\uBA85";
+    private static final String K_ORDINANCE_TYPE = "\uC790\uCE58\uBC95\uADDC\uC885\uB958";
+    private static final String K_ORDINANCE_LOCAL_GOVERNMENT = "\uC9C0\uC790\uCCB4\uAE30\uAD00\uBA85";
+    private static final String K_ORDINANCE_DEPARTMENT = "\uB2F4\uB2F9\uBD80\uC11C\uBA85";
+    private static final String K_ORDINANCE_ARTICLE_ROOT = "\uC870\uBB38";
+    private static final String K_ORDINANCE_ARTICLE_UNIT = "\uC870";
+    private static final String K_ORDINANCE_ARTICLE_FLAG = "\uC870\uBB38\uC5EC\uBD80";
+    private static final String K_ORDINANCE_ARTICLE_NO = "\uC870\uBB38\uBC88\uD638";
+    private static final String K_ORDINANCE_ARTICLE_TITLE = "\uC870\uC81C\uBAA9";
+    private static final String K_ORDINANCE_ARTICLE_TEXT = "\uC870\uB0B4\uC6A9";
+    private static final String K_SUPPLEMENT = "\uBD80\uCE59";
+    private static final String K_SUPPLEMENT_TEXT = "\uBD80\uCE59\uB0B4\uC6A9";
+    private static final String K_AMENDMENT_INFO = "\uC81C\uAC1C\uC815\uC815\uBCF4";
 
     private final ObjectMapper objectMapper;
     private final LegalSyncProperties properties;
@@ -187,11 +206,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
         return fetchJsonAsync(
                 "lawSearch.do",
                 normalizedTarget,
-                Map.of(
-                        "target", normalizedTarget,
-                        "type", "JSON",
-                        "query", target.getQuery(),
-                        "display", "10"))
+                searchParameters(target, normalizedTarget))
                 .thenCompose(search -> {
             var item = selectSearchResult(target, normalizedTarget, search);
             var detailId = detailId(normalizedTarget, item);
@@ -213,9 +228,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                                     "ID", detailId))
                     .thenApply(detail -> {
                         var sourceUrl = serviceUrl(normalizedTarget, detailId);
-                        var snapshot = TARGET_LAW.equals(normalizedTarget)
-                                ? parseLawDetail(target, detail, sourceUrl)
-                                : parseAdminRuleDetail(target, detail, sourceUrl);
+                        var snapshot = parseDetail(target, normalizedTarget, detail, sourceUrl);
                         if (snapshot.articles().isEmpty()) {
                             throw new LawOpenDataException(
                                     "LAW_OPEN_DATA_ARTICLES_EMPTY",
@@ -514,6 +527,109 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 articles);
     }
 
+    LegalActSnapshot parseOrdinanceDetail(
+            LegalSyncProperties.Target target,
+            JsonNode detail,
+            String sourceUrl
+    ) {
+        var root = requiredObject(detail, K_ORDINANCE_SERVICE_ROOT);
+        var base = requiredObject(root, K_ORDINANCE_BASE);
+        var ordinanceId = text(base, K_ORDINANCE_ID, target.getQuery());
+        var serialNo = text(base, K_ORDINANCE_SERIAL_NO, ordinanceId);
+        var name = text(base, K_ORDINANCE_NAME, target.getExpectedName(), target.getQuery());
+        var promulgationDate = date(text(base, K_PROMULGATION_DATE, null));
+        var effectiveDate = date(text(base, K_EFFECTIVE_DATE, null));
+        var versionKey = serialNo + ":" + text(base, K_PROMULGATION_NO, "") + ":"
+                + text(base, K_PROMULGATION_DATE, "") + ":" + text(base, K_EFFECTIVE_DATE, "");
+
+        var articles = new ArrayList<LegalArticleSnapshot>();
+        var seenArticleKeys = new LinkedHashMap<String, Integer>();
+        for (var node : asList(path(root, K_ORDINANCE_ARTICLE_ROOT, K_ORDINANCE_ARTICLE_UNIT))) {
+            if ("N".equalsIgnoreCase(text(node, K_ORDINANCE_ARTICLE_FLAG, ""))) {
+                continue;
+            }
+            var articleText = text(node, K_ORDINANCE_ARTICLE_TEXT, "");
+            if (articleText.isBlank()) {
+                continue;
+            }
+            var articleNo = text(node, K_ORDINANCE_ARTICLE_NO, "");
+            var rawKey = firstNonBlank("ORDINANCE_ARTICLE_" + articleNo, "ARTICLE_" + articles.size());
+            articles.add(new LegalArticleSnapshot(
+                    uniqueArticleKey(rawKey, seenArticleKeys),
+                    articleNo,
+                    text(node, K_ORDINANCE_ARTICLE_TITLE, null),
+                    null,
+                    intValue(articleNo, articles.size() + 1),
+                    articleText,
+                    Map.of(
+                            "target", TARGET_ORDINANCE,
+                            "sourceArticleKey", rawKey)));
+        }
+        var supplementText = flattenText(root.get(K_SUPPLEMENT));
+        if (!supplementText.isBlank()) {
+            articles.add(new LegalArticleSnapshot(
+                    uniqueArticleKey("SUPPLEMENT", seenArticleKeys),
+                    "\uBD80\uCE59",
+                    "\uBD80\uCE59",
+                    null,
+                    9000,
+                    supplementText,
+                    Map.of("target", TARGET_ORDINANCE)));
+        }
+        for (var annex : asList(path(root, K_ANNEXES, K_ANNEX_UNIT))) {
+            var annexText = flattenText(annex.get(K_ANNEX_TEXT));
+            if (annexText.isBlank()) {
+                continue;
+            }
+            var annexNo = text(annex, K_ANNEX_NO, String.valueOf(articles.size() + 1));
+            var rawKey = firstNonBlank(text(annex, K_ANNEX_KEY, null), "ORDINANCE_ANNEX_" + annexNo);
+            articles.add(new LegalArticleSnapshot(
+                    uniqueArticleKey(rawKey, seenArticleKeys),
+                    "\uBCC4\uD45C " + annexNo,
+                    text(annex, K_ANNEX_TITLE, "\uBCC4\uD45C"),
+                    null,
+                    10000 + articles.size(),
+                    annexText,
+                    Map.of(
+                            "target", TARGET_ORDINANCE,
+                            "sourceArticleKey", rawKey,
+                            "pdfLink", text(annex, K_ANNEX_PDF_LINK, ""))));
+        }
+
+        return new LegalActSnapshot(
+                firstNonBlank(target.getActCode(), "ORDINANCE_" + ordinanceId),
+                name,
+                firstNonBlank(target.getActType(), "ORDINANCE"),
+                "KR",
+                firstNonBlank(serialNo, ordinanceId),
+                versionKey,
+                promulgationDate,
+                effectiveDate,
+                sourceUrl,
+                Map.of(
+                        "target", TARGET_ORDINANCE,
+                        "localGovernment", text(base, K_ORDINANCE_LOCAL_GOVERNMENT, ""),
+                        "department", text(base, K_ORDINANCE_DEPARTMENT, ""),
+                        "ordinanceType", text(base, K_ORDINANCE_TYPE, ""),
+                        "promulgationNo", text(base, K_PROMULGATION_NO, ""),
+                        "revisionType", text(base, K_AMENDMENT_INFO, "")),
+                articles);
+    }
+
+    private LegalActSnapshot parseDetail(
+            LegalSyncProperties.Target target,
+            String normalizedTarget,
+            JsonNode detail,
+            String sourceUrl
+    ) {
+        return switch (normalizedTarget) {
+            case TARGET_LAW -> parseLawDetail(target, detail, sourceUrl);
+            case TARGET_ADMIN_RULE -> parseAdminRuleDetail(target, detail, sourceUrl);
+            case TARGET_ORDINANCE -> parseOrdinanceDetail(target, detail, sourceUrl);
+            default -> throw new IllegalArgumentException("Unsupported Law Open Data target: " + normalizedTarget);
+        };
+    }
+
     private static Optional<Charset> charsetFromContentType(String contentType) {
         if (contentType == null || contentType.isBlank()) {
             return Optional.empty();
@@ -535,11 +651,29 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
     }
 
     private JsonNode selectSearchResult(LegalSyncProperties.Target target, String normalizedTarget, JsonNode search) {
-        var rootName = TARGET_LAW.equals(normalizedTarget) ? "LawSearch" : "AdmRulSearch";
-        var itemName = TARGET_LAW.equals(normalizedTarget) ? "law" : "admrul";
-        var nameField = TARGET_LAW.equals(normalizedTarget) ? K_LAW_SEARCH_NAME : K_ADMIN_NAME;
+        var rootName = switch (normalizedTarget) {
+            case TARGET_LAW -> "LawSearch";
+            case TARGET_ADMIN_RULE -> "AdmRulSearch";
+            case TARGET_ORDINANCE -> K_ORDINANCE_SEARCH_ROOT;
+            default -> throw new IllegalArgumentException("Unsupported Law Open Data target: " + normalizedTarget);
+        };
+        var itemName = switch (normalizedTarget) {
+            case TARGET_LAW -> "law";
+            case TARGET_ADMIN_RULE -> "admrul";
+            case TARGET_ORDINANCE -> "law";
+            default -> throw new IllegalArgumentException("Unsupported Law Open Data target: " + normalizedTarget);
+        };
+        var nameField = switch (normalizedTarget) {
+            case TARGET_LAW -> K_LAW_SEARCH_NAME;
+            case TARGET_ADMIN_RULE -> K_ADMIN_NAME;
+            case TARGET_ORDINANCE -> K_ORDINANCE_NAME;
+            default -> throw new IllegalArgumentException("Unsupported Law Open Data target: " + normalizedTarget);
+        };
         var root = requiredObject(search, rootName);
         var results = asList(root.get(itemName));
+        if (results.isEmpty() && TARGET_ORDINANCE.equals(normalizedTarget)) {
+            results = asList(root.get("ordin"));
+        }
         if (results.isEmpty()) {
             throw new IllegalStateException("No Law Open Data search result for query: " + target.getQuery());
         }
@@ -607,7 +741,33 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
         if (TARGET_LAW.equals(normalizedTarget)) {
             return firstNonBlank(text(item, K_LAW_ID, null), text(item, K_LAW_SERIAL_NO, null));
         }
-        return firstNonBlank(text(item, K_ADMIN_SERIAL_NO, null), text(item, K_ADMIN_ID, null));
+        if (TARGET_ADMIN_RULE.equals(normalizedTarget)) {
+            return firstNonBlank(text(item, K_ADMIN_SERIAL_NO, null), text(item, K_ADMIN_ID, null));
+        }
+        if (TARGET_ORDINANCE.equals(normalizedTarget)) {
+            return firstNonBlank(text(item, K_ORDINANCE_ID, null), text(item, K_ORDINANCE_SERIAL_NO, null));
+        }
+        return "";
+    }
+
+    private Map<String, String> searchParameters(LegalSyncProperties.Target target, String normalizedTarget) {
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("target", normalizedTarget);
+        parameters.put("type", "JSON");
+        parameters.put("query", target.getQuery());
+        parameters.put("display", "10");
+        if (TARGET_ORDINANCE.equals(normalizedTarget)) {
+            putIfPresent(parameters, "org", target.getOrg());
+            putIfPresent(parameters, "sborg", target.getSborg());
+            putIfPresent(parameters, "knd", target.getKnd());
+        }
+        return parameters;
+    }
+
+    private static void putIfPresent(Map<String, String> parameters, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            parameters.put(name, value.trim());
+        }
     }
 
     private String query(Map<String, String> parameters) {
@@ -633,7 +793,9 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
         if (normalized.isBlank()) {
             return TARGET_LAW;
         }
-        if (!TARGET_LAW.equals(normalized) && !TARGET_ADMIN_RULE.equals(normalized)) {
+        if (!TARGET_LAW.equals(normalized)
+                && !TARGET_ADMIN_RULE.equals(normalized)
+                && !TARGET_ORDINANCE.equals(normalized)) {
             throw new IllegalArgumentException("Unsupported Law Open Data target: " + target);
         }
         return normalized;

@@ -245,8 +245,24 @@ These are development-only credentials.
   Law Open API sync, legal text normalization/hash, article diff detection,
   `LegalSyncFlow`, `LegalSyncWorker`, and platform-admin backend endpoints for
   sync/readback. Official API sync is disabled unless `LEGAL_OPEN_API_ENABLED`
-  and `LEGAL_OPEN_API_OC` are configured. It tracks only construction
-  supervision MVP assets and throttles calls with
+  and `LEGAL_OPEN_API_OC` are configured. The default corpus now covers the
+  construction supervision MVP assets plus building energy, electrical safety,
+  electrical equipment, Korea Electrical Code, electrical facility design/work
+  standards, emergency power, electrical construction, power technology,
+  information/communication facilities, mechanical equipment, building
+  equipment, mechanical facility design/work standards, elevators, mechanical
+  parking, city/LPG/high-pressure gas, renewable energy,
+  fire/evacuation/fireproofing, parking, accessibility, green-building
+  certification, construction technology, structural standards, construction
+  standard specifications, quality/safety management guidelines, excavation,
+  steel-frame, concrete, temporary work, landscape, demolition, and
+  underground-safety reference targets.
+  The client can also ingest `target=ordin` local ordinances when a specific
+  jurisdiction target is configured; local ordinances are not globally synced by
+  default. KS/product certificates, project specifications, approved submittals,
+  performance test reports, and jurisdiction-specific ordinances remain
+  evidence/configuration inputs rather than universally synced default law
+  corpus. It throttles calls with
   `LEGAL_OPEN_API_REQUEST_INTERVAL_MS` / `LEGAL_OPEN_API_MAX_ATTEMPTS`.
   Platform admin live sync is blocked before creating a sync run unless the
   Open API connector is ready. Live HTTP sync retries 429/5xx and response-read

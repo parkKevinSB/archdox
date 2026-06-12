@@ -128,6 +128,149 @@ Tracked assets:
 | `law` | `건축법 시행규칙` | `BUILDING_ACT_ENFORCEMENT_RULE` | Enforcement rule corpus. |
 | `admrul` | `건축공사 감리세부기준` | `CONSTRUCTION_SUPERVISION_DETAILED_STANDARD` | Construction-supervision administrative rule and appendices. |
 
+The default Open API target set is now intentionally wider than the first
+construction-supervision MVP corpus. It also tracks building energy, electrical
+safety, electrical equipment, mechanical equipment, fire/evacuation/fireproofing,
+building equipment, elevators, mechanical parking, information/communication
+facilities, gas facilities, renewable energy, parking, accessibility,
+green-building certification, construction technology, structural standards,
+standard specifications, quality/safety management, excavation, steel-frame,
+concrete, temporary work, demolition, and underground-safety references so that
+source-backed review can distinguish broad supervision duties from more
+technical evidence gaps.
+
+Additional default targets:
+
+| target | ArchDox actCode | Purpose |
+| --- | --- | --- |
+| `law` | `GREEN_BUILDING_ACT` | Green building and energy-efficiency legal basis. |
+| `law` | `GREEN_BUILDING_ACT_ENFORCEMENT_DECREE` | Green building enforcement decree. |
+| `law` | `GREEN_BUILDING_ACT_ENFORCEMENT_RULE` | Green building enforcement rule. |
+| `admrul` | `BUILDING_ENERGY_SAVING_DESIGN_STANDARD` | Building energy-saving design standards and appendices. |
+| `law` | `ELECTRICAL_SAFETY_MANAGEMENT_ACT` | Electrical safety management legal basis. |
+| `law` | `ELECTRICAL_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_DECREE` | Electrical safety enforcement decree. |
+| `law` | `ELECTRICAL_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_RULE` | Electrical safety enforcement rule. |
+| `admrul` | `ELECTRICAL_EQUIPMENT_TECHNICAL_STANDARD` | Electrical equipment technical standards. |
+| `admrul` | `ELECTRICAL_EQUIPMENT_INSPECTION_AND_CHECK_NOTICE` | Electrical equipment inspection/check notice. |
+| `admrul` | `KOREA_ELECTRICAL_CODE` | Korea Electrical Code for wiring, grounding, electrical facilities, and safety requirements. |
+| `admrul` | `ELECTRICAL_FACILITY_DESIGN_AND_WORK_STANDARD_SPECIFICATION` | Electrical facility design standard and work standard specification. |
+| `admrul` | `EMERGENCY_POWER_FACILITY_DESIGN_STANDARD` | Emergency power facility design standard. |
+| `law` | `MECHANICAL_EQUIPMENT_ACT` | Mechanical equipment legal basis. |
+| `law` | `MECHANICAL_EQUIPMENT_ACT_ENFORCEMENT_DECREE` | Mechanical equipment enforcement decree. |
+| `law` | `MECHANICAL_EQUIPMENT_ACT_ENFORCEMENT_RULE` | Mechanical equipment enforcement rule. |
+| `admrul` | `MECHANICAL_EQUIPMENT_TECHNICAL_STANDARD` | Mechanical equipment technical standards. |
+| `law` | `BUILDING_EQUIPMENT_STANDARD_RULE` | Building equipment ministerial rule for facilities such as drainage, ventilation, lightning, and building services. |
+| `admrul` | `MECHANICAL_EQUIPMENT_MAINTENANCE_STANDARD` | Mechanical equipment maintenance standard. |
+| `admrul` | `MECHANICAL_FACILITY_DESIGN_AND_WORK_STANDARD_SPECIFICATION` | Mechanical facility design standard and work standard specification. |
+| `law` | `ELEVATOR_SAFETY_MANAGEMENT_ACT` | Elevator safety legal basis. |
+| `law` | `ELEVATOR_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_DECREE` | Elevator safety enforcement decree. |
+| `law` | `ELEVATOR_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_RULE` | Elevator safety enforcement rule. |
+| `admrul` | `ELEVATOR_SAFETY_PARTS_AND_ELEVATOR_SAFETY_STANDARD` | Elevator safety-parts and elevator safety standard. |
+| `admrul` | `ELEVATOR_INSTALLATION_AND_SAFETY_INSPECTION_OPERATION_RULE` | Elevator installation and safety inspection operation rule. |
+| `admrul` | `MECHANICAL_PARKING_DEVICE_SAFETY_AND_INSPECTION_STANDARD` | Mechanical parking device safety and inspection standard. |
+| `law` | `ELECTRICAL_CONSTRUCTION_BUSINESS_ACT` | Electrical construction business legal basis. |
+| `law` | `ELECTRICAL_CONSTRUCTION_BUSINESS_ACT_ENFORCEMENT_DECREE` | Electrical construction business enforcement decree. |
+| `law` | `ELECTRICAL_CONSTRUCTION_BUSINESS_ACT_ENFORCEMENT_RULE` | Electrical construction business enforcement rule. |
+| `law` | `ELECTRIC_POWER_TECHNOLOGY_MANAGEMENT_ACT` | Electric power technology and power-facility supervision legal basis. |
+| `law` | `ELECTRIC_POWER_TECHNOLOGY_MANAGEMENT_ACT_ENFORCEMENT_DECREE` | Electric power technology enforcement decree. |
+| `law` | `ELECTRIC_POWER_TECHNOLOGY_MANAGEMENT_ACT_ENFORCEMENT_RULE` | Electric power technology enforcement rule. |
+| `law` | `INFORMATION_COMMUNICATIONS_CONSTRUCTION_BUSINESS_ACT` | Information/communications construction business legal basis. |
+| `law` | `INFORMATION_COMMUNICATIONS_CONSTRUCTION_BUSINESS_ACT_ENFORCEMENT_DECREE` | Information/communications construction business enforcement decree. |
+| `law` | `INFORMATION_COMMUNICATIONS_CONSTRUCTION_BUSINESS_ACT_ENFORCEMENT_RULE` | Information/communications construction business enforcement rule. |
+| `law` | `BROADCASTING_COMMUNICATIONS_FACILITY_TECHNICAL_STANDARD_DECREE` | Broadcasting/communications facility technical standard decree. |
+| `admrul` | `GROUNDING_AND_IN_BUILDING_COMMUNICATION_FACILITY_TECHNICAL_STANDARD` | Grounding, in-building communication, line facility, and communication conduit technical standard. |
+| `admrul` | `BROADCASTING_COMMUNAL_RECEPTION_FACILITY_INSTALLATION_STANDARD` | Communal broadcasting reception facility installation standard. |
+| `law` | `CITY_GAS_BUSINESS_ACT` | City gas legal basis. |
+| `law` | `CITY_GAS_BUSINESS_ACT_ENFORCEMENT_DECREE` | City gas enforcement decree. |
+| `law` | `CITY_GAS_BUSINESS_ACT_ENFORCEMENT_RULE` | City gas enforcement rule. |
+| `law` | `LIQUEFIED_PETROLEUM_GAS_SAFETY_BUSINESS_ACT` | LPG safety and business legal basis. |
+| `law` | `LIQUEFIED_PETROLEUM_GAS_SAFETY_BUSINESS_ACT_ENFORCEMENT_DECREE` | LPG safety and business enforcement decree. |
+| `law` | `LIQUEFIED_PETROLEUM_GAS_SAFETY_BUSINESS_ACT_ENFORCEMENT_RULE` | LPG safety and business enforcement rule. |
+| `law` | `HIGH_PRESSURE_GAS_SAFETY_CONTROL_ACT` | High-pressure gas safety legal basis. |
+| `law` | `HIGH_PRESSURE_GAS_SAFETY_CONTROL_ACT_ENFORCEMENT_DECREE` | High-pressure gas safety enforcement decree. |
+| `law` | `HIGH_PRESSURE_GAS_SAFETY_CONTROL_ACT_ENFORCEMENT_RULE` | High-pressure gas safety enforcement rule. |
+| `law` | `NEW_RENEWABLE_ENERGY_ACT` | New and renewable energy legal basis. |
+| `law` | `NEW_RENEWABLE_ENERGY_ACT_ENFORCEMENT_DECREE` | New and renewable energy enforcement decree. |
+| `law` | `NEW_RENEWABLE_ENERGY_ACT_ENFORCEMENT_RULE` | New and renewable energy enforcement rule. |
+| `law` | `FIRE_FACILITIES_INSTALLATION_MANAGEMENT_ACT` | Fire-facility installation and management legal basis. |
+| `law` | `FIRE_FACILITIES_INSTALLATION_MANAGEMENT_ACT_ENFORCEMENT_DECREE` | Fire-facility enforcement decree. |
+| `law` | `FIRE_FACILITIES_INSTALLATION_MANAGEMENT_ACT_ENFORCEMENT_RULE` | Fire-facility enforcement rule. |
+| `law` | `FIRE_PREVENTION_SAFETY_MANAGEMENT_ACT` | Fire prevention and safety management legal basis. |
+| `law` | `FIRE_PREVENTION_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_DECREE` | Fire prevention enforcement decree. |
+| `law` | `FIRE_PREVENTION_SAFETY_MANAGEMENT_ACT_ENFORCEMENT_RULE` | Fire prevention enforcement rule. |
+| `law` | `BUILDING_EVACUATION_FIREPROOF_STRUCTURE_RULE` | Evacuation and fireproof-structure ministerial rule. |
+| `admrul` | `BUILDING_MATERIAL_QUALITY_RECOGNITION_MANAGEMENT_STANDARD` | Building-material quality recognition/management standard. |
+| `admrul` | `FIRE_RESISTANT_STRUCTURE_RECOGNITION_MANAGEMENT_STANDARD` | Fire-resistant structure recognition/management standard. |
+| `admrul` | `AUTOMATIC_FIRE_SHUTTER_AND_FIRE_DOOR_STANDARD` | Automatic fire shutter and fire door standard. |
+| `law` | `PARKING_LOT_ACT` | Parking lot legal basis. |
+| `law` | `PARKING_LOT_ACT_ENFORCEMENT_DECREE` | Parking lot enforcement decree. |
+| `law` | `PARKING_LOT_ACT_ENFORCEMENT_RULE` | Parking lot enforcement rule. |
+| `law` | `DISABLED_ELDERLY_PREGNANT_ACCESSIBILITY_ACT` | Accessibility legal basis. |
+| `law` | `DISABLED_ELDERLY_PREGNANT_ACCESSIBILITY_ACT_ENFORCEMENT_DECREE` | Accessibility enforcement decree. |
+| `law` | `DISABLED_ELDERLY_PREGNANT_ACCESSIBILITY_ACT_ENFORCEMENT_RULE` | Accessibility enforcement rule. |
+| `law` | `BUILDING_ENERGY_EFFICIENCY_ZERO_ENERGY_CERTIFICATION_RULE` | Building energy-efficiency and zero-energy certification rule. |
+| `law` | `GREEN_BUILDING_CERTIFICATION_RULE` | Green building certification rule. |
+| `admrul` | `GREEN_BUILDING_CERTIFICATION_STANDARD` | Green building certification standard and appendices. |
+| `admrul` | `BUILDING_ENERGY_EFFICIENCY_ZERO_ENERGY_CERTIFICATION_STANDARD` | Energy-efficiency and zero-energy certification standard. |
+| `law` | `CONSTRUCTION_TECHNOLOGY_PROMOTION_ACT` | Construction technology, quality, safety, and project-management legal basis. |
+| `law` | `CONSTRUCTION_TECHNOLOGY_PROMOTION_ACT_ENFORCEMENT_DECREE` | Construction technology enforcement decree. |
+| `law` | `CONSTRUCTION_TECHNOLOGY_PROMOTION_ACT_ENFORCEMENT_RULE` | Construction technology enforcement rule. |
+| `admrul` | `CONSTRUCTION_WORK_QUALITY_MANAGEMENT_GUIDELINE` | Construction work quality-management guideline. |
+| `admrul` | `CONSTRUCTION_WORK_SAFETY_MANAGEMENT_GUIDELINE` | Construction work safety-management guideline. |
+| `admrul` | `CONSTRUCTION_PROJECT_MANAGEMENT_METHOD_REVIEW_AND_WORK_GUIDELINE` | Construction project-management method review and execution guideline. |
+| `law` | `BUILDING_STRUCTURAL_STANDARD_RULE` | Building structural standard ministerial rule. |
+| `admrul` | `BUILDING_STRUCTURAL_DESIGN_STANDARD` | Building structural design standard. |
+| `admrul` | `ARCHITECTURAL_WORK_STANDARD_SPECIFICATION` | Architectural work standard specification. |
+| `admrul` | `STEEL_STRUCTURE_WORK_STANDARD_SPECIFICATION` | Steel structure work standard specification. |
+| `admrul` | `CONCRETE_STRUCTURE_DESIGN_AND_WORK_STANDARD_SPECIFICATION` | Concrete structure design and concrete work standard specification. |
+| `admrul` | `TEMPORARY_FACILITY_DESIGN_AND_TEMPORARY_WORK_STANDARD_SPECIFICATION` | Temporary facility design and temporary work standard specification. |
+| `admrul` | `GEOTECHNICAL_DESIGN_AND_GROUND_WORK_STANDARD_SPECIFICATION` | Geotechnical design and ground work standard specification. |
+| `admrul` | `LANDSCAPE_DESIGN_AND_WORK_STANDARD_SPECIFICATION` | Landscape design standard and landscape work standard specification. |
+| `law` | `OCCUPATIONAL_SAFETY_HEALTH_ACT` | Occupational safety and health legal basis. |
+| `law` | `OCCUPATIONAL_SAFETY_HEALTH_ACT_ENFORCEMENT_DECREE` | Occupational safety and health enforcement decree. |
+| `law` | `OCCUPATIONAL_SAFETY_HEALTH_ACT_ENFORCEMENT_RULE` | Occupational safety and health enforcement rule. |
+| `law` | `OCCUPATIONAL_SAFETY_HEALTH_STANDARDS_RULE` | Occupational safety and health standards rule. |
+| `admrul` | `EXCAVATION_WORK_STANDARD_SAFETY_WORK_GUIDELINE` | Excavation work standard safety guideline. |
+| `admrul` | `STEEL_FRAME_WORK_STANDARD_SAFETY_WORK_GUIDELINE` | Steel-frame work standard safety guideline. |
+| `admrul` | `CONCRETE_WORK_STANDARD_SAFETY_WORK_GUIDELINE` | Concrete work standard safety guideline. |
+| `admrul` | `TEMPORARY_WORK_STANDARD_SAFETY_WORK_GUIDELINE` | Temporary work standard safety guideline. |
+| `admrul` | `DEMOLITION_WORK_STANDARD_SAFETY_WORK_GUIDELINE` | Demolition work standard safety guideline. |
+| `law` | `UNDERGROUND_SAFETY_MANAGEMENT_SPECIAL_ACT` | Underground safety legal basis. |
+| `law` | `UNDERGROUND_SAFETY_MANAGEMENT_SPECIAL_ACT_ENFORCEMENT_DECREE` | Underground safety enforcement decree. |
+| `law` | `UNDERGROUND_SAFETY_MANAGEMENT_SPECIAL_ACT_ENFORCEMENT_RULE` | Underground safety enforcement rule. |
+| `admrul` | `UNDERGROUND_SAFETY_MANAGEMENT_WORK_GUIDELINE` | Underground safety management guideline. |
+
+`target=ordin` local ordinances are supported by the connector and can be
+configured with jurisdiction filters such as `org`, `sborg`, and `knd`. They are
+not part of the global default corpus because syncing every municipal ordinance
+would create a large, jurisdiction-mixed corpus. Office/project jurisdiction
+should select which local ordinance targets are active.
+
+The default corpus intentionally does not claim to cover every KS/product
+certificate or project-specific design value. Many checklist items, such as
+window performance, waterproofing product approval, gas detailed technical
+codes, or fire-facility component ratings, still require project evidence
+attachments, specifications, approved submittals, certificates, test reports, or
+external standards that are not always available through the National Law Open
+API.
+
+Example local ordinance target:
+
+```yaml
+archdox:
+  legal:
+    sync:
+      open-api:
+        targets:
+          - target: ordin
+            query: "건축 조례"
+            expected-name: "서울특별시 건축 조례"
+            act-code: "LOCAL_SEOUL_BUILDING_ORDINANCE"
+            act-type: "LOCAL_ORDINANCE"
+            org: "6110000"
+            knd: "30001"
+```
+
 ### Useful API Surface Not Yet Consumed
 
 The official guide also exposes many related targets. These are candidates, not
@@ -138,7 +281,7 @@ current MVP behavior:
 | Law detail by effective date | `eflaw` | Compare effective-date-specific versions. |
 | Article/subarticle detail | `lawjosub`, `eflawjosub` | Fetch a bounded article instead of a full law body. |
 | Administrative rules | `admrul` | Already used for construction-supervision detailed standards. |
-| Local ordinances | `ordin` | Future regional/local permitting support. |
+| Local ordinances | `ordin` | Supported when a jurisdiction-specific target is configured; not globally enabled by default. |
 | MOLIT legal interpretations | `molitCgmExpc` | Future source-backed interpretation references. |
 | Intelligent legal search | `aiSearch` | Future search discovery only; do not use as source of truth without resolving exact source ids. |
 | Appendices/forms | law/admin-rule appendix APIs | Future official form and checklist matching. |

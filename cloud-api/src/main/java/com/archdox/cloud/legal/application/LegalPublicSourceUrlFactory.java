@@ -17,6 +17,9 @@ public class LegalPublicSourceUrlFactory {
                     + "&chrClsCd=010201";
         }
         var normalizedActName = text(actName);
+        if ("ordin".equalsIgnoreCase(target) && !normalizedActName.isBlank()) {
+            return "https://www.law.go.kr/ordinSc.do?query=" + encode(normalizedActName);
+        }
         if (!normalizedActName.isBlank()) {
             var category = "ADMINISTRATIVE_RULE".equalsIgnoreCase(text(actType)) ? "행정규칙" : "법령";
             return "https://www.law.go.kr/" + encode(category) + "/" + encode(normalizedActName);

@@ -209,6 +209,127 @@ class LawOpenDataLegalSourceClientTest {
         assertThat(snapshot.articles().get(1).articleText()).contains("\uB2E8\uACC4\uBCC4 \uAC10\uB9AC");
     }
 
+    @Test
+    void parsesOrdinanceDetailArticlesAndLocalGovernmentMetadata() throws Exception {
+        var target = new LegalSyncProperties.Target(
+                "ordin",
+                "서울특별시 건축 조례",
+                "서울특별시 건축 조례",
+                "LOCAL_SEOUL_BUILDING_ORDINANCE",
+                "LOCAL_ORDINANCE");
+        var detail = objectMapper.readTree("""
+                {
+                  "LawService": {
+                    "자치법규기본정보": {
+                      "자치법규명": "서울특별시 건축 조례",
+                      "자치법규ID": "2026666",
+                      "자치법규일련번호": "1316146",
+                      "공포번호": "9000",
+                      "공포일자": "20250101",
+                      "시행일자": "20250115",
+                      "자치법규종류": "조례",
+                      "지자체기관명": "서울특별시",
+                      "담당부서명": "건축기획과",
+                      "제개정정보": "일부개정"
+                    },
+                    "조문": {
+                      "조": [
+                        {
+                          "조문번호": "1",
+                          "조문여부": "Y",
+                          "조제목": "목적",
+                          "조내용": "제1조(목적) 이 조례는 ..."
+                        },
+                        {
+                          "조문번호": "2",
+                          "조문여부": "Y",
+                          "조제목": "적용범위",
+                          "조내용": "제2조(적용범위) ..."
+                        }
+                      ]
+                    },
+                    "부칙": {
+                      "부칙내용": "부칙 이 조례는 공포한 날부터 시행한다."
+                    }
+                  }
+                }
+                """);
+
+        var snapshot = client.parseOrdinanceDetail(target, detail, "https://www.law.go.kr/DRF/lawService.do");
+
+        assertThat(snapshot.actCode()).isEqualTo("LOCAL_SEOUL_BUILDING_ORDINANCE");
+        assertThat(snapshot.actName()).isEqualTo("서울특별시 건축 조례");
+        assertThat(snapshot.actType()).isEqualTo("LOCAL_ORDINANCE");
+        assertThat(snapshot.sourceLawId()).isEqualTo("1316146");
+        assertThat(snapshot.sourceVersionKey()).isEqualTo("1316146:9000:20250101:20250115");
+        assertThat(snapshot.metadata()).containsEntry("localGovernment", "서울특별시");
+        assertThat(snapshot.articles()).hasSize(3);
+        assertThat(snapshot.articles().get(0).articleTitle()).isEqualTo("목적");
+        assertThat(snapshot.articles().get(2).articleKey()).isEqualTo("SUPPLEMENT");
+    }
+
+    @Test
+    void fetchOrdinanceUsesOrdinTargetAndConfiguredLocalGovernmentFilters() {
+        var target = new LegalSyncProperties.Target(
+                "ordin",
+                "건축 조례",
+                "서울특별시 건축 조례",
+                "LOCAL_SEOUL_BUILDING_ORDINANCE",
+                "LOCAL_ORDINANCE");
+        target.setOrg("6110000");
+        target.setKnd("30001");
+        var properties = openApiProperties(List.of(target));
+        var httpClient = new RecordingHttpClient(List.of(
+                response(200, """
+                        {
+                          "OrdinSearch": {
+                            "law": {
+                              "자치법규ID": "2026666",
+                              "자치법규일련번호": "1316146",
+                              "자치법규명": "서울특별시 건축 조례"
+                            }
+                          }
+                        }
+                        """),
+                response(200, """
+                        {
+                          "LawService": {
+                            "자치법규기본정보": {
+                              "자치법규명": "서울특별시 건축 조례",
+                              "자치법규ID": "2026666",
+                              "자치법규일련번호": "1316146",
+                              "공포일자": "20250101",
+                              "시행일자": "20250115",
+                              "자치법규종류": "조례",
+                              "지자체기관명": "서울특별시"
+                            },
+                            "조문": {
+                              "조": {
+                                "조문번호": "1",
+                                "조문여부": "Y",
+                                "조제목": "목적",
+                                "조내용": "제1조(목적) ..."
+                              }
+                            }
+                          }
+                        }
+                        """)));
+        var ordinanceClient = new LawOpenDataLegalSourceClient(objectMapper, properties, httpClient);
+
+        var snapshot = ordinanceClient.fetch(LawOpenDataLegalSourceClient.SOURCE_CODE);
+
+        assertThat(snapshot.acts()).singleElement()
+                .satisfies(act -> assertThat(act.actCode()).isEqualTo("LOCAL_SEOUL_BUILDING_ORDINANCE"));
+        assertThat(httpClient.requestUris().get(0).toString())
+                .contains("target=ordin")
+                .contains("org=6110000")
+                .contains("knd=30001");
+        assertThat(httpClient.requestUris().get(1).toString())
+                .contains("lawService.do")
+                .contains("target=ordin")
+                .contains("ID=2026666");
+    }
+
     private LegalSyncProperties openApiProperties(List<LegalSyncProperties.Target> targets) {
         var properties = new LegalSyncProperties();
         properties.getOpenApi().setEnabled(true);
