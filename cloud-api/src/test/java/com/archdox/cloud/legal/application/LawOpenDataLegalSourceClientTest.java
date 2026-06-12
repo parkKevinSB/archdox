@@ -168,6 +168,84 @@ class LawOpenDataLegalSourceClientTest {
     }
 
     @Test
+    void fetchSkipsOptionalTargetsWhenSearchResultIsEmpty() {
+        var missingOptionalTarget = new LegalSyncProperties.Target(
+                "admrul",
+                "\uB0B4\uD654\uAD6C\uC870\uC758 \uC778\uC815 \uBC0F \uAD00\uB9AC\uAE30\uC900",
+                "\uB0B4\uD654\uAD6C\uC870\uC758 \uC778\uC815 \uBC0F \uAD00\uB9AC\uAE30\uC900",
+                "FIRE_RESISTANT_STRUCTURE_RECOGNITION_MANAGEMENT_STANDARD",
+                "ADMINISTRATIVE_RULE");
+        var lawTarget = new LegalSyncProperties.Target(
+                "law",
+                "\uAC74\uCD95\uBC95",
+                "\uAC74\uCD95\uBC95",
+                "BUILDING_ACT",
+                "LAW");
+        var properties = openApiProperties(List.of(missingOptionalTarget, lawTarget));
+        var httpClient = new RecordingHttpClient(List.of(
+                response(200, """
+                        {
+                          "AdmRulSearch": {
+                            "totalCnt": "0"
+                          }
+                        }
+                        """),
+                response(200, """
+                        {
+                          "LawSearch": {
+                            "law": {
+                              "\uBC95\uB839ID": "001823",
+                              "\uBC95\uB839\uBA85\uD55C\uAE00": "\uAC74\uCD95\uBC95"
+                            }
+                          }
+                        }
+                        """),
+                response(200, lawDetailJson())));
+        var guardedClient = new LawOpenDataLegalSourceClient(objectMapper, properties, httpClient);
+
+        var snapshot = guardedClient.fetch(LawOpenDataLegalSourceClient.SOURCE_CODE);
+
+        assertThat(snapshot.acts()).singleElement()
+                .satisfies(act -> assertThat(act.actCode()).isEqualTo("BUILDING_ACT"));
+        assertThat(snapshot.metadata())
+                .containsEntry("targetCount", 2)
+                .containsEntry("fetchedTargetCount", 1)
+                .containsEntry("skippedTargetCount", 1);
+        assertThat((List<?>) snapshot.metadata().get("skippedTargets"))
+                .singleElement()
+                .satisfies(skipped -> {
+                    var skippedTarget = (Map<?, ?>) skipped;
+                    assertThat(skippedTarget.get("actCode"))
+                            .isEqualTo("FIRE_RESISTANT_STRUCTURE_RECOGNITION_MANAGEMENT_STANDARD");
+                    assertThat(skippedTarget.get("reason")).isEqualTo("LAW_OPEN_DATA_SEARCH_RESULT_EMPTY");
+                });
+    }
+
+    @Test
+    void fetchFailsWhenRequiredTargetSearchResultIsEmpty() {
+        var requiredTarget = new LegalSyncProperties.Target(
+                "law",
+                "\uAC74\uCD95\uBC95",
+                "\uAC74\uCD95\uBC95",
+                "BUILDING_ACT",
+                "LAW");
+        var properties = openApiProperties(List.of(requiredTarget));
+        var httpClient = new RecordingHttpClient(List.of(response(200, """
+                {
+                  "LawSearch": {
+                    "totalCnt": "0"
+                  }
+                }
+                """)));
+        var guardedClient = new LawOpenDataLegalSourceClient(objectMapper, properties, httpClient);
+
+        assertThatThrownBy(() -> guardedClient.fetch(LawOpenDataLegalSourceClient.SOURCE_CODE))
+                .isInstanceOf(LawOpenDataException.class)
+                .extracting(ex -> ((LawOpenDataException) ex).code())
+                .isEqualTo("LAW_OPEN_DATA_SEARCH_RESULT_EMPTY");
+    }
+
+    @Test
     void parsesLawDetailArticles() throws Exception {
         var target = new LegalSyncProperties.Target(
                 "law",

@@ -193,7 +193,7 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                         }
                         var failure = unwrapCompletion(error);
                         if (failure instanceof LawOpenDataException openDataException
-                                && "LAW_OPEN_DATA_ARTICLES_EMPTY".equals(openDataException.code())) {
+                                && shouldSkipOptionalTarget(target, openDataException)) {
                             accumulator.skippedTargets.add(skippedTarget(target, openDataException));
                             return CompletableFuture.completedFuture(accumulator);
                         }
@@ -225,7 +225,33 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
                 "actCode", firstNonBlank(target.getActCode(), "UNKNOWN"),
                 "target", firstNonBlank(target.getTarget(), "unknown"),
                 "query", firstNonBlank(target.getQuery(), ""),
-                "reason", failure.code());
+                "reason", failure.code(),
+                "message", firstNonBlank(failure.getMessage(), ""));
+    }
+
+    private boolean shouldSkipOptionalTarget(
+            LegalSyncProperties.Target target,
+            LawOpenDataException failure
+    ) {
+        if (isRequiredTarget(target)) {
+            return false;
+        }
+        return switch (failure.code()) {
+            case "LAW_OPEN_DATA_ARTICLES_EMPTY",
+                    "LAW_OPEN_DATA_SEARCH_RESULT_EMPTY",
+                    "LAW_OPEN_DATA_DETAIL_ID_MISSING" -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isRequiredTarget(LegalSyncProperties.Target target) {
+        return switch (firstNonBlank(target.getActCode(), "")) {
+            case "BUILDING_ACT",
+                    "BUILDING_ACT_ENFORCEMENT_DECREE",
+                    "BUILDING_ACT_ENFORCEMENT_RULE",
+                    "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD" -> true;
+            default -> false;
+        };
     }
 
     private static final class FetchAccumulator {
@@ -707,7 +733,13 @@ public class LawOpenDataLegalSourceClient implements LegalSourceClient {
             results = asList(root.get("ordin"));
         }
         if (results.isEmpty()) {
-            throw new IllegalStateException("No Law Open Data search result for query: " + target.getQuery());
+            throw new LawOpenDataException(
+                    "LAW_OPEN_DATA_SEARCH_RESULT_EMPTY",
+                    "lawSearch.do",
+                    normalizedTarget,
+                    0,
+                    false,
+                    "No Law Open Data search result for query: " + target.getQuery());
         }
         var expectedName = normalizeDisplayName(firstNonBlank(target.getExpectedName(), target.getQuery()));
         return results.stream()
