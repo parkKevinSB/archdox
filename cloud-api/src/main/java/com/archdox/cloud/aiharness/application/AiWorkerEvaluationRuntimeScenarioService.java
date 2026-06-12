@@ -372,6 +372,12 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                 cautiousWordingStatus(legalResult),
                 "REAL_MODEL_LEGAL_REVIEW",
                 cautiousWordingEvidence(legalResult)));
+        cases.add(testCase(
+                "RUN-SCENARIO-DOC-LEGAL-005",
+                "Document legal review pass eligibility contract",
+                passEligibilityContractStatus(input, legalResult),
+                "REAL_MODEL_LEGAL_REVIEW",
+                passEligibilityContractEvidence(input, legalResult)));
         cases.add(documentLegalReviewNoPersistenceCase());
         return group(
                 "RUNTIME_DOCUMENT_LEGAL_REVIEW_SCENARIO",
@@ -482,7 +488,7 @@ public class AiWorkerEvaluationRuntimeScenarioService {
 
     private AiWorkerEvaluationCaseResponse documentLegalReviewNoPersistenceCase() {
         return testCase(
-                "RUN-SCENARIO-DOC-LEGAL-005",
+                "RUN-SCENARIO-DOC-LEGAL-006",
                 "Document legal review scenario persistence boundary",
                 PASS,
                 "REAL_MODEL_LEGAL_REVIEW",
@@ -573,6 +579,46 @@ public class AiWorkerEvaluationRuntimeScenarioService {
         return "No final legal-compliance wording detected. limitations=" + truncate(result.limitations(), 180);
     }
 
+    private String passEligibilityContractStatus(
+            SourceBackedLegalReviewInput input,
+            SourceBackedLegalReviewResult result
+    ) {
+        var coverage = referenceCoverage(input);
+        var eligibility = objectMap(coverage.get("passEligibility"));
+        var finalEligible = booleanValue(eligibility.get("finalEligible"));
+        var grade = text(coverage.get("legalReferenceGrade"));
+        var blockers = listValue(coverage.get("passBlockers"));
+        if (!finalEligible && result.status() == SourceBackedLegalReviewStatus.PASS) {
+            return FAILED;
+        }
+        if (!List.of("A", "B", "C", "D", "X").contains(grade)) {
+            return FAILED;
+        }
+        if ("C".equals(grade) || "D".equals(grade) || "X".equals(grade)) {
+            return result.status() == SourceBackedLegalReviewStatus.PASS ? FAILED : PASS;
+        }
+        if (finalEligible && "A".equals(grade) && blockers.isEmpty()) {
+            return result.status() == SourceBackedLegalReviewStatus.FAIL ? FAILED : PASS;
+        }
+        return WARN;
+    }
+
+    private String passEligibilityContractEvidence(
+            SourceBackedLegalReviewInput input,
+            SourceBackedLegalReviewResult result
+    ) {
+        var coverage = referenceCoverage(input);
+        var eligibility = objectMap(coverage.get("passEligibility"));
+        return "Coverage contract: legalReferenceGrade=" + valueOrDash(text(coverage.get("legalReferenceGrade")))
+                + ", finalEligible=" + booleanValue(eligibility.get("finalEligible"))
+                + ", legalEligible=" + booleanValue(eligibility.get("legalEligible"))
+                + ", evidenceEligible=" + booleanValue(eligibility.get("evidenceEligible"))
+                + ", applicabilityEligible=" + booleanValue(eligibility.get("applicabilityEligible"))
+                + ", passBlockers=" + listValue(coverage.get("passBlockers")).size()
+                + ", resultStatus=" + result.status().name()
+                + ", reviewed=" + result.reviewedReferenceIds();
+    }
+
     private Optional<SourceBackedLegalReviewResult> legalReviewResult(Optional<ValidationResult<?>> validation) {
         return validation
                 .filter(ValidationResult::isValid)
@@ -583,6 +629,26 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                     }
                     return Optional.empty();
                 });
+    }
+
+    private Map<String, Object> referenceCoverage(SourceBackedLegalReviewInput input) {
+        return objectMap(input.legalReviewContext().get("referenceCoverage"));
+    }
+
+    private Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            var result = new LinkedHashMap<String, Object>();
+            map.forEach((key, item) -> result.put(String.valueOf(key), item));
+            return Map.copyOf(result);
+        }
+        return Map.of();
+    }
+
+    private List<Object> listValue(Object value) {
+        if (value instanceof List<?> list) {
+            return List.copyOf(list);
+        }
+        return List.of();
     }
 
     private SourceBackedLegalReviewInput documentLegalReviewInput() {
@@ -657,30 +723,42 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                 List.of(Map.copyOf(primary), Map.copyOf(supporting), Map.copyOf(candidate)),
                 Map.of(
                         "purpose", "RUNTIME_DOCUMENT_LEGAL_REVIEW_EVALUATION",
-                        "referenceCoverage", Map.of(
-                                "totalCount", 3,
-                                "primaryCount", 1,
-                                "supportingCount", 1,
-                                "candidateCount", 1,
-                                "domainBindingCount", 2,
-                                "businessItemAnchorCount", 2,
-                                "passEligibleForPass", true,
-                                "reviewStrength", "HIGH",
-                                "limitations", List.of("일부 근거는 법령 검색 후보이므로 사람 확인이 필요합니다.")),
-                        "reportEvidenceChecklist", Map.of(
-                                "dailyLogGroupCount", 1,
-                                "dailyLogEntryCount", 1,
-                                "dailyLogEntriesWithSupervisionContent", 1,
-                                "dailyLogEntriesWithPhotoIds", 1,
-                                "dailyLogEntriesWithChecklistItemCode", 1,
-                                "hasIssueAndAction", true,
-                                "hasNextAction", true,
-                                "allDailyLogPhotoRefsResolved", true,
-                                "generationBlockingPhotoIssue", false,
-                                "photoEvidenceSource", "EVALUATION_IN_MEMORY"),
+                        "referenceCoverage", Map.ofEntries(
+                                Map.entry("totalCount", 3),
+                                Map.entry("primaryCount", 1),
+                                Map.entry("supportingCount", 1),
+                                Map.entry("candidateCount", 1),
+                                Map.entry("domainBindingCount", 2),
+                                Map.entry("businessItemAnchorCount", 2),
+                                Map.entry("reportTypeAnchorCount", 0),
+                                Map.entry("passEligibleForPass", true),
+                                Map.entry("legalReferenceGrade", "A"),
+                                Map.entry("reviewStrength", "HIGH"),
+                                Map.entry("passEligibility", Map.of(
+                                        "legalEligible", true,
+                                        "evidenceEligible", true,
+                                        "applicabilityEligible", true,
+                                        "finalEligible", true,
+                                        "blockers", List.of())),
+                                Map.entry("passBlockers", List.of()),
+                                Map.entry("limitations", List.of("일부 근거는 법령 검색 후보이므로 사람 확인이 필요합니다."))),
+                        "reportEvidenceChecklist", Map.ofEntries(
+                                Map.entry("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                                Map.entry("dailyLogGroupCount", 1),
+                                Map.entry("dailyLogEntryCount", 1),
+                                Map.entry("dailyLogEntriesWithSupervisionContent", 1),
+                                Map.entry("dailyLogEntriesWithPhotoIds", 1),
+                                Map.entry("dailyLogEntriesWithChecklistItemCode", 1),
+                                Map.entry("hasIssueAndAction", true),
+                                Map.entry("hasNextAction", true),
+                                Map.entry("allDailyLogPhotoRefsResolved", true),
+                                Map.entry("generationBlockingPhotoIssue", false),
+                                Map.entry("photoEvidenceSource", "EVALUATION_IN_MEMORY")),
                         "rules", List.of(
                                 "Use only sourceBackedLegalReferences.",
                                 "PASS is allowed only when referenceCoverage.passEligibleForPass is true.",
+                                "PASS is allowed only when referenceCoverage.passEligibility.finalEligible is true.",
+                                "Treat referenceCoverage.passBlockers as deterministic server blockers.",
                                 "Do not claim final legal compliance.")));
     }
 

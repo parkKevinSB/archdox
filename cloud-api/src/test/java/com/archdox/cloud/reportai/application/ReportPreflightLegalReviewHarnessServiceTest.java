@@ -193,13 +193,17 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
         assertThat(coverageMap)
                 .containsEntry("passEligibleForPass", false)
+                .containsEntry("legalReferenceGrade", "C")
                 .containsEntry("reviewStrength", "LOW")
                 .containsEntry("candidateCount", 1)
                 .containsEntry("businessItemAnchorCount", 0);
-        assertThat((List<?>) coverageMap.get("limitations"))
-                .extracting(String::valueOf)
-                .contains("PASS 판정에는 PRIMARY/SUPPORTING 도메인 바인딩 근거가 필요합니다.")
-                .contains("일부 근거는 법령 검색 후보이므로 사람 확인이 필요합니다.");
+        assertThat(passEligibility(coverageMap))
+                .containsEntry("legalEligible", false)
+                .containsEntry("finalEligible", false);
+        assertThat(passBlockerCodes(coverageMap))
+                .contains(
+                        "PASS_BLOCKED_SEARCH_CANDIDATE_ONLY",
+                        "PASS_BLOCKED_NO_BUSINESS_ITEM_ANCHOR");
     }
 
     @Test
@@ -217,9 +221,96 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
         assertThat(coverageMap)
                 .containsEntry("passEligibleForPass", true)
+                .containsEntry("legalReferenceGrade", "A")
                 .containsEntry("reviewStrength", "HIGH")
                 .containsEntry("primaryCount", 1)
                 .containsEntry("businessItemAnchorCount", 1);
+        assertThat(passEligibility(coverageMap))
+                .containsEntry("legalEligible", true)
+                .containsEntry("evidenceEligible", true)
+                .containsEntry("applicabilityEligible", true)
+                .containsEntry("finalEligible", true);
+        assertThat(passBlockerCodes(coverageMap)).isEmpty();
+    }
+
+    @Test
+    void reportTypeAnchorOnlyBlocksFinalPass() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(legalContextFinding(now)));
+        var coverage = ReflectionTestUtils.invokeMethod(service, "legalReferenceCoverage", references);
+
+        @SuppressWarnings("unchecked")
+        var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
+        assertThat(coverageMap)
+                .containsEntry("passEligibleForPass", false)
+                .containsEntry("legalReferenceGrade", "B")
+                .containsEntry("reviewStrength", "MEDIUM")
+                .containsEntry("reportTypeAnchorCount", 1)
+                .containsEntry("businessItemAnchorCount", 0);
+        assertThat(passEligibility(coverageMap))
+                .containsEntry("legalEligible", true)
+                .containsEntry("applicabilityEligible", false)
+                .containsEntry("finalEligible", false);
+        assertThat(passBlockerCodes(coverageMap))
+                .contains(
+                        "PASS_BLOCKED_REPORT_TYPE_ANCHOR_ONLY",
+                        "PASS_BLOCKED_NO_BUSINESS_ITEM_ANCHOR");
+    }
+
+    @Test
+    void missingEvidenceBlocksFinalPass() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(businessItemLegalContextFinding(now)));
+        var evidenceChecklist = Map.<String, Object>of(
+                "reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                "dailyLogEntryCount", 1,
+                "dailyLogEntriesWithSupervisionContent", 1,
+                "dailyLogEntriesWithChecklistItemCode", 1,
+                "dailyLogEntriesWithPhotoIds", 0,
+                "allDailyLogPhotoRefsResolved", true,
+                "generationBlockingPhotoIssue", false);
+        var coverage = ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferenceCoverage",
+                references,
+                evidenceChecklist);
+
+        @SuppressWarnings("unchecked")
+        var coverageMap = (Map<String, Object>) ReflectionTestUtils.invokeMethod(coverage, "toMap");
+        assertThat(coverageMap)
+                .containsEntry("passEligibleForPass", false)
+                .containsEntry("legalReferenceGrade", "A")
+                .containsEntry("reviewStrength", "LOW");
+        assertThat(passEligibility(coverageMap))
+                .containsEntry("legalEligible", true)
+                .containsEntry("evidenceEligible", false)
+                .containsEntry("applicabilityEligible", true)
+                .containsEntry("finalEligible", false);
+        assertThat(passBlockerCodes(coverageMap))
+                .contains("PASS_BLOCKED_MISSING_PHOTO_EVIDENCE");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> passEligibility(Map<String, Object> coverageMap) {
+        return (Map<String, Object>) coverageMap.get("passEligibility");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> passBlockerCodes(Map<String, Object> coverageMap) {
+        return ((List<Map<String, Object>>) coverageMap.get("passBlockers"))
+                .stream()
+                .map(blocker -> String.valueOf(blocker.get("code")))
+                .toList();
     }
 
     private InspectionReport report(OffsetDateTime now) {

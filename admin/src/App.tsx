@@ -8249,7 +8249,8 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
       "RUN-SCENARIO-DOC-LEGAL-002": "제공된 법령 근거 안에서만 인용",
       "RUN-SCENARIO-DOC-LEGAL-003": "법령검토 판정 품질 확인",
       "RUN-SCENARIO-DOC-LEGAL-004": "최종 법률판정 문구 차단",
-      "RUN-SCENARIO-DOC-LEGAL-005": "평가 데이터 저장/변경 없음"
+      "RUN-SCENARIO-DOC-LEGAL-005": "PASS 가능 조건 계약 확인",
+      "RUN-SCENARIO-DOC-LEGAL-006": "평가 데이터 저장/변경 없음"
     };
     return labels[caseId] ?? "문서 법령검토 실제 모델 시나리오";
   }

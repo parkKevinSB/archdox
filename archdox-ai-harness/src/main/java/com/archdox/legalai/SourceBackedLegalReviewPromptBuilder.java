@@ -57,6 +57,11 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Include only referenceId values that are present in sourceBackedLegalReferences.
                 - sourceBackedLegalReferences include referencePriorityScore and anchorRole. Prefer higher priority anchors.
                 - legalReviewContext.referenceCoverage.passEligibleForPass=false means PASS is not allowed. Return WARN or INSUFFICIENT_CONTEXT.
+                - legalReviewContext.referenceCoverage.passEligibility.finalEligible=false means PASS is not allowed.
+                - Treat legalReviewContext.referenceCoverage.passBlockers as deterministic server blockers. Do not ignore them.
+                - legalReviewContext.referenceCoverage.legalReferenceGrade uses A/B/C/D/X. Grade C, D, or X cannot justify PASS.
+                - REPORT_TYPE_ANCHOR alone is broad report-type context and cannot justify checklist/business-item PASS.
+                - SUPPORTING references alone can support human review, but cannot justify final PASS.
                 - Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거. They can support human review, but they cannot alone justify PASS.
                 - Prefer BUSINESS_ITEM_ANCHOR and REPORT_TYPE_ANCHOR references when explaining scope and reviewedReferenceIds.
                 - This is a dry-run review draft for ArchDox users. It is not legal advice.
