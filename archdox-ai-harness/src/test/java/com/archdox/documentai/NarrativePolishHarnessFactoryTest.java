@@ -3,9 +3,12 @@ package com.archdox.documentai;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.flower.ai.harness.finding.AiFinding;
 import io.github.parkkevinsb.flower.ai.harness.finding.FindingSink;
+import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunContext;
+import io.github.parkkevinsb.flower.ai.harness.run.AiHarnessRunId;
 import io.github.parkkevinsb.flower.ai.harness.test.AiHarnessTestExtension;
 import io.github.parkkevinsb.flower.ai.harness.test.fake.FakeResponseProgram;
 import io.github.parkkevinsb.flower.core.flow.FlowState;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +68,26 @@ class NarrativePolishHarnessFactoryTest {
         assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
         assertThat(flow.context().latestValidation()).isPresent();
         assertThat(flow.context().latestValidation().get().isValid()).isTrue();
+    }
+
+    @Test
+    void promptGuidesConciseDailyLogTone() {
+        var ctx = new AiHarnessRunContext(
+                new AiHarnessRunId("test-run"),
+                NarrativePolishHarnessFactory.HARNESS_ID,
+                NarrativePolishHarnessFactory.PROMPT_VERSION,
+                Instant.parse("2026-06-01T00:00:00Z"));
+
+        var prompt = new NarrativePolishPromptBuilder(new ObjectMapper()).build(input(), ctx);
+        var system = prompt.messages().get(0).content();
+
+        assertThat(prompt.version().version()).isEqualTo("1.0.1");
+        assertThat(system)
+                .contains("Avoid ceremonial or self-reporting endings")
+                .contains("\"보고합니다\"")
+                .contains("지적사항이 없습니다.")
+                .contains("특기사항이 없습니다.")
+                .contains("Do not expand simple no-issue fields");
     }
 
     private static NarrativePolishInput input() {

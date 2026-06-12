@@ -49,6 +49,10 @@ public final class NarrativePolishPromptBuilder implements PromptBuilder<Narrati
                 - Use NO_CHANGES only when the input is already a complete, natural, formal report sentence and rewriting would be merely stylistic churn.
                 - If a phrase is too ambiguous to safely rewrite, keep applicable=false and explain the reason.
                 - Keep polishedText concise and suitable for a Korean construction supervision daily log.
+                - Avoid ceremonial or self-reporting endings such as "보고합니다", "보고드립니다", or "기록하였음을 보고합니다".
+                - Prefer direct daily-log statements such as "지적사항이 없습니다.", "특기사항이 없습니다.", "추가 조치 사항이 없습니다.", and "확인하였습니다."
+                - Do not expand simple no-issue fields into verbose sentences like "본 현장 점검 결과, 별도의 지적사항이 없었음을 보고합니다."
+                - For remarks fields, "특기사항 없이 좋음", "특기사항 없음", or similar no-issue phrases should become "특기사항이 없습니다."
                 """;
         var user = """
                 Polish these ArchDox report narrative fields.

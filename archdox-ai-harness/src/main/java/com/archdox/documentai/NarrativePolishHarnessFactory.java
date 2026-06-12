@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class NarrativePolishHarnessFactory {
     public static final String HARNESS_ID = "archdox.document-narrative-polish";
     public static final ModelId DEFAULT_MODEL_ID = ModelId.parse("archdox:document-narrative-polish");
-    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-document-narrative-polish", "1.0.0");
+    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-document-narrative-polish", "1.0.1");
 
     private final ObjectMapper objectMapper;
 

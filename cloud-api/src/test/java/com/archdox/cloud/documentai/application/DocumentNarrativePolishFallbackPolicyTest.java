@@ -13,6 +13,7 @@ class DocumentNarrativePolishFallbackPolicyTest {
         var fields = List.of(
                 new NarrativePolishField("steps.REMARKS.payload.issueAndAction", "지적사항", "지적사항 없음"),
                 new NarrativePolishField("steps.REMARKS.payload.nextAction", "다음 조치", "다음 조치 없음"),
+                new NarrativePolishField("steps.REMARKS.payload.issueAndAction", "지적사항 및 처리결과", "특기사항 없이 좋음"),
                 new NarrativePolishField(
                         "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent",
                         "감리내용",
@@ -23,8 +24,9 @@ class DocumentNarrativePolishFallbackPolicyTest {
         assertThat(suggestions)
                 .extracting(DocumentNarrativePolishResponse.SuggestionResponse::polishedText)
                 .containsExactly(
-                        "지적사항은 확인되지 않았습니다.",
-                        "추가 조치 사항은 없습니다.",
+                        "지적사항이 없습니다.",
+                        "추가 조치 사항이 없습니다.",
+                        "특기사항이 없습니다.",
                         "창호 자재 성능을 확인한 결과, 이상이 없음을 확인하였습니다.");
         assertThat(suggestions).allMatch(DocumentNarrativePolishResponse.SuggestionResponse::applicable);
     }
@@ -45,5 +47,16 @@ class DocumentNarrativePolishFallbackPolicyTest {
         var suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, List.of(aiSuggestion));
 
         assertThat(suggestions).containsExactly(aiSuggestion);
+    }
+
+    @Test
+    void specialNoteNoIssuePhraseIsShortAndDirect() {
+        var fields = List.of(new NarrativePolishField("steps.REMARKS.payload.issueAndAction", "지적사항 및 처리결과", "특기사항 없이 좋음"));
+
+        var suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, List.of());
+
+        assertThat(suggestions)
+                .extracting(DocumentNarrativePolishResponse.SuggestionResponse::polishedText)
+                .containsExactly("특기사항이 없습니다.");
     }
 }

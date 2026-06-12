@@ -20,7 +20,7 @@ final class DocumentNarrativePolishFallbackPolicy {
             if (hasApplicableSuggestion(field.path(), aiSuggestions)) {
                 continue;
             }
-            fallbackText(field.originalText()).ifPresent(polished ->
+            fallbackText(field).ifPresent(polished ->
                     result.add(new DocumentNarrativePolishResponse.SuggestionResponse(
                             field.path(),
                             field.label(),
@@ -41,21 +41,21 @@ final class DocumentNarrativePolishFallbackPolicy {
                 .anyMatch(suggestion -> path.equals(suggestion.path()) && suggestion.applicable());
     }
 
-    static Optional<String> fallbackText(String raw) {
-        var text = normalize(raw);
+    static Optional<String> fallbackText(NarrativePolishField field) {
+        var text = normalize(field.originalText());
         if (text.isBlank()) {
             return Optional.empty();
         }
 
         var lower = text.toLowerCase(Locale.ROOT);
-        if (compactEquals(text, "지적사항 없음")) {
-            return Optional.of("지적사항은 확인되지 않았습니다.");
+        if (isNoIssueRemark(field, text, "특기사항") || isNoIssueRemark(field, text, "특이사항")) {
+            return Optional.of("특기사항이 없습니다.");
+        }
+        if (isNoIssueRemark(field, text, "지적사항")) {
+            return Optional.of("지적사항이 없습니다.");
         }
         if (compactEquals(text, "다음 조치 없음") || compactEquals(text, "추가 조치 없음")) {
-            return Optional.of("추가 조치 사항은 없습니다.");
-        }
-        if (compactEquals(text, "특기사항 없음")) {
-            return Optional.of("특기사항은 확인되지 않았습니다.");
+            return Optional.of("추가 조치 사항이 없습니다.");
         }
         if (lower.contains("확인시") && lower.contains("이상 없음")) {
             var subject = text
@@ -87,8 +87,39 @@ final class DocumentNarrativePolishFallbackPolicy {
         return Optional.empty();
     }
 
+    private static boolean isNoIssueRemark(NarrativePolishField field, String text, String keyword) {
+        var compactText = compact(text);
+        var compactLabel = compact(field.label());
+        var compactPath = compact(field.path());
+        var target = compact(keyword);
+        var isTargetField = compactLabel.contains(target) || compactPath.contains(target);
+        var mentionsTarget = compactText.contains(target);
+        if (!mentionsTarget && mentionsAnyRemarkKeyword(compactText)) {
+            return false;
+        }
+        if (!isTargetField && !mentionsTarget) {
+            return false;
+        }
+        return compactText.contains("없음")
+                || compactText.contains("없이좋음")
+                || compactText.contains("이상없음")
+                || compactText.equals(target + "좋음");
+    }
+
+    private static boolean mentionsAnyRemarkKeyword(String compactText) {
+        return compactText.contains("특기사항")
+                || compactText.contains("특이사항")
+                || compactText.contains("지적사항")
+                || compactText.contains("다음조치")
+                || compactText.contains("추가조치");
+    }
+
     private static boolean compactEquals(String text, String expected) {
-        return text.replace(" ", "").equals(expected.replace(" ", ""));
+        return compact(text).equals(compact(expected));
+    }
+
+    private static String compact(String text) {
+        return text == null ? "" : text.replace(" ", "");
     }
 
     private static String normalize(String raw) {
