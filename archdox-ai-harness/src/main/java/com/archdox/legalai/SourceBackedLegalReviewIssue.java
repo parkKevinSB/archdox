@@ -12,8 +12,23 @@ public record SourceBackedLegalReviewIssue(
         String evidence,
         String suggestion,
         List<String> legalReferenceIds,
-        String relatedFieldPath
+        String relatedFieldPath,
+        String replacement
 ) {
+    public SourceBackedLegalReviewIssue(
+            String code,
+            SourceBackedLegalReviewIssueCategory category,
+            SourceBackedLegalReviewIssueSeverity severity,
+            String location,
+            String message,
+            String evidence,
+            String suggestion,
+            List<String> legalReferenceIds,
+            String relatedFieldPath
+    ) {
+        this(code, category, severity, location, message, evidence, suggestion, legalReferenceIds, relatedFieldPath, "");
+    }
+
     public SourceBackedLegalReviewIssue {
         code = requireText(code, "code");
         category = category == null ? SourceBackedLegalReviewIssueCategory.LEGAL_RISK : category;
@@ -31,6 +46,7 @@ public record SourceBackedLegalReviewIssue(
                 .limit(20)
                 .toList();
         relatedFieldPath = normalize(relatedFieldPath);
+        replacement = normalize(replacement);
     }
 
     private static String requireText(String value, String fieldName) {

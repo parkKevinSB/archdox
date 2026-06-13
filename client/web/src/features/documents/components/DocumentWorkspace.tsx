@@ -1334,7 +1334,7 @@ function PreflightReviewPanel({
                       className="secondary-button compact-button"
                       disabled={fixing || resolving}
                       onClick={() => onApplyFindingFix(run.id, finding.id)}
-                      title="수정안을 보고서 입력값에 적용합니다. 적용 후 보고서는 편집 상태가 되며 다시 제출해야 합니다."
+                      title="수정안을 보고서 입력값에 적용합니다. 승인된 보정은 다시 제출하지 않아도 생성 흐름을 유지합니다."
                       type="button"
                     >
                       {fixing ? <Loader2 className="spin" size={14} /> : <PenLine size={14} />}
@@ -2374,7 +2374,7 @@ function preflightFixReplacement(finding: ReportPreflightReviewFindingResponse) 
 }
 
 function preflightFixTargetLabel(finding: ReportPreflightReviewFindingResponse) {
-  const location = finding.location?.trim() ?? "";
+  const location = finding.attributes?.relatedFieldPath?.trim() || finding.location?.trim() || "";
   if (location.endsWith("REMARKS.issueAndAction") || location.endsWith("REMARKS.payload.issueAndAction") || location === "REMARKS.issueAndAction") {
     return "지적사항 및 처리결과";
   }
@@ -2396,8 +2396,11 @@ function canApplyPreflightFindingFix(finding: ReportPreflightReviewFindingRespon
   if (finding.resolutionStatus !== "OPEN") {
     return false;
   }
-  if (!["AI", "DETERMINISTIC"].includes(finding.source) || !["LOW", "MEDIUM"].includes(finding.severity)) {
+  if (!["AI", "DETERMINISTIC", "LEGAL_REVIEW"].includes(finding.source) || !["LOW", "MEDIUM"].includes(finding.severity)) {
     return false;
+  }
+  if (finding.source === "LEGAL_REVIEW") {
+    return ["COMPLIANCE", "LEGAL_RISK", "EVIDENCE"].includes(finding.attributes?.category ?? "");
   }
   return finding.attributes?.category === "WORDING";
 }

@@ -220,6 +220,65 @@ class ReportPreflightReviewServiceApprovalGateTest {
     }
 
     @Test
+    void applyingLegalReviewReplacementUsesRelatedFieldPathAndApprovedCorrectionPath() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        report.submit(now);
+        var run = run(now);
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "LEGAL_REVIEW",
+                "TECHNICAL_CRITERIA_EVIDENCE_SCOPE",
+                "MEDIUM",
+                "DAILY_LOG.entries[0]",
+                "단열재 자재성능 점검 내용은 있으나, 실질 기술기준 증빙은 별도 확인이 필요합니다.",
+                "단열재 자재성능 확인 내용이 있습니다.",
+                Map.of(
+                        "category", "COMPLIANCE",
+                        "relatedFieldPath", "DAILY_LOG.groups[0].entries[0].supervisionContent",
+                        "replacement", "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다."),
+                now);
+        ReflectionTestUtils.setField(finding, "id", 300L);
+        var dailyPayload = Map.<String, Object>of(
+                "dailyItems", Map.of(
+                        "groups", List.of(Map.of(
+                                "entries", List.of(Map.of(
+                                        "supervisionContent", "단열재 자재성능 이상 없음"))))));
+        var step = new InspectionReportStep(
+                report,
+                "DAILY_LOG",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                dailyPayload,
+                7L,
+                now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step));
+        when(inspectionReportService.applyPreflightFixStep(eq(100L), eq("DAILY_LOG"), any(SaveInspectionStepRequest.class), any()))
+                .thenReturn(new InspectionStepResponse("DAILY_LOG", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
+
+        service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        var requestCaptor = ArgumentCaptor.forClass(SaveInspectionStepRequest.class);
+        verify(inspectionReportService).applyPreflightFixStep(eq(100L), eq("DAILY_LOG"), requestCaptor.capture(), any());
+        var payload = requestCaptor.getValue().payload();
+        var dailyItems = asMap(payload.get("dailyItems"));
+        var groups = asList(dailyItems.get("groups"));
+        var entries = asList(asMap(groups.get(0)).get("entries"));
+        assertThat(asMap(entries.get(0))).containsEntry(
+                "supervisionContent",
+                "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다.");
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+    }
+
+    @Test
     void applyingAmbiguousAiFixIsRejectedBeforeSavingStep() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");

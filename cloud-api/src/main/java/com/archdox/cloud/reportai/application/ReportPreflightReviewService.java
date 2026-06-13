@@ -326,9 +326,18 @@ public class ReportPreflightReviewService {
             return null;
         }
         if (!"WORDING".equals(finding.attributesJson().get("category"))) {
-            return null;
+            var legalCategory = finding.attributesJson().get("category");
+            if (!"LEGAL_REVIEW".equals(finding.source())
+                    || (!"COMPLIANCE".equals(legalCategory)
+                    && !"LEGAL_RISK".equals(legalCategory)
+                    && !"EVIDENCE".equals(legalCategory))) {
+                return null;
+            }
         }
-        var location = finding.location() == null ? "" : finding.location().trim();
+        var relatedFieldPath = textValue(finding.attributesJson().get("relatedFieldPath"));
+        var location = !relatedFieldPath.isBlank()
+                ? relatedFieldPath
+                : finding.location() == null ? "" : finding.location().trim();
         if (location.endsWith("REMARKS.issueAndAction")
                 || location.endsWith("REMARKS.payload.issueAndAction")
                 || "REMARKS.issueAndAction".equals(location)) {
@@ -352,6 +361,9 @@ public class ReportPreflightReviewService {
 
     private static boolean fixSourceAllowed(ReportPreflightReviewFinding finding) {
         if ("AI".equals(finding.source())) {
+            return true;
+        }
+        if ("LEGAL_REVIEW".equals(finding.source())) {
             return true;
         }
         return "DETERMINISTIC".equals(finding.source())
@@ -415,6 +427,9 @@ public class ReportPreflightReviewService {
                 "다듬으십시오",
                 "기재하십시오",
                 "기재하여",
+                "권고합니다",
+                "첨부합니다",
+                "확인 후",
                 "명확히 기재",
                 "문장을 완성",
                 "문장으로 수정",

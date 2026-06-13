@@ -974,6 +974,9 @@ public class ReportPreflightLegalReviewHarnessService {
         attributes.put("category", issue.category().name());
         attributes.put("approvalRequired", String.valueOf(legalIssueApprovalRequired(issue)));
         attributes.put("suggestion", issue.suggestion());
+        if (!issue.replacement().isBlank()) {
+            attributes.put("replacement", issue.replacement());
+        }
         if (!issue.relatedFieldPath().isBlank()) {
             attributes.put("relatedFieldPath", issue.relatedFieldPath());
         }

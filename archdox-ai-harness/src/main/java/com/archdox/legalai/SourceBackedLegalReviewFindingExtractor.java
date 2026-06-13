@@ -46,6 +46,9 @@ public final class SourceBackedLegalReviewFindingExtractor implements FindingExt
         if (!issue.suggestion().isBlank()) {
             attributes.put("suggestion", issue.suggestion());
         }
+        if (!issue.replacement().isBlank()) {
+            attributes.put("replacement", issue.replacement());
+        }
         if (!issue.relatedFieldPath().isBlank()) {
             attributes.put("relatedFieldPath", issue.relatedFieldPath());
         }

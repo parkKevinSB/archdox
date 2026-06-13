@@ -75,7 +75,8 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                       "evidence": "The supplied legal anchor is linked to the checklist item, but field evidence text is generic.",
                       "suggestion": "Add the inspected member, location, and photo evidence context.",
                       "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
-                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].supervisionContent"
+                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].supervisionContent",
+                      "replacement": "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도 보관 대상으로 기록합니다."
                     }
                   ]
                 }
@@ -93,6 +94,9 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                     assertThat(finding.attributes()).containsEntry("source", "LEGAL_REVIEW");
                     assertThat(finding.attributes()).containsEntry("legalReferences", "BUILDING_ACT:0025001@v1");
                     assertThat(finding.attributes()).containsEntry("approvalRequired", "true");
+                    assertThat(finding.attributes()).containsEntry(
+                            "replacement",
+                            "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도 보관 대상으로 기록합니다.");
                 });
     }
 
@@ -107,7 +111,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         var prompt = new SourceBackedLegalReviewPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("0.2.2");
+        assertThat(prompt.version().version()).isEqualTo("0.2.3");
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
@@ -121,6 +125,8 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                 .contains("For vague material/performance notes")
                 .contains("never claim that specifications, test reports, approval documents, or certificates were attached")
                 .contains("별도 확인 및 보관 대상으로 기록합니다")
+                .contains("\"replacement\"")
+                .contains("replacement must be final report prose")
                 .contains("REPORT_TYPE_ANCHOR alone is broad report-type context")
                 .contains("Treat SEARCH_CANDIDATE or LEGAL_CORPUS_SEARCH references as 후보 근거")
                 .contains("PASS must explain the legal review scope")

@@ -45,7 +45,8 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                       "evidence": "Korean explanation of report input and legal/source anchor evidence",
                       "suggestion": "Korean recommended correction or human review action",
                       "legalReferenceIds": ["referenceId values from input only"],
-                      "relatedFieldPath": "stable report field path, or empty string"
+                      "relatedFieldPath": "stable report field path, or empty string",
+                      "replacement": "exact full Korean replacement text for relatedFieldPath, or empty string"
                     }
                   ]
                 }
@@ -80,6 +81,10 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", explain which evidence class is needed: design/spec requirement, test report, material approval, certificate, product/model/specification identity, or approved-vs-delivered material matching.
                 - When suggesting a better report sentence, never claim that specifications, test reports, approval documents, or certificates were attached, stored, or verified unless the input explicitly says so.
                 - If the evidence is not explicit, suggest cautious report prose such as "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다."
+                - For issues on direct report text fields, set relatedFieldPath and replacement when you can produce safe final report prose.
+                - Direct report text fields include DAILY_LOG.entries[n].supervisionContent, DAILY_LOG.groups[n].entries[m].supervisionContent, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - replacement must be final report prose, not an instruction. Do not write "명시하십시오", "첨부하십시오", "권고합니다", or "확인 후 첨부합니다" in replacement.
+                - If you cannot safely produce final prose, set replacement to "" and put the human action in suggestion.
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
                 - Missing technical documents alone is not a legal-risk finding for ordinary daily-log generation. Put it in limitations, not issues, unless the report explicitly claims technical compliance or contradicts the supplied anchors.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
