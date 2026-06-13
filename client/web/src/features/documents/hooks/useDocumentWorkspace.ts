@@ -295,6 +295,7 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["report-preflight-reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["report-preflight-findings"] }),
+        queryClient.invalidateQueries({ queryKey: ["document-report-steps"] }),
         onRefreshWorkspace()
       ]);
     }
