@@ -11,8 +11,11 @@ import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
 import com.archdox.cloud.engine.usage.domain.EngineApiUsageEvent;
 import com.archdox.cloud.engine.usage.infra.EngineApiUsageEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -166,6 +169,40 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.isError").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.reviewSessionId").value(inspectionReviewSessionId))
                 .andExpect(jsonPath("$.result.structuredContent.normalizedContext.catalogSelections").isArray());
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-pdf-review")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 23,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "review_inspection_document",
+                                    "arguments": {
+                                      "customerProjectRef": "mcp-daily-log-pdf",
+                                      "reviewPurpose": "preflight",
+                                      "documentTypeHint": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                      "targetDate": "2021-01-07",
+                                      "fileName": "003-daily-log.pdf",
+                                      "contentType": "application/pdf",
+                                      "timeoutSeconds": 20,
+                                      "documentBase64": "%s",
+                                      "facts": [
+                                        {"name": "buildingUse", "rawValue": "NEIGHBORHOOD_LIVING_FACILITY", "source": "USER_PROVIDED", "confidence": 0.95},
+                                        {"name": "structureType", "rawValue": "REINFORCED_CONCRETE", "source": "USER_PROVIDED", "confidence": 0.95}
+                                      ]
+                                    }
+                                  }
+                                }
+                                """.formatted(referenceDailyLogPdfBase64())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.inputMode").value("DOCUMENT_BASE64_PDF"))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.pageCount").value(9))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.catalogSelectionCount").value(8));
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
@@ -731,6 +768,24 @@ class McpGatewayIntegrationTest {
 
     private String bearer(String token) {
         return "Bearer " + token;
+    }
+
+    private String referenceDailyLogPdfBase64() throws Exception {
+        var current = Path.of("").toAbsolutePath();
+        while (current != null) {
+            var candidateDirectory = current.resolve(Path.of("docs", "reference-forms", "korean"));
+            if (Files.isDirectory(candidateDirectory)) {
+                Path pdf;
+                try (var files = Files.list(candidateDirectory)) {
+                    pdf = files.filter(path -> path.getFileName().toString().endsWith("21.12.21.pdf"))
+                            .findFirst()
+                            .orElseThrow();
+                }
+                return Base64.getEncoder().encodeToString(Files.readAllBytes(pdf));
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("Reference daily log PDF not found");
     }
 
     private record TestUser(long userId, long officeId, String accessToken) {

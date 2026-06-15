@@ -214,6 +214,9 @@ public class McpToolService {
         if (optionalText(arguments.get("targetDate")) != null && !optionalText(arguments.get("targetDate")).isBlank()) {
             units += 1;
         }
+        if (optionalText(arguments.get("documentBase64")) != null && !optionalText(arguments.get("documentBase64")).isBlank()) {
+            units += 2;
+        }
         return units;
     }
 
@@ -421,7 +424,8 @@ public class McpToolService {
                     "documentTypeHint", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                     "targetDate", "2021-01-07",
                     "fileName", "daily-log.pdf.txt",
-                    "contentText", "공사감리일지 2021년 1월 7일 토공사 터파기 터파기 깊이 확인");
+                    "contentText", "공사감리일지 2021년 1월 7일 토공사 터파기 터파기 깊이 확인",
+                    "contentType", "text/plain");
             case "answer_inspection_document_questions" -> Map.of(
                     "reviewSessionId", "rvw_sess_example",
                     "facts", List.of(
@@ -702,11 +706,13 @@ public class McpToolService {
                         this::validateInspectionReportUnits,
                         this::validateInspectionReport),
                 tool("review_inspection_document", "Review inspection document",
-                        "Run an ArchDox Flower orchestration flow that extracts a construction supervision daily log from document text, maps catalog items, asks for missing context, and runs Engine validation.",
-                        schema(required("contentText"),
+                        "Run an ArchDox Flower orchestration flow that extracts a construction supervision daily log from contentText or documentBase64 PDF/text input, maps catalog items, asks for missing context, and runs Engine validation.",
+                        schema(required(),
                                 property("customerProjectRef", "string"),
                                 property("reviewPurpose", "string"),
                                 property("contentText", "string"),
+                                property("documentBase64", "string"),
+                                property("contentType", "string"),
                                 property("targetDate", "string"),
                                 property("documentTypeHint", "string"),
                                 property("fileName", "string"),

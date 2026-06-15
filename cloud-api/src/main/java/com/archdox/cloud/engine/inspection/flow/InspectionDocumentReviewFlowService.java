@@ -45,7 +45,10 @@ public class InspectionDocumentReviewFlowService {
         var facts = new ArrayList<EngineContextFactRequest>();
         facts.addAll(extraction.facts());
         facts.addAll(request.suppliedFacts());
-        request.state().extractionMetadata(extraction.metadata());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.putAll(request.inputMetadata());
+        metadata.putAll(extraction.metadata());
+        request.state().extractionMetadata(metadata);
         reviewSessionService.submitFacts(
                 request.state().reviewSessionId(),
                 new SubmitEngineReviewFactsRequest(List.copyOf(facts)),

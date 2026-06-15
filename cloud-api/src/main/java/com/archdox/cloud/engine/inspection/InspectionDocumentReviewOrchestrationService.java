@@ -27,15 +27,18 @@ public class InspectionDocumentReviewOrchestrationService {
     private static final Duration MAX_TIMEOUT = Duration.ofSeconds(120);
 
     private final EngineExternalReviewSessionService reviewSessionService;
+    private final InspectionDocumentContentTextService contentTextService;
     private final InspectionDocumentReviewFlowFactory flowFactory;
     private final FlowerFlowAsyncCompletionService flowCompletionService;
 
     public InspectionDocumentReviewOrchestrationService(
             EngineExternalReviewSessionService reviewSessionService,
+            InspectionDocumentContentTextService contentTextService,
             InspectionDocumentReviewFlowFactory flowFactory,
             FlowerFlowAsyncCompletionService flowCompletionService
     ) {
         this.reviewSessionService = reviewSessionService;
+        this.contentTextService = contentTextService;
         this.flowFactory = flowFactory;
         this.flowCompletionService = flowCompletionService;
     }
@@ -45,6 +48,7 @@ public class InspectionDocumentReviewOrchestrationService {
             Map<String, Object> arguments
     ) {
         var state = new InspectionDocumentReviewState();
+        var resolvedContent = contentTextService.resolve(arguments);
         var request = new InspectionDocumentReviewRequest(
                 UUID.randomUUID().toString(),
                 principal,
@@ -52,8 +56,9 @@ public class InspectionDocumentReviewOrchestrationService {
                 defaultText(arguments.get("reviewPurpose"), "preflight"),
                 defaultText(arguments.get("documentTypeHint"), "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
                 defaultText(arguments.get("fileName"), "inspection-document.txt"),
-                requiredText(arguments.get("contentText"), "contentText is required"),
+                resolvedContent.contentText(),
                 optionalText(arguments.get("targetDate")),
+                resolvedContent.metadata(),
                 facts(arguments.get("facts")),
                 state);
         var flow = flowFactory.create(request);

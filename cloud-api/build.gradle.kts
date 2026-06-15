@@ -57,6 +57,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.apache.pdfbox:pdfbox:3.0.3")
     implementation(platform("software.amazon.awssdk:bom:2.25.70"))
     implementation("software.amazon.awssdk:s3")
     implementation("org.sejda.imageio:webp-imageio:0.1.6")
