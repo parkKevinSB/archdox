@@ -10,13 +10,13 @@
     <title>MCP 연결 가이드 | ArchDox Developers</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="developer-docs">
-    <header class="site-header docs-header">
-      <a class="brand" href="/" aria-label="ArchDox home">
+  <body class="developer-docs mcp-docs">
+    <header class="site-header docs-header mcp-header">
+      <a class="brand mcp-brand" href="/" aria-label="ArchDox home">
         <span class="brand-mark">AD</span>
         <span>archdoX</span>
       </a>
-      <nav class="top-nav" aria-label="Primary navigation">
+      <nav class="top-nav mcp-nav" aria-label="Primary navigation">
         <a href="/">Platform</a>
         <a href="/developers/">Developers</a>
         <a href="/developers/mcp/" aria-current="page">MCP Guide</a>
@@ -26,69 +26,111 @@
     </header>
 
     <main>
-      <section class="docs-hero">
-        <p class="eyebrow">MCP Gateway</p>
-        <h1>AI 도구가 ArchDox Engine을 호출하는 공식 연결 경로입니다.</h1>
-        <p>
-          ArchDox MCP Gateway는 외부 Agent가 감리 리포트 검토, 법령 변경 조회, 법령 검색을 호출할 때
-          같은 인증, scope, quota, audit 경계를 타도록 하는 JSON-RPC/MCP endpoint입니다.
-        </p>
-        <div class="docs-endpoint">
-          <span>MCP endpoint</span>
-          <code>https://mcp.archdox.co.kr/api/v1/mcp</code>
+      <section class="mcp-hero">
+        <div class="mcp-hero-field" aria-hidden="true"></div>
+        <div class="mcp-hero-copy">
+          <p class="mcp-eyebrow">ArchDox MCP Gateway</p>
+          <h1>AI 도구를 ArchDox 검토 엔진에 안전하게 연결합니다.</h1>
+          <p>
+            Codex, Claude, Cursor, 사내 Agent가 감리 문서 검토와 법령 근거 조회를 호출할 때
+            같은 인증, scope, quota, audit 경계를 타도록 제공하는 공식 MCP 연결 경로입니다.
+          </p>
+          <div class="mcp-endpoint">
+            <span>Endpoint</span>
+            <code>https://mcp.archdox.co.kr/api/v1/mcp</code>
+          </div>
+          <div class="hero-actions mcp-actions">
+            <a class="primary-action" href="https://app.archdox.co.kr/developer">로그인 후 연결 만들기</a>
+            <a class="secondary-action" href="#quick-start">연결 순서 보기</a>
+          </div>
         </div>
-        <div class="hero-actions">
-          <a class="primary-action" href="https://app.archdox.co.kr/developer">로그인 후 연결 만들기</a>
-          <a class="secondary-action" href="#quick-start">연결 순서 보기</a>
-        </div>
+
+        <aside class="mcp-console" aria-label="MCP connection summary">
+          <div class="mcp-console-head">
+            <span class="window-dots" aria-hidden="true"></span>
+            <strong>connection.flow</strong>
+            <small>secure boundary</small>
+          </div>
+          <ol class="mcp-flow-list">
+            <li>
+              <span>01</span>
+              <div>
+                <strong>Engine API Key 발급</strong>
+                <p>사용자 앱에서 키와 MCP config를 생성합니다.</p>
+              </div>
+            </li>
+            <li>
+              <span>02</span>
+              <div>
+                <strong>AI 도구에 config 등록</strong>
+                <p>secret은 외부 문서나 Git 저장소에 남기지 않습니다.</p>
+              </div>
+            </li>
+            <li>
+              <span>03</span>
+              <div>
+                <strong>Live Smoke 확인</strong>
+                <p>initialize, tools/list, 법령 조회, 검색을 실제 endpoint로 점검합니다.</p>
+              </div>
+            </li>
+            <li>
+              <span>04</span>
+              <div>
+                <strong>문서검토 세션 실행</strong>
+                <p>PDF나 문서 텍스트를 넣고 부족한 문맥 질문을 이어갑니다.</p>
+              </div>
+            </li>
+          </ol>
+        </aside>
       </section>
 
-      <section class="docs-section" id="quick-start">
-        <div class="section-head">
-          <p class="eyebrow">Quick Start</p>
-          <h2>가장 짧은 연결 순서</h2>
+      <section class="mcp-section" id="quick-start">
+        <div class="mcp-section-head">
+          <p class="mcp-eyebrow">Quick Start</p>
+          <h2>연결은 네 단계면 충분합니다.</h2>
+          <p>공개 문서는 흐름을 설명하고, 실제 secret과 사용량은 로그인 앱에서만 관리합니다.</p>
         </div>
-        <div class="steps docs-steps">
+        <div class="mcp-step-strip">
           <article>
             <span>1</span>
-            <h3>ArchDox 앱 로그인</h3>
-            <p>사용자 앱에서 프로필 메뉴를 열고 <strong>개발자 / MCP 연결</strong> 화면으로 이동합니다.</p>
+            <h3>앱 로그인</h3>
+            <p>프로필 메뉴에서 <strong>개발자 / MCP 연결</strong> 화면으로 이동합니다.</p>
           </article>
           <article>
             <span>2</span>
             <h3>연결 패키지 생성</h3>
-            <p>Codex, Claude, Cursor, Custom Agent 중 연결 대상을 고르면 새 Engine API Key와 MCP config가 생성됩니다.</p>
+            <p>Codex, Claude, Cursor, Custom Agent 중 연결 대상을 선택합니다.</p>
           </article>
           <article>
             <span>3</span>
-            <h3>키와 config 보관</h3>
-            <p>Engine API Key 원문은 한 번만 표시됩니다. 외부 AI 도구 설정에 넣고 안전한 곳에 보관하세요.</p>
+            <h3>설정 등록</h3>
+            <p>생성된 MCP config를 AI 도구 설정에 붙여 넣습니다.</p>
           </article>
           <article>
             <span>4</span>
-            <h3>Live Smoke 실행</h3>
-            <p>Developer 화면의 MCP 연결 테스트가 4/4 성공하면 실제 MCP endpoint 연결이 정상입니다.</p>
+            <h3>Live Smoke</h3>
+            <p>4/4 성공이면 실제 gateway 연결과 scope가 정상입니다.</p>
           </article>
         </div>
       </section>
 
-      <section class="docs-section light-band">
-        <div class="section-head">
-          <p class="eyebrow">Client Config</p>
-          <h2>연결 패키지는 아래 형태의 MCP 설정을 생성합니다.</h2>
+      <section class="mcp-section mcp-band">
+        <div class="mcp-section-head">
+          <p class="mcp-eyebrow">Client Config</p>
+          <h2>연결 패키지는 이 형태의 MCP 설정을 만듭니다.</h2>
         </div>
-        <div class="split-section docs-split">
+        <div class="mcp-config-layout">
           <div>
             <p>
-              생성된 설정에서 <code>X-ArchDox-Engine-Key</code> 값은 사용자의 secret입니다.
-              공개 문서나 Git 저장소에 올리지 마세요. 기존 키 원문은 다시 조회할 수 없고, 잃어버리면 새로 발급해야 합니다.
+              <code>X-ArchDox-Engine-Key</code> 값은 사용자의 secret입니다. 원문 키는 한 번만 표시되며,
+              잃어버린 키는 폐기 후 다시 발급해야 합니다.
             </p>
-            <div class="docs-callout">
+            <div class="mcp-note">
               <strong>추천 확인 방식</strong>
-              <span>연결 후 app 개발자 화면에서 live smoke를 먼저 실행하세요. initialize, tools/list, get_legal_updates, search_law가 모두 성공해야 합니다.</span>
+              <span>연결 직후 앱의 Developer 화면에서 live smoke를 실행하세요. 실패하면 오류 코드와 scope를 먼저 확인합니다.</span>
             </div>
           </div>
-          <div class="code-panel compact">
+          <div class="mcp-code-panel">
             <pre><code>{
   "mcpServers": {
     "archdox": {
@@ -103,106 +145,130 @@
         </div>
       </section>
 
-      <section class="docs-section">
-        <div class="section-head">
-          <p class="eyebrow">Tools</p>
+      <section class="mcp-section">
+        <div class="mcp-section-head">
+          <p class="mcp-eyebrow">Tools</p>
           <h2>MCP V1 tool set</h2>
-          <p>Tool catalog는 앱의 Developer 화면에서도 확인할 수 있습니다. 실제 quota/usage는 gateway에서 기록됩니다.</p>
+          <p>Tool catalog는 목적별로 나뉘며, 실제 quota와 usage는 gateway에서 기록됩니다.</p>
         </div>
-        <div class="tool-grid docs-tool-grid">
-          <article>
-            <code>validate_inspection_report</code>
-            <h3>리포트 일괄 검토</h3>
-            <p>문서 본문과 업무 facts를 제출하고 검증까지 한 번에 실행하는 convenience tool입니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>review_inspection_document</code>
-            <h3>문서 텍스트 기반 검토</h3>
-            <p>감리일지 텍스트 또는 base64 PDF에서 대상 일자, 공종, 검사항목을 추출하고 부족한 문맥 질문과 검토 결과를 반환합니다. 스캔 이미지 OCR은 다음 단계입니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>answer_inspection_document_questions</code>
-            <h3>부족한 문맥 답변</h3>
-            <p>문서 검토에서 나온 review session에 건축물 용도, 구조, 현장 조건 같은 추가 facts를 병합하고 같은 검토를 다시 실행합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>get_inspection_document_review_state</code>
-            <h3>문서검토 상태 조회</h3>
-            <p>문서검토 세션의 안내 문장, 문맥 요약, 부족한 질문, 다음 MCP action을 조회합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>create_review_session</code>
-            <h3>검토 세션 생성</h3>
-            <p>외부 Agent가 문서 검토 흐름을 시작할 review session을 만듭니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>submit_document</code>
-            <h3>문서 본문 제출</h3>
-            <p>검토할 문서 텍스트와 메타데이터를 review session에 추가합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>submit_context_facts</code>
-            <h3>업무 facts 제출</h3>
-            <p>공종, 검사항목, 현장 조건, evidence 같은 구조화된 사실을 제출합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>normalize_context</code>
-            <h3>문맥 정규화</h3>
-            <p>외부 표현을 ArchDox canonical context와 카탈로그 기준으로 정리합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>run_validation</code>
-            <h3>검증 실행</h3>
-            <p>정규화된 context 기준으로 deterministic/source-backed 검증을 실행합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>get_review_result</code>
-            <h3>검토 결과 조회</h3>
-            <p>finding, legalReferences, nextActions, status를 같은 응답 계약으로 조회합니다.</p>
-            <small>scope: ENGINE_REVIEW_SESSION</small>
-          </article>
-          <article>
-            <code>get_legal_updates</code>
-            <h3>법령 변경 조회</h3>
-            <p>사용자에게 게시된 법령 변경 digest 목록을 조회합니다.</p>
-            <small>scope: LEGAL_UPDATES</small>
-          </article>
-          <article>
-            <code>explain_legal_change</code>
-            <h3>법령 변경 상세</h3>
-            <p>특정 digest와 원천 change set의 상세 내용을 읽습니다.</p>
-            <small>scope: LEGAL_UPDATES</small>
-          </article>
-          <article>
-            <code>search_law</code>
-            <h3>법령 검색</h3>
-            <p>동기화된 법령 코퍼스에서 후보 조문을 검색합니다. 후보만으로 최종 법률 판정을 내리지 않습니다.</p>
-            <small>scope: LEGAL_SEARCH</small>
-          </article>
-          <article>
-            <code>get_law_article</code>
-            <h3>법령 조문 조회</h3>
-            <p>source-backed article/version 기준으로 조문 본문과 출처를 조회합니다.</p>
-            <small>scope: LEGAL_SEARCH</small>
-          </article>
+
+        <div class="mcp-tool-matrix">
+          <div class="mcp-tool-group">
+            <div>
+              <span>Document Review</span>
+              <h3>PDF/문서 검토 흐름</h3>
+              <p>외부 Agent가 문서를 던지고, ArchDox가 필요한 문맥을 더 묻고, 검토 결과를 구조화합니다.</p>
+            </div>
+            <div class="mcp-tool-list">
+              <article>
+                <code>review_inspection_document</code>
+                <strong>문서 기반 검토 시작</strong>
+                <p>감리일지 텍스트 또는 base64 PDF에서 대상 일자, 공종, 검사항목을 추출합니다.</p>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>answer_inspection_document_questions</code>
+                <strong>부족한 문맥 답변</strong>
+                <p>추가 facts를 병합하고 같은 검토 세션을 다시 평가합니다.</p>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>get_inspection_document_review_state</code>
+                <strong>문서검토 상태 조회</strong>
+                <p>안내 문장, 문맥 요약, 부족한 질문, 다음 MCP action을 조회합니다.</p>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>validate_inspection_report</code>
+                <strong>리포트 일괄 검토</strong>
+                <p>문서 본문과 업무 facts를 제출하고 검증까지 한 번에 실행합니다.</p>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+            </div>
+          </div>
+
+          <div class="mcp-tool-group">
+            <div>
+              <span>Review Session</span>
+              <h3>세션 primitive</h3>
+              <p>Custom Agent가 단계별로 세션을 만들고 문서, facts, 정규화, 검증, 결과 조회를 직접 제어합니다.</p>
+            </div>
+            <div class="mcp-tool-list compact">
+              <article>
+                <code>create_review_session</code>
+                <strong>검토 세션 생성</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>submit_document</code>
+                <strong>문서 본문 제출</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>submit_context_facts</code>
+                <strong>업무 facts 제출</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>normalize_context</code>
+                <strong>문맥 정규화</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>run_validation</code>
+                <strong>검증 실행</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+              <article>
+                <code>get_review_result</code>
+                <strong>검토 결과 조회</strong>
+                <small>ENGINE_REVIEW_SESSION</small>
+              </article>
+            </div>
+          </div>
+
+          <div class="mcp-tool-group">
+            <div>
+              <span>Legal Context</span>
+              <h3>법령 변경과 조문 조회</h3>
+              <p>동기화된 법령 코퍼스와 digest를 조회합니다. 검색 후보만으로 최종 법률 판정을 내리지 않습니다.</p>
+            </div>
+            <div class="mcp-tool-list">
+              <article>
+                <code>get_legal_updates</code>
+                <strong>법령 변경 조회</strong>
+                <p>사용자에게 게시된 법령 변경 digest 목록을 조회합니다.</p>
+                <small>LEGAL_UPDATES</small>
+              </article>
+              <article>
+                <code>explain_legal_change</code>
+                <strong>법령 변경 상세</strong>
+                <p>특정 digest와 원천 change set의 상세 내용을 읽습니다.</p>
+                <small>LEGAL_UPDATES</small>
+              </article>
+              <article>
+                <code>search_law</code>
+                <strong>법령 검색</strong>
+                <p>동기화된 법령 코퍼스에서 후보 조문을 검색합니다.</p>
+                <small>LEGAL_SEARCH</small>
+              </article>
+              <article>
+                <code>get_law_article</code>
+                <strong>법령 조문 조회</strong>
+                <p>source-backed article/version 기준으로 조문 본문과 출처를 조회합니다.</p>
+                <small>LEGAL_SEARCH</small>
+              </article>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="docs-section light-band">
-        <div class="section-head">
-          <p class="eyebrow">Errors</p>
-          <h2>실패 원인을 이렇게 해석하세요.</h2>
+      <section class="mcp-section mcp-band">
+        <div class="mcp-section-head">
+          <p class="mcp-eyebrow">Errors</p>
+          <h2>실패 원인은 내부 코드와 함께 해석합니다.</h2>
         </div>
-        <div class="docs-error-table">
+        <div class="mcp-error-list">
           <div>
             <strong>ENGINE_API_KEY_INVALID</strong>
             <span>키가 없거나, 형식이 틀렸거나, 폐기/만료된 키입니다. 새 연결 패키지를 생성하세요.</span>
@@ -213,7 +279,7 @@
           </div>
           <div>
             <strong>ENGINE_API_QUOTA_EXCEEDED</strong>
-            <span>일일 request unit 한도를 초과했습니다. Developer 화면의 사용량을 확인하고 필요하면 한도 확장을 요청하세요.</span>
+            <span>일일 request unit 한도를 초과했습니다. Developer 화면의 사용량을 확인하세요.</span>
           </div>
           <div>
             <strong>MCP_INVALID_PARAMS</strong>
@@ -226,12 +292,12 @@
         </div>
       </section>
 
-      <section class="docs-section">
-        <div class="section-head">
-          <p class="eyebrow">Security</p>
+      <section class="mcp-section">
+        <div class="mcp-section-head">
+          <p class="mcp-eyebrow">Security</p>
           <h2>연결 키는 사용자의 책임 범위 안에서만 동작합니다.</h2>
         </div>
-        <div class="docs-card-grid">
+        <div class="mcp-security-grid">
           <article>
             <span>Secret</span>
             <h3>원문 키는 한 번만 표시</h3>
@@ -240,21 +306,21 @@
           <article>
             <span>Scope</span>
             <h3>Tool별 scope 분리</h3>
-            <p>문서 검토, 법령 변경, 법령 검색은 각각 capability와 scope를 통해 usage/quota가 분리됩니다.</p>
+            <p>문서 검토, 법령 변경, 법령 검색은 capability와 scope를 통해 usage/quota가 분리됩니다.</p>
           </article>
           <article>
             <span>Audit</span>
             <h3>호출 로그 기록</h3>
-            <p>MCP 호출은 capability, operation, toolName, request units, 실패 원인을 usage/audit 기록으로 남깁니다.</p>
+            <p>MCP 호출은 capability, toolName, request units, 실패 원인을 usage/audit 기록으로 남깁니다.</p>
           </article>
         </div>
       </section>
 
-      <section class="cta-band">
+      <section class="mcp-cta">
         <div>
-          <p class="eyebrow">Ready</p>
-          <h2>이제 로그인 후 연결 패키지를 생성하세요.</h2>
-          <p>연결 테스트가 PASS이면 Codex, Claude, Cursor, Custom Agent에서 ArchDox MCP Gateway를 호출할 준비가 된 것입니다.</p>
+          <p class="mcp-eyebrow">Ready</p>
+          <h2>로그인 후 연결 패키지를 생성하세요.</h2>
+          <p>Live smoke가 PASS이면 Codex, Claude, Cursor, Custom Agent에서 ArchDox MCP Gateway를 호출할 준비가 된 것입니다.</p>
         </div>
         <div class="cta-actions">
           <a class="primary-action" href="https://app.archdox.co.kr/developer">연결 패키지 생성</a>
@@ -263,7 +329,7 @@
       </section>
     </main>
 
-    <footer class="site-footer">
+    <footer class="site-footer mcp-footer">
       <span>archdoX</span>
       <p>MCP는 외부 Agent가 ArchDox Engine을 호출하는 안전한 통로입니다.</p>
     </footer>
