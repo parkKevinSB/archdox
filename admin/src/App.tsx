@@ -282,6 +282,8 @@ type PlatformViewKey = Extract<
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-budgets" | "ai-policies" | "ai-observer">;
 type AiObserverTabKey = "summary" | "raw" | "findings" | "traces" | "calls";
 type EngineUsageEventFilter = "ALL" | "ENGINE" | "MCP" | "LEGAL" | "FAILED";
+const OFFICIAL_MCP_ENDPOINT = "https://mcp.archdox.co.kr/api/v1/mcp";
+const OFFICIAL_ENGINE_API_BASE_URL = "https://api.archdox.co.kr";
 
 type AdminState = {
   accessToken: string;
@@ -6634,7 +6636,12 @@ function EngineApiKeyManagementPanel({
             <MetricCard icon={<CheckCircle2 size={20} />} label="활성" value={activeCount} detail="외부 호출 가능" tone="green" />
             <MetricCard icon={<XCircle size={20} />} label="폐기" value={revokedCount} detail="사용 불가" tone="red" />
           </div>
-          <InlineAlert message="현재는 review-session 테스트용 Foundation입니다. 고객별 quota, billing, developer portal은 다음 단계에서 붙입니다." />
+          <div className="engine-endpoint-list">
+            <CopyableEndpoint label="MCP endpoint" value={OFFICIAL_MCP_ENDPOINT} />
+            <CopyableEndpoint label="Engine API base" value={OFFICIAL_ENGINE_API_BASE_URL} />
+          </div>
+          <InlineNotice message="현재 키는 Engine REST와 MCP V1 공통 인증에 사용됩니다. 문서 검토, 법령 업데이트, 법령 검색 scope와 usage/quota 기록이 연결되어 있습니다." />
+          <InlineAlert message="고객별 billing, 개발자 포털, OAuth 승인 flow는 아직 다음 단계입니다. 운영 테스트 키는 scope와 일일 quota를 제한해서 발급하세요." />
         </Panel>
       </div>
 
@@ -6959,6 +6966,18 @@ function compactJson(value: unknown, maxLength = 1200) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n...` : text;
 }
 
+function CopyableEndpoint({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="copyable-endpoint">
+      <span>{label}</span>
+      <code>{value}</code>
+      <button className="icon-button" onClick={() => void navigator.clipboard.writeText(value)} title={`${label} 복사`} type="button">
+        <Copy size={14} />
+      </button>
+    </div>
+  );
+}
+
 function EngineApiKeyCreateForm({
   busy,
   offices,
@@ -6977,7 +6996,7 @@ function EngineApiKeyCreateForm({
     expiresAt?: string | null;
   }) => Promise<void>;
 }) {
-  const [displayName, setDisplayName] = useState("Codex Engine API Key");
+  const [displayName, setDisplayName] = useState("Codex MCP / Engine API Key");
   const [ownerUserId, setOwnerUserId] = useState<number | "">(users[0]?.id ?? "");
   const [officeId, setOfficeId] = useState<number | "">("");
   const [allScopes, setAllScopes] = useState(false);
@@ -7041,7 +7060,7 @@ function EngineApiKeyCreateForm({
         <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
       </label>
       <label>
-        1??request unit ?쒕룄
+        일일 request unit 한도
         <input
           min={1}
           type="number"
@@ -7053,7 +7072,10 @@ function EngineApiKeyCreateForm({
         <input type="checkbox" checked={allScopes} onChange={(event) => setAllScopes(event.target.checked)} />
         ALL 스코프로 발급
       </label>
-      <div className="policy-note">기본 스코프는 ENGINE_REVIEW_SESSION, LEGAL_UPDATES, LEGAL_SEARCH입니다. 외부 문서 검토와 법령 업데이트/법령 검색 MCP 조회 테스트에는 기본값을 권장합니다.</div>
+      <div className="policy-note">
+        기본 스코프는 ENGINE_REVIEW_SESSION, LEGAL_UPDATES, LEGAL_SEARCH입니다. 공식 MCP endpoint는 {OFFICIAL_MCP_ENDPOINT}이며 외부 문서 검토와
+        법령 업데이트/법령 검색 MCP 조회 테스트에는 기본값을 권장합니다.
+      </div>
       <button className="button primary" disabled={busy || ownerUserId === ""} type="submit">
         {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
         API Key 발급
