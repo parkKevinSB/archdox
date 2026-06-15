@@ -69,6 +69,19 @@ class EngineApiKeyIntegrationTest {
     }
 
     @Test
+    void platformAdminMcpLiveSmokeRequiresApiKey() throws Exception {
+        var platformAdmin = signup("engine-mcp-smoke-admin@example.com", "Engine MCP Smoke Admin");
+        grantPlatformAdmin(platformAdmin.userId());
+
+        mockMvc.perform(post("/api/v1/platform-admin/engine/mcp-smoke")
+                        .header("Authorization", bearer(platformAdmin.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"apiKey\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
     void platformAdminCanIssueAndRevokeExternalEngineApiKey() throws Exception {
         var owner = signup("engine-owner@example.com", "Engine Owner");
         var platformAdmin = signup("engine-platform-admin@example.com", "Engine Platform Admin");

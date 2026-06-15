@@ -132,6 +132,7 @@ import {
   rejectPlatformWorkerApproval,
   rejectPlatformLegalDigestAiDraft,
   revokePlatformEngineApiKey,
+  runPlatformMcpLiveSmoke,
   searchPlatformLegalCorpus,
   signup,
   startPlatformLegalOpenDataSync,
@@ -191,6 +192,7 @@ import type {
   LegalDigestAiDraft,
   LegalOpenApiStatus,
   LegalSyncRun,
+  McpLiveSmokeResult,
   McpToolCatalogItem,
   MeResponse,
   MembershipRole,
@@ -648,6 +650,7 @@ export default function App() {
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
   const [engineConnectBootstrap, setEngineConnectBootstrap] = useState<EngineConnectBootstrapResponse | null>(null);
+  const [mcpLiveSmokeResult, setMcpLiveSmokeResult] = useState<McpLiveSmokeResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1379,6 +1382,31 @@ export default function App() {
       await refreshPlatform();
     } catch (err) {
       setError(err instanceof Error ? err.message : "MCP 연결 패키지를 생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRunMcpLiveSmoke(apiKey: string) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await runPlatformMcpLiveSmoke(auth.accessToken, apiKey);
+      setMcpLiveSmokeResult(result);
+      const [engineApiUsageSummary, engineApiUsageEvents] = await Promise.all([
+        getPlatformEngineUsageSummary(auth.accessToken),
+        getPlatformEngineUsageEvents(auth.accessToken, 100)
+      ]);
+      setPlatformData((current) => ({
+        ...current,
+        engineApiUsageSummary,
+        engineApiUsageEvents
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "MCP live smoke를 실행하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -2123,8 +2151,10 @@ export default function App() {
               onDeactivateLegalDomainBinding={deactivateLegalDomainBindingFromUi}
               issuedEngineApiKey={issuedEngineApiKey}
               engineConnectBootstrap={engineConnectBootstrap}
+              mcpLiveSmokeResult={mcpLiveSmokeResult}
               onCreateEngineApiKey={handleCreateEngineApiKey}
               onCreateEngineConnectBootstrap={handleCreateEngineConnectBootstrap}
+              onRunMcpLiveSmoke={handleRunMcpLiveSmoke}
               onRevokeEngineApiKey={handleRevokeEngineApiKey}
               onDismissIssuedEngineApiKey={() => setIssuedEngineApiKey(null)}
               onDismissEngineConnectBootstrap={() => setEngineConnectBootstrap(null)}
@@ -5444,8 +5474,10 @@ function PlatformView({
   onDeactivateLegalDomainBinding,
   issuedEngineApiKey,
   engineConnectBootstrap,
+  mcpLiveSmokeResult,
   onCreateEngineApiKey,
   onCreateEngineConnectBootstrap,
+  onRunMcpLiveSmoke,
   onRevokeEngineApiKey,
   onDismissIssuedEngineApiKey,
   onDismissEngineConnectBootstrap,
@@ -5478,6 +5510,7 @@ function PlatformView({
   onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
   engineConnectBootstrap: EngineConnectBootstrapResponse | null;
+  mcpLiveSmokeResult: McpLiveSmokeResult | null;
   onCreateEngineApiKey: (body: {
     displayName: string;
     ownerUserId: number;
@@ -5492,6 +5525,7 @@ function PlatformView({
     officeId?: number | null;
     expiresAt?: string | null;
   }) => Promise<void>;
+  onRunMcpLiveSmoke: (apiKey: string) => Promise<void>;
   onRevokeEngineApiKey: (apiKeyId: number) => Promise<void>;
   onDismissIssuedEngineApiKey: () => void;
   onDismissEngineConnectBootstrap: () => void;
@@ -5605,8 +5639,10 @@ function PlatformView({
           users={data.users}
           issuedKey={issuedEngineApiKey}
           connectBootstrap={engineConnectBootstrap}
+          liveSmokeResult={mcpLiveSmokeResult}
           onCreate={onCreateEngineApiKey}
           onCreateConnectBootstrap={onCreateEngineConnectBootstrap}
+          onRunLiveSmoke={onRunMcpLiveSmoke}
           onDismissIssuedKey={onDismissIssuedEngineApiKey}
           onDismissConnectBootstrap={onDismissEngineConnectBootstrap}
           onRevoke={onRevokeEngineApiKey}
@@ -6631,8 +6667,10 @@ function EngineApiKeyManagementPanel({
   users,
   issuedKey,
   connectBootstrap,
+  liveSmokeResult,
   onCreate,
   onCreateConnectBootstrap,
+  onRunLiveSmoke,
   onDismissIssuedKey,
   onDismissConnectBootstrap,
   onRevoke
@@ -6647,6 +6685,7 @@ function EngineApiKeyManagementPanel({
   users: PlatformUserOps[];
   issuedKey: CreateEngineApiKeyResponse | null;
   connectBootstrap: EngineConnectBootstrapResponse | null;
+  liveSmokeResult: McpLiveSmokeResult | null;
   onCreate: (body: {
     displayName: string;
     ownerUserId: number;
@@ -6661,6 +6700,7 @@ function EngineApiKeyManagementPanel({
     officeId?: number | null;
     expiresAt?: string | null;
   }) => Promise<void>;
+  onRunLiveSmoke: (apiKey: string) => Promise<void>;
   onDismissIssuedKey: () => void;
   onDismissConnectBootstrap: () => void;
   onRevoke: (apiKeyId: number) => Promise<void>;
@@ -6737,6 +6777,12 @@ function EngineApiKeyManagementPanel({
       </div>
 
       <McpToolCatalogPanel tools={toolCatalog} />
+      <McpLiveSmokePanel
+        busy={busy}
+        defaultApiKey={connectBootstrap?.apiKey ?? issuedKey?.apiKey ?? ""}
+        result={liveSmokeResult}
+        onRun={onRunLiveSmoke}
+      />
 
       <Panel title="발급된 Engine API Key" icon={<KeyRound size={18} />} count={keys.length}>
         <Table
@@ -7342,6 +7388,93 @@ function McpToolCatalogDetail({ tool }: { tool: McpToolCatalogItem | null }) {
       </div>
     </div>
   );
+}
+
+function McpLiveSmokePanel({
+  busy,
+  defaultApiKey,
+  result,
+  onRun
+}: {
+  busy: boolean;
+  defaultApiKey: string;
+  result: McpLiveSmokeResult | null;
+  onRun: (apiKey: string) => Promise<void>;
+}) {
+  const [apiKey, setApiKey] = useState(defaultApiKey);
+
+  useEffect(() => {
+    if (defaultApiKey && defaultApiKey !== apiKey) {
+      setApiKey(defaultApiKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultApiKey]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onRun(apiKey);
+  }
+
+  return (
+    <Panel title="MCP Live Smoke" icon={<Activity size={18} />} action={result ? <StatusBadge status={result.status} /> : null}>
+      <form className="mcp-live-smoke-form" onSubmit={submit}>
+        <label>
+          Engine API Key 원문
+          <input
+            autoComplete="off"
+            placeholder="adx_live_..."
+            type="password"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value)}
+          />
+        </label>
+        <button className="button primary" disabled={busy || !apiKey.trim()} type="submit">
+          {busy ? <Loader2 className="spin" size={16} /> : <Activity size={16} />}
+          Live Smoke 실행
+        </button>
+        <div className="policy-note">
+          이 키는 저장하지 않고 MCP endpoint 호출에만 사용합니다. 연결 패키지를 방금 생성했다면 자동으로 입력됩니다.
+        </div>
+      </form>
+      {result ? <McpLiveSmokeResultPanel result={result} /> : <InlineNotice message="initialize, tools/list, get_legal_updates, search_law 순서로 실제 MCP endpoint를 호출합니다." />}
+    </Panel>
+  );
+}
+
+function McpLiveSmokeResultPanel({ result }: { result: McpLiveSmokeResult }) {
+  return (
+    <div className="mcp-live-smoke-result">
+      <div className="metric-grid compact">
+        <MetricCard icon={<Activity size={20} />} label="판정" value={result.status} detail={result.endpoint} tone={result.success ? "green" : "amber"} />
+        <MetricCard icon={<CheckCircle2 size={20} />} label="성공" value={result.succeededCount} detail={`${result.stepCount} steps`} tone="green" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="실패" value={result.failedCount} detail="scope/quota/auth 포함" tone={result.failedCount > 0 ? "red" : "green"} />
+        <MetricCard icon={<Clock3 size={20} />} label="소요" value={`${result.elapsedMs}ms`} detail={formatDate(result.createdAt)} tone="slate" />
+      </div>
+      <Table
+        columns={["Step", "상태", "HTTP", "소요", "요약", "오류", "응답"]}
+        empty="MCP live smoke 결과가 없습니다."
+        rows={result.steps.map((step) => [
+          <CellTitle key="step" title={mcpLiveSmokeStepLabel(step.step)} subtitle={step.toolName ?? step.method} />,
+          <StatusBadge key="status" status={step.status} />,
+          step.httpStatus > 0 ? String(step.httpStatus) : "-",
+          `${step.elapsedMs}ms`,
+          step.summary,
+          step.errorCode ? <CellTitle key="error" title={step.errorCode} subtitle={step.errorCategory ?? (step.retryable ? "retryable" : "-")} /> : "-",
+          step.responsePreview ? <CopyableCodeBlock key="preview" title="response" value={step.responsePreview} /> : "-"
+        ])}
+      />
+    </div>
+  );
+}
+
+function mcpLiveSmokeStepLabel(step: string) {
+  const labels: Record<string, string> = {
+    initialize: "초기화",
+    "tools/list": "Tool 목록",
+    get_legal_updates: "법령 변경 조회",
+    search_law: "법령 검색"
+  };
+  return labels[step] ?? step;
 }
 
 function mcpToolTitle(tool: McpToolCatalogItem) {

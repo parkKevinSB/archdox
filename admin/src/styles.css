@@ -2616,6 +2616,55 @@ button {
   font-weight: 800;
 }
 
+.mcp-live-smoke-form {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+
+.mcp-live-smoke-form label {
+  display: grid;
+  gap: 6px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mcp-live-smoke-form input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  outline: 0;
+  color: #1f2c2b;
+  background: #ffffff;
+}
+
+.mcp-live-smoke-form input:focus {
+  border-color: #2a7f70;
+  box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.mcp-live-smoke-form .policy-note {
+  grid-column: 1 / -1;
+}
+
+.mcp-live-smoke-result {
+  display: grid;
+  gap: 12px;
+}
+
+.mcp-live-smoke-result .copyable-code-block {
+  min-width: 260px;
+}
+
+.mcp-live-smoke-result .copyable-code-block pre {
+  max-height: 180px;
+}
+
 .server-runtime-settings-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3710,6 +3759,7 @@ tbody tr:hover {
   .config-form,
   .engine-key-form,
   .engine-connect-form,
+  .mcp-live-smoke-form,
   .server-runtime-settings-form,
   .revision-form,
   .override-form,

@@ -30,6 +30,7 @@ import type {
   LegalChangeDigest,
   LegalChangeSet,
   McpToolCatalogItem,
+  McpLiveSmokeResult,
   LegalDomainBindingAutoGenerateResponse,
   LegalDomainBindingCoverage,
   LegalDomainBinding,
@@ -957,6 +958,14 @@ export function createEngineConnectBootstrap(
 
 export function getPlatformMcpToolCatalog(token: string) {
   return request<McpToolCatalogItem[]>("/api/v1/platform-admin/engine/mcp-tools", { token });
+}
+
+export function runPlatformMcpLiveSmoke(token: string, apiKey: string) {
+  return request<McpLiveSmokeResult>("/api/v1/platform-admin/engine/mcp-smoke", {
+    token,
+    method: "POST",
+    body: { apiKey }
+  });
 }
 
 export function getPlatformAiProviders(token: string) {
