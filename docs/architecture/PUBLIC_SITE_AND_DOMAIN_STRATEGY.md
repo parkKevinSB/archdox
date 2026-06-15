@@ -41,7 +41,7 @@ colors, logo geometry, or code-window composition too closely.
 | `app.archdox.co.kr` | Existing ArchDox SaaS user app: project, site, report, document workflow. |
 | `admin.archdox.co.kr` | Office admin and platform admin app. |
 | `api.archdox.co.kr` | Cloud API REST/WebSocket origin, unless hidden behind same-origin proxy. |
-| `mcp.archdox.co.kr` | Future MCP Gateway endpoint. |
+| `mcp.archdox.co.kr` | MCP JSON-RPC Gateway endpoint at `/api/v1/mcp`; other paths redirect to public MCP documentation. |
 | `connect.archdox.co.kr` | Optional Agent Connect approval/onboarding host. Can start as `archdox.co.kr/connect`. |
 | `docs.archdox.co.kr` | Optional public developer/MCP documentation later. |
 
@@ -56,9 +56,10 @@ The React app owns those paths as SPA routes and opens the matching login/signup
 mode on the shared `AuthScreen`. Avoid linking the public landing to the bare
 SaaS root when the user intent is signup or login.
 
-Until the MCP Gateway is enabled, `mcp.archdox.co.kr` should not expose a fake
-MCP endpoint. It should redirect to the public MCP developer documentation so
-external users do not mistake the placeholder for a working protocol endpoint.
+The MCP Gateway V1 is exposed at `https://mcp.archdox.co.kr/api/v1/mcp`.
+Other `mcp.archdox.co.kr` paths should redirect to the public MCP developer
+documentation so humans get guidance while MCP clients receive a protocol
+endpoint at the stable path.
 
 ## Why `api.archdox.co.kr` Exists
 
@@ -74,7 +75,7 @@ The dedicated API host exists for product and operations boundaries:
 
 ```text
 external ArchDox Engine API customers
-future MCP Gateway or Agent Connect bootstrap flows
+MCP Gateway or Agent Connect bootstrap flows
 mobile apps
 partner/customer system integrations
 health checks and API-specific monitoring
@@ -87,7 +88,7 @@ So the rule is:
 ```text
 Browser apps may use same-origin /api for simplicity.
 External clients should use api.archdox.co.kr.
-MCP should eventually use mcp.archdox.co.kr, not the public web root.
+MCP should use `mcp.archdox.co.kr/api/v1/mcp`, not the public web root.
 ```
 
 In MVP, `api.archdox.co.kr` can still point to the same Lightsail instance and
@@ -101,7 +102,7 @@ archdox.co.kr        -> public site
 app.archdox.co.kr    -> SaaS app
 admin.archdox.co.kr  -> admin app
 api.archdox.co.kr    -> API
-mcp.archdox.co.kr    -> future MCP
+mcp.archdox.co.kr    -> MCP JSON-RPC Gateway at /api/v1/mcp
 ```
 
 ## Public Site Experience
@@ -251,7 +252,7 @@ www.archdox.co.kr    -> redirect to archdox.co.kr
 app.archdox.co.kr    -> client/web
 admin.archdox.co.kr  -> admin
 api.archdox.co.kr    -> Cloud API
-mcp.archdox.co.kr    -> placeholder 404 until MCP Gateway is implemented
+mcp.archdox.co.kr    -> MCP JSON-RPC gateway at /api/v1/mcp; documentation redirect for other paths
 ```
 
 The public site V1 static pages live in:

@@ -227,8 +227,9 @@ These are development-only credentials.
   `docs/architecture/PUBLIC_SITE_AND_DOMAIN_STRATEGY.md`. The preferred product
   direction is that `archdox.co.kr` becomes the public product/onboarding site
   for ArchDox Engine and MCP Gateway, while the existing SaaS work app moves to
-  `app.archdox.co.kr` and the admin app to `admin.archdox.co.kr`. Future hosts
-  include `api.archdox.co.kr` for Cloud API and `mcp.archdox.co.kr` for MCP.
+  `app.archdox.co.kr` and the admin app to `admin.archdox.co.kr`. The current
+  MVP hosts include `api.archdox.co.kr` for Cloud API and
+  `mcp.archdox.co.kr/api/v1/mcp` for the MCP JSON-RPC gateway.
   Host-based routing on the same MVP server is acceptable; separate servers can
   wait until traffic, isolation, or deployment cadence requires it. Public Site
   V1 static pages now exist under `public-site/`, including an ArchDox
@@ -236,12 +237,13 @@ These are development-only credentials.
   `/developers/mcp/`, and `/legal-updates/`. The Lightsail/Caddy/Nginx
   configuration is prepared for
   `archdox.co.kr`, `app.archdox.co.kr`, `admin.archdox.co.kr`,
-  `api.archdox.co.kr`, and placeholder `mcp.archdox.co.kr` host routing.
+  `api.archdox.co.kr`, and `mcp.archdox.co.kr` host routing.
   Public CTAs now use explicit SaaS auth routes:
   `https://app.archdox.co.kr/signup` and
   `https://app.archdox.co.kr/login`; the client app opens the matching
-  AuthScreen mode from those paths. `mcp.archdox.co.kr` currently redirects to
-  public MCP documentation instead of pretending to be a live protocol endpoint.
+  AuthScreen mode from those paths. `mcp.archdox.co.kr/api/v1/mcp` proxies to
+  Cloud API, while other `mcp.archdox.co.kr` paths redirect to public MCP
+  documentation.
 - Legal domain direction is documented in
   `docs/architecture/LEGAL_DOMAIN_ARCHITECTURE.md`. The first implementation
   should live inside `cloud-api` as an isolated legal domain package with

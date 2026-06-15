@@ -36,5 +36,12 @@ api.archdox.co.kr {
 
 mcp.archdox.co.kr {
 	encode zstd gzip
-	redir https://archdox.co.kr/developers/mcp/ 302
+
+	handle /api/v1/mcp* {
+		reverse_proxy api-server:8080
+	}
+
+	handle {
+		redir https://archdox.co.kr/developers/mcp/ 302
+	}
 }

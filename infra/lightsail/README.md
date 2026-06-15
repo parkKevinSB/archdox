@@ -19,7 +19,7 @@ Host routing:
 - `app.archdox.co.kr`: existing user SaaS app.
 - `admin.archdox.co.kr`: office/platform admin app.
 - `api.archdox.co.kr`: Cloud API boundary for external clients, mobile apps, health checks, and future Engine API users.
-- `mcp.archdox.co.kr`: reserved MCP Gateway host; currently returns 404 until implemented.
+- `mcp.archdox.co.kr`: MCP Gateway host. `/api/v1/mcp` proxies to Cloud API; other paths redirect to the public MCP developer guide.
 
 All hosts can point to the same Lightsail static IP in MVP.
 

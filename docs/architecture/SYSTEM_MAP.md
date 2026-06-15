@@ -17,11 +17,11 @@ flowchart TB
     Public["archdox.co.kr<br/>Public site / onboarding"]
     App["app.archdox.co.kr<br/>Office user app"]
     Admin["admin.archdox.co.kr<br/>Platform admin"]
-    External["Future external clients<br/>Codex / Cursor / Claude / ChatGPT / customer systems"]
+    External["External clients<br/>Codex / Cursor / Claude / ChatGPT / customer systems"]
 
     CloudApi["api.archdox.co.kr<br/>cloud-api"]
     EngineApi["Engine REST boundary<br/>external API key / quota / usage"]
-    Mcp["Future mcp.archdox.co.kr<br/>MCP gateway adapter"]
+    Mcp["mcp.archdox.co.kr/api/v1/mcp<br/>MCP gateway adapter"]
 
     DB[("PostgreSQL<br/>durable source of truth")]
     ObjectStorage[("MinIO / S3-compatible storage<br/>photos, artifacts, templates")]
@@ -220,19 +220,19 @@ Responsibility split:
 ## External Engine And MCP Direction
 
 The current implementation keeps the Engine inside `cloud-api`. External
-Engine REST and future MCP must use the same boundary as internal SaaS.
+Engine REST and MCP must use the same boundary as internal SaaS.
 
 ```mermaid
 flowchart LR
     Internal["Internal SaaS<br/>document tab / worker chat"]
     ExternalRest["External Engine REST<br/>API key / scope / quota"]
-    FutureMcp["Future MCP tools<br/>adapter only"]
+    McpTools["MCP tools<br/>adapter only"]
     Boundary["Same Engine Boundary"]
     Result["Typed result<br/>engineRunId / status / findings / legalReferences / nextActions"]
 
     Internal --> Boundary
     ExternalRest --> Boundary
-    FutureMcp --> ExternalRest
+    McpTools --> ExternalRest
     Boundary --> Result
 ```
 
@@ -367,7 +367,7 @@ decision, while durable business state remains in DB rows and operation events.
 | `https://app.archdox.co.kr` | Office user app. |
 | `https://admin.archdox.co.kr` | Platform admin app. |
 | `https://api.archdox.co.kr` | Cloud API. |
-| `https://mcp.archdox.co.kr` | Future MCP gateway placeholder/documentation route. |
+| `https://mcp.archdox.co.kr/api/v1/mcp` | MCP JSON-RPC gateway route. Other paths redirect to public MCP documentation. |
 
 Current deployment is a Lightsail-hosted Docker Compose stack with Caddy/Nginx
 host routing. Multi-instance Cloud API operation remains a future phase.
