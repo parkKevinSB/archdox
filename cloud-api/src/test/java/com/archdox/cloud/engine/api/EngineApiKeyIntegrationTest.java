@@ -82,6 +82,105 @@ class EngineApiKeyIntegrationTest {
     }
 
     @Test
+    void userCanManageOwnMcpConnectionKeysAndUsage() throws Exception {
+        var owner = signup("engine-self-service-owner@example.com", "Engine Self Service Owner");
+        var other = signup("engine-self-service-other@example.com", "Engine Self Service Other");
+
+        mockMvc.perform(get("/api/v1/engine/mcp-tools")
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].name").value(org.hamcrest.Matchers.hasItems(
+                        "validate_inspection_report",
+                        "get_legal_updates",
+                        "search_law")));
+
+        var bootstrapBody = """
+                {
+                  "clientType": "CODEX",
+                  "displayName": "Owner Codex MCP connection",
+                  "officeId": %d
+                }
+                """.formatted(owner.officeId());
+        var bootstrapResult = mockMvc.perform(post("/api/v1/engine/connect/bootstrap")
+                        .header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bootstrapBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.key.displayName").value("Owner Codex MCP connection"))
+                .andExpect(jsonPath("$.key.ownerUserId").value(owner.userId()))
+                .andExpect(jsonPath("$.key.officeId").value(owner.officeId()))
+                .andExpect(jsonPath("$.key.scopes").value(org.hamcrest.Matchers.hasItems(
+                        "ENGINE_REVIEW_SESSION",
+                        "LEGAL_UPDATES",
+                        "LEGAL_SEARCH")))
+                .andExpect(jsonPath("$.apiKey").value(org.hamcrest.Matchers.startsWith("adx_live_")))
+                .andExpect(jsonPath("$.suggestedMcpConfig.mcpServers.archdox.url").exists())
+                .andReturn();
+        var bootstrapped = objectMapper.readTree(bootstrapResult.getResponse().getContentAsString());
+        var apiKey = bootstrapped.get("apiKey").asText();
+        var apiKeyId = bootstrapped.get("key").get("id").asLong();
+
+        mockMvc.perform(get("/api/v1/engine/api-keys")
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(apiKeyId))
+                .andExpect(jsonPath("$[0].ownerUserId").value(owner.userId()));
+
+        mockMvc.perform(get("/api/v1/engine/api-keys")
+                        .header("Authorization", bearer(other.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+
+        mockMvc.perform(post("/api/v1/engine/api-keys/{apiKeyId}/revoke", apiKeyId)
+                        .header("Authorization", bearer(other.accessToken())))
+                .andExpect(status().isNotFound());
+
+        var sessionResult = mockMvc.perform(post("/api/v1/engine/external/review-sessions")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"customerProjectRef\":\"self-service-project\",\"reviewPurpose\":\"preflight\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reviewSessionId").value(org.hamcrest.Matchers.startsWith("rvw_sess_")))
+                .andReturn();
+        var reviewSessionId = objectMapper.readTree(sessionResult.getResponse().getContentAsString())
+                .get("reviewSessionId")
+                .asText();
+
+        mockMvc.perform(get("/api/v1/engine/usage/events")
+                        .header("Authorization", bearer(owner.accessToken()))
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].apiKeyId").value(apiKeyId))
+                .andExpect(jsonPath("$[0].ownerUserId").value(owner.userId()))
+                .andExpect(jsonPath("$[0].operation").value("CREATE_REVIEW_SESSION"))
+                .andExpect(jsonPath("$[0].reviewSessionId").value(reviewSessionId));
+
+        mockMvc.perform(get("/api/v1/engine/usage/summary")
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalEventCount").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.totalRequestUnits").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.groups[0].ownerUserId").value(owner.userId()));
+
+        mockMvc.perform(get("/api/v1/engine/usage/events")
+                        .header("Authorization", bearer(other.accessToken()))
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+
+        mockMvc.perform(post("/api/v1/engine/api-keys/{apiKeyId}/revoke", apiKeyId)
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REVOKED"));
+
+        mockMvc.perform(get("/api/v1/engine/external/review-sessions/{reviewSessionId}", reviewSessionId)
+                        .header("X-ArchDox-Engine-Key", apiKey))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("ENGINE_API_KEY_INVALID"));
+    }
+
+    @Test
     void platformAdminCanIssueAndRevokeExternalEngineApiKey() throws Exception {
         var owner = signup("engine-owner@example.com", "Engine Owner");
         var platformAdmin = signup("engine-platform-admin@example.com", "Engine Platform Admin");

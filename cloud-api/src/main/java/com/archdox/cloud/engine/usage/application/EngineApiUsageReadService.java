@@ -59,6 +59,34 @@ public class EngineApiUsageReadService {
     }
 
     @Transactional(readOnly = true)
+    public List<EngineApiUsageEventResponse> userEvents(
+            UserPrincipal principal,
+            Long apiKeyId,
+            Long officeId,
+            String capability,
+            String operation,
+            String reviewSessionId,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Integer limit
+    ) {
+        var range = range(from, to);
+        return repository.searchUserUsageEvents(
+                        principal.userId(),
+                        apiKeyId,
+                        officeId,
+                        blankToNull(capability),
+                        blankToNull(operation),
+                        blankToNull(reviewSessionId),
+                        range.from(),
+                        range.to(),
+                        PageRequest.of(0, normalizeLimit(limit)))
+                .stream()
+                .map(this::toEventResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public EngineApiUsageSummaryResponse summary(
             UserPrincipal principal,
             Long apiKeyId,
@@ -70,14 +98,52 @@ public class EngineApiUsageReadService {
     ) {
         platformAdminService.requirePlatformAdmin(principal);
         var range = range(from, to);
-        var groups = repository.summarizePlatformUsage(
+        var groups = toGroupResponses(repository.summarizePlatformUsage(
                         apiKeyId,
                         officeId,
                         blankToNull(capability),
                         blankToNull(operation),
                         range.from(),
-                        range.to())
-                .stream()
+                        range.to()));
+        return new EngineApiUsageSummaryResponse(
+                range.from(),
+                range.to(),
+                groups.stream().mapToLong(EngineApiUsageGroupResponse::eventCount).sum(),
+                groups.stream().mapToLong(EngineApiUsageGroupResponse::requestUnits).sum(),
+                groups);
+    }
+
+    @Transactional(readOnly = true)
+    public EngineApiUsageSummaryResponse userSummary(
+            UserPrincipal principal,
+            Long apiKeyId,
+            Long officeId,
+            String capability,
+            String operation,
+            OffsetDateTime from,
+            OffsetDateTime to
+    ) {
+        var range = range(from, to);
+        var groups = toGroupResponses(repository.summarizeUserUsage(
+                principal.userId(),
+                apiKeyId,
+                officeId,
+                blankToNull(capability),
+                blankToNull(operation),
+                range.from(),
+                range.to()));
+        return new EngineApiUsageSummaryResponse(
+                range.from(),
+                range.to(),
+                groups.stream().mapToLong(EngineApiUsageGroupResponse::eventCount).sum(),
+                groups.stream().mapToLong(EngineApiUsageGroupResponse::requestUnits).sum(),
+                groups);
+    }
+
+    private List<EngineApiUsageGroupResponse> toGroupResponses(
+            List<EngineApiUsageEventRepository.EngineApiUsageSummaryProjection> groups
+    ) {
+        return groups.stream()
                 .map(group -> new EngineApiUsageGroupResponse(
                         group.getApiKeyId(),
                         group.getKeyId(),
@@ -89,12 +155,6 @@ public class EngineApiUsageReadService {
                         number(group.getRequestUnits()),
                         group.getLastCalledAt()))
                 .toList();
-        return new EngineApiUsageSummaryResponse(
-                range.from(),
-                range.to(),
-                groups.stream().mapToLong(EngineApiUsageGroupResponse::eventCount).sum(),
-                groups.stream().mapToLong(EngineApiUsageGroupResponse::requestUnits).sum(),
-                groups);
     }
 
     private EngineApiUsageEventResponse toEventResponse(EngineApiUsageEvent event) {

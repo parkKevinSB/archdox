@@ -56,6 +56,17 @@ public class EngineApiKeyManagementService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<EngineApiKeyResponse> userKeys(UserPrincipal principal) {
+        return repository.findByOwnerUserId(
+                        principal.userId(),
+                        Sort.by(Sort.Direction.DESC, "createdAt", "id"))
+                .stream()
+                .limit(100)
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
     public CreateEngineApiKeyResponse create(UserPrincipal principal, CreateEngineApiKeyRequest request) {
         platformAdminService.requirePlatformAdmin(principal);
@@ -135,6 +146,17 @@ public class EngineApiKeyManagementService {
         platformAdminService.requirePlatformAdmin(principal);
         var key = repository.findById(apiKeyId)
                 .orElseThrow(() -> new NotFoundException("Engine API key not found"));
+        key.revoke(OffsetDateTime.now());
+        return toResponse(key);
+    }
+
+    @Transactional
+    public EngineApiKeyResponse revokeOwn(UserPrincipal principal, Long apiKeyId) {
+        var key = repository.findById(apiKeyId)
+                .orElseThrow(() -> new NotFoundException("Engine API key not found"));
+        if (!principal.userId().equals(key.ownerUserId())) {
+            throw new NotFoundException("Engine API key not found");
+        }
         key.revoke(OffsetDateTime.now());
         return toResponse(key);
     }

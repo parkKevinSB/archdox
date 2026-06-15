@@ -53,6 +53,7 @@ import { canManageOfficeAssignments, canManageProjects, canManageSites, canWrite
 import { ReportAssignmentPanel } from "./features/assignments/AssignmentPanels";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ReportChecklistPanel } from "./features/checklists/components/ReportChecklistPanel";
+import { DeveloperPortal } from "./features/developer/components/DeveloperPortal";
 import { DocumentWorkspace } from "./features/documents/components/DocumentWorkspace";
 import { LegalUpdatesView } from "./features/legal/components/LegalUpdatesView";
 import { PhotoWorkspace } from "./features/photos/components/PhotoWorkspace";
@@ -224,7 +225,9 @@ export default function App() {
   const activeView = viewFromPath(location.pathname);
   const activeNavItem = activeView === "more"
     ? { label: "프로필" }
-    : navItems.find((item) => item.key === activeView) ?? navItems[0];
+    : activeView === "developer"
+      ? { label: "개발자" }
+      : navItems.find((item) => item.key === activeView) ?? navItems[0];
 
   function navigateToView(view: ViewKey) {
     navigate(viewPaths[view]);
@@ -1002,6 +1005,13 @@ export default function App() {
             />
           )}
           {activeView === "legalUpdates" && <LegalUpdatesView token={auth.accessToken} />}
+          {activeView === "developer" && (
+            <DeveloperPortal
+              offices={auth.user.offices}
+              selectedOfficeId={selectedOfficeId}
+              token={auth.accessToken}
+            />
+          )}
           {activeView === "workChat" && (
             <ProjectWorkerChat
               officeId={selectedOfficeId}
@@ -1017,6 +1027,7 @@ export default function App() {
             <MoreView
               user={auth.user}
               onLogout={logout}
+              onOpenDeveloper={() => navigateToView("developer")}
               onOpenLegalUpdates={() => navigateToView("legalUpdates")}
             />
           )}
@@ -1580,10 +1591,12 @@ function InsightChatView({ office }: { office: Office | null }) {
 function MoreView({
   user,
   onLogout,
+  onOpenDeveloper,
   onOpenLegalUpdates
 }: {
   user: MeResponse;
   onLogout: () => void;
+  onOpenDeveloper: () => void;
   onOpenLegalUpdates: () => void;
 }) {
   return (
@@ -1618,6 +1631,18 @@ function MoreView({
           </div>
           <button className="secondary-button" onClick={onOpenLegalUpdates} type="button">
             <Bell size={17} />
+            열기
+          </button>
+        </div>
+      </Panel>
+      <Panel title="개발자">
+        <div className="settings-list">
+          <div>
+            <strong>MCP / Engine API 연결</strong>
+            <span>Codex, Claude, Cursor, Custom Agent에서 ArchDox Engine을 호출할 연결 키와 사용량을 관리합니다.</span>
+          </div>
+          <button className="secondary-button" onClick={onOpenDeveloper} type="button">
+            <Settings size={17} />
             열기
           </button>
         </div>

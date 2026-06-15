@@ -14,6 +14,7 @@ export type ViewKey =
   | "photos"
   | "jobs"
   | "legalUpdates"
+  | "developer"
   | "workChat"
   | "insightChat"
   | "more";
