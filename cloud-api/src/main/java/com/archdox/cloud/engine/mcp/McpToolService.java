@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -535,7 +536,7 @@ public class McpToolService {
         for (var definition : definitions) {
             map.put(definition.name(), definition);
         }
-        return Map.copyOf(map);
+        return Collections.unmodifiableMap(map);
     }
 
     private List<McpToolDefinition> toolDefinitions() {
