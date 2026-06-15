@@ -2385,6 +2385,127 @@ button {
   white-space: nowrap;
 }
 
+.engine-connect-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+}
+
+.engine-connect-form label {
+  display: grid;
+  gap: 6px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.engine-connect-form input,
+.engine-connect-form select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  outline: 0;
+  color: #1f2c2b;
+  background: #ffffff;
+}
+
+.engine-connect-form input:focus,
+.engine-connect-form select:focus {
+  border-color: #2a7f70;
+  box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.engine-connect-form .button {
+  grid-column: 1 / -1;
+}
+
+.engine-connect-result {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 16px;
+}
+
+.engine-connect-result-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.engine-connect-result-header strong,
+.engine-connect-next-steps strong {
+  display: block;
+  color: #172322;
+  font-size: 14px;
+}
+
+.engine-connect-result-header span,
+.engine-connect-next-steps span {
+  display: block;
+  margin-top: 4px;
+  color: #627672;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.copyable-code-block {
+  overflow: hidden;
+  border: 1px solid #dfe7e5;
+  border-radius: 7px;
+  background: #0f1f1d;
+}
+
+.copyable-code-block > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  color: #cfe2de;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.copyable-code-block .icon-button {
+  min-height: 26px;
+  width: 26px;
+  border-color: rgb(255 255 255 / 18%);
+  color: #e8f2f0;
+  background: rgb(255 255 255 / 8%);
+}
+
+.copyable-code-block pre {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  color: #e8f2f0;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.engine-connect-next-steps {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .server-runtime-settings-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3477,6 +3598,7 @@ tbody tr:hover {
 
   .config-form,
   .engine-key-form,
+  .engine-connect-form,
   .server-runtime-settings-form,
   .revision-form,
   .override-form,

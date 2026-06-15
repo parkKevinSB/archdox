@@ -1361,6 +1361,31 @@ export type CreateEngineApiKeyResponse = {
   apiKey: string;
 };
 
+export type EngineConnectClientType = "CODEX" | "CLAUDE" | "CURSOR" | "CHATGPT" | "CUSTOM_AGENT";
+
+export type EngineConnectClient = {
+  type: EngineConnectClientType;
+  displayName: string;
+  description: string;
+};
+
+export type EngineConnectBootstrapResponse = {
+  connectionId: string;
+  clientType: EngineConnectClientType;
+  displayName: string;
+  ownerUserId: number;
+  officeId?: number | null;
+  key: EngineApiKey;
+  apiKey: string;
+  engineApiBaseUrl: string;
+  mcpServerUrl: string;
+  headers: Record<string, string>;
+  suggestedMcpConfig: Record<string, unknown>;
+  curlExample: string;
+  nextSteps: string[];
+  createdAt: string;
+};
+
 export type EngineApiUsageEvent = {
   id: number;
   apiKeyId: number;

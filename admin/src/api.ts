@@ -20,6 +20,9 @@ import type {
   CreateEngineApiKeyResponse,
   DocumentDelivery,
   DocumentJob,
+  EngineConnectBootstrapResponse,
+  EngineConnectClient,
+  EngineConnectClientType,
   EngineApiKey,
   EngineApiUsageEvent,
   EngineApiUsageSummary,
@@ -928,6 +931,26 @@ export function revokePlatformEngineApiKey(token: string, apiKeyId: number) {
   return request<EngineApiKey>(`/api/v1/platform-admin/engine/api-keys/${apiKeyId}/revoke`, {
     token,
     method: "POST"
+  });
+}
+
+export function getEngineConnectClients(token: string) {
+  return request<EngineConnectClient[]>("/api/v1/engine/connect/clients", { token });
+}
+
+export function createEngineConnectBootstrap(
+  token: string,
+  body: {
+    clientType: EngineConnectClientType;
+    displayName?: string | null;
+    officeId?: number | null;
+    expiresAt?: string | null;
+  }
+) {
+  return request<EngineConnectBootstrapResponse>("/api/v1/engine/connect/bootstrap", {
+    token,
+    method: "POST",
+    body
   });
 }
 

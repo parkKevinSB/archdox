@@ -41,6 +41,7 @@ import {
   cancelOfficeInvitation,
   clearPlatformAiObservations,
   configureTokenRefresh,
+  createEngineConnectBootstrap,
   createPlatformLegalDomainBinding,
   createPlatformAiUserBudgetOverride,
   createPlatformAiWorkerEvaluationRun,
@@ -99,6 +100,7 @@ import {
   getPlatformEngineApiKeys,
   getPlatformEngineUsageEvents,
   getPlatformEngineUsageSummary,
+  getEngineConnectClients,
   getPlatformFlowerRuntimeDump,
   getPlatformLegalChangeDigests,
   getPlatformLegalChangeSets,
@@ -168,6 +170,9 @@ import type {
   DocumentDelivery,
   DocumentJob,
   DocumentTemplateRevision,
+  EngineConnectBootstrapResponse,
+  EngineConnectClient,
+  EngineConnectClientType,
   EngineApiKey,
   EngineApiUsageEvent,
   EngineApiUsageSummary,
@@ -322,6 +327,7 @@ type PlatformOpsData = {
   legalDomainBindingCoverage: LegalDomainBindingCoverage | null;
   legalOpenApiStatus: LegalOpenApiStatus | null;
   engineApiKeys: EngineApiKey[];
+  engineConnectClients: EngineConnectClient[];
   engineApiUsageSummary: EngineApiUsageSummary | null;
   engineApiUsageEvents: EngineApiUsageEvent[];
   workerGovernance: WorkerGovernanceSummary | null;
@@ -395,6 +401,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   legalDomainBindingCoverage: null,
   legalOpenApiStatus: null,
   engineApiKeys: [],
+  engineConnectClients: [],
   engineApiUsageSummary: null,
   engineApiUsageEvents: [],
   workerGovernance: null,
@@ -636,6 +643,7 @@ export default function App() {
     useState<LegalDomainBindingAutoGenerateResponse | null>(null);
   const [aiProviderTestResults, setAiProviderTestResults] = useState<Record<number, AiProviderConnectionTestResult>>({});
   const [issuedEngineApiKey, setIssuedEngineApiKey] = useState<CreateEngineApiKeyResponse | null>(null);
+  const [engineConnectBootstrap, setEngineConnectBootstrap] = useState<EngineConnectBootstrapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -946,14 +954,15 @@ export default function App() {
           legalDomainBindingCoverage
         });
       } else if (view === "platform-engine-keys") {
-        const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users] = await Promise.all([
+        const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, engineConnectClients, offices, users] = await Promise.all([
           getPlatformEngineApiKeys(token),
           getPlatformEngineUsageSummary(token),
           getPlatformEngineUsageEvents(token, 100),
+          getEngineConnectClients(token),
           getPlatformOffices(token, 100),
           getPlatformUsers(token, 100)
         ]);
-        Object.assign(next, { engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, offices, users });
+        Object.assign(next, { engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, engineConnectClients, offices, users });
       } else if (view === "platform-worker-governance") {
         next.workerGovernance = await getPlatformWorkerGovernance(token, 7, 30);
       } else if (view === "platform-worker-approvals") {
@@ -1339,6 +1348,29 @@ export default function App() {
     }
   }
 
+  async function handleCreateEngineConnectBootstrap(body: {
+    clientType: EngineConnectClientType;
+    displayName?: string | null;
+    officeId?: number | null;
+    expiresAt?: string | null;
+  }) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const created = await createEngineConnectBootstrap(auth.accessToken, body);
+      setEngineConnectBootstrap(created);
+      setIssuedEngineApiKey(null);
+      await refreshPlatform();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "MCP 연결 패키지를 생성하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleRevokeEngineApiKey(apiKeyId: number) {
     if (!auth || !platformAdmin) {
       return;
@@ -1352,6 +1384,9 @@ export default function App() {
       await revokePlatformEngineApiKey(auth.accessToken, apiKeyId);
       if (issuedEngineApiKey?.key.id === apiKeyId) {
         setIssuedEngineApiKey(null);
+      }
+      if (engineConnectBootstrap?.key.id === apiKeyId) {
+        setEngineConnectBootstrap(null);
       }
       await refreshPlatform();
     } catch (err) {
@@ -2074,9 +2109,12 @@ export default function App() {
               onAutoGenerateConstructionSupervisionLegalBindings={autoGenerateConstructionSupervisionLegalBindingsFromUi}
               onDeactivateLegalDomainBinding={deactivateLegalDomainBindingFromUi}
               issuedEngineApiKey={issuedEngineApiKey}
+              engineConnectBootstrap={engineConnectBootstrap}
               onCreateEngineApiKey={handleCreateEngineApiKey}
+              onCreateEngineConnectBootstrap={handleCreateEngineConnectBootstrap}
               onRevokeEngineApiKey={handleRevokeEngineApiKey}
               onDismissIssuedEngineApiKey={() => setIssuedEngineApiKey(null)}
+              onDismissEngineConnectBootstrap={() => setEngineConnectBootstrap(null)}
               onDiagnoseIncident={runPlatformIncidentDiagnosis}
               onApproveWorkerApproval={handleApproveWorkerApproval}
               onRejectWorkerApproval={handleRejectWorkerApproval}
@@ -5392,9 +5430,12 @@ function PlatformView({
   onAutoGenerateConstructionSupervisionLegalBindings,
   onDeactivateLegalDomainBinding,
   issuedEngineApiKey,
+  engineConnectBootstrap,
   onCreateEngineApiKey,
+  onCreateEngineConnectBootstrap,
   onRevokeEngineApiKey,
   onDismissIssuedEngineApiKey,
+  onDismissEngineConnectBootstrap,
   onDiagnoseIncident,
   onApproveWorkerApproval,
   onRejectWorkerApproval,
@@ -5423,6 +5464,7 @@ function PlatformView({
   onAutoGenerateConstructionSupervisionLegalBindings: () => Promise<void>;
   onDeactivateLegalDomainBinding: (bindingId: number) => Promise<void>;
   issuedEngineApiKey: CreateEngineApiKeyResponse | null;
+  engineConnectBootstrap: EngineConnectBootstrapResponse | null;
   onCreateEngineApiKey: (body: {
     displayName: string;
     ownerUserId: number;
@@ -5431,8 +5473,15 @@ function PlatformView({
     dailyRequestUnitLimit?: number | null;
     expiresAt?: string | null;
   }) => Promise<void>;
+  onCreateEngineConnectBootstrap: (body: {
+    clientType: EngineConnectClientType;
+    displayName?: string | null;
+    officeId?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
   onRevokeEngineApiKey: (apiKeyId: number) => Promise<void>;
   onDismissIssuedEngineApiKey: () => void;
+  onDismissEngineConnectBootstrap: () => void;
   onDiagnoseIncident: (incidentId: number) => void;
   onApproveWorkerApproval: (approvalRequestId: number) => Promise<void>;
   onRejectWorkerApproval: (approvalRequestId: number) => Promise<void>;
@@ -5535,13 +5584,17 @@ function PlatformView({
         <EngineApiKeyManagementPanel
           busy={loading}
           keys={data.engineApiKeys}
+          clients={data.engineConnectClients}
           usageEvents={data.engineApiUsageEvents}
           usageSummary={data.engineApiUsageSummary}
           offices={data.offices}
           users={data.users}
           issuedKey={issuedEngineApiKey}
+          connectBootstrap={engineConnectBootstrap}
           onCreate={onCreateEngineApiKey}
+          onCreateConnectBootstrap={onCreateEngineConnectBootstrap}
           onDismissIssuedKey={onDismissIssuedEngineApiKey}
+          onDismissConnectBootstrap={onDismissEngineConnectBootstrap}
           onRevoke={onRevokeEngineApiKey}
         />
       ) : null}
@@ -6556,22 +6609,28 @@ function payloadPreview(payload: Record<string, unknown>) {
 function EngineApiKeyManagementPanel({
   busy,
   keys,
+  clients,
   usageEvents,
   usageSummary,
   offices,
   users,
   issuedKey,
+  connectBootstrap,
   onCreate,
+  onCreateConnectBootstrap,
   onDismissIssuedKey,
+  onDismissConnectBootstrap,
   onRevoke
 }: {
   busy: boolean;
   keys: EngineApiKey[];
+  clients: EngineConnectClient[];
   usageEvents: EngineApiUsageEvent[];
   usageSummary: EngineApiUsageSummary | null;
   offices: PlatformOfficeOps[];
   users: PlatformUserOps[];
   issuedKey: CreateEngineApiKeyResponse | null;
+  connectBootstrap: EngineConnectBootstrapResponse | null;
   onCreate: (body: {
     displayName: string;
     ownerUserId: number;
@@ -6580,7 +6639,14 @@ function EngineApiKeyManagementPanel({
     dailyRequestUnitLimit?: number | null;
     expiresAt?: string | null;
   }) => Promise<void>;
+  onCreateConnectBootstrap: (body: {
+    clientType: EngineConnectClientType;
+    displayName?: string | null;
+    officeId?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
   onDismissIssuedKey: () => void;
+  onDismissConnectBootstrap: () => void;
   onRevoke: (apiKeyId: number) => Promise<void>;
 }) {
   const [eventFilter, setEventFilter] = useState<EngineUsageEventFilter>("ALL");
@@ -6627,6 +6693,15 @@ function EngineApiKeyManagementPanel({
             </div>
           ) : (
             <InlineNotice message="발급된 API Key 원문은 DB에 저장하지 않습니다. 잃어버리면 새 키를 발급하고 기존 키를 폐기하세요." />
+          )}
+        </Panel>
+
+        <Panel title="MCP 연결 패키지" icon={<Command size={18} />}>
+          <EngineConnectBootstrapForm busy={busy} clients={clients} offices={offices} onSubmit={onCreateConnectBootstrap} />
+          {connectBootstrap ? (
+            <EngineConnectBootstrapResult bootstrap={connectBootstrap} onDismiss={onDismissConnectBootstrap} />
+          ) : (
+            <InlineNotice message="Codex, Claude, Cursor, Custom Agent에 붙일 MCP 설정 패키지를 새 키와 함께 생성합니다. 기존 키의 원문은 다시 표시하지 않습니다." />
           )}
         </Panel>
 
@@ -6974,6 +7049,145 @@ function CopyableEndpoint({ label, value }: { label: string; value: string }) {
       <button className="icon-button" onClick={() => void navigator.clipboard.writeText(value)} title={`${label} 복사`} type="button">
         <Copy size={14} />
       </button>
+    </div>
+  );
+}
+
+function CopyableCodeBlock({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="copyable-code-block">
+      <div>
+        <span>{title}</span>
+        <button className="icon-button" onClick={() => void navigator.clipboard.writeText(value)} title={`${title} 복사`} type="button">
+          <Copy size={14} />
+        </button>
+      </div>
+      <pre>{value}</pre>
+    </div>
+  );
+}
+
+function EngineConnectBootstrapForm({
+  busy,
+  clients,
+  offices,
+  onSubmit
+}: {
+  busy: boolean;
+  clients: EngineConnectClient[];
+  offices: PlatformOfficeOps[];
+  onSubmit: (body: {
+    clientType: EngineConnectClientType;
+    displayName?: string | null;
+    officeId?: number | null;
+    expiresAt?: string | null;
+  }) => Promise<void>;
+}) {
+  const [clientType, setClientType] = useState<EngineConnectClientType>(clients[0]?.type ?? "CODEX");
+  const [displayName, setDisplayName] = useState("");
+  const [officeId, setOfficeId] = useState<number | "">("");
+  const [expiresAt, setExpiresAt] = useState("");
+
+  useEffect(() => {
+    if (!clients.some((client) => client.type === clientType) && clients[0]) {
+      setClientType(clients[0].type);
+    }
+  }, [clientType, clients]);
+
+  if (clients.length === 0) {
+    return <EmptyState message="MCP 연결 클라이언트 목록을 불러오지 못했습니다." />;
+  }
+
+  const selectedClient = clients.find((client) => client.type === clientType);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onSubmit({
+      clientType,
+      displayName: normalizeFormValue(displayName),
+      officeId: officeId === "" ? null : officeId,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+    });
+  }
+
+  return (
+    <form className="engine-connect-form" onSubmit={submit}>
+      <label>
+        연결 대상
+        <select value={clientType} onChange={(event) => setClientType(event.target.value as EngineConnectClientType)}>
+          {clients.map((client) => (
+            <option key={client.type} value={client.type}>
+              {client.displayName}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        표시명
+        <input
+          placeholder={`ArchDox ${selectedClient?.displayName ?? "MCP"} connection`}
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+        />
+      </label>
+      <label>
+        사무소 연결
+        <select value={officeId} onChange={(event) => setOfficeId(event.target.value ? Number(event.target.value) : "")}>
+          <option value="">없음</option>
+          {offices.map((office) => (
+            <option key={office.id} value={office.id}>
+              {office.displayName} / {office.officeCode} / #{office.id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        만료일
+        <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+      </label>
+      <div className="policy-note">
+        연결 패키지는 호출한 관리자 계정 소유의 새 Engine API Key를 발급합니다. 사무소 연결은 해당 계정이 활성 멤버인 사무소에서만 성공합니다.
+      </div>
+      <button className="button primary" disabled={busy} type="submit">
+        {busy ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+        연결 패키지 생성
+      </button>
+    </form>
+  );
+}
+
+function EngineConnectBootstrapResult({
+  bootstrap,
+  onDismiss
+}: {
+  bootstrap: EngineConnectBootstrapResponse;
+  onDismiss: () => void;
+}) {
+  const configJson = JSON.stringify(bootstrap.suggestedMcpConfig, null, 2);
+
+  return (
+    <div className="engine-connect-result">
+      <div className="engine-connect-result-header">
+        <div>
+          <strong>{bootstrap.displayName}</strong>
+          <span>
+            {bootstrap.clientType} / {bootstrap.connectionId} / API Key #{bootstrap.key.id}
+          </span>
+        </div>
+        <button className="button compact" onClick={onDismiss} type="button">
+          확인
+        </button>
+      </div>
+      <InlineAlert message="API Key 원문은 지금 한 번만 표시됩니다. 연결 설정에 입력한 뒤 별도 보관하지 않는 운영 방식을 권장합니다." />
+      <CopyableCodeBlock title="Engine API Key" value={bootstrap.apiKey} />
+      <CopyableCodeBlock title="MCP client config" value={configJson} />
+      <CopyableCodeBlock title="REST smoke curl" value={bootstrap.curlExample} />
+      <div className="engine-connect-next-steps">
+        <strong>다음 단계</strong>
+        {bootstrap.nextSteps.map((step) => (
+          <span key={step}>{step}</span>
+        ))}
+      </div>
     </div>
   );
 }
