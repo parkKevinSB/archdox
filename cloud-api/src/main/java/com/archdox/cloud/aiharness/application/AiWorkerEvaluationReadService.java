@@ -132,7 +132,9 @@ public class AiWorkerEvaluationReadService {
                 testCase("MCP-E-008", "MCP quota excess returns retryable QUOTA_EXCEEDED", "MCP_ENGINE",
                         "McpGatewayIntegrationTest.mcpGatewayListsAndCallsEngineToolsWithEngineApiKey"),
                 testCase("MCP-E-009", "Engine boundary prepares typed run response without workflow execution", "MCP_ENGINE",
-                        "ArchDoxEngineServiceTest.preparesBoundaryResponseWithoutExecutingBusinessWorkflow"));
+                        "ArchDoxEngineServiceTest.preparesBoundaryResponseWithoutExecutingBusinessWorkflow"),
+                testCase("MCP-E-010", "explain_legal_change exposes source-backed digest detail", "MCP_ENGINE",
+                        "McpGatewayIntegrationTest.mcpGatewayListsAndCallsEngineToolsWithEngineApiKey"));
         return group("MCP_ENGINE_BOUNDARY", "MCP / Engine boundary evaluation", "MCP_ENGINE", cases);
     }
 

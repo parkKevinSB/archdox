@@ -244,7 +244,7 @@ Current external/MCP tool direction:
 | `get_legal_updates` | Legal digest read model, usage/quota scoped. |
 | `search_law` | DB-backed legal corpus search, not live law.go.kr per request. |
 | `get_law_article` | DB-backed article lookup with source/version metadata. |
-| `explain_legal_change` | Future AI-assisted digest explanation, human-reviewed. |
+| `explain_legal_change` | Published legal digest detail with source-backed article diffs. |
 
 MCP is not the core engine. It is an adapter over the external Engine API.
 

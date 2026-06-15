@@ -8554,6 +8554,7 @@ function evaluationCaseLabel(caseId: string, fallback: string) {
     "MCP-E-007": "scope 부족 오류 구분",
     "MCP-E-008": "quota 초과 오류 구분",
     "MCP-E-009": "Engine 응답 DTO 계약 유지",
+    "MCP-E-010": "법령 변경 상세 tool 응답 계약 유지",
     "LEG-D-001": "fake 법령 source를 운영 목록에서 제외",
     "LEG-D-002": "deterministic digest refresh 대상 분리",
     "LEG-D-003": "추가/수정/삭제 diff 분리",

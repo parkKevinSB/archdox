@@ -62,7 +62,9 @@ class McpGatewayIntegrationTest {
     void mcpGatewayListsAndCallsEngineToolsWithEngineApiKey() throws Exception {
         var user = signup("mcp-user@example.com", "MCP User");
         var apiKey = bootstrapApiKey(user.accessToken(), user.officeId());
-        var legalArticleVersionId = seedLegalCorpus();
+        var legalSeed = seedLegalCorpus();
+        var legalArticleVersionId = legalSeed.articleVersionId();
+        var legalDigestId = seedLegalChangeDigest(legalSeed);
 
         mockMvc.perform(post("/api/v1/mcp")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,6 +98,7 @@ class McpGatewayIntegrationTest {
                         .value(org.hamcrest.Matchers.hasItems(
                                 "validate_inspection_report",
                                 "get_legal_updates",
+                                "explain_legal_change",
                                 "search_law",
                                 "get_law_article")));
 
@@ -164,6 +167,64 @@ class McpGatewayIntegrationTest {
                     assertThat(event.metadataJson()).containsEntry("correlationId", "mcp-legal-success");
                     assertThat(event.metadataJson()).containsEntry("userAgent", "ArchDox MCP Integration Test");
                 });
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-legal-explain")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 60,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "explain_legal_change",
+                                    "arguments": {
+                                      "digestId": %d
+                                    }
+                                  }
+                                }
+                                """.formatted(legalDigestId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.digestId").value(legalDigestId))
+                .andExpect(jsonPath("$.result.structuredContent.title").value("MCP legal digest"))
+                .andExpect(jsonPath("$.result.structuredContent.explanation.sourceBacked").value(true))
+                .andExpect(jsonPath("$.result.structuredContent.explanation.humanReviewRequired").value(true))
+                .andExpect(jsonPath("$.result.structuredContent.articleDiffs[0].changeType").value("ADDED"))
+                .andExpect(jsonPath("$.result.structuredContent.articleDiffs[0].articleNo").value("25??"));
+
+        assertThat(usageEventRepository.findAll())
+                .filteredOn(event -> EngineApiUsageService.CAPABILITY_LEGAL_UPDATES.equals(event.capability()))
+                .filteredOn(event -> "MCP_EXPLAIN_LEGAL_CHANGE".equals(event.operation()))
+                .filteredOn(event -> EngineApiUsageService.STATUS_SUCCEEDED.equals(event.status()))
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.requestUnits()).isEqualTo(1);
+                    assertThat(event.metadataJson()).containsEntry("toolName", "explain_legal_change");
+                    assertThat(event.metadataJson()).containsEntry("correlationId", "mcp-legal-explain");
+                });
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 601,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "explain_legal_change",
+                                    "arguments": {
+                                      "digestId": 99999999
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error.code").value(-32004))
+                .andExpect(jsonPath("$.error.data.code").value("LEGAL_UPDATE_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.data.category").value("NOT_FOUND"));
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
@@ -447,7 +508,7 @@ class McpGatewayIntegrationTest {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("apiKey").asText();
     }
 
-    private long seedLegalCorpus() {
+    private LegalCorpusSeed seedLegalCorpus() {
         var now = OffsetDateTime.now();
         var sourceId = jdbcTemplate.queryForObject("""
                 insert into legal_sources (code, source_type, display_name, base_url, status, metadata_json, created_at, updated_at)
@@ -502,7 +563,7 @@ class McpGatewayIntegrationTest {
                 25,
                 now,
                 now);
-        return jdbcTemplate.queryForObject("""
+        var articleVersionId = jdbcTemplate.queryForObject("""
                 insert into legal_article_versions (
                     article_id, legal_version_id, article_key, article_no, article_title,
                     article_text, normalized_text, content_hash, effective_date, source_metadata_json, created_at
@@ -521,6 +582,86 @@ class McpGatewayIntegrationTest {
                 LocalDate.of(2026, 7, 1),
                 "{}",
                 now);
+        return new LegalCorpusSeed(actId, versionId, articleId, articleVersionId);
+    }
+
+    private long seedLegalChangeDigest(LegalCorpusSeed seed) {
+        var now = OffsetDateTime.now();
+        var syncRunId = jdbcTemplate.queryForObject("""
+                insert into legal_sync_runs (
+                    trigger_type, source_code, status, started_by_user_id, started_at, completed_at,
+                    failure_code, summary_json
+                )
+                values (?, ?, ?, ?, ?, ?, ?, cast(? as jsonb))
+                returning id
+                """, Long.class,
+                "TEST",
+                "NATIONAL_LAW_OPEN_DATA_MCP",
+                "COMPLETED",
+                null,
+                now,
+                now,
+                null,
+                "{}");
+        var changeSetId = jdbcTemplate.queryForObject("""
+                insert into legal_change_sets (
+                    act_id, sync_run_id, previous_version_id, new_version_id, status, effective_date,
+                    detected_at, summary, metadata_json
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb))
+                returning id
+                """, Long.class,
+                seed.actId(),
+                syncRunId,
+                null,
+                seed.legalVersionId(),
+                "RECORDED",
+                LocalDate.of(2026, 7, 1),
+                now,
+                "MCP legal change set",
+                "{}");
+        jdbcTemplate.update("""
+                insert into legal_article_diffs (
+                    change_set_id, article_id, article_key, article_no, change_type,
+                    before_article_version_id, after_article_version_id, before_hash, after_hash,
+                    diff_summary, created_at
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                changeSetId,
+                seed.articleId(),
+                "0025001",
+                "25??",
+                "ADDED",
+                null,
+                seed.articleVersionId(),
+                null,
+                "article-hash",
+                "Initial MCP legal article captured.",
+                now);
+        return jdbcTemplate.queryForObject("""
+                insert into legal_change_digests (
+                    change_set_id, status, source, title, summary, impact_summary,
+                    affected_report_types_json, affected_catalog_items_json, ai_harness_run_id,
+                    effective_date, detected_at, published_at, created_at, updated_at
+                )
+                values (?, ?, ?, ?, ?, ?, cast(? as jsonb), cast(? as jsonb), ?, ?, ?, ?, ?, ?)
+                returning id
+                """, Long.class,
+                changeSetId,
+                "PUBLISHED",
+                "DETERMINISTIC",
+                "MCP legal digest",
+                "MCP legal digest summary",
+                "Review construction supervision workflows.",
+                "[\"CONSTRUCTION_DAILY_SUPERVISION_LOG\"]",
+                "[\"MCP_TEST_ITEM\"]",
+                null,
+                LocalDate.of(2026, 7, 1),
+                now,
+                now,
+                now,
+                now);
     }
 
     private String bearer(String token) {
@@ -528,5 +669,8 @@ class McpGatewayIntegrationTest {
     }
 
     private record TestUser(long userId, long officeId, String accessToken) {
+    }
+
+    private record LegalCorpusSeed(long actId, long legalVersionId, long articleId, long articleVersionId) {
     }
 }

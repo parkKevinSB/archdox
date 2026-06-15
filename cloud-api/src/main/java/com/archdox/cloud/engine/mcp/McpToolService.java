@@ -191,6 +191,42 @@ public class McpToolService {
         return legalUpdateReadService.recent(intValue(arguments.get("days")), intValue(arguments.get("limit")));
     }
 
+    private Object explainLegalChange(Map<String, Object> arguments) {
+        var digestId = longValue(arguments.get("digestId"), "digestId");
+        if (digestId == null) {
+            digestId = longValue(arguments.get("id"), "id");
+        }
+        if (digestId == null) {
+            throw new McpInvalidParamsException("digestId is required");
+        }
+        var digest = legalUpdateReadService.detail(digestId);
+        var result = new LinkedHashMap<String, Object>();
+        result.put("digestId", digest.id());
+        result.put("changeSetId", digest.changeSetId());
+        result.put("status", digest.status());
+        result.put("source", digest.source());
+        result.put("title", digest.title());
+        result.put("summary", digest.summary());
+        putIfNotNull(result, "impactSummary", digest.impactSummary());
+        result.put("affectedReportTypes", digest.affectedReportTypes());
+        result.put("affectedCatalogItems", digest.affectedCatalogItems());
+        putIfNotNull(result, "effectiveDate", digest.effectiveDate());
+        putIfNotNull(result, "publishedAt", digest.publishedAt());
+        result.put("articleDiffs", digest.articleDiffs());
+        result.put("explanation", Map.of(
+                "sourceBacked", true,
+                "source", "ARCHDOX_LEGAL_CHANGE_DIGEST",
+                "humanReviewRequired", true,
+                "boundary", "This MCP tool explains a published ArchDox legal-change digest and its source diffs. It does not modify the legal corpus or issue legal advice."));
+        return result;
+    }
+
+    private void putIfNotNull(Map<String, Object> target, String key, Object value) {
+        if (value != null) {
+            target.put(key, value);
+        }
+    }
+
     private Object searchLaw(Map<String, Object> arguments) {
         return legalCorpusReadService.search(
                 optionalText(arguments.get("query")),
@@ -483,6 +519,15 @@ public class McpToolService {
                         true,
                         arguments -> 1,
                         (principal, arguments) -> getLegalUpdates(arguments)),
+                tool("explain_legal_change", "Explain legal change",
+                        "Read one published ArchDox legal-change digest with source-backed article diffs and review boundaries.",
+                        schema(required("digestId"), property("digestId", "integer")),
+                        EngineApiUsageService.CAPABILITY_LEGAL_UPDATES,
+                        EngineApiKeyManagementService.SCOPE_LEGAL_UPDATES,
+                        ACCESS_READ,
+                        true,
+                        arguments -> 1,
+                        (principal, arguments) -> explainLegalChange(arguments)),
                 tool("search_law", "Search law",
                         "Search source-backed ArchDox legal corpus articles.",
                         schema(required(),

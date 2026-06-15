@@ -175,7 +175,9 @@ These are development-only credentials.
   `get_law_article`, under the `LEGAL_SEARCH` scope/capability. They search the
   synchronized DB-backed legal corpus, return source/version metadata, exclude
   fake-source rows, and are quota/usage metered separately from legal update
-  digests.
+  digests. `explain_legal_change` reads one published legal-change digest under
+  the `LEGAL_UPDATES` scope/capability and returns deterministic source-backed
+  article diffs without modifying the legal corpus.
   It also includes the first domain-backed review slice: if external context
   supplies `tradeCode`, `processCode`, and `inspectionItemCode`, the Engine
   validates the selection against `SupervisionDomainCatalogService`, returns

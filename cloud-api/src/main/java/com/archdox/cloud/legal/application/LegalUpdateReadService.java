@@ -11,6 +11,7 @@ import com.archdox.cloud.legal.infra.LegalArticleDiffRepository;
 import com.archdox.cloud.legal.infra.LegalArticleVersionRepository;
 import com.archdox.cloud.legal.infra.LegalChangeDigestRepository;
 import com.archdox.cloud.legal.infra.LegalVersionRepository;
+import com.archdox.cloud.global.api.NotFoundException;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -72,7 +73,11 @@ public class LegalUpdateReadService {
                         LegalChangeDigestStatus.PUBLISHED,
                         FakeLegalSourceClient.DEFAULT_SOURCE_CODE)
                 .map(this::toResponse)
-                .orElseThrow(() -> new IllegalArgumentException("Legal update not found: " + id));
+                .orElseThrow(() -> new NotFoundException(
+                        "LEGAL_UPDATE_NOT_FOUND",
+                        "errors.legalUpdate.notFound",
+                        "Legal update not found",
+                        Map.of("digestId", id)));
     }
 
     public LegalChangeDigestResponse toResponse(com.archdox.cloud.legal.domain.LegalChangeDigest digest) {

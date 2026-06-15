@@ -615,6 +615,7 @@ run_validation
 get_review_result
 validate_inspection_report
 get_legal_updates
+explain_legal_change
 search_law
 get_law_article
 ```
@@ -633,11 +634,12 @@ input schema
 handler
 ```
 
-Gateway-managed tools such as `get_legal_updates`, `search_law`, and
-`get_law_article` now pass quota checks and record usage under their own
-capabilities (`LEGAL_UPDATES` or `LEGAL_SEARCH`). Review-session tools reuse the
-external review-session service facade so REST and MCP keep the same
-quota/usage behavior for the underlying engine operations.
+Gateway-managed tools such as `get_legal_updates`, `explain_legal_change`,
+`search_law`, and `get_law_article` now pass quota checks and record usage
+under their own capabilities (`LEGAL_UPDATES` or `LEGAL_SEARCH`).
+Review-session tools reuse the external review-session service facade so REST
+and MCP keep the same quota/usage behavior for the underlying engine
+operations.
 
 The first legal corpus tools are intentionally read-only and source-backed:
 
@@ -649,6 +651,12 @@ search_law
 get_law_article
   -> reads one synchronized article by articleVersionId, articleId, or actCode + articleNo
   -> returns the full article text plus source/version metadata
+
+explain_legal_change
+  -> reads one published legal-change digest
+  -> returns deterministic summary, impact, affected report/catalog metadata,
+     and source-backed article diffs
+  -> does not modify the legal corpus and does not issue legal advice
 ```
 
 They read from ArchDox's synchronized corpus, not from live law.go.kr calls, and
@@ -692,6 +700,7 @@ approval:
 
 ```text
 get_legal_updates
+explain_legal_change
 search_law
 get_law_article
 ```
