@@ -45,6 +45,30 @@ class EngineApiKeyIntegrationTest {
     JdbcTemplate jdbcTemplate;
 
     @Test
+    void platformAdminCanReadMcpToolCatalog() throws Exception {
+        var platformAdmin = signup("engine-mcp-catalog-admin@example.com", "Engine MCP Catalog Admin");
+        grantPlatformAdmin(platformAdmin.userId());
+
+        mockMvc.perform(get("/api/v1/platform-admin/engine/mcp-tools")
+                        .header("Authorization", bearer(platformAdmin.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].name").value(org.hamcrest.Matchers.hasItems(
+                        "validate_inspection_report",
+                        "get_legal_updates",
+                        "search_law",
+                        "get_law_article",
+                        "explain_legal_change")))
+                .andExpect(jsonPath("$[?(@.name=='validate_inspection_report')].requiredScope")
+                        .value(org.hamcrest.Matchers.hasItem("ENGINE_REVIEW_SESSION")))
+                .andExpect(jsonPath("$[?(@.name=='validate_inspection_report')].baseRequestUnits")
+                        .value(org.hamcrest.Matchers.hasItem(2)))
+                .andExpect(jsonPath("$[?(@.name=='search_law')].capability")
+                        .value(org.hamcrest.Matchers.hasItem("LEGAL_SEARCH")))
+                .andExpect(jsonPath("$[?(@.name=='get_legal_updates')].gatewayManagedUsage")
+                        .value(org.hamcrest.Matchers.hasItem(true)));
+    }
+
+    @Test
     void platformAdminCanIssueAndRevokeExternalEngineApiKey() throws Exception {
         var owner = signup("engine-owner@example.com", "Engine Owner");
         var platformAdmin = signup("engine-platform-admin@example.com", "Engine Platform Admin");

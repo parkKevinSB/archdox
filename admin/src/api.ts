@@ -29,6 +29,7 @@ import type {
   FlowerRuntimeDump,
   LegalChangeDigest,
   LegalChangeSet,
+  McpToolCatalogItem,
   LegalDomainBindingAutoGenerateResponse,
   LegalDomainBindingCoverage,
   LegalDomainBinding,
@@ -952,6 +953,10 @@ export function createEngineConnectBootstrap(
     method: "POST",
     body
   });
+}
+
+export function getPlatformMcpToolCatalog(token: string) {
+  return request<McpToolCatalogItem[]>("/api/v1/platform-admin/engine/mcp-tools", { token });
 }
 
 export function getPlatformAiProviders(token: string) {

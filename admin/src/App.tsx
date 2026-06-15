@@ -109,6 +109,7 @@ import {
   getPlatformLegalDigestAiDrafts,
   getPlatformLegalOpenApiStatus,
   getPlatformLegalSyncRuns,
+  getPlatformMcpToolCatalog,
   getPlatformWorkerApprovals,
   getPlatformWorkerGovernance,
   getPlatformOffices,
@@ -190,6 +191,7 @@ import type {
   LegalDigestAiDraft,
   LegalOpenApiStatus,
   LegalSyncRun,
+  McpToolCatalogItem,
   MeResponse,
   MembershipRole,
   Office,
@@ -328,6 +330,7 @@ type PlatformOpsData = {
   legalOpenApiStatus: LegalOpenApiStatus | null;
   engineApiKeys: EngineApiKey[];
   engineConnectClients: EngineConnectClient[];
+  mcpToolCatalog: McpToolCatalogItem[];
   engineApiUsageSummary: EngineApiUsageSummary | null;
   engineApiUsageEvents: EngineApiUsageEvent[];
   workerGovernance: WorkerGovernanceSummary | null;
@@ -402,6 +405,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   legalOpenApiStatus: null,
   engineApiKeys: [],
   engineConnectClients: [],
+  mcpToolCatalog: [],
   engineApiUsageSummary: null,
   engineApiUsageEvents: [],
   workerGovernance: null,
@@ -954,15 +958,24 @@ export default function App() {
           legalDomainBindingCoverage
         });
       } else if (view === "platform-engine-keys") {
-        const [engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, engineConnectClients, offices, users] = await Promise.all([
+        const [
+          engineApiKeys,
+          engineApiUsageSummary,
+          engineApiUsageEvents,
+          engineConnectClients,
+          mcpToolCatalog,
+          offices,
+          users
+        ] = await Promise.all([
           getPlatformEngineApiKeys(token),
           getPlatformEngineUsageSummary(token),
           getPlatformEngineUsageEvents(token, 100),
           getEngineConnectClients(token),
+          getPlatformMcpToolCatalog(token),
           getPlatformOffices(token, 100),
           getPlatformUsers(token, 100)
         ]);
-        Object.assign(next, { engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, engineConnectClients, offices, users });
+        Object.assign(next, { engineApiKeys, engineApiUsageSummary, engineApiUsageEvents, engineConnectClients, mcpToolCatalog, offices, users });
       } else if (view === "platform-worker-governance") {
         next.workerGovernance = await getPlatformWorkerGovernance(token, 7, 30);
       } else if (view === "platform-worker-approvals") {
@@ -5585,6 +5598,7 @@ function PlatformView({
           busy={loading}
           keys={data.engineApiKeys}
           clients={data.engineConnectClients}
+          toolCatalog={data.mcpToolCatalog}
           usageEvents={data.engineApiUsageEvents}
           usageSummary={data.engineApiUsageSummary}
           offices={data.offices}
@@ -6610,6 +6624,7 @@ function EngineApiKeyManagementPanel({
   busy,
   keys,
   clients,
+  toolCatalog,
   usageEvents,
   usageSummary,
   offices,
@@ -6625,6 +6640,7 @@ function EngineApiKeyManagementPanel({
   busy: boolean;
   keys: EngineApiKey[];
   clients: EngineConnectClient[];
+  toolCatalog: McpToolCatalogItem[];
   usageEvents: EngineApiUsageEvent[];
   usageSummary: EngineApiUsageSummary | null;
   offices: PlatformOfficeOps[];
@@ -6719,6 +6735,8 @@ function EngineApiKeyManagementPanel({
           <InlineAlert message="고객별 billing, 개발자 포털, OAuth 승인 flow는 아직 다음 단계입니다. 운영 테스트 키는 scope와 일일 quota를 제한해서 발급하세요." />
         </Panel>
       </div>
+
+      <McpToolCatalogPanel tools={toolCatalog} />
 
       <Panel title="발급된 Engine API Key" icon={<KeyRound size={18} />} count={keys.length}>
         <Table
@@ -7190,6 +7208,168 @@ function EngineConnectBootstrapResult({
       </div>
     </div>
   );
+}
+
+const mcpToolKoreanTitles: Record<string, string> = {
+  create_review_session: "검토 세션 생성",
+  submit_document: "문서 본문 제출",
+  submit_context_facts: "문맥 사실 제출",
+  normalize_context: "문맥 정규화",
+  run_validation: "검증 실행",
+  get_review_result: "검토 결과 조회",
+  validate_inspection_report: "감리/검사 리포트 일괄 검증",
+  get_legal_updates: "법령 변경사항 조회",
+  explain_legal_change: "법령 변경 상세 설명",
+  search_law: "법령 코퍼스 검색",
+  get_law_article: "법령 조문 조회"
+};
+
+const mcpToolKoreanDescriptions: Record<string, string> = {
+  create_review_session: "외부 Agent가 ArchDox Engine 검토 흐름을 시작할 때 쓰는 세션 생성 tool입니다.",
+  submit_document: "검토 세션에 문서 텍스트를 넣습니다. 파일 전달 자체가 아니라 검토 가능한 텍스트 본문 제출입니다.",
+  submit_context_facts: "공종, 검사항목, 현장 조건 같은 구조화 facts를 세션에 추가합니다.",
+  normalize_context: "제출된 facts의 누락/모호성을 정규화하고 검토 준비 상태를 확인합니다.",
+  run_validation: "ArchDox Engine의 deterministic/source-backed 검증을 실행합니다.",
+  get_review_result: "이미 실행된 검토 결과와 finding/result를 다시 읽습니다.",
+  validate_inspection_report: "세션 생성, 본문/facts 제출, 검증 실행을 한 번에 묶은 외부 Agent용 convenience tool입니다.",
+  get_legal_updates: "게시된 법령 변경 digest 목록을 읽습니다. 법령 원문을 수정하지 않습니다.",
+  explain_legal_change: "하나의 법령 변경 digest와 원천 diff를 상세히 읽습니다.",
+  search_law: "동기화된 법령 코퍼스에서 후보 조문을 검색합니다. 검색 후보만으로 최종 법률 판단을 내리지 않습니다.",
+  get_law_article: "articleVersionId, articleId, actCode/articleNo 기준으로 source-backed 조문을 읽습니다."
+};
+
+function McpToolCatalogPanel({ tools }: { tools: McpToolCatalogItem[] }) {
+  const [selectedName, setSelectedName] = useState("");
+  const selectedTool = tools.find((tool) => tool.name === selectedName) ?? tools[0] ?? null;
+
+  useEffect(() => {
+    if (selectedName && tools.some((tool) => tool.name === selectedName)) {
+      return;
+    }
+    setSelectedName(tools[0]?.name ?? "");
+  }, [selectedName, tools]);
+
+  const reviewTools = tools.filter((tool) => tool.capability === "ENGINE_REVIEW_SESSION").length;
+  const legalTools = tools.filter((tool) => tool.capability === "LEGAL_UPDATES" || tool.capability === "LEGAL_SEARCH").length;
+  const writeTools = tools.filter((tool) => tool.accessMode === "WRITE").length;
+
+  return (
+    <Panel title="MCP Tool Catalog" icon={<Command size={18} />} count={tools.length}>
+      <div className="metric-grid compact">
+        <MetricCard icon={<Command size={20} />} label="전체 Tool" value={tools.length} detail="gateway catalog" tone="blue" />
+        <MetricCard icon={<ShieldCheck size={20} />} label="검토 Tool" value={reviewTools} detail="ENGINE_REVIEW_SESSION" tone="green" />
+        <MetricCard icon={<FileText size={20} />} label="법령 Tool" value={legalTools} detail="LEGAL_UPDATES / SEARCH" tone="blue" />
+        <MetricCard icon={<AlertTriangle size={20} />} label="쓰기 Tool" value={writeTools} detail="session/facts/validation" tone="amber" />
+      </div>
+      <div className="mcp-tool-catalog-grid">
+        <div>
+          <Table
+            columns={["Tool", "Scope", "Unit", "Mode", "상세"]}
+            empty="MCP tool catalog가 없습니다."
+            rows={tools.map((tool) => [
+              <CellTitle key="tool" title={mcpToolTitle(tool)} subtitle={tool.name} />,
+              <CellTitle key="scope" title={displayLabel(tool.requiredScope)} subtitle={tool.capability} />,
+              <CellTitle key="units" title={`${tool.baseRequestUnits} unit`} subtitle={tool.usageMetering} />,
+              <StatusBadge key="mode" status={tool.accessMode} />,
+              <button
+                className={`button compact${selectedTool?.name === tool.name ? " primary" : ""}`}
+                key="detail"
+                onClick={() => setSelectedName(tool.name)}
+                type="button"
+              >
+                보기
+              </button>
+            ])}
+          />
+        </div>
+        <McpToolCatalogDetail tool={selectedTool} />
+      </div>
+    </Panel>
+  );
+}
+
+function McpToolCatalogDetail({ tool }: { tool: McpToolCatalogItem | null }) {
+  if (!tool) {
+    return <EmptyState message="MCP tool을 선택하세요." />;
+  }
+
+  return (
+    <div className="mcp-tool-detail">
+      <div className="mcp-tool-detail-header">
+        <div>
+          <strong>{mcpToolTitle(tool)}</strong>
+          <span>{tool.name}</span>
+        </div>
+        <StatusBadge status={tool.status} />
+      </div>
+      <p>{mcpToolDescription(tool)}</p>
+      <dl>
+        <div>
+          <dt>필요 Scope</dt>
+          <dd>{displayLabel(tool.requiredScope)}</dd>
+        </div>
+        <div>
+          <dt>Capability</dt>
+          <dd>{tool.capability}</dd>
+        </div>
+        <div>
+          <dt>Operation</dt>
+          <dd>{tool.operation}</dd>
+        </div>
+        <div>
+          <dt>Access</dt>
+          <dd>{mcpAccessLabel(tool.accessMode)}</dd>
+        </div>
+        <div>
+          <dt>Usage</dt>
+          <dd>{mcpUsageLabel(tool.usageMetering)}</dd>
+        </div>
+        <div>
+          <dt>Request Unit</dt>
+          <dd>{tool.requestUnitPolicy}</dd>
+        </div>
+      </dl>
+      <InlineNotice message={tool.boundary} />
+      <CopyableCodeBlock title="Input schema" value={JSON.stringify(tool.inputSchema, null, 2)} />
+      <CopyableCodeBlock title="Example arguments" value={JSON.stringify(tool.exampleArguments, null, 2)} />
+      <div className="mcp-tool-errors">
+        <strong>주요 오류 코드</strong>
+        <div>
+          {tool.errorCodes.map((code) => (
+            <span key={code}>{code}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function mcpToolTitle(tool: McpToolCatalogItem) {
+  return mcpToolKoreanTitles[tool.name] ?? tool.title;
+}
+
+function mcpToolDescription(tool: McpToolCatalogItem) {
+  return mcpToolKoreanDescriptions[tool.name] ?? tool.description;
+}
+
+function mcpAccessLabel(accessMode: string) {
+  if (accessMode === "READ") {
+    return "읽기 전용";
+  }
+  if (accessMode === "WRITE") {
+    return "세션/검토 상태 생성 또는 갱신";
+  }
+  return accessMode;
+}
+
+function mcpUsageLabel(usageMetering: string) {
+  if (usageMetering === "MCP_GATEWAY") {
+    return "MCP Gateway에서 직접 quota/usage 기록";
+  }
+  if (usageMetering === "ENGINE_SERVICE") {
+    return "Engine service 내부에서 quota/usage 기록";
+  }
+  return usageMetering;
 }
 
 function EngineApiKeyCreateForm({

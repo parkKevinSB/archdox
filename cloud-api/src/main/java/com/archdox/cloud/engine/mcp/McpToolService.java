@@ -7,6 +7,7 @@ import com.archdox.cloud.engine.dto.CreateEngineReviewSessionRequest;
 import com.archdox.cloud.engine.dto.EngineContextFactRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewDocumentRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
+import com.archdox.cloud.engine.mcp.dto.McpToolCatalogResponse;
 import com.archdox.cloud.engine.usage.application.EngineApiQuotaGuardService;
 import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
 import com.archdox.cloud.global.api.ApiException;
@@ -75,6 +76,12 @@ public class McpToolService {
                         "description", tool.description(),
                         "inputSchema", tool.inputSchema()))
                 .toList());
+    }
+
+    public List<McpToolCatalogResponse> toolCatalog() {
+        return toolDefinitions.values().stream()
+                .map(this::catalogResponse)
+                .toList();
     }
 
     public Map<String, Object> callTool(
@@ -258,6 +265,104 @@ public class McpToolService {
                         "toolName", definition.name(),
                         "requiredScope", definition.requiredScope(),
                         "capability", definition.capability()));
+    }
+
+    private McpToolCatalogResponse catalogResponse(McpToolDefinition definition) {
+        return new McpToolCatalogResponse(
+                definition.name(),
+                definition.title(),
+                definition.description(),
+                definition.capability(),
+                definition.requiredScope(),
+                definition.accessMode(),
+                definition.operation(),
+                "ACTIVE",
+                definition.gatewayManagedUsage(),
+                definition.gatewayManagedUsage() ? "MCP_GATEWAY" : "ENGINE_SERVICE",
+                definition.requestUnits(Map.of()),
+                requestUnitPolicy(definition.name()),
+                definition.inputSchema(),
+                exampleArguments(definition.name()),
+                errorCodes(definition),
+                boundary(definition));
+    }
+
+    private String requestUnitPolicy(String toolName) {
+        if ("validate_inspection_report".equals(toolName)) {
+            return "2 base request units, plus 1 when contentText is provided, plus 1 when facts are provided.";
+        }
+        return "1 request unit per successful gateway-managed call or equivalent Engine service operation.";
+    }
+
+    private List<String> errorCodes(McpToolDefinition definition) {
+        var codes = new ArrayList<String>();
+        codes.add("MCP_INVALID_PARAMS");
+        codes.add("MCP_TOOL_NOT_FOUND");
+        codes.add("ENGINE_API_SCOPE_REQUIRED");
+        codes.add("ENGINE_API_QUOTA_EXCEEDED");
+        if (definition.name().startsWith("get_") || definition.name().startsWith("explain_")) {
+            codes.add("LEGAL_UPDATE_NOT_FOUND");
+            codes.add("LEGAL_ARTICLE_NOT_FOUND");
+        }
+        codes.add("MCP_INTERNAL_ERROR");
+        return List.copyOf(codes);
+    }
+
+    private String boundary(McpToolDefinition definition) {
+        return switch (definition.capability()) {
+            case EngineApiUsageService.CAPABILITY_REVIEW_SESSION ->
+                    "Runs inside the ArchDox Engine review boundary. It can create/read review sessions and findings, but does not bypass SaaS policy or document generation gates.";
+            case EngineApiUsageService.CAPABILITY_LEGAL_UPDATES ->
+                    "Reads published ArchDox legal-change digests. It does not modify the legal corpus, create legal advice, or publish digest content.";
+            case EngineApiUsageService.CAPABILITY_LEGAL_SEARCH ->
+                    "Reads synchronized source-backed legal corpus articles. Search candidates are references, not final legal compliance decisions.";
+            default -> "Runs inside the ArchDox MCP gateway boundary.";
+        };
+    }
+
+    private Map<String, Object> exampleArguments(String toolName) {
+        return switch (toolName) {
+            case "create_review_session" -> Map.of(
+                    "customerProjectRef", "outside-project-001",
+                    "reviewPurpose", "preflight");
+            case "submit_document" -> Map.of(
+                    "reviewSessionId", "rvw_sess_example",
+                    "documentTypeHint", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                    "fileName", "daily-log.txt",
+                    "contentText", "공사감리일지 입력 본문");
+            case "submit_context_facts" -> Map.of(
+                    "reviewSessionId", "rvw_sess_example",
+                    "facts", List.of(Map.of(
+                            "name", "inspectionItemCode",
+                            "rawValue", "WINDOW_MATERIAL_PERFORMANCE",
+                            "source", "CUSTOMER_SYSTEM",
+                            "confidence", 0.92)));
+            case "normalize_context", "run_validation", "get_review_result" -> Map.of(
+                    "reviewSessionId", "rvw_sess_example");
+            case "validate_inspection_report" -> Map.of(
+                    "customerProjectRef", "outside-project-001",
+                    "reviewPurpose", "preflight",
+                    "documentTypeHint", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                    "contentText", "창호 자재성능 확인 결과 이상 없음",
+                    "facts", List.of(Map.of(
+                            "name", "inspectionItemCode",
+                            "rawValue", "WINDOW_MATERIAL_PERFORMANCE",
+                            "source", "CUSTOMER_SYSTEM",
+                            "confidence", 0.92)));
+            case "get_legal_updates" -> Map.of(
+                    "days", 30,
+                    "limit", 10);
+            case "explain_legal_change" -> Map.of(
+                    "digestId", 1);
+            case "search_law" -> Map.of(
+                    "query", "창호 단열 성능",
+                    "actName", "건축물의 에너지절약설계기준",
+                    "limit", 5);
+            case "get_law_article" -> Map.of(
+                    "actCode", "BUILDING_ACT",
+                    "articleNo", "25");
+            default -> Map.of();
+        };
     }
 
     private void recordToolUsage(

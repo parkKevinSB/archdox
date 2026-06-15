@@ -1386,6 +1386,25 @@ export type EngineConnectBootstrapResponse = {
   createdAt: string;
 };
 
+export type McpToolCatalogItem = {
+  name: string;
+  title: string;
+  description: string;
+  capability: string;
+  requiredScope: string;
+  accessMode: string;
+  operation: string;
+  status: string;
+  gatewayManagedUsage: boolean;
+  usageMetering: string;
+  baseRequestUnits: number;
+  requestUnitPolicy: string;
+  inputSchema: Record<string, unknown>;
+  exampleArguments: Record<string, unknown>;
+  errorCodes: string[];
+  boundary: string;
+};
+
 export type EngineApiUsageEvent = {
   id: number;
   apiKeyId: number;

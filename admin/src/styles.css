@@ -2506,6 +2506,116 @@ button {
   background: #ffffff;
 }
 
+.mcp-tool-catalog-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 16px;
+  padding: 0 16px 16px;
+  align-items: start;
+}
+
+.mcp-tool-detail {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.mcp-tool-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mcp-tool-detail-header strong {
+  display: block;
+  color: #172322;
+  font-size: 16px;
+}
+
+.mcp-tool-detail-header span {
+  display: block;
+  margin-top: 4px;
+  color: #627672;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mcp-tool-detail p {
+  margin: 0;
+  color: #40514e;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.mcp-tool-detail dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.mcp-tool-detail dl > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #dfe7e5;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.mcp-tool-detail dt {
+  color: #738884;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mcp-tool-detail dd {
+  margin: 4px 0 0;
+  color: #172322;
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.mcp-tool-errors {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mcp-tool-errors strong {
+  color: #172322;
+  font-size: 13px;
+}
+
+.mcp-tool-errors > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mcp-tool-errors span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #d8e1df;
+  border-radius: 999px;
+  color: #40514e;
+  background: #fbfcfc;
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .server-runtime-settings-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3588,6 +3698,7 @@ tbody tr:hover {
   .config-grid,
   .member-grid,
   .engine-key-grid,
+  .mcp-tool-catalog-grid,
   .ai-harness-manager,
   .project-management-grid,
   .revision-grid,
@@ -3618,6 +3729,10 @@ tbody tr:hover {
   }
 
   .legal-text-comparison {
+    grid-template-columns: 1fr;
+  }
+
+  .mcp-tool-detail dl {
     grid-template-columns: 1fr;
   }
 }
