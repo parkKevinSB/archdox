@@ -58,4 +58,87 @@ class EngineLegalRiskContextReviewServiceTest {
                             .contains("감리내용");
                 });
     }
+
+    @Test
+    void materialPerformanceItemRequiresTechnicalEvidenceContextBeforePass() {
+        var result = service.review(
+                Map.of("values", Map.of(
+                        "supervisionContent", Map.of(
+                                "canonicalValue", "Window material performance checked; no abnormality noted.",
+                                "rawValue", "Window material performance checked; no abnormality noted.",
+                                "confidence", 0.92d),
+                        "photoEvidence", Map.of(
+                                "canonicalValue", "One product-label site photo was uploaded.",
+                                "rawValue", "One product-label site photo was uploaded.",
+                                "confidence", 0.88d))),
+                List.of(Map.of(
+                        "catalogCode", "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24",
+                        "catalogVersion", 2,
+                        "tradeCode", "WINDOWS_DOORS",
+                        "processCode", "GENERAL",
+                        "inspectionItemCode", "WINDOW_MATERIAL",
+                        "inspectionItemName", "Window material performance",
+                        "basis", "KS and material-performance document check",
+                        "location", "context.catalogSelection")),
+                List.of(Map.of(
+                        "referenceId", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:000100@test",
+                        "actCode", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD",
+                        "actName", "Construction supervision detailed standard",
+                        "articleNo", "appendix 1",
+                        "articleTitle", "Checklist",
+                        "legalVersionId", 1L,
+                        "sourceVersionKey", "test",
+                        "effectiveDate", "2026-01-01",
+                        "relevance", "REFERENCE",
+                        "metadata", Map.of(
+                                "resolutionSource", "LEGAL_DOMAIN_BINDING"))));
+
+        assertThat(result.findings())
+                .extracting(ArchDoxEngineFinding::code)
+                .contains("LEGAL_TECHNICAL_EVIDENCE_CONTEXT_LIMITED");
+        assertThat(result.metadata())
+                .containsEntry("technicalEvidenceRequired", true)
+                .containsEntry("technicalEvidenceContextPresent", false);
+    }
+
+    @Test
+    void materialPerformanceItemAllowsExplicitTechnicalEvidenceContext() {
+        var result = service.review(
+                Map.of("values", Map.of(
+                        "supervisionContent", Map.of(
+                                "canonicalValue", "Window material performance was checked against specifications and test reports.",
+                                "rawValue", "Window material performance was checked against specifications and test reports.",
+                                "confidence", 0.92d),
+                        "evidenceText", Map.of(
+                                "canonicalValue", "Specifications, material approval, and test report were separately reviewed.",
+                                "rawValue", "Specifications, material approval, and test report were separately reviewed.",
+                                "confidence", 0.90d))),
+                List.of(Map.of(
+                        "catalogCode", "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24",
+                        "catalogVersion", 2,
+                        "tradeCode", "WINDOWS_DOORS",
+                        "processCode", "GENERAL",
+                        "inspectionItemCode", "WINDOW_MATERIAL",
+                        "inspectionItemName", "Window material performance",
+                        "basis", "KS and material-performance document check")),
+                List.of(Map.of(
+                        "referenceId", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD:000100@test",
+                        "actCode", "CONSTRUCTION_SUPERVISION_DETAILED_STANDARD",
+                        "actName", "Construction supervision detailed standard",
+                        "articleNo", "appendix 1",
+                        "articleTitle", "Checklist",
+                        "legalVersionId", 1L,
+                        "sourceVersionKey", "test",
+                        "effectiveDate", "2026-01-01",
+                        "relevance", "REFERENCE",
+                        "metadata", Map.of(
+                                "resolutionSource", "LEGAL_DOMAIN_BINDING"))));
+
+        assertThat(result.findings())
+                .extracting(ArchDoxEngineFinding::code)
+                .doesNotContain("LEGAL_TECHNICAL_EVIDENCE_CONTEXT_LIMITED");
+        assertThat(result.metadata())
+                .containsEntry("technicalEvidenceRequired", true)
+                .containsEntry("technicalEvidenceContextPresent", true);
+    }
 }

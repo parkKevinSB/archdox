@@ -15,6 +15,29 @@ public class EngineLegalRiskContextReviewService {
             "photoIds",
             "workArea",
             "floor");
+    private static final List<String> TECHNICAL_EVIDENCE_TERMS = List.of(
+            "design drawing",
+            "design document",
+            "specification",
+            "test report",
+            "approval",
+            "certificate",
+            "certification",
+            "approved material",
+            "performance criteria",
+            "ks",
+            "설계도서",
+            "시방서",
+            "시험성적서",
+            "자재승인",
+            "승인서",
+            "인증서",
+            "검사필증",
+            "필증번호",
+            "성능기준",
+            "제품명",
+            "모델명",
+            "규격");
 
     public EngineLegalRiskContextReviewResult review(
             Map<String, Object> normalizedContext,
@@ -42,6 +65,32 @@ public class EngineLegalRiskContextReviewService {
                             "evidenceRequirement", "감리내용, 작업 위치, 사진/증빙 또는 현장 확인 내용 중 하나 이상이 필요합니다.",
                             "recommendedFields", EVIDENCE_CONTEXT_FIELDS)));
         }
+        if (hasLegalReferences
+                && !evidenceContext.isEmpty()
+                && requiresTechnicalEvidence(catalogBindings)
+                && !hasTechnicalEvidenceAnchor(evidenceContext)) {
+            findings.add(new ArchDoxEngineFinding(
+                    "LEGAL_TECHNICAL_EVIDENCE_CONTEXT_LIMITED",
+                    "LEGAL_RISK",
+                    "MEDIUM",
+                    ArchDoxEngineFindingSource.LEGAL_CORPUS,
+                    technicalEvidenceLocation(catalogBindings),
+                    "The selected supervision item appears to require material, performance, certificate, or specification evidence, but the submitted context only contains a generic field confirmation.",
+                    referenceIds(references),
+                    Map.of(
+                            "engineCheck", "LEGAL_TECHNICAL_EVIDENCE_CONTEXT_REQUIRED",
+                            "legalReferenceCount", references.size(),
+                            "legalReferenceSummaries", referenceSummaries,
+                            "technicalEvidenceRequired", true,
+                            "recommendedEvidence", List.of(
+                                    "design/specification requirement",
+                                    "test report",
+                                    "material approval",
+                                    "certificate or inspection certificate",
+                                    "product/model/specification identity",
+                                    "approved-vs-delivered material matching"),
+                            "catalogBindings", compactCatalogBindings(catalogBindings))));
+        }
 
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("legalRiskContextReviewApplied", hasLegalReferences);
@@ -49,6 +98,8 @@ public class EngineLegalRiskContextReviewService {
         metadata.put("legalReferenceSummaries", referenceSummaries);
         metadata.put("evidenceContextPresent", !evidenceContext.isEmpty());
         metadata.put("evidenceContextFields", evidenceContext.keySet().stream().toList());
+        metadata.put("technicalEvidenceRequired", requiresTechnicalEvidence(catalogBindings));
+        metadata.put("technicalEvidenceContextPresent", hasTechnicalEvidenceAnchor(evidenceContext));
         metadata.put("aiPromptContext", aiPromptContext(catalogBindings, references, evidenceContext));
 
         return new EngineLegalRiskContextReviewResult(findings, Map.copyOf(metadata));
@@ -96,6 +147,25 @@ public class EngineLegalRiskContextReviewService {
                 .toList();
     }
 
+    private List<Map<String, Object>> compactCatalogBindings(List<Map<String, Object>> catalogBindings) {
+        return (catalogBindings == null ? List.<Map<String, Object>>of() : catalogBindings).stream()
+                .map(binding -> {
+                    var compact = new LinkedHashMap<String, Object>();
+                    compact.put("catalogCode", text(binding.get("catalogCode")));
+                    compact.put("catalogVersion", text(binding.get("catalogVersion")));
+                    compact.put("tradeCode", text(binding.get("tradeCode")));
+                    compact.put("tradeName", text(binding.get("tradeName")));
+                    compact.put("processCode", text(binding.get("processCode")));
+                    compact.put("processName", text(binding.get("processName")));
+                    compact.put("inspectionItemCode", text(binding.get("inspectionItemCode")));
+                    compact.put("inspectionItemName", text(binding.get("inspectionItemName")));
+                    compact.put("basis", text(binding.get("basis")));
+                    compact.put("location", text(binding.get("location")));
+                    return Map.copyOf(compact);
+                })
+                .toList();
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> metadata(Object value) {
         if (value instanceof Map<?, ?> map) {
@@ -118,6 +188,64 @@ public class EngineLegalRiskContextReviewService {
                 .filter(value -> !value.isBlank() && !":".equals(value))
                 .distinct()
                 .toList();
+    }
+
+    private boolean requiresTechnicalEvidence(List<Map<String, Object>> catalogBindings) {
+        return (catalogBindings == null ? List.<Map<String, Object>>of() : catalogBindings).stream()
+                .map(this::catalogTechnicalSignal)
+                .anyMatch(this::containsTechnicalSignal);
+    }
+
+    private String catalogTechnicalSignal(Map<String, Object> binding) {
+        if (binding == null) {
+            return "";
+        }
+        return String.join(" ",
+                text(binding.get("inspectionItemCode")),
+                text(binding.get("inspectionItemName")),
+                text(binding.get("basis"))).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private boolean containsTechnicalSignal(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        return containsAny(value,
+                "material",
+                "performance",
+                "cert",
+                "certificate",
+                "safety_cert",
+                "ks",
+                "자재",
+                "성능",
+                "서류",
+                "필증",
+                "인증",
+                "규격",
+                "시험",
+                "승인");
+    }
+
+    private boolean hasTechnicalEvidenceAnchor(Map<String, Object> evidenceContext) {
+        if (evidenceContext == null || evidenceContext.isEmpty()) {
+            return false;
+        }
+        var text = String.join(" ", evidenceContext.values().stream()
+                        .map(this::text)
+                        .toList())
+                .toLowerCase(java.util.Locale.ROOT);
+        return TECHNICAL_EVIDENCE_TERMS.stream()
+                .map(term -> term.toLowerCase(java.util.Locale.ROOT))
+                .anyMatch(text::contains);
+    }
+
+    private String technicalEvidenceLocation(List<Map<String, Object>> catalogBindings) {
+        return (catalogBindings == null ? List.<Map<String, Object>>of() : catalogBindings).stream()
+                .map(binding -> text(binding.get("location")))
+                .filter(value -> !value.isBlank())
+                .findFirst()
+                .orElse("context.evidence");
     }
 
     @SuppressWarnings("unchecked")
@@ -149,6 +277,15 @@ public class EngineLegalRiskContextReviewService {
             return first.trim();
         }
         return second == null ? "" : second.trim();
+    }
+
+    private boolean containsAny(String value, String... candidates) {
+        for (var candidate : candidates) {
+            if (value.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String text(Object value) {

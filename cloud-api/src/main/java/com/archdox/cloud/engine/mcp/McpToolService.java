@@ -333,11 +333,22 @@ public class McpToolService {
                     "contentText", "공사감리일지 입력 본문");
             case "submit_context_facts" -> Map.of(
                     "reviewSessionId", "rvw_sess_example",
-                    "facts", List.of(Map.of(
-                            "name", "inspectionItemCode",
-                            "rawValue", "WINDOW_MATERIAL_PERFORMANCE",
-                            "source", "CUSTOMER_SYSTEM",
-                            "confidence", 0.92)));
+                    "facts", List.of(
+                            Map.of(
+                                    "name", "tradeCode",
+                                    "rawValue", "WINDOWS_DOORS",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "processCode",
+                                    "rawValue", "GENERAL",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "inspectionItemCode",
+                                    "rawValue", "WINDOW_MATERIAL",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92)));
             case "normalize_context", "run_validation", "get_review_result" -> Map.of(
                     "reviewSessionId", "rvw_sess_example");
             case "validate_inspection_report" -> Map.of(
@@ -345,11 +356,37 @@ public class McpToolService {
                     "reviewPurpose", "preflight",
                     "documentTypeHint", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
                     "contentText", "창호 자재성능 확인 결과 이상 없음",
-                    "facts", List.of(Map.of(
-                            "name", "inspectionItemCode",
-                            "rawValue", "WINDOW_MATERIAL_PERFORMANCE",
-                            "source", "CUSTOMER_SYSTEM",
-                            "confidence", 0.92)));
+                    "facts", List.of(
+                            Map.of(
+                                    "name", "buildingUse",
+                                    "rawValue", "NEIGHBORHOOD_LIVING_FACILITY",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "structureType",
+                                    "rawValue", "REINFORCED_CONCRETE",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "workType",
+                                    "rawValue", "WINDOWS_DOORS",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "tradeCode",
+                                    "rawValue", "WINDOWS_DOORS",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "processCode",
+                                    "rawValue", "GENERAL",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92),
+                            Map.of(
+                                    "name", "inspectionItemCode",
+                                    "rawValue", "WINDOW_MATERIAL",
+                                    "source", "CUSTOMER_SYSTEM",
+                                    "confidence", 0.92)));
             case "get_legal_updates" -> Map.of(
                     "days", 30,
                     "limit", 10);

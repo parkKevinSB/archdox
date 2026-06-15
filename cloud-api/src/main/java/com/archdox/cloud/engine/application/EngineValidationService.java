@@ -126,7 +126,8 @@ public class EngineValidationService {
         if (findings.stream().anyMatch(finding -> "AMBIGUOUS_CONTEXT".equals(finding.code()))) {
             actions.add("RESOLVE_AMBIGUITY");
         }
-        if (findings.stream().anyMatch(finding -> "LEGAL_EVIDENCE_CONTEXT_MISSING".equals(finding.code()))) {
+        if (findings.stream().anyMatch(finding -> "LEGAL_EVIDENCE_CONTEXT_MISSING".equals(finding.code())
+                || "LEGAL_TECHNICAL_EVIDENCE_CONTEXT_LIMITED".equals(finding.code()))) {
             actions.add("ADD_SUPERVISION_EVIDENCE_CONTEXT");
         }
         actions.add("RUN_VALIDATION_AGAIN");
