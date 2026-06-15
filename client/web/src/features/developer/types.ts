@@ -94,3 +94,30 @@ export type McpToolCatalogItem = {
   errorCodes: string[];
   boundary: string;
 };
+
+export type McpLiveSmokeStep = {
+  step: string;
+  method: string;
+  toolName?: string | null;
+  httpStatus: number;
+  status: string;
+  success: boolean;
+  elapsedMs: number;
+  summary: string;
+  errorCode?: string | null;
+  errorCategory?: string | null;
+  retryable?: boolean | null;
+  responsePreview?: string | null;
+};
+
+export type McpLiveSmokeResult = {
+  endpoint: string;
+  status: string;
+  success: boolean;
+  stepCount: number;
+  succeededCount: number;
+  failedCount: number;
+  elapsedMs: number;
+  steps: McpLiveSmokeStep[];
+  createdAt: string;
+};

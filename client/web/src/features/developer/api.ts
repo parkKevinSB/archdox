@@ -6,6 +6,7 @@ import type {
   EngineConnectBootstrapResponse,
   EngineConnectClient,
   EngineConnectClientType,
+  McpLiveSmokeResult,
   McpToolCatalogItem
 } from "./types";
 
@@ -53,4 +54,12 @@ export function getMyEngineUsageEvents(token: string, limit = 50) {
 
 export function getMcpToolCatalog(token: string) {
   return request<McpToolCatalogItem[]>("/api/v1/engine/mcp-tools", { token });
+}
+
+export function runMyMcpLiveSmoke(token: string, apiKey: string) {
+  return request<McpLiveSmokeResult>("/api/v1/engine/mcp-smoke", {
+    token,
+    method: "POST",
+    body: { apiKey }
+  });
 }

@@ -136,6 +136,20 @@ class EngineApiKeyIntegrationTest {
                         .header("Authorization", bearer(other.accessToken())))
                 .andExpect(status().isNotFound());
 
+        mockMvc.perform(post("/api/v1/engine/mcp-smoke")
+                        .header("Authorization", bearer(other.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"apiKey\":\"%s\"}".formatted(apiKey)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ENGINE_MCP_SMOKE_KEY_OWNER_REQUIRED"));
+
+        mockMvc.perform(post("/api/v1/engine/mcp-smoke")
+                        .header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"apiKey\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
         var sessionResult = mockMvc.perform(post("/api/v1/engine/external/review-sessions")
                         .header("X-ArchDox-Engine-Key", apiKey)
                         .contentType(MediaType.APPLICATION_JSON)

@@ -17,7 +17,8 @@ import {
   getMyEngineApiKeys,
   getMyEngineUsageEvents,
   getMyEngineUsageSummary,
-  revokeMyEngineApiKey
+  revokeMyEngineApiKey,
+  runMyMcpLiveSmoke
 } from "../api";
 import type {
   EngineApiKey,
@@ -26,6 +27,7 @@ import type {
   EngineConnectBootstrapResponse,
   EngineConnectClient,
   EngineConnectClientType,
+  McpLiveSmokeResult,
   McpToolCatalogItem
 } from "../types";
 
@@ -42,6 +44,7 @@ export function DeveloperPortal({ offices, selectedOfficeId, token }: DeveloperP
   const [usageEvents, setUsageEvents] = useState<EngineApiUsageEvent[]>([]);
   const [tools, setTools] = useState<McpToolCatalogItem[]>([]);
   const [bootstrap, setBootstrap] = useState<EngineConnectBootstrapResponse | null>(null);
+  const [liveSmokeResult, setLiveSmokeResult] = useState<McpLiveSmokeResult | null>(null);
   const [selectedToolName, setSelectedToolName] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -127,6 +130,20 @@ export function DeveloperPortal({ offices, selectedOfficeId, token }: DeveloperP
     }
   }
 
+  async function handleRunSmoke(apiKey: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await runMyMcpLiveSmoke(token, apiKey);
+      setLiveSmokeResult(result);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "MCP 연결 테스트를 실행하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="view-stack developer-portal">
       <ViewHeader
@@ -163,6 +180,15 @@ export function DeveloperPortal({ offices, selectedOfficeId, token }: DeveloperP
             ) : (
               <InlineNotice message="연결 패키지를 만들면 새 Engine API Key와 MCP 설정이 함께 생성됩니다. API Key 원문은 이 화면에서 한 번만 표시됩니다." />
             )}
+          </Panel>
+
+          <Panel title="MCP 연결 테스트">
+            <McpLiveSmokePanel
+              busy={busy}
+              defaultApiKey={bootstrap?.apiKey ?? ""}
+              result={liveSmokeResult}
+              onRun={handleRunSmoke}
+            />
           </Panel>
 
           <Panel title="내 Engine API Key">
@@ -300,6 +326,81 @@ function EngineConnectResult({
           <span key={step}>{step}</span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function McpLiveSmokePanel({
+  busy,
+  defaultApiKey,
+  result,
+  onRun
+}: {
+  busy: boolean;
+  defaultApiKey: string;
+  result: McpLiveSmokeResult | null;
+  onRun: (apiKey: string) => Promise<void>;
+}) {
+  const [apiKey, setApiKey] = useState(defaultApiKey);
+
+  useEffect(() => {
+    if (defaultApiKey) {
+      setApiKey(defaultApiKey);
+    }
+  }, [defaultApiKey]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await onRun(apiKey);
+  }
+
+  return (
+    <div className="developer-smoke-panel">
+      <form className="developer-smoke-form" onSubmit={submit}>
+        <label>
+          Engine API Key 원문
+          <input
+            autoComplete="off"
+            onChange={(event) => setApiKey(event.target.value)}
+            placeholder="adx_live_..."
+            type="password"
+            value={apiKey}
+          />
+        </label>
+        <button className="primary-button" disabled={busy || !apiKey.trim()} type="submit">
+          {busy ? <Loader2 className="spin" size={17} /> : <Activity size={17} />}
+          연결 테스트
+        </button>
+        <div className="developer-connect-note">
+          이 값은 저장하지 않고 MCP endpoint 호출에만 사용합니다. 현재 로그인 계정 소유의 키만 테스트할 수 있습니다.
+        </div>
+      </form>
+      {result ? (
+        <div className="developer-smoke-result">
+          <div className="developer-result-header">
+            <div>
+              <strong>{result.success ? "MCP 연결 정상" : "MCP 연결 확인 필요"}</strong>
+              <span>{result.endpoint} · {result.elapsedMs}ms</span>
+            </div>
+            <StatusBadge status={result.status} />
+          </div>
+          <div className="developer-smoke-steps">
+            {result.steps.map((step) => (
+              <div key={`${step.step}-${step.method}`}>
+                <StatusBadge status={step.status} />
+                <div>
+                  <strong>{mcpSmokeStepLabel(step.step)}</strong>
+                  <span>{step.summary}</span>
+                  {step.errorCode ? <small>{step.errorCode}{step.errorCategory ? ` / ${step.errorCategory}` : ""}</small> : null}
+                </div>
+                <small>{step.httpStatus || "-"} · {step.elapsedMs}ms</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <InlineNotice message="initialize, tools/list, get_legal_updates, search_law 순서로 실제 MCP endpoint를 호출합니다." />
+      )}
     </div>
   );
 }
@@ -515,6 +616,16 @@ function accessModeLabel(value: string) {
     return "쓰기";
   }
   return value;
+}
+
+function mcpSmokeStepLabel(step: string) {
+  const labels: Record<string, string> = {
+    initialize: "MCP 초기화",
+    "tools/list": "Tool 목록",
+    get_legal_updates: "법령 변경 조회",
+    search_law: "법령 검색"
+  };
+  return labels[step] ?? step;
 }
 
 function capabilityLabel(value: string) {

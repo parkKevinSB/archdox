@@ -3918,6 +3918,14 @@ button.list-row {
   padding: 16px;
 }
 
+.developer-smoke-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto minmax(260px, 1fr);
+  gap: 12px;
+  padding: 16px;
+  align-items: end;
+}
+
 .developer-connect-form label {
   display: grid;
   gap: 6px;
@@ -3926,8 +3934,17 @@ button.list-row {
   font-weight: 900;
 }
 
+.developer-smoke-form label {
+  display: grid;
+  gap: 6px;
+  color: #51645f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .developer-connect-form input,
-.developer-connect-form select {
+.developer-connect-form select,
+.developer-smoke-form input {
   min-width: 0;
   min-height: 38px;
   padding: 0 10px;
@@ -3959,6 +3976,50 @@ button.list-row {
   border: 1px solid #d8e1df;
   border-radius: 8px;
   background: #fbfcfc;
+}
+
+.developer-smoke-result {
+  display: grid;
+  gap: 12px;
+  margin: 0 16px 16px;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.developer-smoke-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.developer-smoke-steps > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.developer-smoke-steps strong,
+.developer-smoke-steps span,
+.developer-smoke-steps small {
+  display: block;
+}
+
+.developer-smoke-steps strong {
+  color: #172322;
+  font-size: 13px;
+}
+
+.developer-smoke-steps span,
+.developer-smoke-steps small {
+  color: #60746f;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .developer-result-header,
@@ -5284,6 +5345,7 @@ button.list-row {
   }
 
   .developer-connect-form,
+  .developer-smoke-form,
   .developer-usage-grid,
   .developer-tool-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5401,6 +5463,7 @@ button.list-row {
   }
 
   .developer-connect-form,
+  .developer-smoke-form,
   .developer-usage-grid,
   .developer-tool-layout,
   .developer-tool-facts {
@@ -5408,10 +5471,15 @@ button.list-row {
   }
 
   .developer-connect-form,
+  .developer-smoke-form,
   .developer-key-list,
   .developer-usage-grid,
   .developer-tool-layout {
     padding: 12px;
+  }
+
+  .developer-smoke-steps > div {
+    grid-template-columns: 1fr;
   }
 
   .developer-list-row {

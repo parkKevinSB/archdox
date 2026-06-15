@@ -1,9 +1,11 @@
 package com.archdox.cloud.engine.mcp;
 
+import com.archdox.cloud.engine.auth.application.EngineApiKeyAuthenticationService;
 import com.archdox.cloud.engine.connect.application.EngineConnectProperties;
 import com.archdox.cloud.engine.mcp.dto.McpLiveSmokeResponse;
 import com.archdox.cloud.engine.mcp.dto.McpLiveSmokeStepResponse;
 import com.archdox.cloud.global.api.BadRequestException;
+import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,16 +26,19 @@ import org.springframework.stereotype.Service;
 @Service
 public class McpLiveSmokeService {
     private final PlatformAdminService platformAdminService;
+    private final EngineApiKeyAuthenticationService apiKeyAuthenticationService;
     private final EngineConnectProperties connectProperties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     public McpLiveSmokeService(
             PlatformAdminService platformAdminService,
+            EngineApiKeyAuthenticationService apiKeyAuthenticationService,
             EngineConnectProperties connectProperties,
             ObjectMapper objectMapper
     ) {
         this.platformAdminService = platformAdminService;
+        this.apiKeyAuthenticationService = apiKeyAuthenticationService;
         this.connectProperties = connectProperties;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
@@ -43,10 +48,36 @@ public class McpLiveSmokeService {
 
     public McpLiveSmokeResponse run(UserPrincipal principal, String apiKey) {
         platformAdminService.requirePlatformAdmin(principal);
-        var normalizedKey = apiKey == null ? "" : apiKey.trim();
-        if (normalizedKey.isBlank()) {
-            throw new BadRequestException("apiKey is required");
+        return runVerified(
+                apiKey,
+                "admin-mcp-live-smoke",
+                "ArchDox Admin MCP Live Smoke",
+                "archdox-admin-live-smoke");
+    }
+
+    public McpLiveSmokeResponse runOwn(UserPrincipal principal, String apiKey) {
+        var normalizedKey = normalizeApiKey(apiKey);
+        var apiPrincipal = apiKeyAuthenticationService.authenticate(normalizedKey);
+        if (!principal.userId().equals(apiPrincipal.ownerUserId())) {
+            throw new ForbiddenException(
+                    "ENGINE_MCP_SMOKE_KEY_OWNER_REQUIRED",
+                    "errors.engineMcpSmoke.keyOwnerRequired",
+                    "Only Engine API keys owned by the current user can be tested");
         }
+        return runVerified(
+                normalizedKey,
+                "user-mcp-live-smoke",
+                "ArchDox User MCP Live Smoke",
+                "archdox-user-live-smoke");
+    }
+
+    private McpLiveSmokeResponse runVerified(
+            String apiKey,
+            String correlationPrefix,
+            String userAgent,
+            String clientName
+    ) {
+        var normalizedKey = normalizeApiKey(apiKey);
         var endpoint = connectProperties.getMcpServerUrl();
         if (endpoint.isBlank()) {
             throw new BadRequestException("MCP server URL is not configured");
@@ -54,8 +85,17 @@ public class McpLiveSmokeService {
 
         var startedAt = System.nanoTime();
         var steps = new ArrayList<McpLiveSmokeStepResponse>();
-        steps.add(call(endpoint, normalizedKey, "initialize", null, "initialize", initializeParams(), 1));
-        steps.add(call(endpoint, normalizedKey, "tools/list", null, "tools/list", Map.of(), 2));
+        steps.add(call(
+                endpoint,
+                normalizedKey,
+                "initialize",
+                null,
+                "initialize",
+                initializeParams(clientName),
+                1,
+                correlationPrefix,
+                userAgent));
+        steps.add(call(endpoint, normalizedKey, "tools/list", null, "tools/list", Map.of(), 2, correlationPrefix, userAgent));
         steps.add(call(
                 endpoint,
                 normalizedKey,
@@ -65,7 +105,9 @@ public class McpLiveSmokeService {
                 Map.of(
                         "name", "get_legal_updates",
                         "arguments", Map.of("days", 30, "limit", 1)),
-                3));
+                3,
+                correlationPrefix,
+                userAgent));
         steps.add(call(
                 endpoint,
                 normalizedKey,
@@ -75,7 +117,9 @@ public class McpLiveSmokeService {
                 Map.of(
                         "name", "search_law",
                         "arguments", Map.of("query", "건축법", "limit", 1)),
-                4));
+                4,
+                correlationPrefix,
+                userAgent));
 
         var succeeded = (int) steps.stream().filter(McpLiveSmokeStepResponse::success).count();
         var failed = steps.size() - succeeded;
@@ -91,12 +135,20 @@ public class McpLiveSmokeService {
                 OffsetDateTime.now());
     }
 
-    private Map<String, Object> initializeParams() {
+    private String normalizeApiKey(String apiKey) {
+        var normalizedKey = apiKey == null ? "" : apiKey.trim();
+        if (normalizedKey.isBlank()) {
+            throw new BadRequestException("apiKey is required");
+        }
+        return normalizedKey;
+    }
+
+    private Map<String, Object> initializeParams(String clientName) {
         return Map.of(
                 "protocolVersion", "2025-06-18",
                 "capabilities", Map.of(),
                 "clientInfo", Map.of(
-                        "name", "archdox-admin-live-smoke",
+                        "name", clientName,
                         "version", "1"));
     }
 
@@ -107,7 +159,9 @@ public class McpLiveSmokeService {
             String toolName,
             String method,
             Map<String, Object> params,
-            int id
+            int id,
+            String correlationPrefix,
+            String userAgent
     ) {
         var startedAt = System.nanoTime();
         try {
@@ -117,8 +171,8 @@ public class McpLiveSmokeService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .header("X-ArchDox-Engine-Key", apiKey)
-                    .header("X-Correlation-Id", "admin-mcp-live-smoke-" + id)
-                    .header("User-Agent", "ArchDox Admin MCP Live Smoke")
+                    .header("X-Correlation-Id", correlationPrefix + "-" + id)
+                    .header("User-Agent", userAgent)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
