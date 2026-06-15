@@ -2042,6 +2042,195 @@ body.mcp-docs .mcp-nav .nav-login {
   color: #eef7f4;
 }
 
+body.developer-overview-docs {
+  min-height: 100vh;
+  background: #eef2f4;
+  color: #14201f;
+}
+
+body.developer-overview-docs .docs-header {
+  min-height: 76px;
+  border-bottom: 1px solid #243937;
+  background: #172322;
+  color: #eef7f4;
+  backdrop-filter: none;
+}
+
+body.developer-overview-docs .brand {
+  color: #ffffff;
+  font-size: 1.34rem;
+}
+
+body.developer-overview-docs .brand-mark {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #6fc8ae;
+  border-radius: 8px;
+  background: #21413b;
+  color: #dffaf1;
+  font-size: 0.8rem;
+}
+
+body.developer-overview-docs .top-nav {
+  color: #a8bbb7;
+  font-weight: 800;
+  scrollbar-width: none;
+}
+
+body.developer-overview-docs .top-nav::-webkit-scrollbar {
+  display: none;
+}
+
+body.developer-overview-docs .top-nav a:hover,
+body.developer-overview-docs .top-nav a[aria-current="page"] {
+  background: #253634;
+  color: #ffffff;
+}
+
+body.developer-overview-docs .top-nav .nav-login {
+  border: 1px solid #5b706c;
+  background: transparent;
+  color: #eef7f4;
+}
+
+body.developer-overview-docs .docs-hero,
+body.developer-overview-docs .docs-section,
+body.developer-overview-docs .cta-band {
+  border-color: #d8e1df;
+}
+
+body.developer-overview-docs .docs-hero {
+  position: relative;
+  max-width: none;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(29, 93, 81, 0.14), transparent 28%),
+    linear-gradient(135deg, #f6f8f7 0%, #eef2f4 62%, #e6eeee 100%);
+  padding-right: max(32px, calc((100vw - 1156px) / 2));
+  padding-left: max(32px, calc((100vw - 1156px) / 2));
+}
+
+body.developer-overview-docs .docs-hero::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(23, 35, 34, 0.055) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(23, 35, 34, 0.055) 1px, transparent 1px);
+  background-size: 76px 76px;
+  content: "";
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 82%);
+}
+
+body.developer-overview-docs .docs-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+body.developer-overview-docs .eyebrow {
+  color: #1d5d51;
+  font-weight: 900;
+}
+
+body.developer-overview-docs .docs-hero h1,
+body.developer-overview-docs .docs-section h2,
+body.developer-overview-docs .cta-band h2 {
+  color: #14201f;
+  word-break: keep-all;
+}
+
+body.developer-overview-docs .docs-hero p,
+body.developer-overview-docs .docs-section p,
+body.developer-overview-docs .cta-band p {
+  color: #60746f;
+  word-break: keep-all;
+}
+
+body.developer-overview-docs .docs-hero p.eyebrow,
+body.developer-overview-docs .docs-section p.eyebrow,
+body.developer-overview-docs .cta-band p.eyebrow {
+  color: #1d5d51;
+}
+
+body.developer-overview-docs .primary-action {
+  border: 1px solid #1d5d51;
+  background: #1d5d51;
+  color: #ffffff;
+  box-shadow: 0 18px 36px rgba(29, 93, 81, 0.2);
+}
+
+body.developer-overview-docs .secondary-action {
+  border: 1px solid #cfd9d8;
+  background: #ffffff;
+  color: #21302e;
+}
+
+body.developer-overview-docs .docs-card-grid article,
+body.developer-overview-docs .developer-product-list a {
+  border-color: #d8e1df;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(20, 32, 31, 0.06);
+}
+
+body.developer-overview-docs .docs-card-grid span {
+  background: #eef7f4;
+  color: #1d5d51;
+}
+
+body.developer-overview-docs .docs-card-grid strong,
+body.developer-overview-docs .developer-product-list strong {
+  color: #14201f;
+}
+
+body.developer-overview-docs .developer-product-list a {
+  border-left-color: #1d5d51;
+}
+
+body.developer-overview-docs .docs-section.light-band,
+body.developer-overview-docs .cta-band {
+  background: #f6f8f7;
+}
+
+body.developer-overview-docs .site-footer {
+  border-top-color: #d8e1df;
+  color: #60746f;
+}
+
+body.developer-overview-docs .site-footer span {
+  color: #14201f;
+}
+
+@media (max-width: 940px) {
+  body.developer-overview-docs .docs-header {
+    align-items: stretch;
+    min-height: auto;
+  }
+
+  body.developer-overview-docs .top-nav {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  body.developer-overview-docs .docs-hero,
+  body.developer-overview-docs .docs-section,
+  body.developer-overview-docs .cta-band,
+  body.developer-overview-docs .site-footer {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+}
+
+@media (max-width: 620px) {
+  body.developer-overview-docs .brand {
+    font-size: 1.2rem;
+  }
+
+  body.developer-overview-docs .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+}
+
 .mcp-hero {
   position: relative;
   display: grid;
