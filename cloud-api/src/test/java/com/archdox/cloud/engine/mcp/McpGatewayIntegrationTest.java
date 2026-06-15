@@ -102,6 +102,7 @@ class McpGatewayIntegrationTest {
                                 "validate_inspection_report",
                                 "review_inspection_document",
                                 "answer_inspection_document_questions",
+                                "get_inspection_document_review_state",
                                 "get_legal_updates",
                                 "explain_legal_change",
                                 "search_law",
@@ -138,6 +139,9 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.isError").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.reviewSessionId")
                         .value(org.hamcrest.Matchers.startsWith("rvw_sess_")))
+                .andExpect(jsonPath("$.result.structuredContent.assistantMessage").isString())
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.catalogSelectionCount").value(8))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions").isArray())
                 .andExpect(jsonPath("$.result.structuredContent.extraction.catalogSelectionCount").value(8))
                 .andExpect(jsonPath("$.result.structuredContent.normalizedContext.catalogSelections").isArray())
                 .andReturn();
@@ -168,7 +172,32 @@ class McpGatewayIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.isError").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.reviewSessionId").value(inspectionReviewSessionId))
+                .andExpect(jsonPath("$.result.structuredContent.assistantMessage").isString())
                 .andExpect(jsonPath("$.result.structuredContent.normalizedContext.catalogSelections").isArray());
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-state")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 24,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "get_inspection_document_review_state",
+                                    "arguments": {
+                                      "reviewSessionId": "%s"
+                                    }
+                                  }
+                                }
+                                """.formatted(inspectionReviewSessionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.reviewSessionId").value(inspectionReviewSessionId))
+                .andExpect(jsonPath("$.result.structuredContent.assistantMessage").isString())
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.catalogSelectionCount").value(8))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions").isArray());
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)

@@ -197,6 +197,10 @@ public class McpToolService {
         return inspectionDocumentReviewService.answer(principal, arguments);
     }
 
+    private Object getInspectionDocumentReviewState(EngineApiPrincipal principal, Map<String, Object> arguments) {
+        return inspectionDocumentReviewService.state(principal, arguments);
+    }
+
     private int validateInspectionReportUnits(Map<String, Object> arguments) {
         var units = 2;
         var contentText = optionalText(arguments.get("contentText"));
@@ -380,7 +384,7 @@ public class McpToolService {
                                     "rawValue", "WINDOW_MATERIAL",
                                     "source", "CUSTOMER_SYSTEM",
                                     "confidence", 0.92)));
-            case "normalize_context", "run_validation", "get_review_result" -> Map.of(
+            case "normalize_context", "run_validation", "get_review_result", "get_inspection_document_review_state" -> Map.of(
                     "reviewSessionId", "rvw_sess_example");
             case "validate_inspection_report" -> Map.of(
                     "customerProjectRef", "outside-project-001",
@@ -735,6 +739,16 @@ public class McpToolService {
                         false,
                         this::answerInspectionDocumentUnits,
                         this::answerInspectionDocumentQuestions),
+                tool("get_inspection_document_review_state", "Get inspection document review state",
+                        "Read the conversational state for a review_inspection_document session, including assistantMessage, contextSummary, questions, and recommended next MCP actions.",
+                        schema(required("reviewSessionId"),
+                                property("reviewSessionId", "string")),
+                        EngineApiUsageService.CAPABILITY_REVIEW_SESSION,
+                        EngineApiKeyManagementService.SCOPE_REVIEW_SESSION,
+                        ACCESS_READ,
+                        false,
+                        arguments -> 1,
+                        this::getInspectionDocumentReviewState),
                 tool("get_legal_updates", "Get legal updates",
                         "Read recent published ArchDox legal-change digests.",
                         schema(required(), property("days", "integer"), property("limit", "integer")),
