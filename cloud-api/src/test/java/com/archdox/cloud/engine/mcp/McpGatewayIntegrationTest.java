@@ -97,10 +97,75 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.tools[*].name")
                         .value(org.hamcrest.Matchers.hasItems(
                                 "validate_inspection_report",
+                                "review_inspection_document",
+                                "answer_inspection_document_questions",
                                 "get_legal_updates",
                                 "explain_legal_change",
                                 "search_law",
                                 "get_law_article")));
+
+        var documentReviewResult = mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-review")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 21,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "review_inspection_document",
+                                    "arguments": {
+                                      "customerProjectRef": "mcp-daily-log",
+                                      "reviewPurpose": "preflight",
+                                      "documentTypeHint": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                      "targetDate": "2021-01-07",
+                                      "fileName": "daily-log.pdf.txt",
+                                      "timeoutSeconds": 20,
+                                      "contentText": "■ 건축공사 감리세부기준〔별지 제2호서식〕\\n공 사 감 리 일 지\\n공사명\\n초읍동 커뮤니티케어 안심주택 신축공사 2021년 1월 7일(목요일) 날씨: 맑음\\n공종 및 세부공정\\n감리 항목 감리내용\\n( 기초 층 )\\n가설공사 부지 상황 확인 대지의 고저차 설계도서 확인\\n줄쳐보기 대지경계 확인\\n벤치마크(BM) 기준점의 확인\\nBM위치에 대한 변화 확인\\n규준틀 먹매김 확인\\n토공사 터파기 터파기 깊이 확인\\n바닥면의 토질상태 확인\\n지정 및 기초공사 자갈 쇄석 지정 바닥면의 레벨 확인\\n지정공사의 확인\\n특기사항\\n지적사항 및 처리결과",
+                                      "facts": [
+                                        {"name": "buildingUse", "rawValue": "NEIGHBORHOOD_LIVING_FACILITY", "source": "USER_PROVIDED", "confidence": 0.95},
+                                        {"name": "structureType", "rawValue": "REINFORCED_CONCRETE", "source": "USER_PROVIDED", "confidence": 0.95}
+                                      ]
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.reviewSessionId")
+                        .value(org.hamcrest.Matchers.startsWith("rvw_sess_")))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.catalogSelectionCount").value(8))
+                .andExpect(jsonPath("$.result.structuredContent.normalizedContext.catalogSelections").isArray())
+                .andReturn();
+
+        var inspectionReviewSessionId = objectMapper.readTree(documentReviewResult.getResponse().getContentAsString())
+                .at("/result/structuredContent/reviewSessionId")
+                .asText();
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-answer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 22,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "answer_inspection_document_questions",
+                                    "arguments": {
+                                      "reviewSessionId": "%s",
+                                      "facts": [
+                                        {"name": "buildingUse", "rawValue": "NEIGHBORHOOD_LIVING_FACILITY", "source": "USER_PROVIDED", "confidence": 0.97}
+                                      ]
+                                    }
+                                  }
+                                }
+                                """.formatted(inspectionReviewSessionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.reviewSessionId").value(inspectionReviewSessionId))
+                .andExpect(jsonPath("$.result.structuredContent.normalizedContext.catalogSelections").isArray());
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)

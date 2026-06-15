@@ -18,7 +18,11 @@ import com.archdox.cloud.engine.infra.EngineReviewSessionRepository;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,15 +35,18 @@ public class EngineReviewSessionService {
     private final EngineReviewSessionRepository repository;
     private final ArchDoxContextNormalizationService normalizationService;
     private final EngineValidationService validationService;
+    private final ObjectMapper objectMapper;
 
     public EngineReviewSessionService(
             EngineReviewSessionRepository repository,
             ArchDoxContextNormalizationService normalizationService,
-            EngineValidationService validationService
+            EngineValidationService validationService,
+            ObjectMapper objectMapper
     ) {
         this.repository = repository;
         this.normalizationService = normalizationService;
         this.validationService = validationService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -148,7 +155,7 @@ public class EngineReviewSessionService {
 
     private EngineReviewSessionResponse normalize(EngineReviewSession session) {
         var normalized = normalizationService.normalize(contextFacts(session));
-        session.normalize(normalizedMap(normalized), OffsetDateTime.now());
+        session.normalize(normalizedMap(normalized, facts(session)), OffsetDateTime.now());
         return toResponse(session);
     }
 
@@ -170,7 +177,7 @@ public class EngineReviewSessionService {
         }
         if (session.normalizedContextJson().isEmpty()) {
             var normalized = normalizationService.normalize(contextFacts(session));
-            session.normalize(normalizedMap(normalized), OffsetDateTime.now());
+            session.normalize(normalizedMap(normalized, facts(session)), OffsetDateTime.now());
         }
         var validationResult = validationService.validate(session, session.normalizedContextJson());
         session.validate(validationResult.toJson(), OffsetDateTime.now());
@@ -255,27 +262,72 @@ public class EngineReviewSessionService {
         return List.of();
     }
 
-    private Map<String, Object> normalizedMap(ArchDoxNormalizedContext normalized) {
+    private Map<String, Object> normalizedMap(
+            ArchDoxNormalizedContext normalized,
+            List<Map<String, Object>> facts
+    ) {
         var values = new LinkedHashMap<String, Object>();
         normalized.values().forEach((field, value) -> values.put(field, Map.of(
                 "fieldName", value.fieldName(),
                 "canonicalValue", value.canonicalValue(),
                 "rawValue", value.rawValue(),
                 "confidence", value.confidence())));
-        return Map.of(
-                "values", values,
-                "missingFields", normalized.missingQuestions().stream()
-                        .map(ArchDoxMissingContextQuestion::fieldName)
-                        .toList(),
-                "missingQuestions", normalized.missingQuestions().stream()
-                        .map(question -> Map.of(
-                                "fieldName", question.fieldName(),
-                                "question", question.question(),
-                                "required", question.required()))
-                        .toList(),
-                "ambiguities", normalized.ambiguities().stream()
-                        .map(this::ambiguityMap)
-                        .toList());
+        var result = new LinkedHashMap<String, Object>();
+        result.put("values", values);
+        result.put("missingFields", normalized.missingQuestions().stream()
+                .map(ArchDoxMissingContextQuestion::fieldName)
+                .toList());
+        result.put("missingQuestions", normalized.missingQuestions().stream()
+                .map(question -> Map.of(
+                        "fieldName", question.fieldName(),
+                        "question", question.question(),
+                        "required", question.required()))
+                .toList());
+        result.put("ambiguities", normalized.ambiguities().stream()
+                .map(this::ambiguityMap)
+                .toList());
+        var catalogSelections = catalogSelections(facts);
+        if (!catalogSelections.isEmpty()) {
+            result.put("catalogSelections", catalogSelections);
+        }
+        return Map.copyOf(result);
+    }
+
+    private List<Map<String, Object>> catalogSelections(List<Map<String, Object>> facts) {
+        var selections = new ArrayList<Map<String, Object>>();
+        for (var fact : facts == null ? List.<Map<String, Object>>of() : facts) {
+            var fieldName = text(fact.get("fieldName"));
+            if (!"catalogSelection".equals(fieldName) && !"catalogSelections".equals(fieldName)) {
+                continue;
+            }
+            selections.addAll(parseCatalogSelectionFact(text(fact.get("rawValue")), fieldName));
+        }
+        return selections.stream()
+                .filter(selection -> !text(selection.get("tradeCode")).isBlank()
+                        && !text(selection.get("processCode")).isBlank()
+                        && !text(selection.get("inspectionItemCode")).isBlank())
+                .map(Map::copyOf)
+                .toList();
+    }
+
+    private List<Map<String, Object>> parseCatalogSelectionFact(String rawValue, String fieldName) {
+        if (rawValue.isBlank()) {
+            return List.of();
+        }
+        try {
+            if ("catalogSelections".equals(fieldName)) {
+                return objectMapper.readValue(rawValue, new TypeReference<List<Map<String, Object>>>() {
+                });
+            }
+            return List.of(objectMapper.readValue(rawValue, new TypeReference<Map<String, Object>>() {
+            }));
+        } catch (JsonProcessingException ex) {
+            throw new BadRequestException(
+                    "ENGINE_CONTEXT_CATALOG_SELECTION_INVALID_JSON",
+                    "errors.engine.catalogSelection.invalidJson",
+                    "catalogSelection facts must contain JSON object or array rawValue",
+                    Map.of("fieldName", fieldName));
+        }
     }
 
     private Map<String, Object> ambiguityMap(ArchDoxContextAmbiguity ambiguity) {

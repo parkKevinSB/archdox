@@ -7,6 +7,7 @@ import com.archdox.cloud.engine.dto.CreateEngineReviewSessionRequest;
 import com.archdox.cloud.engine.dto.EngineContextFactRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewDocumentRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
+import com.archdox.cloud.engine.inspection.InspectionDocumentReviewOrchestrationService;
 import com.archdox.cloud.engine.mcp.dto.McpToolCatalogResponse;
 import com.archdox.cloud.engine.usage.application.EngineApiQuotaGuardService;
 import com.archdox.cloud.engine.usage.application.EngineApiUsageService;
@@ -35,6 +36,7 @@ public class McpToolService {
     private final EngineExternalReviewSessionService reviewSessionService;
     private final LegalUpdateReadService legalUpdateReadService;
     private final LegalCorpusReadService legalCorpusReadService;
+    private final InspectionDocumentReviewOrchestrationService inspectionDocumentReviewService;
     private final EngineApiQuotaGuardService quotaGuardService;
     private final EngineApiUsageService usageService;
     private final ObjectMapper objectMapper;
@@ -44,6 +46,7 @@ public class McpToolService {
             EngineExternalReviewSessionService reviewSessionService,
             LegalUpdateReadService legalUpdateReadService,
             LegalCorpusReadService legalCorpusReadService,
+            InspectionDocumentReviewOrchestrationService inspectionDocumentReviewService,
             EngineApiQuotaGuardService quotaGuardService,
             EngineApiUsageService usageService,
             ObjectMapper objectMapper
@@ -51,6 +54,7 @@ public class McpToolService {
         this.reviewSessionService = reviewSessionService;
         this.legalUpdateReadService = legalUpdateReadService;
         this.legalCorpusReadService = legalCorpusReadService;
+        this.inspectionDocumentReviewService = inspectionDocumentReviewService;
         this.quotaGuardService = quotaGuardService;
         this.usageService = usageService;
         this.objectMapper = objectMapper;
@@ -183,6 +187,16 @@ public class McpToolService {
         return reviewSessionService.runValidation(reviewSessionId, principal);
     }
 
+    private Object reviewInspectionDocument(EngineApiPrincipal principal, Map<String, Object> arguments) {
+        reviewSessionService.requireQuota(principal, "REVIEW_INSPECTION_DOCUMENT", reviewInspectionDocumentUnits(arguments));
+        return inspectionDocumentReviewService.review(principal, arguments);
+    }
+
+    private Object answerInspectionDocumentQuestions(EngineApiPrincipal principal, Map<String, Object> arguments) {
+        reviewSessionService.requireQuota(principal, "ANSWER_INSPECTION_DOCUMENT_QUESTIONS", answerInspectionDocumentUnits(arguments));
+        return inspectionDocumentReviewService.answer(principal, arguments);
+    }
+
     private int validateInspectionReportUnits(Map<String, Object> arguments) {
         var units = 2;
         var contentText = optionalText(arguments.get("contentText"));
@@ -192,6 +206,20 @@ public class McpToolService {
         if (!factsRequest(arguments.get("facts")).facts().isEmpty()) {
             units += 1;
         }
+        return units;
+    }
+
+    private int reviewInspectionDocumentUnits(Map<String, Object> arguments) {
+        var units = validateInspectionReportUnits(arguments) + 1;
+        if (optionalText(arguments.get("targetDate")) != null && !optionalText(arguments.get("targetDate")).isBlank()) {
+            units += 1;
+        }
+        return units;
+    }
+
+    private int answerInspectionDocumentUnits(Map<String, Object> arguments) {
+        var units = 2;
+        units += Math.min(5, factsRequest(arguments.get("facts")).facts().size());
         return units;
     }
 
@@ -387,6 +415,26 @@ public class McpToolService {
                                     "rawValue", "WINDOW_MATERIAL",
                                     "source", "CUSTOMER_SYSTEM",
                                     "confidence", 0.92)));
+            case "review_inspection_document" -> Map.of(
+                    "customerProjectRef", "outside-project-001",
+                    "reviewPurpose", "preflight",
+                    "documentTypeHint", "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                    "targetDate", "2021-01-07",
+                    "fileName", "daily-log.pdf.txt",
+                    "contentText", "공사감리일지 2021년 1월 7일 토공사 터파기 터파기 깊이 확인");
+            case "answer_inspection_document_questions" -> Map.of(
+                    "reviewSessionId", "rvw_sess_example",
+                    "facts", List.of(
+                            Map.of(
+                                    "name", "buildingUse",
+                                    "rawValue", "NEIGHBORHOOD_LIVING_FACILITY",
+                                    "source", "USER_PROVIDED",
+                                    "confidence", 0.95),
+                            Map.of(
+                                    "name", "structureType",
+                                    "rawValue", "REINFORCED_CONCRETE",
+                                    "source", "USER_PROVIDED",
+                                    "confidence", 0.95)));
             case "get_legal_updates" -> Map.of(
                     "days", 30,
                     "limit", 10);
@@ -653,6 +701,34 @@ public class McpToolService {
                         false,
                         this::validateInspectionReportUnits,
                         this::validateInspectionReport),
+                tool("review_inspection_document", "Review inspection document",
+                        "Run an ArchDox Flower orchestration flow that extracts a construction supervision daily log from document text, maps catalog items, asks for missing context, and runs Engine validation.",
+                        schema(required("contentText"),
+                                property("customerProjectRef", "string"),
+                                property("reviewPurpose", "string"),
+                                property("contentText", "string"),
+                                property("targetDate", "string"),
+                                property("documentTypeHint", "string"),
+                                property("fileName", "string"),
+                                property("timeoutSeconds", "integer"),
+                                arrayProperty("facts")),
+                        EngineApiUsageService.CAPABILITY_REVIEW_SESSION,
+                        EngineApiKeyManagementService.SCOPE_REVIEW_SESSION,
+                        ACCESS_WRITE,
+                        false,
+                        this::reviewInspectionDocumentUnits,
+                        this::reviewInspectionDocument),
+                tool("answer_inspection_document_questions", "Answer inspection document questions",
+                        "Answer missing context questions from a review_inspection_document result. The existing extracted document facts are preserved and the Engine validation is rerun in the same review session.",
+                        schema(required("reviewSessionId", "facts"),
+                                property("reviewSessionId", "string"),
+                                arrayProperty("facts")),
+                        EngineApiUsageService.CAPABILITY_REVIEW_SESSION,
+                        EngineApiKeyManagementService.SCOPE_REVIEW_SESSION,
+                        ACCESS_WRITE,
+                        false,
+                        this::answerInspectionDocumentUnits,
+                        this::answerInspectionDocumentQuestions),
                 tool("get_legal_updates", "Get legal updates",
                         "Read recent published ArchDox legal-change digests.",
                         schema(required(), property("days", "integer"), property("limit", "integer")),

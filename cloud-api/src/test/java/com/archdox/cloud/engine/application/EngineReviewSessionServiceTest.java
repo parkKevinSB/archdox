@@ -40,7 +40,8 @@ class EngineReviewSessionServiceTest {
                             mock(LegalArticleRepository.class),
                             mock(LegalVersionRepository.class),
                             mock(LegalArticleVersionRepository.class)),
-                    new EngineLegalRiskContextReviewService()));
+                    new EngineLegalRiskContextReviewService()),
+            new ObjectMapper());
     private final UserPrincipal principal = new UserPrincipal(7L, "engine@test.co.kr");
 
     @Test
@@ -235,5 +236,57 @@ class EngineReviewSessionServiceTest {
         assertThat(validation.validationResult().nextActions())
                 .extracting(action -> action.code())
                 .contains("FIX_CATALOG_SELECTION", "RUN_VALIDATION_AGAIN");
+    }
+
+    @Test
+    void normalizesCatalogSelectionsFactForMultiItemDocumentReview() {
+        var saved = new AtomicReference<EngineReviewSession>();
+        when(repository.save(any(EngineReviewSession.class))).thenAnswer(invocation -> {
+            var session = (EngineReviewSession) invocation.getArgument(0);
+            saved.set(session);
+            return session;
+        });
+
+        var created = service.create(
+                new CreateEngineReviewSessionRequest("customer-project-multi", "INSPECTION_DOCUMENT_REVIEW"),
+                principal);
+        when(repository.findByExternalSessionIdAndOwnerUserId(created.reviewSessionId(), principal.userId()))
+                .thenAnswer(invocation -> Optional.of(saved.get()));
+
+        service.submitDocument(
+                created.reviewSessionId(),
+                new SubmitEngineReviewDocumentRequest(
+                        "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                        "daily-log.txt",
+                        "2021년 1월 7일 기초 층 토공사 터파기 깊이 확인"),
+                principal);
+        service.submitFacts(
+                created.reviewSessionId(),
+                new SubmitEngineReviewFactsRequest(List.of(
+                        new EngineContextFactRequest("buildingUse", null, "residential", "CUSTOMER_SYSTEM", "test", 0.9d),
+                        new EngineContextFactRequest("structureType", null, "RC", "CUSTOMER_SYSTEM", "test", 0.9d),
+                        new EngineContextFactRequest("workType", null, "CONSTRUCTION_SUPERVISION", "CUSTOMER_SYSTEM", "test", 0.9d),
+                        new EngineContextFactRequest(
+                                "catalogSelections",
+                                null,
+                                """
+                                        [
+                                          {"tradeCode":"TEMPORARY_WORKS","processCode":"GENERAL","inspectionItemCode":"TEMP_SITE_CONDITION","location":"extracted[0]"},
+                                          {"tradeCode":"EARTH_WORKS","processCode":"GENERAL","inspectionItemCode":"EARTH_EXCAVATION_DEPTH","location":"extracted[1]"}
+                                        ]
+                                        """,
+                                "CUSTOMER_AGENT_EXTRACTED",
+                                "daily log extraction",
+                                0.9d))),
+                principal);
+
+        var normalized = service.normalize(created.reviewSessionId(), principal);
+        var validation = service.runValidation(created.reviewSessionId(), principal);
+
+        assertThat(normalized.normalizedContext().get("catalogSelections").toString())
+                .contains("TEMP_SITE_CONDITION", "EARTH_EXCAVATION_DEPTH");
+        assertThat(validation.validationResult().status()).isEqualTo(ArchDoxEngineResultStatus.PASS);
+        assertThat(validation.validationResult().metadata().toString())
+                .contains("catalogSelectionCount=2", "catalogBindingCount=2");
     }
 }
