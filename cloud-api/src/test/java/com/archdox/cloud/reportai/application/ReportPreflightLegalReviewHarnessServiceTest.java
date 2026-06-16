@@ -350,6 +350,34 @@ class ReportPreflightLegalReviewHarnessServiceTest {
     }
 
     @Test
+    void documentCompletionReplacementWritesDailyLogConfirmationAndAttachmentProse() {
+        var windowReplacement = (String) ReflectionTestUtils.invokeMethod(
+                service,
+                "documentCompletionReplacement",
+                Map.of("tradeName", "창호공사", "processName", "창호 자재성능"),
+                Map.of(
+                        "inspectionItemName", "창호 자재성능",
+                        "inspectionItemCode", "WINDOW_MATERIAL_PERFORMANCE",
+                        "supervisionContent", "창호 자재 성능 확인시 이상 없음"));
+        var insulationReplacement = (String) ReflectionTestUtils.invokeMethod(
+                service,
+                "documentCompletionReplacement",
+                Map.of("tradeName", "단열공사", "processName", "단열재 자재성능"),
+                Map.of(
+                        "inspectionItemName", "단열재 자재성능",
+                        "inspectionItemCode", "INSULATION_MATERIAL",
+                        "supervisionContent", "단열재 자재성능 확인"));
+
+        assertThat(windowReplacement)
+                .contains("창호 자재의 단열·기밀·수밀·내풍압")
+                .contains("시방서·시험성적서·자재승인서")
+                .contains("확인하고 첨부하였음을 기록합니다");
+        assertThat(insulationReplacement)
+                .contains("단열재의 규격, 두께 및 성능 항목")
+                .contains("확인하고 첨부하였음을 기록합니다");
+    }
+
+    @Test
     void technicalCriteriaScopeIssueDoesNotRequireGenerationBlockingResolution() {
         var issue = new SourceBackedLegalReviewIssue(
                 "TECHNICAL_CRITERIA_MISSING",

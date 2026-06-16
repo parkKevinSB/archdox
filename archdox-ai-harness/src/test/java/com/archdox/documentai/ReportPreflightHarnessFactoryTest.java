@@ -108,8 +108,8 @@ class ReportPreflightHarnessFactoryTest {
                 .contains("Do not claim that legal review passed")
                 .contains("Technical criteria wording guidance")
                 .contains("창호 자재 성능 확인시 이상 없음")
-                .contains("Never claim that specifications, test reports, material approvals, certificates, or attachments were actually attached")
-                .contains("별도 확인 및 보관 대상으로 기록합니다")
+                .contains("Do not decide whether supporting documents really exist")
+                .contains("확인하고 첨부하였음을 기록합니다")
                 .contains("replacement to the exact full Korean text")
                 .contains("The replacement value must be final report prose");
         assertThat(prompt.messages().get(1).content())

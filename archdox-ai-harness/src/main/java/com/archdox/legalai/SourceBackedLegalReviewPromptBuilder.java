@@ -76,11 +76,12 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Check whether selected checklist/business items, supervision content, issue/action text, and photo/evidence context are aligned with supplied legal anchors.
                 - Use legalReviewContext.reportEvidenceChecklist to check whether report evidence exists before claiming the input was reviewed.
                 - Do not treat "inspection content exists" plus "photo exists" as proof that actual technical standards were satisfied.
-                - For material/performance/specification items, technical-standard review needs anchors such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
-                - If those anchors are missing, state that only recording/evidence linkage was reviewed and that actual technical compliance cannot be determined from the submitted report data.
-                - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", explain which evidence class is needed: design/spec requirement, test report, material approval, certificate, product/model/specification identity, or approved-vs-delivered material matching.
-                - When suggesting a better report sentence, never claim that specifications, test reports, approval documents, or certificates were attached, stored, or verified unless the input explicitly says so.
-                - If the evidence is not explicit, suggest cautious report prose such as "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 성능 증빙은 별도 확인 및 보관 대상으로 기록합니다."
+                - For material/performance/specification items, technical-standard review needs report wording that names evidence classes such as design drawings, specifications, test reports, approval documents, certificates, product/model/specification identity, or approved-vs-delivered material matching.
+                - Do not decide whether those documents really exist or were actually attached. That is the supervising professional's responsibility after reviewing the draft.
+                - Your job is to propose report prose that tells the supervising professional which checks and attachments should be reflected in the daily log.
+                - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", propose final daily-log prose that includes confirmation and attachment wording for the relevant evidence classes.
+                - Good replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
+                - If the report already states the evidence document was verified or attached, preserve and refine that fact.
                 - For issues on direct report text fields, set relatedFieldPath and replacement when you can produce safe final report prose.
                 - Direct report text fields include DAILY_LOG.entries[n].supervisionContent, DAILY_LOG.groups[n].entries[m].supervisionContent, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
                 - replacement must be final report prose, not an instruction. Do not write "명시하십시오", "첨부하십시오", "권고합니다", or "확인 후 첨부합니다" in replacement.

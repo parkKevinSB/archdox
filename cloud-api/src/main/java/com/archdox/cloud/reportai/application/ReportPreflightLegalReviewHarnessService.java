@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -331,8 +332,8 @@ public class ReportPreflightLegalReviewHarnessService {
                 "If references are only search candidates or generic anchors, return WARN or INSUFFICIENT_CONTEXT instead of PASS.",
                 "Do not treat checklist binding plus photo evidence as technical-standard compliance.",
                 "If technicalCriteriaReviewRequired=true and technicalCriteriaPassEligible=false, return WARN or INSUFFICIENT_CONTEXT instead of PASS.",
-                "For vague material/performance notes, suggest safe report prose that names evidence classes such as specifications, test reports, approvals, certificates, product identity, or approved-vs-delivered material matching.",
-                "Never claim those technical documents were attached, stored, or verified unless the report input explicitly says so."));
+                "For vague material/performance notes, suggest final daily-log prose that names evidence classes such as specifications, test reports, approvals, certificates, product identity, or approved-vs-delivered material matching.",
+                "Do not decide whether those documents really exist. Propose confirmation/attachment wording as a report draft that the supervising professional may approve and then support with documents."));
         return Map.copyOf(context);
     }
 
@@ -910,6 +911,20 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         var findings = new java.util.ArrayList<ReportPreflightReviewFinding>();
         findings.add(summaryFinding(context, referencesById, coverage, result, reviewedIds, providerCode, modelId, harnessRunId));
+        var aiIssuePaths = result.issues().stream()
+                .map(SourceBackedLegalReviewIssue::relatedFieldPath)
+                .map(this::text)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toSet());
+        findings.addAll(dailyLogDocumentCompletionFindings(
+                context,
+                references,
+                referencesById,
+                aiIssuePaths,
+                result,
+                providerCode,
+                modelId,
+                harnessRunId));
         for (var issue : result.issues()) {
             findings.add(issueFinding(context, referencesById, result, issue, providerCode, modelId, harnessRunId));
         }
@@ -996,6 +1011,178 @@ public class ReportPreflightLegalReviewHarnessService {
                 issue.evidence(),
                 Map.copyOf(attributes),
                 OffsetDateTime.now());
+    }
+
+    private List<ReportPreflightReviewFinding> dailyLogDocumentCompletionFindings(
+            LegalReviewContext context,
+            List<Map<String, Object>> references,
+            Map<String, Map<String, Object>> referencesById,
+            Set<String> aiIssuePaths,
+            SourceBackedLegalReviewResult result,
+            String providerCode,
+            String modelId,
+            String harnessRunId
+    ) {
+        if (!"CONSTRUCTION_DAILY_SUPERVISION_LOG".equals(context.report().reportType())) {
+            return List.of();
+        }
+        var steps = stepSnapshot(context.report());
+        var dailyLogStep = objectMap(steps.get("DAILY_LOG"));
+        var dailyLogPayload = objectMap(dailyLogStep.get("payload"));
+        var dailyItems = objectMap(dailyLogPayload.get("dailyItems"));
+        var groups = listValue(dailyItems.get("groups"));
+        if (groups.isEmpty()) {
+            return List.of();
+        }
+
+        var findings = new ArrayList<ReportPreflightReviewFinding>();
+        for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
+            var group = objectMap(groups.get(groupIndex));
+            var entries = listValue(group.get("entries"));
+            for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++) {
+                var entry = objectMap(entries.get(entryIndex));
+                if (!requiresDocumentCompletionWording(group, entry)
+                        || hasDocumentCompletionWording(group, entry)) {
+                    continue;
+                }
+                var relatedFieldPath = "DAILY_LOG.groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
+                if (aiIssuePaths.contains(relatedFieldPath)) {
+                    continue;
+                }
+                findings.add(dailyLogDocumentCompletionFinding(
+                        context,
+                        references,
+                        referencesById,
+                        group,
+                        entry,
+                        relatedFieldPath,
+                        result,
+                        providerCode,
+                        modelId,
+                        harnessRunId));
+                if (findings.size() >= 8) {
+                    return List.copyOf(findings);
+                }
+            }
+        }
+        return List.copyOf(findings);
+    }
+
+    private ReportPreflightReviewFinding dailyLogDocumentCompletionFinding(
+            LegalReviewContext context,
+            List<Map<String, Object>> references,
+            Map<String, Map<String, Object>> referencesById,
+            Map<String, Object> group,
+            Map<String, Object> entry,
+            String relatedFieldPath,
+            SourceBackedLegalReviewResult result,
+            String providerCode,
+            String modelId,
+            String harnessRunId
+    ) {
+        var referenceIds = matchingReferenceIds(references, group, entry);
+        var attributes = baseAttributes(result.status(), result.confidence().name(), providerCode, modelId, harnessRunId);
+        attributes.put("category", "COMPLIANCE");
+        attributes.put("approvalRequired", "true");
+        attributes.put("suggestion", "수정안을 적용하면 해당 감리 항목에 필요한 서류 확인 및 첨부 문구가 감리일지에 반영됩니다.");
+        attributes.put("replacement", documentCompletionReplacement(group, entry));
+        attributes.put("relatedFieldPath", relatedFieldPath);
+        attributes.put("documentCompletionDraft", "true");
+        if (!referenceIds.isEmpty()) {
+            attributes.put("legalReferences", String.join(",", referenceIds));
+            attributes.put("legalReferenceDetails", referenceDetails(referenceIds, referencesById));
+        }
+        return new ReportPreflightReviewFinding(
+                context.report().officeId(),
+                context.run().id(),
+                context.report().id(),
+                SOURCE,
+                "DAILY_LOG_DOCUMENT_CONFIRMATION_WORDING_REQUIRED",
+                "MEDIUM",
+                relatedFieldPath,
+                "감리일지에 필요한 서류 확인 및 첨부 문구가 부족합니다.",
+                "inspectionItem=" + firstNonBlank(text(entry.get("inspectionItemName")), text(entry.get("inspectionItemCode")))
+                        + "; supervisionContent=" + text(entry.get("supervisionContent")),
+                Map.copyOf(attributes),
+                OffsetDateTime.now());
+    }
+
+    private boolean requiresDocumentCompletionWording(Map<String, Object> group, Map<String, Object> entry) {
+        var value = String.join(" ",
+                text(group.get("tradeName")),
+                text(group.get("processName")),
+                text(entry.get("inspectionItemName")),
+                text(entry.get("inspectionItemCode")),
+                text(entry.get("checklistItemCode")),
+                text(entry.get("supervisionContent")));
+        return containsAny(value,
+                "자재", "재료", "성능", "규격", "품질", "시험", "인증", "검사필증", "필증",
+                "KS", "성적서", "승인서", "증명서", "시방서", "단열", "기밀", "수밀", "내풍압",
+                "방화", "차음", "제조업체");
+    }
+
+    private boolean hasDocumentCompletionWording(Map<String, Object> group, Map<String, Object> entry) {
+        var value = String.join(" ",
+                text(group.get("tradeName")),
+                text(group.get("processName")),
+                text(entry.get("inspectionItemName")),
+                text(entry.get("supervisionContent")));
+        return containsAny(value, "첨부", "제출");
+    }
+
+    private String documentCompletionReplacement(Map<String, Object> group, Map<String, Object> entry) {
+        var value = String.join(" ",
+                text(group.get("tradeName")),
+                text(group.get("processName")),
+                text(entry.get("inspectionItemName")),
+                text(entry.get("inspectionItemCode")),
+                text(entry.get("supervisionContent")));
+        if (containsAny(value, "창호", "창 및 문", "창및문")) {
+            return "창호 자재의 단열·기밀·수밀·내풍압 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+        }
+        if (containsAny(value, "단열", "단열재")) {
+            return "단열재의 규격, 두께 및 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+        }
+        if (containsAny(value, "전기안전검사필증", "검사필증", "필증")) {
+            return "전기안전검사필증의 발급기관, 발급일, 대상 설비 및 현장 위치를 확인하였으며, 관련 필증을 확인하고 첨부하였음을 기록합니다.";
+        }
+        if (containsAny(value, "철근", "규격 증명서", "규격증명서", "제조업체", "재료시험")) {
+            return "철근 규격 증명서, 제조업체, 재료시험 필요 여부 및 KS 등 자재성능 관련 서류를 확인하고, 관련 증빙 서류를 첨부하였음을 기록합니다.";
+        }
+        var itemName = firstNonBlank(text(entry.get("inspectionItemName")), text(entry.get("checklistItemCode")));
+        if (itemName.isBlank()) {
+            itemName = firstNonBlank(text(group.get("tradeName")), "해당 감리 항목");
+        }
+        return itemName + "에 대하여 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서·인증서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+    }
+
+    private List<String> matchingReferenceIds(
+            List<Map<String, Object>> references,
+            Map<String, Object> group,
+            Map<String, Object> entry
+    ) {
+        var tradeCode = text(group.get("tradeCode"));
+        var processCode = text(group.get("processCode"));
+        var itemCode = firstNonBlank(text(entry.get("inspectionItemCode")), text(entry.get("checklistItemCode")));
+        var matched = references.stream()
+                .filter(reference -> text(reference.get("checklistItemCode")).equals(itemCode)
+                        || text(reference.get("bindingKey")).contains(itemCode)
+                        || (!tradeCode.isBlank() && text(reference.get("bindingKey")).contains(tradeCode))
+                        || (!processCode.isBlank() && text(reference.get("bindingKey")).contains(processCode)))
+                .map(reference -> text(reference.get("referenceId")))
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .limit(3)
+                .toList();
+        if (!matched.isEmpty()) {
+            return matched;
+        }
+        return references.stream()
+                .map(reference -> text(reference.get("referenceId")))
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .limit(3)
+                .toList();
     }
 
     private boolean legalIssueApprovalRequired(SourceBackedLegalReviewIssue issue) {
@@ -1336,6 +1523,13 @@ public class ReportPreflightLegalReviewHarnessService {
 
     private String upper(Object value) {
         return text(value).toUpperCase(Locale.ROOT);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first.trim();
+        }
+        return second == null ? "" : second.trim();
     }
 
     private String text(Object value) {
