@@ -71,6 +71,7 @@ public class InspectionDocumentTextExtractionService {
             addFact(facts, "supervisionContent", supervisionContent, "daily log extracted supervision content", 0.86d);
             addFact(facts, "evidenceText", supervisionContent, "daily log extracted supervision content", 0.80d);
         }
+        addFact(facts, "selectedDocumentText", abbreviate(block, 4000), "selected daily log text block", 0.80d);
 
         var metadata = new LinkedHashMap<String, Object>();
         var normalizedTargetDate = normalizeTargetDate(targetDate);

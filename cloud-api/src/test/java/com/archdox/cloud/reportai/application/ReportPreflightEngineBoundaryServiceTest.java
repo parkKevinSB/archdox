@@ -44,7 +44,11 @@ class ReportPreflightEngineBoundaryServiceTest {
     void validatesDailyLogCatalogSelectionsThroughEngineBoundary() {
         var report = report();
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG"))
-                .thenReturn(Optional.of(step(report, dailyLogPayload("RC_REBAR_COUNT_DIAMETER_PITCH"))));
+                .thenReturn(Optional.of(step(report, "DAILY_LOG", dailyLogPayload("RC_REBAR_COUNT_DIAMETER_PITCH"))));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS"))
+                .thenReturn(Optional.of(step(report, "REMARKS", Map.of(
+                        "specialNotes", "특기사항 없음.",
+                        "issueAndAction", "지적사항 및 처리결과 없음."))));
         when(photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(10L, 100L, PhotoStatus.DELETED))
                 .thenReturn(List.of());
 
@@ -58,6 +62,7 @@ class ReportPreflightEngineBoundaryServiceTest {
         assertThat(result.executedActions())
                 .containsExactly(
                         "CATALOG_BINDING_REVIEW",
+                        "DOCUMENT_QUALITY_REVIEW",
                         "LEGAL_REFERENCE_BINDING",
                         "LEGAL_RISK_CONTEXT_REVIEW",
                         "RETURN_TYPED_RESULT");
@@ -67,7 +72,11 @@ class ReportPreflightEngineBoundaryServiceTest {
     void returnsEngineFindingWhenDailyLogCatalogSelectionIsInvalid() {
         var report = report();
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG"))
-                .thenReturn(Optional.of(step(report, dailyLogPayload("NOT_A_REAL_ITEM"))));
+                .thenReturn(Optional.of(step(report, "DAILY_LOG", dailyLogPayload("NOT_A_REAL_ITEM"))));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS"))
+                .thenReturn(Optional.of(step(report, "REMARKS", Map.of(
+                        "specialNotes", "특기사항 없음.",
+                        "issueAndAction", "지적사항 및 처리결과 없음."))));
         when(photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(10L, 100L, PhotoStatus.DELETED))
                 .thenReturn(List.of());
 
@@ -112,10 +121,10 @@ class ReportPreflightEngineBoundaryServiceTest {
         return report;
     }
 
-    private InspectionReportStep step(InspectionReport report, Map<String, Object> payload) {
+    private InspectionReportStep step(InspectionReport report, String stepCode, Map<String, Object> payload) {
         return new InspectionReportStep(
                 report,
-                "DAILY_LOG",
+                stepCode,
                 PayloadStorageMode.CLOUD_ENCRYPTED,
                 payload,
                 50L,

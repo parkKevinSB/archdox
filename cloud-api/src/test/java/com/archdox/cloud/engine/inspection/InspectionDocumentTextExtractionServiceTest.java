@@ -55,7 +55,13 @@ class InspectionDocumentTextExtractionServiceTest {
                         "FOUNDATION_GRAVEL");
         assertThat(result.facts())
                 .extracting(fact -> fact.resolvedFieldName())
-                .contains("catalogSelections", "inspectionDate", "projectName", "workArea", "supervisionContent");
+                .contains(
+                        "catalogSelections",
+                        "inspectionDate",
+                        "projectName",
+                        "workArea",
+                        "supervisionContent",
+                        "selectedDocumentText");
     }
 
     @Test

@@ -95,6 +95,7 @@ public class ReportPreflightEngineBoundaryService {
             putValue(values, "floor", String.join(", ", floors.stream().distinct().toList()));
             putValue(values, "workArea", String.join(", ", floors.stream().distinct().toList()));
         }
+        collectNarrativeContext(report, values);
 
         var context = new LinkedHashMap<String, Object>();
         context.put("values", Map.copyOf(values));
@@ -104,6 +105,31 @@ public class ReportPreflightEngineBoundaryService {
         context.put("catalogSelections", List.copyOf(catalogSelections));
         context.put("source", "ARCHDOX_SAAS_REPORT_PREFLIGHT");
         return Map.copyOf(context);
+    }
+
+    private void collectNarrativeContext(
+            InspectionReport report,
+            Map<String, Object> values
+    ) {
+        stepRepository.findByReportIdAndStepCode(report.id(), "DAILY_LOG")
+                .map(InspectionReportStep::payloadJson)
+                .ifPresent(payload -> {
+                    putValue(values, "issueAndAction", firstNonBlank(
+                            text(payload.get("issueAndAction")),
+                            text(payload.get("issueAndActionResult"))));
+                    putValue(values, "nextAction", text(payload.get("nextAction")));
+                });
+        stepRepository.findByReportIdAndStepCode(report.id(), "REMARKS")
+                .map(InspectionReportStep::payloadJson)
+                .ifPresent(payload -> {
+                    var remarks = firstNonBlank(
+                            text(payload.get("remarks")),
+                            text(payload.get("specialNotes")));
+                    putValue(values, "remarks", remarks);
+                    putValue(values, "specialNotes", remarks);
+                    putValue(values, "issueAndAction", text(payload.get("issueAndAction")));
+                    putValue(values, "nextAction", text(payload.get("nextAction")));
+                });
     }
 
     private Optional<Map<String, Object>> dailyItems(InspectionReport report) {
@@ -204,5 +230,12 @@ public class ReportPreflightEngineBoundaryService {
 
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first.trim();
+        }
+        return second == null ? "" : second.trim();
     }
 }
