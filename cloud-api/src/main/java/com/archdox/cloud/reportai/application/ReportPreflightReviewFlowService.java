@@ -86,11 +86,12 @@ public class ReportPreflightReviewFlowService {
         var workerActionSubmission = workerActionSubmissionService.submitAfterCommit(
                 engineResult,
                 workerActionSubmissionRequest(request, report));
+        var aiReviewPlanned = aiHarnessFlowService.canCreate(report, request.requestedBy());
         var result = withCarriedOpenFindings(
                 request,
                 run,
-                combinedResult(deterministicResult, engineResult));
-        var aiReviewPlanned = aiHarnessFlowService.canCreate(report, request.requestedBy());
+                combinedResult(deterministicResult, engineResult),
+                aiReviewPlanned);
         for (var finding : result.findings()) {
             var now = OffsetDateTime.now();
             var entity = new ReportPreflightReviewFinding(
@@ -357,7 +358,8 @@ public class ReportPreflightReviewFlowService {
     private ReportPreflightValidationResult withCarriedOpenFindings(
             ReportPreflightReviewRequest request,
             com.archdox.cloud.reportai.domain.ReportPreflightReviewRun currentRun,
-            ReportPreflightValidationResult currentResult
+            ReportPreflightValidationResult currentResult,
+            boolean carryAiFindings
     ) {
         var findings = new ArrayList<>(currentResult.findings());
         var currentKeys = new LinkedHashSet<String>();
@@ -377,6 +379,7 @@ public class ReportPreflightReviewFlowService {
         var carried = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), previousRun.get().id())
                 .stream()
                 .filter(finding -> finding.resolutionStatus() == ReportPreflightFindingResolutionStatus.OPEN)
+                .filter(finding -> carryAiFindings || !isAiGeneratedFinding(finding))
                 .filter(finding -> !currentKeys.contains(findingKey(finding.source(), finding.code(), finding.location())))
                 .filter(this::fieldValueStillMatches)
                 .map(finding -> carriedFinding(finding, previousRun.get().id()))
@@ -386,6 +389,10 @@ public class ReportPreflightReviewFlowService {
         }
         findings.addAll(carried);
         return new ReportPreflightValidationResult(findings);
+    }
+
+    private static boolean isAiGeneratedFinding(ReportPreflightReviewFinding finding) {
+        return "AI".equals(finding.source()) || "LEGAL_REVIEW".equals(finding.source());
     }
 
     private boolean fieldValueStillMatches(ReportPreflightReviewFinding finding) {

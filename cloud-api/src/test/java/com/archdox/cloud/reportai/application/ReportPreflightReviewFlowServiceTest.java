@@ -68,6 +68,7 @@ class ReportPreflightReviewFlowServiceTest {
         when(deterministicValidator.validate(report)).thenReturn(new ReportPreflightValidationResult(List.of()));
         when(engineBoundaryService.validate(report, 7L)).thenReturn(emptyEngineResult());
         when(workerActionSubmissionService.submitAfterCommit(any(), any())).thenReturn(EngineWorkerActionSubmissionResult.empty());
+        when(aiHarnessFlowService.canCreate(report, 7L)).thenReturn(true);
         when(runRepository.findByOfficeIdAndReportIdOrderByRequestedAtDesc(10L, 100L))
                 .thenReturn(List.of(currentRun, previousRun));
         when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 199L))
@@ -79,12 +80,44 @@ class ReportPreflightReviewFlowServiceTest {
         var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
         org.mockito.Mockito.verify(findingRepository).save(captor.capture());
         assertThat(result.blocksGeneration()).isTrue();
-        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.NEEDS_ATTENTION);
+        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.RUNNING);
+        assertThat(currentRun.terminalReason()).isNull();
         assertThat(captor.getValue().source()).isEqualTo("AI");
         assertThat(captor.getValue().attributesJson())
                 .containsEntry("carriedOver", "true")
                 .containsEntry("carriedOverFromRunId", "199")
                 .containsEntry("fieldValueHash", hash);
+    }
+
+    @Test
+    void doesNotCarryAiFindingWhenAiReviewCannotRun() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+        var report = report(now);
+        var currentRun = run(200L, now);
+        var previousRun = run(199L, now.minusMinutes(10));
+        var location = "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent";
+        var hash = ReportPreflightFieldValueResolver.hashText("column \uACFC \uB97C checked");
+        var previousFinding = previousFinding(300L, previousRun.id(), location, hash, now.minusMinutes(10));
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);
+
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(currentRun));
+        when(deterministicValidator.validate(report)).thenReturn(new ReportPreflightValidationResult(List.of()));
+        when(engineBoundaryService.validate(report, 7L)).thenReturn(emptyEngineResult());
+        when(workerActionSubmissionService.submitAfterCommit(any(), any())).thenReturn(EngineWorkerActionSubmissionResult.empty());
+        when(aiHarnessFlowService.canCreate(report, 7L)).thenReturn(false);
+        when(runRepository.findByOfficeIdAndReportIdOrderByRequestedAtDesc(10L, 100L))
+                .thenReturn(List.of(currentRun, previousRun));
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 199L))
+                .thenReturn(List.of(previousFinding));
+        when(fieldValueResolver.resolveHash(100L, location)).thenReturn(Optional.of(hash));
+
+        var result = service.runDeterministicValidation(request);
+
+        org.mockito.Mockito.verify(findingRepository, org.mockito.Mockito.never()).save(any());
+        assertThat(result.blocksGeneration()).isFalse();
+        assertThat(currentRun.status()).isEqualTo(ReportPreflightReviewStatus.RUNNING);
+        assertThat(currentRun.terminalReason()).isNull();
     }
 
     @Test
