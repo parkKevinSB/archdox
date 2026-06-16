@@ -1,5 +1,6 @@
 package com.archdox.cloud.engine.inspection.flow;
 
+import com.archdox.cloud.engine.inspection.flow.step.CheckInspectionDocumentReviewInputGateStep;
 import com.archdox.cloud.engine.inspection.flow.step.CompleteInspectionDocumentReviewStep;
 import com.archdox.cloud.engine.inspection.flow.step.CreateInspectionDocumentReviewSessionStep;
 import com.archdox.cloud.engine.inspection.flow.step.ExtractInspectionDocumentFactsStep;
@@ -22,6 +23,7 @@ public class InspectionDocumentReviewFlowFactory {
         return Flow.builder(FLOW_TYPE, "mcp-inspection-document:" + request.requestId())
                 .step("create-review-session", new CreateInspectionDocumentReviewSessionStep(flowService, request))
                 .step("extract-inspection-document-facts", new ExtractInspectionDocumentFactsStep(flowService, request))
+                .step("check-inspection-document-review-input-gate", new CheckInspectionDocumentReviewInputGateStep(flowService, request))
                 .step("normalize-inspection-document-context", new NormalizeInspectionDocumentContextStep(flowService, request))
                 .step("run-inspection-document-validation", new RunInspectionDocumentValidationStep(flowService, request))
                 .step("complete-inspection-document-review", new CompleteInspectionDocumentReviewStep(flowService, request))

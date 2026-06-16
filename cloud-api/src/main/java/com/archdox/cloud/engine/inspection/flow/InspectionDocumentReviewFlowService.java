@@ -67,6 +67,12 @@ public class InspectionDocumentReviewFlowService {
                 request.principal()));
     }
 
+    public boolean requiresInputGateBeforeValidation(InspectionDocumentReviewRequest request) {
+        var extractionMetadata = request.state().extractionMetadata();
+        return targetDateMissing(request.targetDate(), extractionMetadata)
+                || targetDateSelectionRequired(request.targetDate(), extractionMetadata);
+    }
+
     public void complete(InspectionDocumentReviewRequest request) {
         var validation = request.state().validationResponse();
         var normalized = request.state().normalizedResponse();
