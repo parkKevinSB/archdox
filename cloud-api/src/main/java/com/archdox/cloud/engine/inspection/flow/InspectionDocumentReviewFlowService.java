@@ -76,6 +76,7 @@ public class InspectionDocumentReviewFlowService {
                 : missingQuestions(normalized.normalizedContext());
         var workflowStatus = workflowStatus(
                 targetDateMissing(request.targetDate(), request.state().extractionMetadata()),
+                targetDateSelectionRequired(request.targetDate(), request.state().extractionMetadata()),
                 missingQuestions,
                 validationResult == null ? null : validationResult.status());
 
@@ -105,11 +106,15 @@ public class InspectionDocumentReviewFlowService {
 
     private String workflowStatus(
             boolean targetDateMissing,
+            boolean targetDateSelectionRequired,
             List<Map<String, Object>> missingQuestions,
             ArchDoxEngineResultStatus validationStatus
     ) {
         if (targetDateMissing) {
             return "DATE_NOT_FOUND";
+        }
+        if (targetDateSelectionRequired) {
+            return "DATE_SELECTION_REQUIRED";
         }
         if (missingQuestions != null && !missingQuestions.isEmpty()) {
             return "NEEDS_INPUT";
@@ -127,5 +132,23 @@ public class InspectionDocumentReviewFlowService {
         return targetDate != null
                 && !targetDate.isBlank()
                 && (extractionMetadata == null || !Boolean.TRUE.equals(extractionMetadata.get("targetDateMatched")));
+    }
+
+    private boolean targetDateSelectionRequired(String targetDate, Map<String, Object> extractionMetadata) {
+        return (targetDate == null || targetDate.isBlank())
+                && availableDates(extractionMetadata).size() > 1;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> availableDates(Map<String, Object> extractionMetadata) {
+        var value = extractionMetadata == null ? null : extractionMetadata.get("availableDates");
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(String::valueOf)
+                .filter(date -> date != null && !date.isBlank())
+                .distinct()
+                .toList();
     }
 }

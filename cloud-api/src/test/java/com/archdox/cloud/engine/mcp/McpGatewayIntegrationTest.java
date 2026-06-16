@@ -195,6 +195,45 @@ class McpGatewayIntegrationTest {
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-date-selection-required")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 2102,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "review_inspection_document",
+                                    "arguments": {
+                                      "customerProjectRef": "mcp-daily-log-select-date",
+                                      "reviewPurpose": "preflight",
+                                      "documentTypeHint": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                      "fileName": "daily-log-select-date.txt",
+                                      "timeoutSeconds": 20,
+                                      "contentText": "daily log 2021. 1. 26. foundation checked daily log 2021. 1. 29. rebar checked",
+                                      "facts": [
+                                        {"name": "buildingUse", "rawValue": "NEIGHBORHOOD_LIVING_FACILITY", "source": "USER_PROVIDED", "confidence": 0.95},
+                                        {"name": "structureType", "rawValue": "REINFORCED_CONCRETE", "source": "USER_PROVIDED", "confidence": 0.95}
+                                      ]
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.workflowStatus").value("DATE_SELECTION_REQUIRED"))
+                .andExpect(jsonPath("$.result.structuredContent.questions[0].fieldName").value("targetDate"))
+                .andExpect(jsonPath("$.result.structuredContent.questions[0].questionType").value("DATE_SELECTION"))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions[0].code").value("CHOOSE_AVAILABLE_DATE"))
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.generationAllowed").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.engineStatus").value("WARN"))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.status").value("WARN"))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.generationAllowed").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.findings[0].code")
+                        .value("TARGET_DATE_REQUIRED"));
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
                         .header("X-Correlation-Id", "mcp-inspection-document-answer")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

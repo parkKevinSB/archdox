@@ -105,4 +105,19 @@ class InspectionDocumentTextExtractionServiceTest {
                 .asList()
                 .contains("2021-01-26", "2021-01-29");
     }
+
+    @Test
+    void excludesFormRevisionDatesFromAvailableDateCandidates() {
+        var result = service.extract("""
+                construction supervision daily log form revised 2017. 2. 4.
+                project sample 2021. 1. 7. weather clear
+                foundation excavation depth checked
+                """,
+                null,
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG");
+
+        assertThat(result.metadata().get("availableDates"))
+                .asList()
+                .containsExactly("2021-01-07");
+    }
 }

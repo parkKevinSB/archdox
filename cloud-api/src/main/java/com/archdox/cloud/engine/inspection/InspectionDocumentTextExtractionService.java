@@ -309,11 +309,24 @@ public class InspectionDocumentTextExtractionService {
     private void collectDates(LinkedHashSet<String> dates, Pattern pattern, String contentText) {
         var matcher = pattern.matcher(contentText);
         while (matcher.find()) {
+            if (isFormRevisionDateContext(contentText, matcher.start(), matcher.end())) {
+                continue;
+            }
             var date = parseDate(matcher.group(1), matcher.group(2), matcher.group(3));
             if (!date.isBlank()) {
                 dates.add(date);
             }
         }
+    }
+
+    private boolean isFormRevisionDateContext(String contentText, int start, int end) {
+        var from = Math.max(0, start - 24);
+        var to = Math.min(contentText.length(), end + 24);
+        var context = contentText.substring(from, to).toLowerCase(Locale.ROOT);
+        return context.contains("\uac1c\uc815")
+                || context.contains("\uc81c\uc815")
+                || context.contains("revised")
+                || context.contains("amended");
     }
 
     private String parseDate(String year, String month, String day) {

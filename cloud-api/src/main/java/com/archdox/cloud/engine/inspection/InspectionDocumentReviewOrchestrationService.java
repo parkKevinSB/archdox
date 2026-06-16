@@ -161,14 +161,19 @@ public class InspectionDocumentReviewOrchestrationService {
                 ? List.<Map<String, Object>>of()
                 : missingQuestions(normalized.normalizedContext());
         var targetDateMissing = targetDateMissing(targetDate, extractionMetadata);
-        var effectiveQuestions = targetDateMissing
+        var targetDateSelectionRequired = targetDateSelectionRequired(targetDate, extractionMetadata);
+        var effectiveQuestions = targetDateMissing || targetDateSelectionRequired
                 ? prependDateQuestion(targetDate, extractionMetadata, missingQuestions)
                 : missingQuestions;
-        var effectiveValidationResult = targetDateMissing
-                ? dateNotFoundValidationResult(targetDate, extractionMetadata, validationResult)
-                : validationResult;
+        var effectiveValidationResult = validationResult;
+        if (targetDateMissing) {
+            effectiveValidationResult = dateNotFoundValidationResult(targetDate, extractionMetadata, validationResult);
+        } else if (targetDateSelectionRequired) {
+            effectiveValidationResult = dateSelectionRequiredValidationResult(extractionMetadata, validationResult);
+        }
         var workflowStatus = workflowStatus(
                 targetDateMissing,
+                targetDateSelectionRequired,
                 effectiveQuestions,
                 effectiveValidationResult == null ? null : effectiveValidationResult.status());
         var result = new LinkedHashMap<String, Object>();
@@ -200,6 +205,10 @@ public class InspectionDocumentReviewOrchestrationService {
             List<Map<String, Object>> missingQuestions,
             EngineValidationResultResponse validationResult
     ) {
+        if ("DATE_SELECTION_REQUIRED".equals(workflowStatus)) {
+            return "문서에서 여러 공사감리일지를 찾았습니다. 검토할 일자를 선택해주세요: "
+                    + availableDateSummary(availableDates);
+        }
         return switch (workflowStatus) {
             case "DATE_NOT_FOUND" -> "요청한 "
                     + firstNonBlank(targetDate, "대상 일자")
@@ -247,7 +256,7 @@ public class InspectionDocumentReviewOrchestrationService {
             Map<String, Object> extractionMetadata
     ) {
         var actions = new ArrayList<Map<String, Object>>();
-        if ("DATE_NOT_FOUND".equals(workflowStatus)) {
+        if ("DATE_NOT_FOUND".equals(workflowStatus) || "DATE_SELECTION_REQUIRED".equals(workflowStatus)) {
             actions.add(Map.of(
                     "code", "CHOOSE_AVAILABLE_DATE",
                     "label", "대상 일자 다시 선택",
@@ -330,11 +339,15 @@ public class InspectionDocumentReviewOrchestrationService {
 
     private String workflowStatus(
             boolean targetDateMissing,
+            boolean targetDateSelectionRequired,
             List<Map<String, Object>> missingQuestions,
             ArchDoxEngineResultStatus validationStatus
     ) {
         if (targetDateMissing) {
             return "DATE_NOT_FOUND";
+        }
+        if (targetDateSelectionRequired) {
+            return "DATE_SELECTION_REQUIRED";
         }
         if (missingQuestions != null && !missingQuestions.isEmpty()) {
             return "NEEDS_INPUT";
@@ -352,6 +365,11 @@ public class InspectionDocumentReviewOrchestrationService {
         return targetDate != null
                 && !targetDate.isBlank()
                 && !targetDateMatched(extractionMetadata);
+    }
+
+    private boolean targetDateSelectionRequired(String targetDate, Map<String, Object> extractionMetadata) {
+        return (targetDate == null || targetDate.isBlank())
+                && availableDates(extractionMetadata).size() > 1;
     }
 
     private boolean targetDateMatched(Map<String, Object> extractionMetadata) {
@@ -384,6 +402,9 @@ public class InspectionDocumentReviewOrchestrationService {
         question.put("question", "요청한 "
                 + firstNonBlank(targetDate, "대상 일자")
                 + " 공사감리일지를 문서에서 찾지 못했습니다. 문서에 있는 일자 중 어느 일지를 검토할까요?");
+        if (targetDate == null || targetDate.isBlank()) {
+            question.put("question", "문서에서 여러 공사감리일지를 찾았습니다. 어느 일지를 검토할까요?");
+        }
         question.put("requestedTargetDate", firstNonBlank(targetDate, ""));
         question.put("options", availableDates);
         question.put("blocking", true);
@@ -419,6 +440,40 @@ public class InspectionDocumentReviewOrchestrationService {
                         "CODE_VALIDATION",
                         "targetDate",
                         "요청한 공사감리일자를 문서에서 찾지 못했습니다. 문서에 포함된 일자 중 다시 선택해야 합니다.",
+                        List.of(),
+                        Map.copyOf(metadata))),
+                List.of(),
+                List.of(),
+                "DATE_SELECTION_REQUIRED",
+                List.of(),
+                "DOCUMENT_REVIEW_INPUT_GATE",
+                Map.copyOf(metadata));
+    }
+
+    private EngineValidationResultResponse dateSelectionRequiredValidationResult(
+            Map<String, Object> extractionMetadata,
+            EngineValidationResultResponse original
+    ) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("dateGate", true);
+        metadata.put("availableDates", availableDates(extractionMetadata));
+        if (original != null) {
+            metadata.put("originalStatus", original.status().name());
+            metadata.put("originalGenerationAllowed", original.generationAllowed());
+            metadata.put("originalFindingCount", original.findings().size());
+        }
+        return new EngineValidationResultResponse(
+                original == null ? "" : original.engineRunId(),
+                ArchDoxEngineResultStatus.WARN,
+                false,
+                "문서에서 여러 공사감리일지를 찾았습니다. 검토할 일자를 먼저 선택해야 합니다.",
+                List.of(new EngineFindingResponse(
+                        "TARGET_DATE_REQUIRED",
+                        "COMPLETENESS",
+                        "MEDIUM",
+                        "CODE_VALIDATION",
+                        "targetDate",
+                        "문서에서 여러 공사감리일지가 발견되었습니다. 검토할 일자를 선택해야 합니다.",
                         List.of(),
                         Map.copyOf(metadata))),
                 List.of(),
