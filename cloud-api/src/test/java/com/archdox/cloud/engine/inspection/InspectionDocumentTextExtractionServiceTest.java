@@ -39,6 +39,9 @@ class InspectionDocumentTextExtractionServiceTest {
         assertThat(result.metadata())
                 .containsEntry("targetDate", "2021-01-07")
                 .containsEntry("targetDateMatched", true);
+        assertThat(result.metadata().get("availableDates"))
+                .asList()
+                .contains("2021-01-07");
         assertThat(result.catalogSelections())
                 .extracting(selection -> selection.get("inspectionItemCode"))
                 .containsExactlyInAnyOrder(
@@ -53,5 +56,53 @@ class InspectionDocumentTextExtractionServiceTest {
         assertThat(result.facts())
                 .extracting(fact -> fact.resolvedFieldName())
                 .contains("catalogSelections", "inspectionDate", "projectName", "workArea", "supervisionContent");
+    }
+
+    @Test
+    void reportsAvailableDatesWhenTargetDateIsMissing() {
+        var result = service.extract("""
+                ■ 건축공사 감리세부기준〔별지 제2호서식〕
+                공 사 감 리 일 지
+                공사명
+                초읍동 커뮤니티케어 안심주택 신축공사 2021년 1월 26일(화요일) 날씨: 맑음
+                공종 및 세부공정
+                감리 항목 감리내용
+                지정 및 기초공사 자갈 쇄석 지정 바닥면의 레벨 확인
+                ■ 건축공사 감리세부기준〔별지 제2호서식〕
+                공 사 감 리 일 지
+                공사명
+                초읍동 커뮤니티케어 안심주택 신축공사 2021년 1월 29일(금요일) 날씨: 맑음
+                공종 및 세부공정
+                감리 항목 감리내용
+                철근 콘크리트 공사 철근 조립 배근 철근배근의 확인
+                """,
+                "2021-01-28",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG");
+
+        assertThat(result.metadata())
+                .containsEntry("targetDate", "2021-01-28")
+                .containsEntry("targetDateMatched", false);
+        assertThat(result.metadata().get("availableDates"))
+                .asList()
+                .containsExactly("2021-01-26", "2021-01-29");
+    }
+
+    @Test
+    void extractsNumericDatesFromPdfTextOrder() {
+        var result = service.extract("""
+                공사명 초읍동 커뮤니티케어 안심주택 신축공사 년 월 일 화요일2021 1 26 ( )날씨 맑음:
+                지정 및 기초공사 자갈 쇄석 지정 바닥면의 레벨 확인
+                공사명 초읍동 커뮤니티케어 안심주택 신축공사 년 월 일 금요일2021 1 29 ( )날씨 맑음:
+                철근 콘크리트 공사 철근 조립 배근 철근배근의 확인
+                """,
+                "2021-01-29",
+                "CONSTRUCTION_DAILY_SUPERVISION_LOG");
+
+        assertThat(result.metadata())
+                .containsEntry("targetDate", "2021-01-29")
+                .containsEntry("targetDateMatched", true);
+        assertThat(result.metadata().get("availableDates"))
+                .asList()
+                .contains("2021-01-26", "2021-01-29");
     }
 }

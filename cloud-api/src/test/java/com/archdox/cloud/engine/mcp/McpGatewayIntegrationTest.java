@@ -149,6 +149,50 @@ class McpGatewayIntegrationTest {
         var inspectionReviewSessionId = objectMapper.readTree(documentReviewResult.getResponse().getContentAsString())
                 .at("/result/structuredContent/reviewSessionId")
                 .asText();
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-date-missing")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 2101,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "review_inspection_document",
+                                    "arguments": {
+                                      "customerProjectRef": "mcp-daily-log-missing-date",
+                                      "reviewPurpose": "preflight",
+                                      "documentTypeHint": "CONSTRUCTION_DAILY_SUPERVISION_LOG",
+                                      "targetDate": "2021-01-28",
+                                      "fileName": "daily-log-missing-date.txt",
+                                      "timeoutSeconds": 20,
+                                      "contentText": "■ 건축공사 감리세부기준〔별지 제2호서식〕\\n공 사 감 리 일 지\\n공사명 초읍동 커뮤니티케어 안심주택 신축공사 2021년 1월 26일(화요일) 날씨: 맑음\\n공종 및 세부공정\\n감리 항목 감리내용\\n지정 및 기초공사 자갈 쇄석 지정 바닥면의 레벨 확인\\n■ 건축공사 감리세부기준〔별지 제2호서식〕\\n공 사 감 리 일 지\\n공사명 초읍동 커뮤니티케어 안심주택 신축공사 2021년 1월 29일(금요일) 날씨: 맑음\\n공종 및 세부공정\\n감리 항목 감리내용\\n철근 콘크리트 공사 철근 조립 배근 철근배근의 확인",
+                                      "facts": [
+                                        {"name": "buildingUse", "rawValue": "NEIGHBORHOOD_LIVING_FACILITY", "source": "USER_PROVIDED", "confidence": 0.95},
+                                        {"name": "structureType", "rawValue": "REINFORCED_CONCRETE", "source": "USER_PROVIDED", "confidence": 0.95}
+                                      ]
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.workflowStatus").value("DATE_NOT_FOUND"))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.targetDateMatched").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.availableDates")
+                        .value(org.hamcrest.Matchers.contains("2021-01-26", "2021-01-29")))
+                .andExpect(jsonPath("$.result.structuredContent.questions[0].fieldName").value("targetDate"))
+                .andExpect(jsonPath("$.result.structuredContent.questions[0].questionType").value("DATE_SELECTION"))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions[0].code").value("CHOOSE_AVAILABLE_DATE"))
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.generationAllowed").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.contextSummary.engineStatus").value("WARN"))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.status").value("WARN"))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.generationAllowed").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.validationResult.findings[0].code")
+                        .value("TARGET_DATE_NOT_FOUND"));
+
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
                         .header("X-Correlation-Id", "mcp-inspection-document-answer")

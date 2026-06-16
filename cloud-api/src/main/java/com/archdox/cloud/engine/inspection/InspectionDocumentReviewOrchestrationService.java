@@ -4,7 +4,9 @@ import com.archdox.cloud.engine.application.ArchDoxEngineResultStatus;
 import com.archdox.cloud.engine.application.EngineExternalReviewSessionService;
 import com.archdox.cloud.engine.auth.application.EngineApiPrincipal;
 import com.archdox.cloud.engine.dto.EngineContextFactRequest;
+import com.archdox.cloud.engine.dto.EngineFindingResponse;
 import com.archdox.cloud.engine.dto.EngineReviewSessionResponse;
+import com.archdox.cloud.engine.dto.EngineValidationResultResponse;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
 import com.archdox.cloud.engine.inspection.flow.InspectionDocumentReviewFlowFactory;
 import com.archdox.cloud.engine.inspection.flow.InspectionDocumentReviewRequest;
@@ -158,7 +160,17 @@ public class InspectionDocumentReviewOrchestrationService {
         var missingQuestions = normalized == null
                 ? List.<Map<String, Object>>of()
                 : missingQuestions(normalized.normalizedContext());
-        var workflowStatus = workflowStatus(missingQuestions, validationResult == null ? null : validationResult.status());
+        var targetDateMissing = targetDateMissing(targetDate, extractionMetadata);
+        var effectiveQuestions = targetDateMissing
+                ? prependDateQuestion(targetDate, extractionMetadata, missingQuestions)
+                : missingQuestions;
+        var effectiveValidationResult = targetDateMissing
+                ? dateNotFoundValidationResult(targetDate, extractionMetadata, validationResult)
+                : validationResult;
+        var workflowStatus = workflowStatus(
+                targetDateMissing,
+                effectiveQuestions,
+                effectiveValidationResult == null ? null : effectiveValidationResult.status());
         var result = new LinkedHashMap<String, Object>();
         result.put("workflowStatus", workflowStatus);
         result.put("reviewSessionId", reviewSessionId);
@@ -166,22 +178,34 @@ public class InspectionDocumentReviewOrchestrationService {
         if (targetDate != null && !targetDate.isBlank()) {
             result.put("targetDate", targetDate);
         }
-        result.put("assistantMessage", assistantMessage(workflowStatus, missingQuestions, validationResult));
-        result.put("contextSummary", contextSummary(missingQuestions, normalized, validation));
-        result.put("nextActions", nextActions(workflowStatus, reviewSessionId, missingQuestions, validationResult));
+        result.put("assistantMessage", assistantMessage(
+                workflowStatus,
+                targetDate,
+                availableDates(extractionMetadata),
+                effectiveQuestions,
+                effectiveValidationResult));
+        result.put("contextSummary", contextSummary(effectiveQuestions, normalized, effectiveValidationResult, extractionMetadata));
+        result.put("nextActions", nextActions(workflowStatus, reviewSessionId, effectiveQuestions, effectiveValidationResult, extractionMetadata));
         result.put("extraction", extractionMetadata == null ? Map.of() : Map.copyOf(extractionMetadata));
-        result.put("questions", missingQuestions);
+        result.put("questions", effectiveQuestions);
         result.put("normalizedContext", normalized == null ? Map.of() : normalized.normalizedContext());
-        result.put("validationResult", validationResult == null ? Map.of() : validationResult);
+        result.put("validationResult", effectiveValidationResult == null ? Map.of() : effectiveValidationResult);
         return Map.copyOf(result);
     }
 
     private String assistantMessage(
             String workflowStatus,
+            String targetDate,
+            List<String> availableDates,
             List<Map<String, Object>> missingQuestions,
-            com.archdox.cloud.engine.dto.EngineValidationResultResponse validationResult
+            EngineValidationResultResponse validationResult
     ) {
         return switch (workflowStatus) {
+            case "DATE_NOT_FOUND" -> "요청한 "
+                    + firstNonBlank(targetDate, "대상 일자")
+                    + " 공사감리일지를 문서에서 찾지 못했습니다. 문서에서 확인된 일자 "
+                    + availableDateSummary(availableDates)
+                    + " 중 어떤 일지를 검토할지 다시 지정하세요.";
             case "NEEDS_INPUT" -> "문서에서 감리 항목을 추출했지만 추가 문맥 "
                     + missingQuestions.size()
                     + "건이 필요합니다. answer_inspection_document_questions 도구로 답변을 제출하세요.";
@@ -199,10 +223,10 @@ public class InspectionDocumentReviewOrchestrationService {
     private Map<String, Object> contextSummary(
             List<Map<String, Object>> missingQuestions,
             EngineReviewSessionResponse normalized,
-            EngineReviewSessionResponse validation
+            EngineValidationResultResponse validationResult,
+            Map<String, Object> extractionMetadata
     ) {
         var normalizedContext = normalized == null ? Map.<String, Object>of() : normalized.normalizedContext();
-        var validationResult = validation == null ? null : validation.validationResult();
         var summary = new LinkedHashMap<String, Object>();
         summary.put("missingQuestionCount", missingQuestions.size());
         summary.put("catalogSelectionCount", listSize(normalizedContext.get("catalogSelections")));
@@ -210,6 +234,8 @@ public class InspectionDocumentReviewOrchestrationService {
         summary.put("legalReferenceCount", validationResult == null ? 0 : validationResult.legalReferences().size());
         summary.put("generationAllowed", validationResult != null && validationResult.generationAllowed());
         summary.put("engineStatus", validationResult == null ? "PENDING" : validationResult.status().name());
+        summary.put("targetDateMatched", targetDateMatched(extractionMetadata));
+        summary.put("availableDateCount", availableDates(extractionMetadata).size());
         return Map.copyOf(summary);
     }
 
@@ -217,9 +243,22 @@ public class InspectionDocumentReviewOrchestrationService {
             String workflowStatus,
             String reviewSessionId,
             List<Map<String, Object>> missingQuestions,
-            com.archdox.cloud.engine.dto.EngineValidationResultResponse validationResult
+            EngineValidationResultResponse validationResult,
+            Map<String, Object> extractionMetadata
     ) {
         var actions = new ArrayList<Map<String, Object>>();
+        if ("DATE_NOT_FOUND".equals(workflowStatus)) {
+            actions.add(Map.of(
+                    "code", "CHOOSE_AVAILABLE_DATE",
+                    "label", "대상 일자 다시 선택",
+                    "actionType", "USER_ACTION",
+                    "blocking", true,
+                    "targetTool", "review_inspection_document",
+                    "arguments", Map.of(
+                            "reviewSessionId", reviewSessionId,
+                            "targetDateOptions", availableDates(extractionMetadata))));
+            return List.copyOf(actions);
+        }
         if ("NEEDS_INPUT".equals(workflowStatus)) {
             actions.add(Map.of(
                     "code", "ANSWER_MISSING_CONTEXT",
@@ -290,9 +329,13 @@ public class InspectionDocumentReviewOrchestrationService {
     }
 
     private String workflowStatus(
+            boolean targetDateMissing,
             List<Map<String, Object>> missingQuestions,
             ArchDoxEngineResultStatus validationStatus
     ) {
+        if (targetDateMissing) {
+            return "DATE_NOT_FOUND";
+        }
         if (missingQuestions != null && !missingQuestions.isEmpty()) {
             return "NEEDS_INPUT";
         }
@@ -303,6 +346,97 @@ public class InspectionDocumentReviewOrchestrationService {
             return "BLOCKED";
         }
         return "REVIEW_REQUIRED";
+    }
+
+    private boolean targetDateMissing(String targetDate, Map<String, Object> extractionMetadata) {
+        return targetDate != null
+                && !targetDate.isBlank()
+                && !targetDateMatched(extractionMetadata);
+    }
+
+    private boolean targetDateMatched(Map<String, Object> extractionMetadata) {
+        return extractionMetadata != null
+                && Boolean.TRUE.equals(extractionMetadata.get("targetDateMatched"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> availableDates(Map<String, Object> extractionMetadata) {
+        var value = extractionMetadata == null ? null : extractionMetadata.get("availableDates");
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(String::valueOf)
+                .filter(date -> date != null && !date.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private List<Map<String, Object>> prependDateQuestion(
+            String targetDate,
+            Map<String, Object> extractionMetadata,
+            List<Map<String, Object>> missingQuestions
+    ) {
+        var question = new LinkedHashMap<String, Object>();
+        var availableDates = availableDates(extractionMetadata);
+        question.put("fieldName", "targetDate");
+        question.put("questionType", "DATE_SELECTION");
+        question.put("question", "요청한 "
+                + firstNonBlank(targetDate, "대상 일자")
+                + " 공사감리일지를 문서에서 찾지 못했습니다. 문서에 있는 일자 중 어느 일지를 검토할까요?");
+        question.put("requestedTargetDate", firstNonBlank(targetDate, ""));
+        question.put("options", availableDates);
+        question.put("blocking", true);
+        var questions = new ArrayList<Map<String, Object>>();
+        questions.add(Map.copyOf(question));
+        questions.addAll(missingQuestions == null ? List.of() : missingQuestions);
+        return List.copyOf(questions);
+    }
+
+    private EngineValidationResultResponse dateNotFoundValidationResult(
+            String targetDate,
+            Map<String, Object> extractionMetadata,
+            EngineValidationResultResponse original
+    ) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("dateGate", true);
+        metadata.put("requestedTargetDate", firstNonBlank(targetDate, ""));
+        metadata.put("availableDates", availableDates(extractionMetadata));
+        if (original != null) {
+            metadata.put("originalStatus", original.status().name());
+            metadata.put("originalGenerationAllowed", original.generationAllowed());
+            metadata.put("originalFindingCount", original.findings().size());
+        }
+        return new EngineValidationResultResponse(
+                original == null ? "" : original.engineRunId(),
+                ArchDoxEngineResultStatus.WARN,
+                false,
+                "Requested target date was not found in the submitted inspection document.",
+                List.of(new EngineFindingResponse(
+                        "TARGET_DATE_NOT_FOUND",
+                        "COMPLETENESS",
+                        "MEDIUM",
+                        "CODE_VALIDATION",
+                        "targetDate",
+                        "요청한 공사감리일자를 문서에서 찾지 못했습니다. 문서에 포함된 일자 중 다시 선택해야 합니다.",
+                        List.of(),
+                        Map.copyOf(metadata))),
+                List.of(),
+                List.of(),
+                "DATE_SELECTION_REQUIRED",
+                List.of(),
+                "DOCUMENT_REVIEW_INPUT_GATE",
+                Map.copyOf(metadata));
+    }
+
+    private String availableDateSummary(List<String> availableDates) {
+        if (availableDates == null || availableDates.isEmpty()) {
+            return "없음";
+        }
+        if (availableDates.size() <= 5) {
+            return String.join(", ", availableDates);
+        }
+        return String.join(", ", availableDates.subList(0, 5)) + " 외 " + (availableDates.size() - 5) + "건";
     }
 
     private Map<String, Object> timeoutResult(InspectionDocumentReviewRequest request) {

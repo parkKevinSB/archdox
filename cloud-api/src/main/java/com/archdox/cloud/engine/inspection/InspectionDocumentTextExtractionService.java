@@ -22,6 +22,8 @@ public class InspectionDocumentTextExtractionService {
     private static final String SOURCE = "CUSTOMER_AGENT_EXTRACTED";
     private static final Pattern DATE_PATTERN =
             Pattern.compile("(20\\d{2})\\s*년\\s*(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일");
+    private static final Pattern NUMERIC_DATE_PATTERN =
+            Pattern.compile("(20\\d{2})\\s*[.\\-/\\s]\\s*(\\d{1,2})\\s*[.\\-/\\s]\\s*(\\d{1,2})");
     private static final Pattern WEATHER_PATTERN =
             Pattern.compile("날씨\\s*[:：]?\\s*([^\\s\\n\\r]+)");
 
@@ -72,8 +74,10 @@ public class InspectionDocumentTextExtractionService {
 
         var metadata = new LinkedHashMap<String, Object>();
         var normalizedTargetDate = normalizeTargetDate(targetDate);
+        var availableDates = availableDates(contentText);
         metadata.put("targetDate", normalizedTargetDate);
-        metadata.put("targetDateMatched", targetDateMatched(contentText, normalizedTargetDate));
+        metadata.put("targetDateMatched", targetDateMatched(availableDates, normalizedTargetDate));
+        metadata.put("availableDates", availableDates);
         metadata.put("selectedTextPreview", abbreviate(block, 1200));
         metadata.put("catalogSelectionCount", catalogSelections.size());
         metadata.put("extractedFactCount", facts.size());
@@ -91,6 +95,14 @@ public class InspectionDocumentTextExtractionService {
         }
         var marker = koreanDateMarker(normalizedDate);
         var index = contentText.indexOf(marker);
+        if (index < 0) {
+            var blocks = contentText.split("(?=■)");
+            for (var block : blocks) {
+                if (availableDates(block).contains(normalizedDate)) {
+                    return block.trim();
+                }
+            }
+        }
         if (index < 0) {
             return contentText.trim();
         }
@@ -258,10 +270,11 @@ public class InspectionDocumentTextExtractionService {
         } catch (DateTimeParseException ignored) {
             var matcher = DATE_PATTERN.matcher(value);
             if (matcher.find()) {
-                return LocalDate.of(
-                        Integer.parseInt(matcher.group(1)),
-                        Integer.parseInt(matcher.group(2)),
-                        Integer.parseInt(matcher.group(3))).toString();
+                return parseDate(matcher.group(1), matcher.group(2), matcher.group(3));
+            }
+            matcher = NUMERIC_DATE_PATTERN.matcher(value);
+            if (matcher.find()) {
+                return parseDate(matcher.group(1), matcher.group(2), matcher.group(3));
             }
             return value;
         }
@@ -276,11 +289,42 @@ public class InspectionDocumentTextExtractionService {
         }
     }
 
-    private boolean targetDateMatched(String contentText, String normalizedTargetDate) {
-        if (contentText == null || contentText.isBlank() || normalizedTargetDate.isBlank()) {
+    private boolean targetDateMatched(List<String> availableDates, String normalizedTargetDate) {
+        if (availableDates == null || availableDates.isEmpty() || normalizedTargetDate.isBlank()) {
             return false;
         }
-        return contentText.contains(koreanDateMarker(normalizedTargetDate));
+        return availableDates.contains(normalizedTargetDate);
+    }
+
+    private List<String> availableDates(String contentText) {
+        if (contentText == null || contentText.isBlank()) {
+            return List.of();
+        }
+        var dates = new LinkedHashSet<String>();
+        collectDates(dates, DATE_PATTERN, contentText);
+        collectDates(dates, NUMERIC_DATE_PATTERN, contentText);
+        return List.copyOf(dates);
+    }
+
+    private void collectDates(LinkedHashSet<String> dates, Pattern pattern, String contentText) {
+        var matcher = pattern.matcher(contentText);
+        while (matcher.find()) {
+            var date = parseDate(matcher.group(1), matcher.group(2), matcher.group(3));
+            if (!date.isBlank()) {
+                dates.add(date);
+            }
+        }
+    }
+
+    private String parseDate(String year, String month, String day) {
+        try {
+            return LocalDate.of(
+                    Integer.parseInt(year),
+                    Integer.parseInt(month),
+                    Integer.parseInt(day)).toString();
+        } catch (RuntimeException ignored) {
+            return "";
+        }
     }
 
     private boolean containsNormalized(String haystack, String needle) {

@@ -74,7 +74,10 @@ public class InspectionDocumentReviewFlowService {
         var missingQuestions = normalized == null
                 ? List.<Map<String, Object>>of()
                 : missingQuestions(normalized.normalizedContext());
-        var workflowStatus = workflowStatus(missingQuestions, validationResult == null ? null : validationResult.status());
+        var workflowStatus = workflowStatus(
+                targetDateMissing(request.targetDate(), request.state().extractionMetadata()),
+                missingQuestions,
+                validationResult == null ? null : validationResult.status());
 
         var result = new LinkedHashMap<String, Object>();
         result.put("workflowStatus", workflowStatus);
@@ -101,9 +104,13 @@ public class InspectionDocumentReviewFlowService {
     }
 
     private String workflowStatus(
+            boolean targetDateMissing,
             List<Map<String, Object>> missingQuestions,
             ArchDoxEngineResultStatus validationStatus
     ) {
+        if (targetDateMissing) {
+            return "DATE_NOT_FOUND";
+        }
         if (missingQuestions != null && !missingQuestions.isEmpty()) {
             return "NEEDS_INPUT";
         }
@@ -114,5 +121,11 @@ public class InspectionDocumentReviewFlowService {
             return "BLOCKED";
         }
         return "REVIEW_REQUIRED";
+    }
+
+    private boolean targetDateMissing(String targetDate, Map<String, Object> extractionMetadata) {
+        return targetDate != null
+                && !targetDate.isBlank()
+                && (extractionMetadata == null || !Boolean.TRUE.equals(extractionMetadata.get("targetDateMatched")));
     }
 }
