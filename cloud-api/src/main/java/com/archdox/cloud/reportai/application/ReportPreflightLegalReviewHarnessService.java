@@ -792,7 +792,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 if (!text(entry.get("supervisionContent")).isBlank()) {
                     entriesWithSupervisionContent++;
                 }
-                if (!listValue(entry.get("photoIds")).isEmpty()) {
+                if (!dailyEntryPhotoIds(entry).isEmpty()) {
                     entriesWithPhotoIds++;
                 }
                 if (!text(entry.get("inspectionItemCode")).isBlank()
@@ -827,6 +827,15 @@ public class ReportPreflightLegalReviewHarnessService {
         checklist.put("generationBlockingPhotoIssue", Boolean.TRUE.equals(photoEvidenceStatus.get("generationBlockingPhotoIssue")));
         checklist.put("photoEvidenceSource", text(photoEvidenceStatus.get("photoSourceOfTruth")));
         return Map.copyOf(checklist);
+    }
+
+    private List<?> dailyEntryPhotoIds(Map<String, Object> entry) {
+        var photoIds = new ArrayList<Object>();
+        photoIds.addAll(listValue(entry.get("photoIds")));
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            photoIds.addAll(listValue(objectMap(rowValue).get("photoIds")));
+        }
+        return photoIds;
     }
 
     private boolean requiresTechnicalCriteriaReview(Map<String, Object> group, Map<String, Object> entry) {

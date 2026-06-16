@@ -238,7 +238,7 @@ public class ReportPreflightDeterministicValidator {
                         "steps.DAILY_LOG.payload.dailyItems." + supervisionContentLocation,
                         groupNo,
                         entryNo));
-                if (listValue(entry.get("photoIds")).isEmpty()) {
+                if (dailyEntryPhotoIds(entry).isEmpty()) {
                     findings.add(dailyFinding(
                             "DAILY_LOG_PHOTO_EVIDENCE_RECOMMENDED",
                             "LOW",
@@ -351,6 +351,15 @@ public class ReportPreflightDeterministicValidator {
             rows.add(0, title);
         }
         return String.join("\n", rows);
+    }
+
+    private List<?> dailyEntryPhotoIds(Map<String, Object> entry) {
+        var photoIds = new ArrayList<Object>();
+        photoIds.addAll(listValue(entry.get("photoIds")));
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            photoIds.addAll(listValue(mapValue(rowValue).get("photoIds")));
+        }
+        return photoIds;
     }
 
     private String checklistRowContent(Map<String, Object> row) {

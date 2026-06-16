@@ -498,9 +498,36 @@ public class DocumentSnapshotBuilder {
                 var entry = mapValue(entryValue);
                 var itemName = stringValue(entry.get("inspectionItemName"));
                 var content = stringValue(entry.get("supervisionContent"));
+                for (Object rowValue : listValue(entry.get("checklistRows"))) {
+                    var row = mapValue(rowValue);
+                    var rowLabel = stringValue(row.get("label"));
+                    var rowDetail = joinNonBlank(
+                            stringValue(row.get("result")),
+                            stringValue(row.get("referenceNote")),
+                            stringValue(row.get("actionNote")));
+                    for (Object photoIdValue : listValue(row.get("photoIds"))) {
+                        var photoId = longValue(photoIdValue);
+                        if (photoId == null) {
+                            continue;
+                        }
+                        var context = new LinkedHashMap<String, Object>();
+                        context.put("dailyGroupLabel", groupLabel);
+                        context.put("tradeName", tradeName);
+                        context.put("processName", processName);
+                        context.put("floor", floor);
+                        context.put("inspectionItemName", itemName);
+                        context.put("checklistRowLabel", rowLabel);
+                        context.put("supervisionContent", rowDetail.isBlank() ? content : rowDetail);
+                        context.put("dailyCaption", joinCaption(groupLabel, itemName, rowLabel));
+                        contexts.put(photoId, context);
+                    }
+                }
                 for (Object photoIdValue : listValue(entry.get("photoIds"))) {
                     var photoId = longValue(photoIdValue);
                     if (photoId == null) {
+                        continue;
+                    }
+                    if (contexts.containsKey(photoId)) {
                         continue;
                     }
                     var context = new LinkedHashMap<String, Object>();
@@ -566,14 +593,14 @@ public class DocumentSnapshotBuilder {
         return checklistPhotoCaption(photo, checklistItem);
     }
 
-    private String joinCaption(String groupLabel, String itemName) {
-        if (groupLabel.isBlank()) {
-            return itemName;
+    private String joinCaption(String... values) {
+        var result = new ArrayList<String>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                result.add(value);
+            }
         }
-        if (itemName.isBlank()) {
-            return groupLabel;
-        }
-        return groupLabel + " - " + itemName;
+        return String.join(" - ", result);
     }
 
     private String joinNonBlank(String... values) {

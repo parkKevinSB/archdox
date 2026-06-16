@@ -91,7 +91,8 @@ The report payload should store the user's row answers:
       "label": "개수, 철근지름, 피치 확인",
       "result": "COMPLIANT",
       "referenceNote": "도면 및 현장 배근 상태 확인",
-      "actionNote": ""
+      "actionNote": "",
+      "photoIds": [10, 11]
     }
   ],
   "supervisionContent": "개수, 철근지름, 피치 확인 등 철근배근의 확인사항을 점검했습니다."
@@ -313,9 +314,9 @@ many row patterns:
 
 ## Open Decisions
 
-- Should photos attach to the whole daily-log entry or to each checklist row?
-  Current UI attaches photos to the entry. Row-level photos may be needed later
-  for evidence-heavy inspections.
+- Photos attach to each checklist row when row-level data exists. The parent
+  daily-log entry keeps an aggregated `photoIds` list only for compatibility
+  with existing photo evidence, document rendering, and review flows.
 - Should unchecked rows appear in the generated daily log? Current assumption:
   unchecked rows remain in structured data but do not generate prose unless the
   user marks them or writes a note.
@@ -324,4 +325,3 @@ many row patterns:
   migration policy exists.
 - Should office overrides edit official rows directly? No. They should create
   office-specific revisions after the base catalog becomes stable.
-

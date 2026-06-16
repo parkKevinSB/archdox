@@ -262,7 +262,8 @@ Canonical row-level payload:
               "label": "개수, 철근지름, 피치 확인",
               "result": "COMPLIANT",
               "referenceNote": "도면 및 현장 배근 상태 확인",
-              "actionNote": ""
+              "actionNote": "",
+              "photoIds": [10, 11]
             }
           ],
           "supervisionContent": "개수, 철근지름, 피치 확인 등 철근배근의 확인사항을 점검했습니다.",

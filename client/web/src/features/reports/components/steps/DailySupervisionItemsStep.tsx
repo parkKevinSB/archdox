@@ -17,6 +17,7 @@ type DailyChecklistRow = {
   code?: string;
   id: string;
   label: string;
+  photoIds: number[];
   referenceNote: string;
   result: DailyChecklistResult;
 };
@@ -38,6 +39,8 @@ type DailySupervisionGroup = {
   processName: string;
   tradeCode?: string;
   tradeName: string;
+  workCategory?: string;
+  workCategoryName?: string;
 };
 
 type DailyItemsPayload = {
@@ -96,7 +99,7 @@ export function DailySupervisionItemsStep({
     [groups]
   );
   const totalPhotos = useMemo(
-    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entry.photoIds.length, 0), 0),
+    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entryPhotoIds(entry).length, 0), 0),
     [groups]
   );
   const photosById = useMemo(
@@ -128,6 +131,7 @@ export function DailySupervisionItemsStep({
 
   function addGroup() {
     const defaultTrade = trades[0] ?? null;
+    const defaultCategory = defaultTrade ? workCategoryOptions(defaultTrade)[0] : null;
     updateGroups((current) => [
       ...current,
       {
@@ -136,7 +140,9 @@ export function DailySupervisionItemsStep({
         id: newId("group"),
         processName: "",
         tradeCode: defaultTrade?.code,
-        tradeName: defaultTrade?.name ?? ""
+        tradeName: defaultTrade?.name ?? "",
+        workCategory: defaultCategory?.code,
+        workCategoryName: defaultCategory?.name
       }
     ]);
   }
@@ -166,11 +172,25 @@ export function DailySupervisionItemsStep({
 
   function selectTrade(groupId: string, tradeCode: string) {
     const selected = trades.find((trade) => trade.code === tradeCode);
+    const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
     updateGroup(groupId, {
       processCode: undefined,
       processName: "",
       tradeCode: selected?.code,
-      tradeName: selected?.name ?? ""
+      tradeName: selected?.name ?? "",
+      workCategory: defaultCategory?.code,
+      workCategoryName: defaultCategory?.name
+    });
+  }
+
+  function selectWorkCategory(groupId: string, categoryCode: string) {
+    const group = groups.find((current) => current.id === groupId);
+    const category = workCategoryOptions(selectedTrade(group, trades)).find((option) => option.code === categoryCode);
+    updateGroup(groupId, {
+      processCode: undefined,
+      processName: "",
+      workCategory: category?.code,
+      workCategoryName: category?.name
     });
   }
 
@@ -225,6 +245,10 @@ export function DailySupervisionItemsStep({
       ...group,
       entries: group.entries.map((entry) => ({
         ...entry,
+        checklistRows: entry.checklistRows.map((row) => ({
+          ...row,
+          photoIds: row.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
+        })),
         photoIds: entry.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
       }))
     })));
@@ -284,6 +308,37 @@ export function DailySupervisionItemsStep({
           })
         };
       }));
+    }
+  }
+
+  async function attachRowPhotos(groupId: string, entryId: string, rowId: string, event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+    event.target.value = "";
+    if (!canWriteReports || files.length === 0) {
+      return;
+    }
+    const group = groups.find((current) => current.id === groupId);
+    const entry = group?.entries.find((current) => current.id === entryId);
+    const row = entry?.checklistRows.find((current) => current.id === rowId);
+    const captionParts = [
+      group?.tradeName || group?.tradeCode,
+      group?.processName || group?.processCode,
+      entry?.inspectionItemName || entry?.inspectionItemCode,
+      row?.label || row?.code
+    ].filter(Boolean);
+    const results = await workspace.uploadFiles(files, {
+      caption: captionParts.join(" - ") || undefined,
+      inspectionItemCode: row?.code ?? entry?.inspectionItemCode ?? null,
+      locationNote: group?.floor ? `${group.floor}` : null,
+      processCode: group?.processCode ?? null,
+      stepCode: definition.code,
+      tradeCode: group?.tradeCode ?? null
+    });
+    const photoIds = results.map((result) => result.photo.id);
+    if (photoIds.length > 0) {
+      updateChecklistRow(groupId, entryId, rowId, {
+        photoIds: uniqueNumbers([...(row?.photoIds ?? []), ...photoIds])
+      });
     }
   }
 
@@ -350,12 +405,12 @@ export function DailySupervisionItemsStep({
 
               <div className="daily-supervision-group-fields">
                 <label>
-                  층/구역
+                  구역
                   <input
                     disabled={!canWriteReports}
                     list="daily-floor-options"
                     onChange={(event) => updateGroup(group.id, { floor: event.target.value })}
-                    placeholder="예: 전층, 기초층, 3층"
+                    placeholder="예: 3층, 기초, 전층"
                     value={group.floor}
                   />
                 </label>
@@ -382,23 +437,42 @@ export function DailySupervisionItemsStep({
                   )}
                 </label>
                 <label>
-                  세부공정
-                  {selectedTrade(group, trades)?.processGroups?.length ? (
+                  업무구분
+                  {workCategoryOptions(selectedTrade(group, trades)).length > 0 ? (
                     <select
                       disabled={!canWriteReports || !group.tradeCode}
+                      onChange={(event) => selectWorkCategory(group.id, event.target.value)}
+                      value={group.workCategory ?? ""}
+                    >
+                      <option value="">업무구분 선택</option>
+                      {workCategoryOptions(selectedTrade(group, trades)).map((option) => (
+                        <option key={option.code} value={option.code}>{option.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input disabled placeholder="공종 선택 필요" value="" />
+                  )}
+                </label>
+                <label>
+                  세부공정
+                  {selectedProcessGroups(group, selectedTrade(group, trades)).length ? (
+                    <select
+                      disabled={!canWriteReports || !group.tradeCode || !group.workCategory}
                       onChange={(event) => {
-                        const selectedProcess = selectedTrade(group, trades)?.processGroups?.find((processGroup) => processGroup.code === event.target.value);
+                        const selectedProcess = selectedProcessGroups(group, selectedTrade(group, trades)).find((processGroup) => processGroup.code === event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
-                          processName: selectedProcess?.name ?? ""
+                          processName: selectedProcess?.name ?? "",
+                          workCategory: selectedProcess?.workCategory ?? group.workCategory,
+                          workCategoryName: selectedProcess?.workCategoryName ?? group.workCategoryName
                         });
                       }}
                       value={group.processCode ?? ""}
                     >
                       <option value="">세부공정 선택</option>
-                      {selectedTrade(group, trades)?.processGroups?.map((processGroup) => (
+                      {selectedProcessGroups(group, selectedTrade(group, trades)).map((processGroup) => (
                         <option key={processGroup.code} value={processGroup.code}>
-                          {processGroup.workCategoryName ? `${processGroup.workCategoryName} · ${processGroup.name}` : processGroup.name}
+                          {processGroup.name}
                         </option>
                       ))}
                     </select>
@@ -410,7 +484,9 @@ export function DailySupervisionItemsStep({
                         const selectedProcess = processGroupByName(group, trades, event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
-                          processName: event.target.value
+                          processName: event.target.value,
+                          workCategory: selectedProcess?.workCategory ?? group.workCategory,
+                          workCategoryName: selectedProcess?.workCategoryName ?? group.workCategoryName
                         });
                       }}
                       placeholder="예: 기초, 지하층 바닥"
@@ -483,11 +559,17 @@ export function DailySupervisionItemsStep({
                     {entry.checklistRows.length > 0 ? (
                       <DailyChecklistRowsEditor
                         canWriteReports={canWriteReports}
+                        deletingPhotoIds={deletingPhotoIds}
                         entry={entry}
+                        officeId={officeId}
+                        onAttachPhotos={(rowId, event) => attachRowPhotos(group.id, entry.id, rowId, event)}
+                        onDeletePhoto={deleteLinkedPhoto}
                         onOpenNote={(rowId, field) => setNoteDialog({ entryId: entry.id, field, groupId: group.id, rowId })}
                         onUpdateRow={(rowId, patch) => updateChecklistRow(group.id, entry.id, rowId, patch)}
+                        photosById={photosById}
+                        token={token}
                       />
-                    ) : (
+                    ) : entry.inspectionItemCode ? (
                       <label>
                         감리내용
                         <textarea
@@ -497,40 +579,42 @@ export function DailySupervisionItemsStep({
                           value={entry.supervisionContent}
                         />
                       </label>
-                    )}
-                    <div className="daily-supervision-photo-row">
-                      <DailyPhotoThumbStrip
-                        canWriteReports={canWriteReports}
-                        deletingPhotoIds={deletingPhotoIds}
-                        officeId={officeId}
-                        onDeletePhoto={deleteLinkedPhoto}
-                        photoIds={entry.photoIds}
-                        photosById={photosById}
-                        token={token}
-                      />
-                      <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
-                        <Camera size={16} />
-                        사진 촬영
-                        <input
-                          accept="image/*"
-                          capture="environment"
-                          disabled={!canWriteReports}
-                          onChange={(event) => void attachPhotos(group.id, entry.id, event)}
-                          type="file"
+                    ) : null}
+                    {entry.inspectionItemCode && entry.checklistRows.length === 0 ? (
+                      <div className="daily-supervision-photo-row">
+                        <DailyPhotoThumbStrip
+                          canWriteReports={canWriteReports}
+                          deletingPhotoIds={deletingPhotoIds}
+                          officeId={officeId}
+                          onDeletePhoto={deleteLinkedPhoto}
+                          photoIds={entry.photoIds}
+                          photosById={photosById}
+                          token={token}
                         />
-                      </label>
-                      <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
-                        <UploadCloud size={16} />
-                        사진 추가
-                        <input
-                          accept="image/*"
-                          disabled={!canWriteReports}
-                          multiple
-                          onChange={(event) => void attachPhotos(group.id, entry.id, event)}
-                          type="file"
-                        />
-                      </label>
-                    </div>
+                        <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
+                          <Camera size={16} />
+                          사진 촬영
+                          <input
+                            accept="image/*"
+                            capture="environment"
+                            disabled={!canWriteReports}
+                            onChange={(event) => void attachPhotos(group.id, entry.id, event)}
+                            type="file"
+                          />
+                        </label>
+                        <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
+                          <UploadCloud size={16} />
+                          사진 추가
+                          <input
+                            accept="image/*"
+                            disabled={!canWriteReports}
+                            multiple
+                            onChange={(event) => void attachPhotos(group.id, entry.id, event)}
+                            type="file"
+                          />
+                        </label>
+                      </div>
+                    ) : null}
                   </div>
                 );})}
               </div>
@@ -578,14 +662,26 @@ export function DailySupervisionItemsStep({
 
 function DailyChecklistRowsEditor({
   canWriteReports,
+  deletingPhotoIds,
   entry,
+  officeId,
+  onAttachPhotos,
+  onDeletePhoto,
   onOpenNote,
-  onUpdateRow
+  onUpdateRow,
+  photosById,
+  token
 }: {
   canWriteReports: boolean;
+  deletingPhotoIds: Set<number>;
   entry: DailySupervisionEntry;
+  officeId: number;
+  onAttachPhotos: (rowId: string, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  onDeletePhoto: (photoId: number) => Promise<void>;
   onOpenNote: (rowId: string, field: "referenceNote" | "actionNote") => void;
   onUpdateRow: (rowId: string, patch: Partial<DailyChecklistRow>) => void;
+  photosById: Map<number, PhotoResponse>;
+  token: string;
 }) {
   const generatedContent = buildSupervisionContent(entry);
   return (
@@ -639,6 +735,41 @@ function DailyChecklistRowsEditor({
             >
               조치사항
             </button>
+          </div>
+          <div className="daily-checklist-row-photos">
+            <DailyPhotoThumbStrip
+              canWriteReports={canWriteReports}
+              deletingPhotoIds={deletingPhotoIds}
+              officeId={officeId}
+              onDeletePhoto={onDeletePhoto}
+              photoIds={row.photoIds}
+              photosById={photosById}
+              token={token}
+            />
+            <div className="daily-checklist-row-photo-actions">
+              <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+                <Camera size={14} />
+                사진 촬영
+                <input
+                  accept="image/*"
+                  capture="environment"
+                  disabled={!canWriteReports}
+                  onChange={(event) => void onAttachPhotos(row.id, event)}
+                  type="file"
+                />
+              </label>
+              <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+                <UploadCloud size={14} />
+                사진 추가
+                <input
+                  accept="image/*"
+                  disabled={!canWriteReports}
+                  multiple
+                  onChange={(event) => void onAttachPhotos(row.id, event)}
+                  type="file"
+                />
+              </label>
+            </div>
           </div>
         </div>
       ))}
@@ -870,20 +1001,48 @@ function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalog
   return items.filter((item) => !item.hiddenInDailyLog && !item.legacy);
 }
 
+function workCategoryOptions(trade: SupervisionCatalogTrade | null | undefined) {
+  const processGroups = trade?.processGroups ?? [];
+  const options = processGroups
+    .map((processGroup) => ({
+      code: processGroup.workCategory ?? "GENERAL",
+      name: processGroup.workCategoryName ?? "일반"
+    }))
+    .filter((option) => option.code && option.name);
+  const byCode = new Map<string, { code: string; name: string }>();
+  options.forEach((option) => {
+    if (!byCode.has(option.code)) {
+      byCode.set(option.code, option);
+    }
+  });
+  return [...byCode.values()];
+}
+
+function selectedProcessGroups(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null | undefined) {
+  const processGroups = trade?.processGroups ?? [];
+  if (!processGroups.length) {
+    return [];
+  }
+  if (!group.workCategory) {
+    return processGroups;
+  }
+  return processGroups.filter((processGroup) => (processGroup.workCategory ?? "GENERAL") === group.workCategory);
+}
+
 function suggestedProcesses(
   group: DailySupervisionGroup,
   trades: SupervisionCatalogTrade[],
   catalogProcessOptions: string[]
 ) {
   const trade = selectedTrade(group, trades);
-  const processGroupNames = trade?.processGroups?.map((processGroup) => processGroup.name) ?? [];
+  const processGroupNames = selectedProcessGroups(group, trade).map((processGroup) => processGroup.name);
   return uniqueStrings([...processGroupNames, ...(trade?.processes ?? []), ...catalogProcessOptions])
     .filter((option) => option && option !== "-");
 }
 
-function selectedTrade(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
-  return trades.find((trade) => trade.code === group.tradeCode)
-    ?? trades.find((trade) => trade.name === group.tradeName)
+function selectedTrade(group: DailySupervisionGroup | null | undefined, trades: SupervisionCatalogTrade[]) {
+  return trades.find((trade) => trade.code === group?.tradeCode)
+    ?? trades.find((trade) => trade.name === group?.tradeName)
     ?? null;
 }
 
@@ -895,8 +1054,9 @@ function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCa
   if (!trade?.processGroups?.length) {
     return null;
   }
-  return trade.processGroups.find((processGroup) => processGroup.code === group.processCode)
-    ?? trade.processGroups.find((processGroup) => processGroup.name === group.processName)
+  const processGroups = selectedProcessGroups(group, trade);
+  return processGroups.find((processGroup) => processGroup.code === group.processCode)
+    ?? processGroups.find((processGroup) => processGroup.name === group.processName)
     ?? null;
 }
 
@@ -949,6 +1109,7 @@ function checklistRowFromCatalogRow(row: SupervisionCatalogChecklistRow, index: 
     code: optionalText(row.code),
     id: newId(`row-${index}`),
     label: text(row.label),
+    photoIds: [],
     referenceNote: "",
     result: ""
   };
@@ -967,6 +1128,7 @@ function syncEntryGeneratedContent(entry: DailySupervisionEntry): DailySupervisi
   }
   return {
     ...entry,
+    photoIds: rowPhotoIds(entry),
     supervisionContent: buildSupervisionContent(entry)
   };
 }
@@ -1027,7 +1189,8 @@ function normalizePayload(value: unknown): DailyItemsPayload {
     return { groups: [] };
   }
   return {
-    groups: raw.groups.map((group, index) => normalizeGroup(group, index)).filter(Boolean) as DailySupervisionGroup[]
+    groups: (raw.groups.map((group, index) => normalizeGroup(group, index)).filter(Boolean) as DailySupervisionGroup[])
+      .map(syncGroupGeneratedContent)
   };
 }
 
@@ -1043,7 +1206,9 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
     processCode: optionalText(raw.processCode),
     processName: text(raw.processName),
     tradeCode: optionalText(raw.tradeCode),
-    tradeName: text(raw.tradeName)
+    tradeName: text(raw.tradeName),
+    workCategory: optionalText(raw.workCategory),
+    workCategoryName: optionalText(raw.workCategoryName)
   };
 }
 
@@ -1075,9 +1240,20 @@ function normalizeChecklistRow(value: unknown, index: number): DailyChecklistRow
     code: optionalText(raw.code),
     id: text(raw.id) || newId(`row-${index}`),
     label: text(raw.label),
+    photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : []),
     referenceNote: text(raw.referenceNote),
     result: normalizeChecklistResult(raw.result)
   };
+}
+
+function entryPhotoIds(entry: DailySupervisionEntry) {
+  return entry.checklistRows.length > 0
+    ? rowPhotoIds(entry)
+    : uniqueNumbers(entry.photoIds);
+}
+
+function rowPhotoIds(entry: DailySupervisionEntry) {
+  return uniqueNumbers(entry.checklistRows.flatMap((row) => row.photoIds));
 }
 
 function normalizeChecklistResult(value: unknown): DailyChecklistResult {

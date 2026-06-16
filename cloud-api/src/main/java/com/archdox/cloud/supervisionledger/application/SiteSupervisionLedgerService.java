@@ -234,11 +234,16 @@ public class SiteSupervisionLedgerService {
     }
 
     private List<Long> photoIds(JsonNode item) {
-        var ids = item.path("photoIds");
-        if (!ids.isArray()) {
-            return List.of();
-        }
         var result = new ArrayList<Long>();
+        collectPhotoIds(item.path("photoIds"), result);
+        item.path("checklistRows").forEach(row -> collectPhotoIds(row.path("photoIds"), result));
+        return result.stream().filter(id -> id > 0).distinct().toList();
+    }
+
+    private void collectPhotoIds(JsonNode ids, ArrayList<Long> result) {
+        if (!ids.isArray()) {
+            return;
+        }
         ids.forEach(node -> {
             if (node.canConvertToLong()) {
                 result.add(node.asLong());
@@ -250,7 +255,6 @@ public class SiteSupervisionLedgerService {
                 }
             }
         });
-        return result.stream().filter(id -> id > 0).distinct().toList();
     }
 
     private SiteSupervisionEntryResponse toResponse(SiteSupervisionEntry entry) {

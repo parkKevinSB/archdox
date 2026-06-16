@@ -65,6 +65,7 @@ type PhotoUploadInput = {
 type InternalPhotoUploadTask = PhotoUploadTask & {
   abortController?: AbortController;
   cancelled: boolean;
+  context?: PhotoUploadContext;
   file: File;
   reject: (reason: unknown) => void;
   resolve: (result: PhotoUploadFileResult | null) => void;
@@ -181,15 +182,16 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
             continue;
           }
 
+          const taskContext = task.context ?? {};
           const resolvedContext = {
-            checklistItemId: task.checklistItemId ?? uploadContext?.checklistItemId ?? null,
-            siteSupervisionEntryId: uploadContext?.siteSupervisionEntryId ?? null,
-            tradeCode: uploadContext?.tradeCode ?? null,
-            processCode: uploadContext?.processCode ?? null,
-            inspectionItemCode: uploadContext?.inspectionItemCode ?? null,
-            caption: uploadContext?.caption ?? null,
-            locationNote: uploadContext?.locationNote ?? null,
-            drawingRef: uploadContext?.drawingRef ?? null,
+            checklistItemId: task.checklistItemId ?? taskContext.checklistItemId ?? uploadContext?.checklistItemId ?? null,
+            siteSupervisionEntryId: taskContext.siteSupervisionEntryId ?? uploadContext?.siteSupervisionEntryId ?? null,
+            tradeCode: taskContext.tradeCode ?? uploadContext?.tradeCode ?? null,
+            processCode: taskContext.processCode ?? uploadContext?.processCode ?? null,
+            inspectionItemCode: taskContext.inspectionItemCode ?? uploadContext?.inspectionItemCode ?? null,
+            caption: taskContext.caption ?? uploadContext?.caption ?? null,
+            locationNote: taskContext.locationNote ?? uploadContext?.locationNote ?? null,
+            drawingRef: taskContext.drawingRef ?? uploadContext?.drawingRef ?? null,
             stepCode: task.stepCode ?? uploadContext?.stepCode ?? report.currentStep ?? "FIELD_PHOTOS"
           };
           const intent = await createPhotoUploadIntent(token, officeId, {
@@ -299,8 +301,15 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
     settleUploadTask,
     token,
     updateUploadTask,
+    uploadContext?.caption,
     uploadContext?.checklistItemId,
-    uploadContext?.stepCode
+    uploadContext?.drawingRef,
+    uploadContext?.inspectionItemCode,
+    uploadContext?.locationNote,
+    uploadContext?.processCode,
+    uploadContext?.siteSupervisionEntryId,
+    uploadContext?.stepCode,
+    uploadContext?.tradeCode
   ]);
 
   const uploadFiles = useCallback(async (files: File[], context?: PhotoUploadContext) => {
@@ -317,6 +326,7 @@ export function usePhotoWorkspace({ officeId, report, token, uploadContext }: Us
       const task: InternalPhotoUploadTask & { promise: Promise<PhotoUploadFileResult | null> } = {
         cancelled: false,
         checklistItemId: context?.checklistItemId ?? null,
+        context,
         error: null,
         file,
         fileName: file.name,

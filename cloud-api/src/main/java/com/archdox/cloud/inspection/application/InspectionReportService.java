@@ -373,6 +373,31 @@ public class InspectionReportService {
                     continue;
                 }
                 var nextEntry = new LinkedHashMap<>(entry);
+                var checklistRows = listValue(nextEntry.get("checklistRows"));
+                var nextChecklistRows = new ArrayList<Object>();
+                for (Object rowValue : checklistRows) {
+                    var row = mapValue(rowValue);
+                    if (row.isEmpty()) {
+                        nextChecklistRows.add(rowValue);
+                        continue;
+                    }
+                    var nextRow = new LinkedHashMap<>(row);
+                    var rowPhotoIds = listValue(nextRow.get("photoIds"));
+                    var nextRowPhotoIds = new ArrayList<Object>();
+                    for (Object rawPhotoId : rowPhotoIds) {
+                        var currentPhotoId = longValue(rawPhotoId);
+                        if (currentPhotoId != null && currentPhotoId.equals(photoId)) {
+                            changed = true;
+                            continue;
+                        }
+                        nextRowPhotoIds.add(rawPhotoId);
+                    }
+                    nextRow.put("photoIds", nextRowPhotoIds);
+                    nextChecklistRows.add(nextRow);
+                }
+                if (!checklistRows.isEmpty()) {
+                    nextEntry.put("checklistRows", nextChecklistRows);
+                }
                 var photoIds = listValue(nextEntry.get("photoIds"));
                 var nextPhotoIds = new ArrayList<Object>();
                 for (Object rawPhotoId : photoIds) {

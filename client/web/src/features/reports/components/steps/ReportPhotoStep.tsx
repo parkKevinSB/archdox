@@ -59,9 +59,31 @@ function dailyLogPhotoContexts(payload?: Record<string, unknown>): Record<number
       const entry = mapValue(rawEntry);
       const itemName = text(entry.inspectionItemName);
       const content = text(entry.supervisionContent);
+      for (const rawRow of listValue(entry.checklistRows)) {
+        const row = mapValue(rawRow);
+        const rowLabel = text(row.label);
+        const rowDetail = [
+          text(row.result),
+          text(row.referenceNote),
+          text(row.actionNote)
+        ].filter(Boolean).join(" / ");
+        for (const rawPhotoId of listValue(row.photoIds)) {
+          const photoId = Number(rawPhotoId);
+          if (!Number.isFinite(photoId) || photoId <= 0) {
+            continue;
+          }
+          contexts[photoId] = {
+            caption: [groupLabel, itemName, rowLabel].filter(Boolean).join(" - ") || `Photo #${photoId}`,
+            detail: rowDetail || content
+          };
+        }
+      }
       for (const rawPhotoId of listValue(entry.photoIds)) {
         const photoId = Number(rawPhotoId);
         if (!Number.isFinite(photoId) || photoId <= 0) {
+          continue;
+        }
+        if (contexts[photoId]) {
           continue;
         }
         contexts[photoId] = {

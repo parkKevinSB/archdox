@@ -2912,7 +2912,7 @@ button {
 
 .daily-supervision-group-fields {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1.25fr) minmax(130px, 0.85fr) minmax(0, 1.2fr);
   gap: 10px;
 }
 
@@ -3069,6 +3069,31 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.daily-checklist-row-photos {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e1e8e6;
+}
+
+.daily-checklist-row-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.daily-checklist-row-photos input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .daily-check {
