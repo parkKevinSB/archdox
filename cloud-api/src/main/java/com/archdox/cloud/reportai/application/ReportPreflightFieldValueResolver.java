@@ -91,7 +91,7 @@ public class ReportPreflightFieldValueResolver {
                     if (entryIndex >= entries.size()) {
                         return Optional.empty();
                     }
-                    var value = text(mapValue(entries.get(entryIndex)).get("supervisionContent"));
+                    var value = dailySupervisionContent(mapValue(entries.get(entryIndex)));
                     return value.isBlank() ? Optional.empty() : Optional.of(value);
                 });
     }
@@ -106,7 +106,7 @@ public class ReportPreflightFieldValueResolver {
                     for (Object groupValue : listValue(dailyItems.get("groups"))) {
                         var entries = listValue(mapValue(groupValue).get("entries"));
                         if (remaining < entries.size()) {
-                            var value = text(mapValue(entries.get(remaining)).get("supervisionContent"));
+                            var value = dailySupervisionContent(mapValue(entries.get(remaining)));
                             return value.isBlank() ? Optional.empty() : Optional.of(value);
                         }
                         remaining -= entries.size();
@@ -139,6 +139,54 @@ public class ReportPreflightFieldValueResolver {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> mapValue(Object value) {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private static String dailySupervisionContent(Map<String, Object> entry) {
+        var rows = new java.util.ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = checklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return text(entry.get("supervisionContent"));
+        }
+        var title = text(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private static String checklistRowContent(Map<String, Object> row) {
+        var parts = new java.util.ArrayList<String>();
+        var label = text(row.get("label"));
+        var result = checklistResultLabel(text(row.get("result")));
+        var referenceNote = text(row.get("referenceNote"));
+        var actionNote = text(row.get("actionNote"));
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private static String checklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private static List<?> listValue(Object value) {

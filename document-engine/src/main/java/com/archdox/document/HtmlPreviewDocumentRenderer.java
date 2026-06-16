@@ -480,10 +480,6 @@ public class HtmlPreviewDocumentRenderer {
     }
 
     private String dailySupervisionContent(Map<String, Object> entry) {
-        var content = valueOrBlank(entry.get("supervisionContent"));
-        if (!content.isBlank()) {
-            return content;
-        }
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
@@ -493,7 +489,7 @@ public class HtmlPreviewDocumentRenderer {
             }
         }
         if (rows.isEmpty()) {
-            return "";
+            return valueOrBlank(entry.get("supervisionContent"));
         }
         var title = valueOrBlank(entry.get("inspectionItemName"));
         if (!title.isBlank()) {

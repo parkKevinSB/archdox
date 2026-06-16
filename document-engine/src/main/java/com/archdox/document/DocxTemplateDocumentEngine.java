@@ -445,10 +445,6 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
     }
 
     private String dailySupervisionContent(Map<String, Object> entry) {
-        var content = valueOrBlank(entry.get("supervisionContent")).trim();
-        if (!content.isBlank()) {
-            return content;
-        }
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
@@ -458,7 +454,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         if (rows.isEmpty()) {
-            return "";
+            return valueOrBlank(entry.get("supervisionContent")).trim();
         }
         var title = valueOrBlank(entry.get("inspectionItemName")).trim();
         if (!title.isBlank()) {

@@ -348,10 +348,6 @@ public class ReportPreflightReviewService {
                 || "REMARKS.nextAction".equals(location)) {
             return FindingFixTarget.remarks("nextAction");
         }
-        var groupedDaily = groupedDailyLogLocation(location);
-        if (groupedDaily != null) {
-            return groupedDaily;
-        }
         var groupedDailyRow = groupedDailyLogRowLocation(location);
         if (groupedDailyRow != null) {
             return groupedDailyRow;
@@ -372,15 +368,6 @@ public class ReportPreflightReviewService {
         }
         return "DETERMINISTIC".equals(finding.source())
                 && "WORDING".equals(finding.attributesJson().get("category"));
-    }
-
-    private static FindingFixTarget groupedDailyLogLocation(String location) {
-        var matcher = Pattern.compile(".*groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.supervisionContent$")
-                .matcher(location);
-        if (!matcher.matches()) {
-            return null;
-        }
-        return FindingFixTarget.dailyGrouped(integerOrNull(matcher.group(1)), integerOrNull(matcher.group(2)));
     }
 
     private static FindingFixTarget groupedDailyLogRowLocation(String location) {
@@ -560,8 +547,11 @@ public class ReportPreflightReviewService {
             entries.set(target.entryIndex(), entry);
             return;
         }
-        entry.put("supervisionContent", replacement);
-        entries.set(target.entryIndex(), entry);
+        throw new BadRequestException(
+                "REPORT_PREFLIGHT_FIX_TARGET_NOT_SUPPORTED",
+                "errors.reportPreflight.fixTargetNotSupported",
+                "Generated daily supervision content cannot be edited directly.",
+                Map.of("groupIndex", target.groupIndex(), "entryIndex", target.entryIndex()));
     }
 
     private static String buildDailyEntrySupervisionContent(Map<String, Object> entry) {
@@ -689,10 +679,6 @@ public class ReportPreflightReviewService {
     ) {
         private static FindingFixTarget remarks(String payloadKey) {
             return new FindingFixTarget("REMARKS", payloadKey, null, null, null, null, null);
-        }
-
-        private static FindingFixTarget dailyGrouped(Integer groupIndex, Integer entryIndex) {
-            return new FindingFixTarget("DAILY_LOG", null, groupIndex, entryIndex, null, null, null);
         }
 
         private static FindingFixTarget dailyGroupedRow(Integer groupIndex, Integer entryIndex, Integer rowIndex, String rowField) {

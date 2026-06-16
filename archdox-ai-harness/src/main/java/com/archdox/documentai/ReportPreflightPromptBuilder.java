@@ -91,8 +91,11 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 - For WORDING issues on direct text fields, set replacement to the exact full Korean text
                   that should be saved into that field.
                 - Direct text fields include DAILY_LOG.entries[n].supervisionContent,
-                  DAILY_LOG.groups[n].entries[m].supervisionContent,
+                  DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote,
+                  DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote,
                   REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - DAILY_LOG.groups[n].entries[m].supervisionContent is generated compatibility text.
+                  Do not target it for automatic replacement.
                 - The replacement value must be final report prose, not an instruction.
                 - Do not write values like "수정하십시오", "명확히 기재하십시오", "문장을 다듬으십시오",
                   or "보고서 최종 문장으로 수정하십시오" in replacement.

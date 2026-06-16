@@ -97,9 +97,7 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].inspectionItemName"));
         put(fields, "supervisionFocus", readFirst(snapshot, "steps.DAILY_LOG.payload.supervisionFocus"));
-        put(fields, "supervisionContent", readFirst(
-                snapshot,
-                "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent"));
+        put(fields, "supervisionContent", dailySupervisionContent(snapshot));
         put(fields, "specialNotes", readFirst(
                 snapshot,
                 "steps.DAILY_LOG.payload.specialNotes",
@@ -179,6 +177,73 @@ public class StandardTemplateFieldResolver {
 
     private void put(Map<String, Object> fields, String key, Object value) {
         fields.put(key, value == null ? "" : value);
+    }
+
+    private String dailySupervisionContent(Map<String, Object> snapshot) {
+        var entry = readPath(snapshot, "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0]")
+                .map(StandardTemplateFieldResolver::mapValue)
+                .orElse(Map.of());
+        if (entry.isEmpty()) {
+            return readFirst(snapshot, "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent");
+        }
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = dailyChecklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return stringValue(entry.get("supervisionContent"));
+        }
+        var title = stringValue(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String dailyChecklistRowContent(Map<String, Object> row) {
+        var parts = new ArrayList<String>();
+        var label = stringValue(row.get("label"));
+        var result = dailyChecklistResultLabel(stringValue(row.get("result")));
+        var referenceNote = stringValue(row.get("referenceNote"));
+        var actionNote = stringValue(row.get("actionNote"));
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String dailyChecklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private static List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private LocalDate parseDate(String value) {

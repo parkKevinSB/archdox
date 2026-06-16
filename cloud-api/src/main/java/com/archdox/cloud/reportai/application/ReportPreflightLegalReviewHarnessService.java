@@ -3,6 +3,7 @@ package com.archdox.cloud.reportai.application;
 import com.archdox.cloud.aipolicy.application.AiHarnessPolicyExecutionService;
 import com.archdox.cloud.aipolicy.application.AiModelCallMetadata;
 import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
@@ -116,7 +117,18 @@ public class ReportPreflightLegalReviewHarnessService {
         }
 
         var plan = policy.plan();
-        policyExecutionService.requireWithinBudget(plan);
+        try {
+            policyExecutionService.requireWithinBudget(plan);
+        } catch (BadRequestException ex) {
+            saveSingleFinding(context, skippedFinding(context, references, ex.getMessage()));
+            recordEvent(context, OperationEventSeverity.WARN, "REPORT_PREFLIGHT_LEGAL_REVIEW_BUDGET_SKIPPED",
+                    "Source-backed legal review AI was skipped because the configured budget was exhausted.",
+                    Map.of(
+                            "reason", ex.getMessage(),
+                            "errorCode", ex.code(),
+                            "legalReferenceCount", references.size()));
+            return LegalReviewSubmission.completed();
+        }
         var spec = new SourceBackedLegalReviewHarnessFactory(objectMapper).spec(
                 (findings, ctx) -> {
                 },
@@ -1371,7 +1383,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 "LEGAL_REVIEW_SKIPPED",
                 "INFO",
                 "LEGAL_REVIEW",
-                "법령검토 AI 설정이 없어 전용 법령검토를 생략했습니다.",
+                "법령검토 AI를 실행하지 못해 전용 법령검토를 생략했습니다.",
                 text(reason),
                 Map.copyOf(attributes),
                 OffsetDateTime.now());

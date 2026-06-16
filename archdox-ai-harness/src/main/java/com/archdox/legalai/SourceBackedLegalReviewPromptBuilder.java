@@ -83,7 +83,8 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Good replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
                 - If the report already states the evidence document was verified or attached, preserve and refine that fact.
                 - For issues on direct report text fields, set relatedFieldPath and replacement when you can produce safe final report prose.
-                - Direct report text fields include DAILY_LOG.entries[n].supervisionContent, DAILY_LOG.groups[n].entries[m].supervisionContent, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - Direct report text fields include DAILY_LOG.entries[n].supervisionContent, DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote, DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - DAILY_LOG.groups[n].entries[m].supervisionContent is generated compatibility text. Do not target it for automatic replacement.
                 - replacement must be final report prose, not an instruction. Do not write "명시하십시오", "첨부하십시오", "권고합니다", or "확인 후 첨부합니다" in replacement.
                 - If you cannot safely produce final prose, set replacement to "" and put the human action in suggestion.
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.

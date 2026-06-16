@@ -2444,9 +2444,10 @@ function preflightFixTargetLabel(finding: ReportPreflightReviewFindingResponse) 
   if (flatDaily) {
     return `감리내용 ${Number(flatDaily[1]) + 1}`;
   }
-  const groupedDaily = location.match(/groups\[(\d+)]\.entries\[(\d+)]\.supervisionContent$/);
-  if (groupedDaily) {
-    return `감리내용 ${Number(groupedDaily[1]) + 1}-${Number(groupedDaily[2]) + 1}`;
+  const groupedDailyRow = location.match(/groups\[(\d+)]\.entries\[(\d+)]\.checklistRows\[(\d+)]\.(referenceNote|actionNote)$/);
+  if (groupedDailyRow) {
+    const rowLabel = groupedDailyRow[4] === "actionNote" ? "조치사항" : "기준·참고";
+    return `세부 감리항목 ${Number(groupedDailyRow[1]) + 1}-${Number(groupedDailyRow[2]) + 1}-${Number(groupedDailyRow[3]) + 1} ${rowLabel}`;
   }
   return "";
 }

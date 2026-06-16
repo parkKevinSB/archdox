@@ -220,7 +220,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
     }
 
     @Test
-    void applyingLegalReviewReplacementUsesRelatedFieldPathAndApprovedCorrectionPath() {
+    void applyingLegalReviewReplacementToGeneratedDailyContentIsRejected() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
         var report = report(now);
@@ -242,11 +242,51 @@ class ReportPreflightReviewServiceApprovalGateTest {
                         "replacement", "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."),
                 now);
         ReflectionTestUtils.setField(finding, "id", 300L);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+
+        assertThatThrownBy(() -> service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr")))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("This preflight finding does not have a safe automatic fix.");
+        verifyNoInteractions(stepRepository, inspectionReportService);
+    }
+
+    @Test
+    void applyingLegalReviewReplacementToChecklistRowUsesApprovedCorrectionPath() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        report.submit(now);
+        var run = run(now);
+        var finding = new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "LEGAL_REVIEW",
+                "TECHNICAL_CRITERIA_EVIDENCE_SCOPE",
+                "MEDIUM",
+                "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
+                "단열재 자재성능 점검 내용은 있으나, 실질 기술기준 증빙은 별도 확인이 필요합니다.",
+                "단열재 자재성능 확인 내용이 있습니다.",
+                Map.of(
+                        "category", "COMPLIANCE",
+                        "relatedFieldPath", "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
+                        "replacement", "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."),
+                now);
+        ReflectionTestUtils.setField(finding, "id", 300L);
         var dailyPayload = Map.<String, Object>of(
                 "dailyItems", Map.of(
                         "groups", List.of(Map.of(
                                 "entries", List.of(Map.of(
-                                        "supervisionContent", "단열재 자재성능 이상 없음"))))));
+                                        "inspectionItemName", "단열재 자재성능",
+                                        "checklistRows", List.of(Map.of(
+                                                "label", "단열재 자재성능 확인",
+                                                "result", "COMPLIANT",
+                                                "referenceNote", ""))))))));
         var step = new InspectionReportStep(
                 report,
                 "DAILY_LOG",
@@ -272,9 +312,13 @@ class ReportPreflightReviewServiceApprovalGateTest {
         var dailyItems = asMap(payload.get("dailyItems"));
         var groups = asList(dailyItems.get("groups"));
         var entries = asList(asMap(groups.get(0)).get("entries"));
+        var row = asMap(asList(asMap(entries.get(0)).get("checklistRows")).get(0));
+        assertThat(row).containsEntry(
+                "referenceNote",
+                "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.");
         assertThat(asMap(entries.get(0))).containsEntry(
                 "supervisionContent",
-                "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.");
+                "단열재 자재성능\n- 단열재 자재성능 확인 / 적합 / 기준·참고: 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.");
         assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
     }
 

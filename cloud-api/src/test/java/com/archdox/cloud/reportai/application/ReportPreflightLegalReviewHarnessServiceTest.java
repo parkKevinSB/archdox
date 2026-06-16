@@ -3,6 +3,7 @@ package com.archdox.cloud.reportai.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.archdox.cloud.aipolicy.application.AiHarnessPolicyResolution;
 import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.aipolicy.domain.AiProviderCredential;
 import com.archdox.cloud.aipolicy.domain.AiProviderType;
+import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.domain.PayloadStorageMode;
@@ -154,6 +156,44 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(captor.getValue().code()).isEqualTo("LEGAL_REVIEW_SKIPPED");
         assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
         assertThat(captor.getValue().resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");
+    }
+
+    @Test
+    void budgetExhaustionSkipsLegalReviewInsteadOfSubmittingOrFailingPreflight() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+        var report = report(now);
+        var run = run(now);
+        var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);
+        var plan = new AiHarnessExecutionPlan(
+                AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW,
+                provider(now),
+                new ModelId("openai-main", "gpt-4.1-mini"),
+                2,
+                Duration.ofSeconds(90));
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(runRepository.findByIdAndOfficeIdAndReportId(200L, 10L, 100L)).thenReturn(Optional.of(run));
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L))
+                .thenReturn(List.of(legalContextFinding(now)));
+        when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
+                .thenReturn(AiHarnessPolicyResolution.runnable(plan));
+        org.mockito.Mockito.doThrow(new BadRequestException(
+                        "AI_HARNESS_MONTHLY_TOKEN_LIMIT_EXCEEDED",
+                        "errors.aiHarness.monthlyTokenLimitExceeded",
+                        "Monthly AI token limit exceeded for this harness"))
+                .when(policyExecutionService).requireWithinBudget(plan);
+        when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        var submission = service.submit(request);
+
+        var captor = ArgumentCaptor.forClass(ReportPreflightReviewFinding.class);
+        org.mockito.Mockito.verify(findingRepository).save(captor.capture());
+        assertThat(submission.submitted()).isFalse();
+        assertThat(captor.getValue().code()).isEqualTo("LEGAL_REVIEW_SKIPPED");
+        assertThat(captor.getValue().resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
+        assertThat(captor.getValue().attributesJson())
+                .containsEntry("legalReviewStatus", "SKIPPED")
+                .containsEntry("skipReason", "Monthly AI token limit exceeded for this harness");
+        verify(aiWorker, never()).submit(any());
     }
 
     @Test
