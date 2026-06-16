@@ -394,23 +394,26 @@ export function DailySupervisionItemsStep({
                     />
                   )}
                 </label>
-                <label>
-                  업무구분
+                <div className="daily-work-category-field">
+                  <span>업무구분</span>
                   {workCategoryOptions(selectedTrade(group, trades)).length > 0 ? (
-                    <select
-                      disabled={!canWriteReports || !group.tradeCode}
-                      onChange={(event) => selectWorkCategory(group.id, event.target.value)}
-                      value={group.workCategory ?? ""}
-                    >
-                      <option value="">업무구분 선택</option>
+                    <div className="daily-work-category-segment" role="group" aria-label="업무구분">
                       {workCategoryOptions(selectedTrade(group, trades)).map((option) => (
-                        <option key={option.code} value={option.code}>{option.name}</option>
+                        <button
+                          className={group.workCategory === option.code ? "selected" : ""}
+                          disabled={!canWriteReports || !group.tradeCode}
+                          key={option.code}
+                          onClick={() => selectWorkCategory(group.id, option.code)}
+                          type="button"
+                        >
+                          {option.name}
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   ) : (
-                    <input disabled placeholder="공종 선택 필요" value="" />
+                    <span className="daily-supervision-muted">공종 선택 필요</span>
                   )}
-                </label>
+                </div>
                 <label>
                   세부공정
                   {selectedProcessGroups(group, selectedTrade(group, trades)).length ? (
@@ -600,7 +603,6 @@ function DailyChecklistRowsEditor({
   photosById: Map<number, PhotoResponse>;
   token: string;
 }) {
-  const generatedContent = buildSupervisionContent(entry);
   return (
     <div className="daily-checklist-rows">
       <div className="daily-checklist-rows-head">
@@ -652,6 +654,28 @@ function DailyChecklistRowsEditor({
             >
               조치사항
             </button>
+            <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+              <Camera size={14} />
+              사진 촬영
+              <input
+                accept="image/*"
+                capture="environment"
+                disabled={!canWriteReports}
+                onChange={(event) => void onAttachPhotos(row.id, event)}
+                type="file"
+              />
+            </label>
+            <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+              <UploadCloud size={14} />
+              사진 추가
+              <input
+                accept="image/*"
+                disabled={!canWriteReports}
+                multiple
+                onChange={(event) => void onAttachPhotos(row.id, event)}
+                type="file"
+              />
+            </label>
           </div>
           <div className="daily-checklist-row-photos">
             <DailyPhotoThumbStrip
@@ -663,37 +687,9 @@ function DailyChecklistRowsEditor({
               photosById={photosById}
               token={token}
             />
-            <div className="daily-checklist-row-photo-actions">
-              <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
-                <Camera size={14} />
-                사진 촬영
-                <input
-                  accept="image/*"
-                  capture="environment"
-                  disabled={!canWriteReports}
-                  onChange={(event) => void onAttachPhotos(row.id, event)}
-                  type="file"
-                />
-              </label>
-              <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
-                <UploadCloud size={14} />
-                사진 추가
-                <input
-                  accept="image/*"
-                  disabled={!canWriteReports}
-                  multiple
-                  onChange={(event) => void onAttachPhotos(row.id, event)}
-                  type="file"
-                />
-              </label>
-            </div>
           </div>
         </div>
       ))}
-      <div className="daily-generated-content">
-        <span>문서 반영 감리내용</span>
-        <p>{generatedContent || "아직 적합/부적합 또는 메모가 입력된 세부 감리항목이 없습니다."}</p>
-      </div>
     </div>
   );
 }
