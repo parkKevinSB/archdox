@@ -1706,6 +1706,12 @@ function preflightDescription(
     return `검토는 v${run.reportRevision} 기준입니다. 현재 제출 v${currentRevision} 기준으로 다시 검토해 주세요.`;
   }
   if (run.status === "NEEDS_ATTENTION") {
+    if (blockingCount === 0 && warningCount === 0) {
+      return "확인 필요 항목을 불러오는 중입니다.";
+    }
+    if (blockingCount === 0) {
+      return "표시된 경고 또는 이전 미해결 항목을 확인해야 합니다.";
+    }
     return `수정이 필요한 항목 ${blockingCount}건이 있습니다.`;
   }
   if (run.status === "FAILED") {
@@ -1807,11 +1813,13 @@ function preflightProgress(run: ReportPreflightReviewRunResponse | null, reviewi
 }
 
 function preflightAiDescription(run: ReportPreflightReviewRunResponse, attentionCount = 0) {
-  if (!run.aiReviewPlanned) {
-    return "정책상 AI 검토 생략";
-  }
   if (attentionCount > 0) {
-    return `AI 초안 확인 필요 ${attentionCount}건`;
+    return run.harnessRunId
+      ? `AI 초안 확인 필요 ${attentionCount}건`
+      : `이전 AI 미해결 항목 ${attentionCount}건 유지`;
+  }
+  if (!run.aiReviewPlanned) {
+    return "새 AI 호출 없음";
   }
   const status = harnessStatusLabel(run.harnessStatus ?? "QUEUED");
   const model = run.aiModelId ?? run.aiProviderCode ?? "설정된 모델";
@@ -1821,10 +1829,17 @@ function preflightAiDescription(run: ReportPreflightReviewRunResponse, attention
 
 function preflightAiMode(run: ReportPreflightReviewRunResponse) {
   if (!run.aiReviewPlanned) {
+    if (run.terminalReason === "DETERMINISTIC_PREFLIGHT_BLOCKED") {
+      return {
+        kind: "skipped",
+        title: "AI 호출 전 확인 필요",
+        description: "구조화 항목 검증에서 먼저 처리할 항목이 있어 새 AI 호출 없이 코드 검증 결과만 표시했습니다."
+      };
+    }
     return {
       kind: "skipped",
-      title: "AI 검토 생략",
-      description: "사무소 정책 또는 서버 설정에 따라 코드 검증만 실행했습니다."
+      title: "새 AI 호출 없음",
+      description: "사용자/사무소 AI 한도 또는 정책 설정 때문에 이번 run에서 새 AI 호출은 실행되지 않았습니다. 이전 미해결 AI 항목은 그대로 유지됩니다."
     };
   }
   if (run.aiProviderCode?.startsWith("fake-") || run.aiModelId?.startsWith("fake-")) {
@@ -2006,6 +2021,28 @@ function preflightLegalSummaryV2(
       references
     };
   }
+  if (run.status === "NEEDS_ATTENTION" && references.length > 0) {
+    return {
+      kind: "warning",
+      badge: "근거 확보",
+      status: "법령 근거는 확보됐지만 전용 법령검토 결과는 생성되지 않았습니다.",
+      evidence,
+      risk: "사람 확인 필요",
+      reason: "AI 한도/정책 또는 선행 검증 항목 때문에 전용 법령검토 AI가 실행되지 않았을 수 있습니다. 표시된 미해결 항목을 먼저 확인하세요.",
+      references
+    };
+  }
+  if (run.status === "NEEDS_ATTENTION") {
+    return {
+      kind: "warning",
+      badge: "확인 필요",
+      status: "생성 전 확인이 필요한 항목이 있습니다.",
+      evidence,
+      risk: "사람 확인 필요",
+      reason: run.terminalReason ? preflightTerminalReasonLabel(run.terminalReason) : "미해결 항목을 확인해야 합니다.",
+      references
+    };
+  }
   if (run.status === "PASSED" && references.length > 0) {
     return {
       kind: "pass",
@@ -2034,9 +2071,25 @@ function preflightLegalSummaryV2(
     status: "법령검토 결과를 정리하는 중입니다.",
     evidence,
     risk: "확인 중",
-    reason: run.terminalReason ?? "검토 상태가 아직 최종 통과/확인 필요로 정리되지 않았습니다.",
+    reason: run.terminalReason ? preflightTerminalReasonLabel(run.terminalReason) : "검토 상태가 아직 최종 통과/확인 필요로 정리되지 않았습니다.",
     references
   };
+}
+
+function preflightTerminalReasonLabel(reason: string) {
+  if (reason === "DETERMINISTIC_PREFLIGHT_BLOCKED") {
+    return "필수 구조화 항목 또는 코드 검증에서 먼저 확인할 항목이 있습니다.";
+  }
+  if (reason === "AI_PREFLIGHT_NEEDS_HUMAN_REVIEW") {
+    return "AI 또는 이전 미해결 검토 항목 중 사람이 확인해야 할 항목이 남아 있습니다.";
+  }
+  if (reason === "AI_PREFLIGHT_PASSED") {
+    return "AI 검토가 완료되었고 생성 차단 항목이 없습니다.";
+  }
+  if (reason === "PREFLIGHT_FINDINGS_RESOLVED") {
+    return "미해결 검토 항목이 처리되어 생성 가능한 상태입니다.";
+  }
+  return reason;
 }
 
 function legalReviewResultFinding(findings: ReportPreflightReviewFindingResponse[]) {
