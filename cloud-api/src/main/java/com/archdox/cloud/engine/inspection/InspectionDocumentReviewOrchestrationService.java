@@ -32,17 +32,20 @@ public class InspectionDocumentReviewOrchestrationService {
     private final InspectionDocumentContentTextService contentTextService;
     private final InspectionDocumentReviewFlowFactory flowFactory;
     private final FlowerFlowAsyncCompletionService flowCompletionService;
+    private final InspectionDocumentTextExtractionService extractionService;
 
     public InspectionDocumentReviewOrchestrationService(
             EngineExternalReviewSessionService reviewSessionService,
             InspectionDocumentContentTextService contentTextService,
             InspectionDocumentReviewFlowFactory flowFactory,
-            FlowerFlowAsyncCompletionService flowCompletionService
+            FlowerFlowAsyncCompletionService flowCompletionService,
+            InspectionDocumentTextExtractionService extractionService
     ) {
         this.reviewSessionService = reviewSessionService;
         this.contentTextService = contentTextService;
         this.flowFactory = flowFactory;
         this.flowCompletionService = flowCompletionService;
+        this.extractionService = extractionService;
     }
 
     public Map<String, Object> review(
@@ -92,11 +95,15 @@ public class InspectionDocumentReviewOrchestrationService {
             Map<String, Object> arguments
     ) {
         var reviewSessionId = requiredText(arguments.get("reviewSessionId"), "reviewSessionId is required");
+        var targetDate = optionalText(arguments.get("targetDate"));
         var answers = facts(arguments.get("facts"), "USER_PROVIDED");
-        if (answers.isEmpty()) {
-            throw new BadRequestException("facts are required");
+        if ((targetDate == null || targetDate.isBlank()) && answers.isEmpty()) {
+            throw new BadRequestException("facts or targetDate are required");
         }
         var current = reviewSessionService.get(reviewSessionId, principal);
+        if (targetDate != null && !targetDate.isBlank()) {
+            return answerTargetDate(principal, reviewSessionId, targetDate, answers, current);
+        }
         var mergedFacts = mergeFacts(current.facts(), answers);
         reviewSessionService.submitFacts(reviewSessionId, new SubmitEngineReviewFactsRequest(mergedFacts), principal);
         var normalized = reviewSessionService.normalize(reviewSessionId, principal);
@@ -131,6 +138,63 @@ public class InspectionDocumentReviewOrchestrationService {
             merged.put(answer.resolvedFieldName(), answer);
         }
         return List.copyOf(merged.values());
+    }
+
+    private Map<String, Object> answerTargetDate(
+            EngineApiPrincipal principal,
+            String reviewSessionId,
+            String targetDate,
+            List<EngineContextFactRequest> answers,
+            EngineReviewSessionResponse current
+    ) {
+        if (extractionService == null) {
+            throw new BadRequestException("Inspection document extraction service is not available");
+        }
+        var snapshot = reviewSessionService.documentSnapshot(reviewSessionId, principal);
+        if (snapshot.documentText() == null || snapshot.documentText().isBlank()) {
+            throw new BadRequestException("review session document text is required before targetDate can be answered");
+        }
+        var extraction = extractionService.extract(
+                snapshot.documentText(),
+                targetDate,
+                firstNonBlank(snapshot.documentTypeHint(), current.documentTypeHint()));
+        if (targetDateMissing(targetDate, extraction.metadata())) {
+            return output(reviewSessionId, current.documentTypeHint(), targetDate, extraction.metadata(), current, current);
+        }
+        var mergedFacts = mergeFactsForTargetDate(snapshot.facts(), extraction.facts(), answers);
+        reviewSessionService.submitFacts(reviewSessionId, new SubmitEngineReviewFactsRequest(mergedFacts), principal);
+        var normalized = reviewSessionService.normalize(reviewSessionId, principal);
+        var validation = reviewSessionService.runValidation(reviewSessionId, principal);
+        return output(reviewSessionId, current.documentTypeHint(), targetDate, extraction.metadata(), normalized, validation);
+    }
+
+    private List<EngineContextFactRequest> mergeFactsForTargetDate(
+            List<Map<String, Object>> existingFacts,
+            List<EngineContextFactRequest> extractedFacts,
+            List<EngineContextFactRequest> answers
+    ) {
+        var merged = new LinkedHashMap<String, EngineContextFactRequest>();
+        for (var fact : existingFacts == null ? List.<Map<String, Object>>of() : existingFacts) {
+            var request = factRequest(fact, null);
+            if (request != null && !isCustomerAgentExtracted(request.source())) {
+                merged.put(request.resolvedFieldName(), request);
+            }
+        }
+        for (var fact : extractedFacts == null ? List.<EngineContextFactRequest>of() : extractedFacts) {
+            if (!fact.resolvedFieldName().isBlank()) {
+                merged.put(fact.resolvedFieldName(), fact);
+            }
+        }
+        for (var answer : answers == null ? List.<EngineContextFactRequest>of() : answers) {
+            if (!answer.resolvedFieldName().isBlank()) {
+                merged.put(answer.resolvedFieldName(), answer);
+            }
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private boolean isCustomerAgentExtracted(String source) {
+        return source == null || source.isBlank() || "CUSTOMER_AGENT_EXTRACTED".equalsIgnoreCase(source.trim());
     }
 
     private EngineContextFactRequest factRequest(Map<String, Object> map, String fallbackSource) {
@@ -260,9 +324,9 @@ public class InspectionDocumentReviewOrchestrationService {
             actions.add(Map.of(
                     "code", "CHOOSE_AVAILABLE_DATE",
                     "label", "대상 일자 다시 선택",
-                    "actionType", "USER_ACTION",
+                    "actionType", "MCP_TOOL",
                     "blocking", true,
-                    "targetTool", "review_inspection_document",
+                    "targetTool", "answer_inspection_document_questions",
                     "arguments", Map.of(
                             "reviewSessionId", reviewSessionId,
                             "targetDateOptions", availableDates(extractionMetadata))));

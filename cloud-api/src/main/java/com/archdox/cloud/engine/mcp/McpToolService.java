@@ -226,6 +226,9 @@ public class McpToolService {
 
     private int answerInspectionDocumentUnits(Map<String, Object> arguments) {
         var units = 2;
+        if (optionalText(arguments.get("targetDate")) != null && !optionalText(arguments.get("targetDate")).isBlank()) {
+            units += 1;
+        }
         units += Math.min(5, factsRequest(arguments.get("facts")).facts().size());
         return units;
     }
@@ -432,6 +435,7 @@ public class McpToolService {
                     "contentType", "text/plain");
             case "answer_inspection_document_questions" -> Map.of(
                     "reviewSessionId", "rvw_sess_example",
+                    "targetDate", "2021-01-07",
                     "facts", List.of(
                             Map.of(
                                     "name", "buildingUse",
@@ -729,9 +733,10 @@ public class McpToolService {
                         this::reviewInspectionDocumentUnits,
                         this::reviewInspectionDocument),
                 tool("answer_inspection_document_questions", "Answer inspection document questions",
-                        "Answer missing context questions from a review_inspection_document result. The existing extracted document facts are preserved and the Engine validation is rerun in the same review session.",
-                        schema(required("reviewSessionId", "facts"),
+                        "Continue a review_inspection_document session by choosing a targetDate or answering missing context questions. The existing submitted document is reused and Engine validation is rerun in the same review session.",
+                        schema(required("reviewSessionId"),
                                 property("reviewSessionId", "string"),
+                                property("targetDate", "string"),
                                 arrayProperty("facts")),
                         EngineApiUsageService.CAPABILITY_REVIEW_SESSION,
                         EngineApiKeyManagementService.SCOPE_REVIEW_SESSION,

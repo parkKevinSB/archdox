@@ -4,6 +4,7 @@ import com.archdox.cloud.engine.auth.application.EngineApiKeyManagementService;
 import com.archdox.cloud.engine.auth.application.EngineApiPrincipal;
 import com.archdox.cloud.engine.dto.CreateEngineReviewSessionRequest;
 import com.archdox.cloud.engine.dto.EngineReviewResultResponse;
+import com.archdox.cloud.engine.dto.EngineReviewDocumentSnapshot;
 import com.archdox.cloud.engine.dto.EngineReviewSessionResponse;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewDocumentRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
@@ -65,6 +66,20 @@ public class EngineExternalReviewSessionService {
                 "engineStatus", response.validationResult().status().name(),
                 "findingCount", response.validationResult().findings().size()));
         return response;
+    }
+
+    public EngineReviewDocumentSnapshot documentSnapshot(
+            String reviewSessionId,
+            EngineApiPrincipal principal
+    ) {
+        authorize(principal, "GET_REVIEW_DOCUMENT_SNAPSHOT");
+        var snapshot = reviewSessionService.documentSnapshot(reviewSessionId, principal);
+        recordUsage(principal, "GET_REVIEW_DOCUMENT_SNAPSHOT", snapshot.reviewSessionId(), Map.of(
+                "documentTypeHint", snapshot.documentTypeHint() == null ? "" : snapshot.documentTypeHint(),
+                "fileName", snapshot.fileName() == null ? "" : snapshot.fileName(),
+                "contentLength", snapshot.documentText() == null ? 0 : snapshot.documentText().length(),
+                "factCount", snapshot.facts().size()));
+        return snapshot;
     }
 
     public EngineReviewSessionResponse submitDocument(

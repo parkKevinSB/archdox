@@ -186,6 +186,8 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.structuredContent.questions[0].fieldName").value("targetDate"))
                 .andExpect(jsonPath("$.result.structuredContent.questions[0].questionType").value("DATE_SELECTION"))
                 .andExpect(jsonPath("$.result.structuredContent.nextActions[0].code").value("CHOOSE_AVAILABLE_DATE"))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions[0].targetTool")
+                        .value("answer_inspection_document_questions"))
                 .andExpect(jsonPath("$.result.structuredContent.contextSummary.generationAllowed").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.contextSummary.engineStatus").value("WARN"))
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.status").value("WARN"))
@@ -193,7 +195,7 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.findings[0].code")
                         .value("TARGET_DATE_NOT_FOUND"));
 
-        mockMvc.perform(post("/api/v1/mcp")
+        var dateSelectionResult = mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)
                         .header("X-Correlation-Id", "mcp-inspection-document-date-selection-required")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -225,12 +227,47 @@ class McpGatewayIntegrationTest {
                 .andExpect(jsonPath("$.result.structuredContent.questions[0].fieldName").value("targetDate"))
                 .andExpect(jsonPath("$.result.structuredContent.questions[0].questionType").value("DATE_SELECTION"))
                 .andExpect(jsonPath("$.result.structuredContent.nextActions[0].code").value("CHOOSE_AVAILABLE_DATE"))
+                .andExpect(jsonPath("$.result.structuredContent.nextActions[0].targetTool")
+                        .value("answer_inspection_document_questions"))
                 .andExpect(jsonPath("$.result.structuredContent.contextSummary.generationAllowed").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.contextSummary.engineStatus").value("WARN"))
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.status").value("WARN"))
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.generationAllowed").value(false))
                 .andExpect(jsonPath("$.result.structuredContent.validationResult.findings[0].code")
-                        .value("TARGET_DATE_REQUIRED"));
+                        .value("TARGET_DATE_REQUIRED"))
+                .andReturn();
+
+        var dateSelectionReviewSessionId = objectMapper.readTree(dateSelectionResult.getResponse().getContentAsString())
+                .at("/result/structuredContent/reviewSessionId")
+                .asText();
+
+        mockMvc.perform(post("/api/v1/mcp")
+                        .header("X-ArchDox-Engine-Key", apiKey)
+                        .header("X-Correlation-Id", "mcp-inspection-document-answer-target-date")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "jsonrpc": "2.0",
+                                  "id": 2103,
+                                  "method": "tools/call",
+                                  "params": {
+                                    "name": "answer_inspection_document_questions",
+                                    "arguments": {
+                                      "reviewSessionId": "%s",
+                                      "targetDate": "2021-01-29"
+                                    }
+                                  }
+                                }
+                                """.formatted(dateSelectionReviewSessionId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isError").value(false))
+                .andExpect(jsonPath("$.result.structuredContent.reviewSessionId").value(dateSelectionReviewSessionId))
+                .andExpect(jsonPath("$.result.structuredContent.workflowStatus")
+                        .value(org.hamcrest.Matchers.not("DATE_SELECTION_REQUIRED")))
+                .andExpect(jsonPath("$.result.structuredContent.workflowStatus")
+                        .value(org.hamcrest.Matchers.not("DATE_NOT_FOUND")))
+                .andExpect(jsonPath("$.result.structuredContent.targetDate").value("2021-01-29"))
+                .andExpect(jsonPath("$.result.structuredContent.extraction.targetDateMatched").value(true));
 
         mockMvc.perform(post("/api/v1/mcp")
                         .header("X-ArchDox-Engine-Key", apiKey)

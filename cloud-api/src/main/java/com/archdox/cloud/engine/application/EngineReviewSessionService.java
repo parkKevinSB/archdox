@@ -11,6 +11,7 @@ import com.archdox.cloud.engine.domain.EngineReviewSession;
 import com.archdox.cloud.engine.dto.CreateEngineReviewSessionRequest;
 import com.archdox.cloud.engine.dto.EngineReviewResultResponse;
 import com.archdox.cloud.engine.dto.EngineContextFactRequest;
+import com.archdox.cloud.engine.dto.EngineReviewDocumentSnapshot;
 import com.archdox.cloud.engine.dto.EngineReviewSessionResponse;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewDocumentRequest;
 import com.archdox.cloud.engine.dto.SubmitEngineReviewFactsRequest;
@@ -195,6 +196,11 @@ public class EngineReviewSessionService {
     }
 
     @Transactional(readOnly = true)
+    public EngineReviewDocumentSnapshot documentSnapshot(String reviewSessionId, EngineApiPrincipal principal) {
+        return toDocumentSnapshot(session(reviewSessionId, principal));
+    }
+
+    @Transactional(readOnly = true)
     public EngineReviewResultResponse getResult(String reviewSessionId, UserPrincipal principal) {
         return toResultResponse(session(reviewSessionId, principal));
     }
@@ -353,6 +359,17 @@ public class EngineReviewSessionService {
                 session.updatedAt(),
                 session.normalizedAt(),
                 session.completedAt());
+    }
+
+    private EngineReviewDocumentSnapshot toDocumentSnapshot(EngineReviewSession session) {
+        return new EngineReviewDocumentSnapshot(
+                session.externalSessionId(),
+                session.customerProjectRef(),
+                session.reviewPurpose(),
+                session.documentTypeHint(),
+                session.fileName(),
+                session.documentText(),
+                facts(session));
     }
 
     private EngineReviewResultResponse toResultResponse(EngineReviewSession session) {

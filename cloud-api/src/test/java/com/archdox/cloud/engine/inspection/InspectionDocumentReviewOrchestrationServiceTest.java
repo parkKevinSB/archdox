@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class InspectionDocumentReviewOrchestrationServiceTest {
     private final InspectionDocumentReviewOrchestrationService service =
-            new InspectionDocumentReviewOrchestrationService(null, null, null, null);
+            new InspectionDocumentReviewOrchestrationService(null, null, null, null, null);
 
     @Test
     void targetDateMismatchOverridesPassValidation() {
