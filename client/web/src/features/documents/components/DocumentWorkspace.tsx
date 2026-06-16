@@ -1693,6 +1693,9 @@ function preflightDescription(
       ? "코드 검증은 반영됐고 AI 검토 응답을 기다리고 있습니다."
       : "코드 검증 후 AI 검토를 준비하고 있습니다.";
   }
+  if (run.status === "RUNNING" && run.aiReviewPlanned && isPreflightHarnessTerminal(run)) {
+    return "AI 응답은 완료됐고 선택된 검사항목 기준으로 법령 근거 검토를 정리하고 있습니다.";
+  }
   if (run.status === "PASSED") {
     if (stale) {
       return `검토는 v${run.reportRevision} 기준입니다. 현재 제출 v${currentRevision} 기준으로 다시 검토해 주세요.`;
@@ -1764,9 +1767,9 @@ function preflightProgress(run: ReportPreflightReviewRunResponse | null, reviewi
     }
     if (run.harnessStatus === "COMPLETED" || run.harnessStatus === "SUCCEEDED") {
       return {
-        percent: 90,
-        label: "결과 정리 중",
-        detail: "AI 응답을 finding으로 변환하고 있습니다."
+        percent: 88,
+        label: "법령 근거 검토 중",
+        detail: "선택된 검사항목과 연결된 법령 근거를 기준으로 최종 검토를 정리하고 있습니다."
       };
     }
     return {
@@ -1847,6 +1850,9 @@ function preflightGateHint(run: ReportPreflightReviewRunResponse | null, report:
   }
   if (isPreflightAiPending(run)) {
     return "AI 검토 진행 중";
+  }
+  if (run.status === "RUNNING" && run.aiReviewPlanned && isPreflightHarnessTerminal(run)) {
+    return "법령 근거 검토 중";
   }
   const currentRevision = generationRevision(report);
   if (run.reportRevision !== currentRevision) {
@@ -2468,6 +2474,9 @@ function isPreflightActive(run: ReportPreflightReviewRunResponse) {
 }
 
 function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
+  if (isPreflightTerminalStatus(run.status)) {
+    return false;
+  }
   if (!run.aiReviewPlanned) {
     return false;
   }
@@ -2478,7 +2487,11 @@ function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
 }
 
 function isPreflightHarnessTerminal(run: ReportPreflightReviewRunResponse) {
-  return ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
+  return ["SUCCEEDED", "COMPLETED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
+}
+
+function isPreflightTerminalStatus(status: string) {
+  return status === "PASSED" || status === "NEEDS_ATTENTION" || status === "FAILED";
 }
 
 function isPreflightBlocking(run: ReportPreflightReviewRunResponse) {

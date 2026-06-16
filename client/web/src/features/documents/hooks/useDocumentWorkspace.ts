@@ -520,6 +520,9 @@ function shouldPollRecentlyCompletedAiRun(run: ReportPreflightReviewRunResponse)
 }
 
 function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
+  if (isPreflightTerminalStatus(run.status)) {
+    return false;
+  }
   if (!run.aiReviewPlanned) {
     return false;
   }
@@ -530,7 +533,11 @@ function isPreflightAiPending(run: ReportPreflightReviewRunResponse) {
 }
 
 function isPreflightHarnessTerminal(run: ReportPreflightReviewRunResponse) {
-  return ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
+  return ["SUCCEEDED", "COMPLETED", "FAILED", "CANCELLED", "SKIPPED"].includes(run.harnessStatus ?? "");
+}
+
+function isPreflightTerminalStatus(status: string) {
+  return status === "PASSED" || status === "NEEDS_ATTENTION" || status === "FAILED";
 }
 
 async function waitForDeliveryDownloadUrl({
