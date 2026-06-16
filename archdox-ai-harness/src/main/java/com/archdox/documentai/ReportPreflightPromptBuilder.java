@@ -66,6 +66,14 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 Use category COMPLIANCE only for obvious missing compliance-critical report inputs.
                 Use category LEGAL_RISK only for wording or contradictions that visibly create audit,
                 dispute, or agency-review risk from the report data itself.
+                Daily checklist result guidance:
+                - DAILY_LOG checklistRows with result NOT_APPLICABLE are intentionally out of
+                  today's inspection scope. Legacy blank/empty result with no notes and no photos
+                  is also equivalent to NOT_APPLICABLE. Do not flag them as missing result,
+                  missing photo, or incomplete evidence.
+                - Only COMPLIANT and NON_COMPLIANT checklistRows are today's inspected rows.
+                - For NOT_APPLICABLE rows, ignore empty referenceNote, actionNote, and photoIds
+                  unless the row explicitly contradicts another inspected row.
                 Do not repeat deterministic findings unless you can add a concrete extra reason.
                 Use FAIL only for issues that should block document generation.
                 Use WARN for issues that should be reviewed by a person before generation.
@@ -200,6 +208,15 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                     var photoId = text(rawPhotoId);
                     if (!photoId.isBlank()) {
                         result.add(photoId);
+                    }
+                }
+                for (Object rowValue : listValue(entry.get("checklistRows"))) {
+                    var row = mapValue(rowValue);
+                    for (Object rawPhotoId : listValue(row.get("photoIds"))) {
+                        var photoId = text(rawPhotoId);
+                        if (!photoId.isBlank()) {
+                            result.add(photoId);
+                        }
                     }
                 }
             }

@@ -9,7 +9,7 @@ import { getSupervisionDomainCatalog } from "../../api";
 import type { SupervisionCatalogChecklistRow, SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
-type DailyChecklistResult = "" | "COMPLIANT" | "NON_COMPLIANT";
+type DailyChecklistResult = "NOT_APPLICABLE" | "COMPLIANT" | "NON_COMPLIANT";
 
 type DailyChecklistRow = {
   actionNote: string;
@@ -92,7 +92,7 @@ export function DailySupervisionItemsStep({
   );
   const checkedChecklistRows = useMemo(
     () => groups.reduce((sum, group) => sum + group.entries.reduce(
-      (itemSum, entry) => itemSum + entry.checklistRows.filter((row) => row.result).length,
+      (itemSum, entry) => itemSum + entry.checklistRows.filter((row) => row.result !== "NOT_APPLICABLE").length,
       0
     ), 0),
     [groups]
@@ -315,7 +315,7 @@ export function DailySupervisionItemsStep({
       <div className="daily-supervision-summary">
         <span>공종 그룹 {groups.length}개</span>
         <span>검사항목 {totalItems}개</span>
-        <span>세부 감리항목 {checkedChecklistRows}/{totalChecklistRows}개 확인</span>
+        <span>검사 대상 세부항목 {checkedChecklistRows}/{totalChecklistRows}개</span>
         <span>연결 사진 {totalPhotos}장</span>
         {catalog ? <span>카탈로그 v{catalog.version}</span> : null}
       </div>
@@ -608,7 +608,7 @@ function DailyChecklistRowsEditor({
     <div className="daily-checklist-rows">
       <div className="daily-checklist-rows-head">
         <strong>세부 감리항목</strong>
-        <span>각 항목별로 적합/부적합과 기준·참고사항, 조치사항을 남깁니다.</span>
+        <span>기본값은 해당없음입니다. 오늘 검사한 항목만 적합 또는 부적합으로 바꿉니다.</span>
       </div>
       {entry.checklistRows.map((row, index) => (
         <div className="daily-checklist-row" key={row.id}>
@@ -621,12 +621,21 @@ function DailyChecklistRowsEditor({
             </div>
           </div>
           <div className="daily-checklist-row-controls">
+            <label className={row.result === "NOT_APPLICABLE" ? "daily-check neutral selected" : "daily-check neutral"}>
+              <input
+                checked={row.result === "NOT_APPLICABLE"}
+                disabled={!canWriteReports}
+                onChange={() => onUpdateRow(row.id, { result: "NOT_APPLICABLE" })}
+                type="radio"
+              />
+              해당없음
+            </label>
             <label className={row.result === "COMPLIANT" ? "daily-check selected" : "daily-check"}>
               <input
                 checked={row.result === "COMPLIANT"}
                 disabled={!canWriteReports}
-                onChange={() => onUpdateRow(row.id, { result: row.result === "COMPLIANT" ? "" : "COMPLIANT" })}
-                type="checkbox"
+                onChange={() => onUpdateRow(row.id, { result: "COMPLIANT" })}
+                type="radio"
               />
               적합
             </label>
@@ -634,8 +643,8 @@ function DailyChecklistRowsEditor({
               <input
                 checked={row.result === "NON_COMPLIANT"}
                 disabled={!canWriteReports}
-                onChange={() => onUpdateRow(row.id, { result: row.result === "NON_COMPLIANT" ? "" : "NON_COMPLIANT" })}
-                type="checkbox"
+                onChange={() => onUpdateRow(row.id, { result: "NON_COMPLIANT" })}
+                type="radio"
               />
               부적합
             </label>
@@ -1032,7 +1041,7 @@ function checklistRowFromCatalogRow(row: SupervisionCatalogChecklistRow, index: 
     label: text(row.label),
     photoIds: [],
     referenceNote: "",
-    result: ""
+    result: "NOT_APPLICABLE"
   };
 }
 
@@ -1068,6 +1077,9 @@ function buildSupervisionContent(entry: DailySupervisionEntry) {
 }
 
 function checklistRowContent(row: DailyChecklistRow) {
+  if (row.result === "NOT_APPLICABLE" && !row.referenceNote.trim() && !row.actionNote.trim()) {
+    return "";
+  }
   const parts = [row.label.trim()];
   const result = resultLabel(row.result);
   if (result) {
@@ -1083,6 +1095,9 @@ function checklistRowContent(row: DailyChecklistRow) {
 }
 
 function resultLabel(result: DailyChecklistResult) {
+  if (result === "NOT_APPLICABLE") {
+    return "해당없음";
+  }
   if (result === "COMPLIANT") {
     return "적합";
   }
@@ -1171,7 +1186,9 @@ function rowPhotoIds(entry: DailySupervisionEntry) {
 
 function normalizeChecklistResult(value: unknown): DailyChecklistResult {
   const normalized = text(value).trim().toUpperCase();
-  return normalized === "COMPLIANT" || normalized === "NON_COMPLIANT" ? normalized : "";
+  return normalized === "COMPLIANT" || normalized === "NON_COMPLIANT" || normalized === "NOT_APPLICABLE"
+    ? normalized
+    : "NOT_APPLICABLE";
 }
 
 function text(value: unknown) {

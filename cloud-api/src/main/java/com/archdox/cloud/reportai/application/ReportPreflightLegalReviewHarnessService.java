@@ -174,7 +174,7 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         var context = context(request);
         var references = legalReferences(context.findings());
-        saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_AI_TIMEOUT", "법령검토 AI 응답 시간이 초과되었습니다."));
+        saveSingleFinding(context, skippedFinding(context, references, "법령검토 AI 응답 시간이 초과되어 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다."));
         recordEvent(context, OperationEventSeverity.ERROR, "REPORT_PREFLIGHT_LEGAL_REVIEW_TIMEOUT",
                 "Source-backed legal review AI timed out.",
                 Map.of("harnessRunId", flow == null ? "" : flow.context().runId().value()));
@@ -189,21 +189,19 @@ public class ReportPreflightLegalReviewHarnessService {
             return;
         }
         if (flow.context().status() != AiHarnessRunStatus.SUCCEEDED) {
-            saveSingleFinding(context, failedFinding(
-                    context,
-                    references,
-                    "LEGAL_REVIEW_AI_FAILED",
-                    flow.context().terminalReason().orElse("법령검토 AI가 정상 완료되지 않았습니다.")));
+            var terminalReason = flow.context().terminalReason().orElse("법령검토 AI가 정상 완료되지 않았습니다.");
+            saveSingleFinding(context, skippedFinding(context, references, userFacingAiFailureReason(terminalReason)));
             recordEvent(context, OperationEventSeverity.ERROR, "REPORT_PREFLIGHT_LEGAL_REVIEW_FAILED",
                     "Source-backed legal review AI failed.",
                     Map.of(
                             "harnessRunId", flow.context().runId().value(),
-                            "status", flow.context().status().name()));
+                            "status", flow.context().status().name(),
+                            "terminalReason", terminalReason));
             return;
         }
         var result = result(flow.context().latestValidation());
         if (result.isEmpty()) {
-            saveSingleFinding(context, failedFinding(context, references, "LEGAL_REVIEW_RESULT_INVALID", "법령검토 AI 응답을 해석하지 못했습니다."));
+            saveSingleFinding(context, skippedFinding(context, references, "법령검토 AI 응답 형식을 확인하지 못해 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다."));
             return;
         }
         var modelRequest = flow.context().currentRequest();
@@ -893,6 +891,7 @@ public class ReportPreflightLegalReviewHarnessService {
         return switch (result) {
             case "COMPLIANT" -> "적합";
             case "NON_COMPLIANT" -> "부적합";
+            case "NOT_APPLICABLE" -> "";
             default -> "";
         };
     }
@@ -1419,6 +1418,17 @@ public class ReportPreflightLegalReviewHarnessService {
                 "source-backed legal review harness failed",
                 Map.copyOf(attributes),
                 OffsetDateTime.now());
+    }
+
+    private String userFacingAiFailureReason(String terminalReason) {
+        var reason = text(terminalReason);
+        if (reason.toLowerCase(Locale.ROOT).contains("validation failed")) {
+            return "법령검토 AI 응답 형식을 확인하지 못해 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다.";
+        }
+        if (reason.toLowerCase(Locale.ROOT).contains("timeout")) {
+            return "법령검토 AI 응답 시간이 초과되어 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다.";
+        }
+        return "법령검토 AI가 정상 완료되지 않아 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다.";
     }
 
     private LinkedHashMap<String, String> baseAttributes(

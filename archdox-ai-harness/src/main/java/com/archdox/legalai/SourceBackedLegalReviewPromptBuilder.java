@@ -89,6 +89,10 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - If you cannot safely produce final prose, set replacement to "" and put the human action in suggestion.
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
                 - Missing technical documents alone is not a legal-risk finding for ordinary daily-log generation. Put it in limitations, not issues, unless the report explicitly claims technical compliance or contradicts the supplied anchors.
+                - DAILY_LOG checklistRows with result NOT_APPLICABLE are intentionally out of today's inspection scope.
+                  Legacy blank/empty result with no notes and no photos is also equivalent to NOT_APPLICABLE.
+                  Do not treat these rows as missing inspection result, missing photo evidence, or missing legal evidence.
+                - Only COMPLIANT and NON_COMPLIANT checklistRows are inspected rows for this daily log.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
                 - Use FAIL only when the supplied input clearly shows a generation-blocking contradiction or missing compliance-critical evidence.

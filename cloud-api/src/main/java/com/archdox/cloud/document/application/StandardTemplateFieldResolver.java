@@ -229,6 +229,7 @@ public class StandardTemplateFieldResolver {
         return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
             case "COMPLIANT" -> "적합";
             case "NON_COMPLIANT" -> "부적합";
+            case "NOT_APPLICABLE" -> "";
             default -> "";
         };
     }

@@ -523,6 +523,7 @@ public class HtmlPreviewDocumentRenderer {
         return switch (result.trim().toUpperCase(Locale.ROOT)) {
             case "COMPLIANT" -> "적합";
             case "NON_COMPLIANT" -> "부적합";
+            case "NOT_APPLICABLE" -> "";
             default -> "";
         };
     }

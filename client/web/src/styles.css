@@ -3178,6 +3178,12 @@ button {
   background: #e4f3ef;
 }
 
+.daily-check.neutral.selected {
+  border-color: #c9d1d0;
+  color: #687674;
+  background: #f2f5f4;
+}
+
 .daily-check.danger.selected {
   border-color: #b45309;
   color: #92400e;
