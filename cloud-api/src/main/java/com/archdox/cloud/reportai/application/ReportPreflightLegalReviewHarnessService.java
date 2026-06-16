@@ -789,7 +789,7 @@ public class ReportPreflightLegalReviewHarnessService {
             for (var entryValue : listValue(group.get("entries"))) {
                 var entry = objectMap(entryValue);
                 entryCount++;
-                if (!text(entry.get("supervisionContent")).isBlank()) {
+                if (!dailySupervisionContent(entry).isBlank()) {
                     entriesWithSupervisionContent++;
                 }
                 if (!dailyEntryPhotoIds(entry).isEmpty()) {
@@ -831,11 +831,58 @@ public class ReportPreflightLegalReviewHarnessService {
 
     private List<?> dailyEntryPhotoIds(Map<String, Object> entry) {
         var photoIds = new ArrayList<Object>();
-        photoIds.addAll(listValue(entry.get("photoIds")));
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             photoIds.addAll(listValue(objectMap(rowValue).get("photoIds")));
         }
         return photoIds;
+    }
+
+    private String dailySupervisionContent(Map<String, Object> entry) {
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = objectMap(rowValue);
+            var rowContent = checklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return text(entry.get("supervisionContent"));
+        }
+        var title = text(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String checklistRowContent(Map<String, Object> row) {
+        var parts = new ArrayList<String>();
+        var label = text(row.get("label"));
+        var result = checklistResultLabel(text(row.get("result")));
+        var referenceNote = text(row.get("referenceNote"));
+        var actionNote = text(row.get("actionNote"));
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String checklistResultLabel(String result) {
+        return switch (result) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private boolean requiresTechnicalCriteriaReview(Map<String, Object> group, Map<String, Object> entry) {
@@ -845,7 +892,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
                 text(entry.get("checklistItemCode")),
-                text(entry.get("supervisionContent")));
+                dailySupervisionContent(entry));
         return containsAny(value,
                 "자재", "재료", "성능", "규격", "품질", "강도", "두께", "치수", "단열", "기밀",
                 "수밀", "내풍압", "방화", "차음", "시험", "인증", "설비", "배근", "철근",
@@ -857,7 +904,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(group.get("tradeName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
-                text(entry.get("supervisionContent")));
+                dailySupervisionContent(entry));
         return containsAny(value,
                 "설계도서", "설계 도서", "도면", "시방서", "시험성적서", "성적서", "납품승인",
                 "자재승인", "승인서", "인증서", "KS", "성능시험", "품질시험", "검사서",
@@ -1054,7 +1101,12 @@ public class ReportPreflightLegalReviewHarnessService {
                         || hasDocumentCompletionWording(group, entry)) {
                     continue;
                 }
-                var relatedFieldPath = "DAILY_LOG.groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
+                var targetRowIndex = firstChecklistRowIndex(entry);
+                if (targetRowIndex == null) {
+                    continue;
+                }
+                var relatedFieldPath = "DAILY_LOG.groups[" + groupIndex + "].entries[" + entryIndex
+                        + "].checklistRows[" + targetRowIndex + "].referenceNote";
                 if (aiIssuePaths.contains(relatedFieldPath)) {
                     continue;
                 }
@@ -1075,6 +1127,11 @@ public class ReportPreflightLegalReviewHarnessService {
             }
         }
         return List.copyOf(findings);
+    }
+
+    private Integer firstChecklistRowIndex(Map<String, Object> entry) {
+        var rows = listValue(entry.get("checklistRows"));
+        return rows.isEmpty() ? null : 0;
     }
 
     private ReportPreflightReviewFinding dailyLogDocumentCompletionFinding(
@@ -1111,7 +1168,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 relatedFieldPath,
                 "감리일지에 필요한 서류 확인 및 첨부 문구가 부족합니다.",
                 "inspectionItem=" + firstNonBlank(text(entry.get("inspectionItemName")), text(entry.get("inspectionItemCode")))
-                        + "; supervisionContent=" + text(entry.get("supervisionContent")),
+                        + "; supervisionContent=" + dailySupervisionContent(entry),
                 Map.copyOf(attributes),
                 OffsetDateTime.now());
     }
@@ -1123,7 +1180,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
                 text(entry.get("checklistItemCode")),
-                text(entry.get("supervisionContent")));
+                dailySupervisionContent(entry));
         return containsAny(value,
                 "자재", "재료", "성능", "규격", "품질", "시험", "인증", "검사필증", "필증",
                 "KS", "성적서", "승인서", "증명서", "시방서", "단열", "기밀", "수밀", "내풍압",
@@ -1135,7 +1192,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(group.get("tradeName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
-                text(entry.get("supervisionContent")));
+                dailySupervisionContent(entry));
         return containsAny(value, "첨부", "제출");
     }
 
@@ -1145,7 +1202,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
-                text(entry.get("supervisionContent")));
+                dailySupervisionContent(entry));
         if (containsAny(value, "창호", "창 및 문", "창및문")) {
             return "창호 자재의 단열·기밀·수밀·내풍압 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
         }

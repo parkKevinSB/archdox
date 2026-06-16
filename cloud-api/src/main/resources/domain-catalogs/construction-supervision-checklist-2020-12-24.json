@@ -215,12 +215,7 @@
                 {"code": "RC_REBAR_REINFORCEMENT_DETAIL", "label": "보강근의 개수, 지름, 길이, 방법 확인", "basis": "보강근의 개수, 지름, 길이, 방법 확인"},
                 {"code": "RC_REBAR_REINSPECTION_REQUIRED", "label": "재검사 여부 확인", "basis": "재검사 여부 확인"}
               ]
-            },
-            {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "name": "철근 개수·지름·피치", "basis": "철근 개수, 지름, 피치 확인", "legacy": true, "hiddenInDailyLog": true},
-            {"code": "RC_REBAR_ANCHORAGE", "name": "정착길이", "basis": "정착길이와 굽힘정착 깊이 확인", "legacy": true, "hiddenInDailyLog": true},
-            {"code": "RC_REBAR_SPLICE", "name": "이음위치와 이음길이", "basis": "이음 위치, 이음 길이, 결속 상태 확인", "legacy": true, "hiddenInDailyLog": true},
-            {"code": "RC_REBAR_SPACING", "name": "철근 상호간격", "basis": "철근 상호 간격 및 간격 유지 확인", "legacy": true, "hiddenInDailyLog": true},
-            {"code": "RC_STIRRUP", "name": "띠철근·스터럽", "basis": "띠철근과 스터럽의 위치, 간격, 결속상태 확인", "legacy": true, "hiddenInDailyLog": true}
+            }
           ]
         },
         {

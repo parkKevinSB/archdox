@@ -44,7 +44,7 @@ class ReportPreflightEngineBoundaryServiceTest {
     void validatesDailyLogCatalogSelectionsThroughEngineBoundary() {
         var report = report();
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG"))
-                .thenReturn(Optional.of(step(report, "DAILY_LOG", dailyLogPayload("RC_REBAR_COUNT_DIAMETER_PITCH"))));
+                .thenReturn(Optional.of(step(report, "DAILY_LOG", dailyLogPayload("RC_REBAR_CONFIRMATION"))));
         when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS"))
                 .thenReturn(Optional.of(step(report, "REMARKS", Map.of(
                         "specialNotes", "특기사항 없음.",
@@ -57,7 +57,7 @@ class ReportPreflightEngineBoundaryServiceTest {
         assertThat(result.status()).isEqualTo(ArchDoxEngineResultStatus.PASS);
         assertThat(result.findings()).isEmpty();
         assertThat(result.metadata().get("catalogBindings").toString())
-                .contains("REINFORCED_CONCRETE", "REBAR_ASSEMBLY", "RC_REBAR_COUNT_DIAMETER_PITCH");
+                .contains("REINFORCED_CONCRETE", "REBAR_ASSEMBLY", "RC_REBAR_CONFIRMATION");
         assertThat(result.metadata().get("governanceBoundary")).isEqualTo("ARCHDOX_WORKER_SERVICE");
         assertThat(result.executedActions())
                 .containsExactly(
@@ -140,7 +140,12 @@ class ReportPreflightEngineBoundaryServiceTest {
                                 "processCode", "REBAR_ASSEMBLY",
                                 "entries", List.of(Map.of(
                                         "inspectionItemCode", inspectionItemCode,
-                                        "supervisionContent", "Checked rebar count, diameter, and pitch.",
-                                        "photoIds", List.of(1L)))))));
+                                        "inspectionItemName", "철근배근의 확인사항",
+                                        "checklistRows", List.of(Map.of(
+                                                "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                "label", "Checked rebar count, diameter, and pitch.",
+                                                "result", "COMPLIANT",
+                                                "photoIds", List.of(1L))),
+                                        "supervisionContent", "Checked rebar count, diameter, and pitch."))))));
     }
 }

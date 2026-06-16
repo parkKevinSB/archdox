@@ -180,10 +180,6 @@ public class ReportPreflightEngineBoundaryService {
     }
 
     private String dailySupervisionContent(Map<String, Object> entry) {
-        var content = text(entry.get("supervisionContent"));
-        if (!content.isBlank()) {
-            return content;
-        }
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
@@ -199,7 +195,8 @@ public class ReportPreflightEngineBoundaryService {
         if (!title.isBlank()) {
             rows.add(0, title);
         }
-        return String.join("\n", rows);
+        var rowContent = String.join("\n", rows);
+        return rowContent.isBlank() ? text(entry.get("supervisionContent")) : rowContent;
     }
 
     private String checklistRowContent(Map<String, Object> row) {

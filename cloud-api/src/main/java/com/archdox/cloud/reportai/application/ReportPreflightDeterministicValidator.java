@@ -331,10 +331,6 @@ public class ReportPreflightDeterministicValidator {
     }
 
     private String dailySupervisionContent(Map<String, Object> entry) {
-        var content = stringValue(entry.get("supervisionContent"));
-        if (!content.isBlank()) {
-            return content;
-        }
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
@@ -350,12 +346,12 @@ public class ReportPreflightDeterministicValidator {
         if (!title.isBlank()) {
             rows.add(0, title);
         }
-        return String.join("\n", rows);
+        var rowContent = String.join("\n", rows);
+        return rowContent.isBlank() ? stringValue(entry.get("supervisionContent")) : rowContent;
     }
 
     private List<?> dailyEntryPhotoIds(Map<String, Object> entry) {
         var photoIds = new ArrayList<Object>();
-        photoIds.addAll(listValue(entry.get("photoIds")));
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             photoIds.addAll(listValue(mapValue(rowValue).get("photoIds")));
         }

@@ -262,8 +262,8 @@ Expected structure:
 
 - Keep `Trade -> WorkCategory -> ProcessGroup -> InspectionItem -> ChecklistRow`
   as the canonical catalog shape.
-- Treat old item-level entries that are really checklist rows as legacy aliases
-  during transition.
+- Do not keep old item-level entries as daily-log input compatibility.
+  Pre-production report data may be purged when the canonical row model changes.
 - Keep `supervisionContent` as derived prose, not the only source data.
 
 ### P1: Construction daily log MVP trades
@@ -314,14 +314,12 @@ many row patterns:
 
 ## Open Decisions
 
-- Photos attach to each checklist row when row-level data exists. The parent
-  daily-log entry keeps an aggregated `photoIds` list only for compatibility
-  with existing photo evidence, document rendering, and review flows.
+- Photos attach to each checklist row. The parent daily-log entry must not keep
+  an aggregated `photoIds` list as source data.
 - Should unchecked rows appear in the generated daily log? Current assumption:
   unchecked rows remain in structured data but do not generate prose unless the
   user marks them or writes a note.
-- Should old seeded item codes be kept forever as aliases? Current assumption:
-  keep them as `legacy` and hidden from daily-log selection until real data
-  migration policy exists.
+- Should row codes be exposed as separate daily-log inspection items? No. Row
+  codes identify checklist rows under an official inspection item.
 - Should office overrides edit official rows directly? No. They should create
   office-specific revisions after the base catalog becomes stable.

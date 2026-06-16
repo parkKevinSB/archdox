@@ -177,7 +177,7 @@ class ReportPreflightDeterministicValidatorTest {
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
                 "dailyItems", """
-                        {"groups":[{"floor":"전층","tradeCode":"REINFORCED_CONCRETE","tradeName":"철근콘크리트공사","processCode":"REBAR_ASSEMBLY","processName":"철근 조립","entries":[{"inspectionItemCode":"RC_REBAR_COUNT_DIAMETER_PITCH","inspectionItemName":"철근 개수·지름·피치","supervisionContent":"철근 배근 상태를 확인했습니다.","photoIds":[1]}]}]}
+                        {"groups":[{"floor":"전층","tradeCode":"REINFORCED_CONCRETE","tradeName":"철근콘크리트공사","processCode":"REBAR_ASSEMBLY","processName":"철근 조립","entries":[{"inspectionItemCode":"RC_REBAR_CONFIRMATION","inspectionItemName":"철근배근의 확인사항","checklistRows":[{"code":"RC_REBAR_COUNT_DIAMETER_PITCH","label":"개수, 철근지름, 피치 확인","result":"COMPLIANT","referenceNote":"철근 배근 상태를 확인했습니다.","photoIds":[1]}],"supervisionContent":"철근 배근 상태를 확인했습니다."}]}]}
                         """
         ))));
 
@@ -203,8 +203,12 @@ class ReportPreflightDeterministicValidatorTest {
                         "processCode", "COLUMN",
                         "entries", List.of(Map.of(
                                 "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
-                                "supervisionContent", content,
-                                "photoIds", List.of(101L)
+                                "checklistRows", List.of(Map.of(
+                                        "code", "STEEL_MEMBER_SYMBOL",
+                                        "label", content,
+                                        "result", "COMPLIANT",
+                                        "photoIds", List.of(101L))),
+                                "supervisionContent", content
                         ))
                 )))
         ))));
@@ -236,9 +240,13 @@ class ReportPreflightDeterministicValidatorTest {
                         "tradeCode", "REINFORCED_CONCRETE",
                         "processCode", "REBAR_ASSEMBLY",
                         "entries", List.of(Map.of(
-                                "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
-                                "photoIds", List.of(101L)
+                                "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                "checklistRows", List.of(Map.of(
+                                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                        "label", "개수, 철근지름, 피치 확인",
+                                        "result", "COMPLIANT",
+                                        "photoIds", List.of(101L))),
+                                "supervisionContent", "철근 배근 상태를 확인했습니다."
                         ))
                 )))
         ))));
@@ -277,9 +285,13 @@ class ReportPreflightDeterministicValidatorTest {
                         "tradeCode", "REINFORCED_CONCRETE",
                         "processCode", "REBAR_ASSEMBLY",
                         "entries", List.of(Map.of(
-                                "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
-                                "photoIds", List.of(101L)
+                                "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                "checklistRows", List.of(Map.of(
+                                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                        "label", "개수, 철근지름, 피치 확인",
+                                        "result", "COMPLIANT",
+                                        "photoIds", List.of(101L))),
+                                "supervisionContent", "철근 배근 상태를 확인했습니다."
                         ))
                 )))
         ))));

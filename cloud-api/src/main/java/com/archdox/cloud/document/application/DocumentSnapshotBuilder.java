@@ -497,7 +497,6 @@ public class DocumentSnapshotBuilder {
             for (Object entryValue : listValue(group.get("entries"))) {
                 var entry = mapValue(entryValue);
                 var itemName = stringValue(entry.get("inspectionItemName"));
-                var content = stringValue(entry.get("supervisionContent"));
                 for (Object rowValue : listValue(entry.get("checklistRows"))) {
                     var row = mapValue(rowValue);
                     var rowLabel = stringValue(row.get("label"));
@@ -517,28 +516,10 @@ public class DocumentSnapshotBuilder {
                         context.put("floor", floor);
                         context.put("inspectionItemName", itemName);
                         context.put("checklistRowLabel", rowLabel);
-                        context.put("supervisionContent", rowDetail.isBlank() ? content : rowDetail);
+                        context.put("supervisionContent", rowDetail);
                         context.put("dailyCaption", joinCaption(groupLabel, itemName, rowLabel));
                         contexts.put(photoId, context);
                     }
-                }
-                for (Object photoIdValue : listValue(entry.get("photoIds"))) {
-                    var photoId = longValue(photoIdValue);
-                    if (photoId == null) {
-                        continue;
-                    }
-                    if (contexts.containsKey(photoId)) {
-                        continue;
-                    }
-                    var context = new LinkedHashMap<String, Object>();
-                    context.put("dailyGroupLabel", groupLabel);
-                    context.put("tradeName", tradeName);
-                    context.put("processName", processName);
-                    context.put("floor", floor);
-                    context.put("inspectionItemName", itemName);
-                    context.put("supervisionContent", content);
-                    context.put("dailyCaption", joinCaption(groupLabel, itemName));
-                    contexts.put(photoId, context);
                 }
             }
         }

@@ -266,33 +266,7 @@ Canonical row-level payload:
               "photoIds": [10, 11]
             }
           ],
-          "supervisionContent": "개수, 철근지름, 피치 확인 등 철근배근의 확인사항을 점검했습니다.",
-          "photoIds": [10, 11]
-        }
-      ]
-    }
-  ]
-}
-```
-
-The simplified payload below is historical and only shows the old item-level
-shape.
-
-```json
-{
-  "groups": [
-    {
-      "tradeCode": "REINFORCED_CONCRETE",
-      "tradeName": "철근 콘크리트 공사",
-      "processCode": "REBAR_ASSEMBLY",
-      "processName": "철근 조립·배근",
-      "floor": "기초층",
-      "entries": [
-        {
-          "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-          "inspectionItemName": "철근 개수·지름·피치",
-          "supervisionContent": "현장 작성자가 확인한 감리내용",
-          "photoIds": [10, 11]
+          "supervisionContent": "개수, 철근지름, 피치 확인 등 철근배근의 확인사항을 점검했습니다."
         }
       ]
     }
@@ -314,13 +288,14 @@ intentional: ArchDox is not yet in a real office data migration phase, so the
 domain schema should stay clear rather than preserve confusing compatibility.
 
 The catalog item is the official `검사항목`; the user's
-`supervisionContent` is the field-authored `감리내용` attached to that
-inspection item.
+`checklistRows[]` are the structured field-authored `감리내용` units attached to
+that inspection item. `supervisionContent` is derived prose for rendering and
+review context.
 
 In the row-level model, the catalog inspection item is the official 검사항목.
 Checklist rows are the official or ArchDox-normalized 감리내용 units under that
-검사항목. The user's `supervisionContent` is prose attached to the entry and may
-be generated from the selected checklist rows.
+검사항목. Row-level `result`, `referenceNote`, `actionNote`, and `photoIds` are
+the source data.
 
 ## Domain Asset Strategy
 

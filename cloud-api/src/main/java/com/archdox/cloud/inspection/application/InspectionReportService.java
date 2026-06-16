@@ -398,17 +398,6 @@ public class InspectionReportService {
                 if (!checklistRows.isEmpty()) {
                     nextEntry.put("checklistRows", nextChecklistRows);
                 }
-                var photoIds = listValue(nextEntry.get("photoIds"));
-                var nextPhotoIds = new ArrayList<Object>();
-                for (Object rawPhotoId : photoIds) {
-                    var currentPhotoId = longValue(rawPhotoId);
-                    if (currentPhotoId != null && currentPhotoId.equals(photoId)) {
-                        changed = true;
-                        continue;
-                    }
-                    nextPhotoIds.add(rawPhotoId);
-                }
-                nextEntry.put("photoIds", nextPhotoIds);
                 nextEntries.add(nextEntry);
             }
             nextGroup.put("entries", nextEntries);

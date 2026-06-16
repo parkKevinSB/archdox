@@ -27,7 +27,6 @@ type DailySupervisionEntry = {
   id: string;
   inspectionItemCode?: string;
   inspectionItemName: string;
-  photoIds: number[];
   supervisionContent: string;
 };
 
@@ -99,7 +98,7 @@ export function DailySupervisionItemsStep({
     [groups]
   );
   const totalPhotos = useMemo(
-    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entryPhotoIds(entry).length, 0), 0),
+    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + rowPhotoIds(entry).length, 0), 0),
     [groups]
   );
   const photosById = useMemo(
@@ -248,8 +247,7 @@ export function DailySupervisionItemsStep({
         checklistRows: entry.checklistRows.map((row) => ({
           ...row,
           photoIds: row.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
-        })),
-        photoIds: entry.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
+        }))
       }))
     })));
   }
@@ -268,46 +266,6 @@ export function DailySupervisionItemsStep({
         next.delete(photoId);
         return next;
       });
-    }
-  }
-
-  async function attachPhotos(groupId: string, entryId: string, event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
-    event.target.value = "";
-    if (!canWriteReports || files.length === 0) {
-      return;
-    }
-    const group = groups.find((current) => current.id === groupId);
-    const entry = group?.entries.find((current) => current.id === entryId);
-    const captionParts = [
-      group?.tradeName || group?.tradeCode,
-      group?.processName || group?.processCode,
-      entry?.inspectionItemName || entry?.inspectionItemCode
-    ].filter(Boolean);
-    const results = await workspace.uploadFiles(files, {
-      caption: captionParts.join(" - ") || undefined,
-      inspectionItemCode: entry?.inspectionItemCode ?? null,
-      locationNote: group?.floor ? `${group.floor}` : null,
-      processCode: group?.processCode ?? null,
-      stepCode: definition.code,
-      tradeCode: group?.tradeCode ?? null
-    });
-    const photoIds = results.map((result) => result.photo.id);
-    if (photoIds.length > 0) {
-      updateGroups((currentGroups) => currentGroups.map((group) => {
-        if (group.id !== groupId) {
-          return group;
-        }
-        return {
-          ...group,
-          entries: group.entries.map((entry) => {
-            if (entry.id !== entryId) {
-              return entry;
-            }
-            return { ...entry, photoIds: uniqueNumbers([...entry.photoIds, ...photoIds]) };
-          })
-        };
-      }));
     }
   }
 
@@ -570,50 +528,9 @@ export function DailySupervisionItemsStep({
                         token={token}
                       />
                     ) : entry.inspectionItemCode ? (
-                      <label>
-                        감리내용
-                        <textarea
-                          disabled={!canWriteReports}
-                          onChange={(event) => updateEntry(group.id, entry.id, { supervisionContent: event.target.value })}
-                          placeholder="검사항목에 대해 확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
-                          value={entry.supervisionContent}
-                        />
-                      </label>
-                    ) : null}
-                    {entry.inspectionItemCode && entry.checklistRows.length === 0 ? (
-                      <div className="daily-supervision-photo-row">
-                        <DailyPhotoThumbStrip
-                          canWriteReports={canWriteReports}
-                          deletingPhotoIds={deletingPhotoIds}
-                          officeId={officeId}
-                          onDeletePhoto={deleteLinkedPhoto}
-                          photoIds={entry.photoIds}
-                          photosById={photosById}
-                          token={token}
-                        />
-                        <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
-                          <Camera size={16} />
-                          사진 촬영
-                          <input
-                            accept="image/*"
-                            capture="environment"
-                            disabled={!canWriteReports}
-                            onChange={(event) => void attachPhotos(group.id, entry.id, event)}
-                            type="file"
-                          />
-                        </label>
-                        <label className={!canWriteReports ? "secondary-button disabled" : "secondary-button"}>
-                          <UploadCloud size={16} />
-                          사진 추가
-                          <input
-                            accept="image/*"
-                            disabled={!canWriteReports}
-                            multiple
-                            onChange={(event) => void attachPhotos(group.id, entry.id, event)}
-                            type="file"
-                          />
-                        </label>
-                      </div>
+                      <p className="daily-supervision-muted">
+                        이 검사항목은 아직 세부 감리항목 전사가 필요합니다. 새 감리일지는 세부 감리항목 단위의 적합/부적합, 기준·참고사항, 조치사항, 사진만 원천 데이터로 저장합니다.
+                      </p>
                     ) : null}
                   </div>
                 );})}
@@ -968,6 +885,9 @@ function DailyItemPicker({
   const [selected, setSelected] = useState("");
   const items = suggestedItems(group, trades);
   const selectedItem = items.find((item) => item.code === selected);
+  const emptyLabel = group.tradeCode && group.processCode
+    ? "세부 감리항목 전사 필요"
+    : "공종/세부공정 선택 필요";
 
   useEffect(() => {
     setSelected(items[0]?.code ?? "");
@@ -976,7 +896,7 @@ function DailyItemPicker({
   return (
     <div className="daily-supervision-item-picker">
       <select disabled={!canWriteReports || items.length === 0} onChange={(event) => setSelected(event.target.value)} value={selected}>
-        <option value="">{items.length === 0 ? "공종/세부공정 선택 필요" : "검사항목 선택"}</option>
+        <option value="">{items.length === 0 ? emptyLabel : "검사항목 선택"}</option>
         {items.map((item) => (
           <option key={item.code} value={item.code}>{item.name}</option>
         ))}
@@ -998,7 +918,7 @@ function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalog
   const trade = selectedTrade(group, trades);
   const processGroup = selectedProcessGroup(group, trade);
   const items = processGroup?.items?.length ? processGroup.items : trade?.items ?? [];
-  return items.filter((item) => !item.hiddenInDailyLog && !item.legacy);
+  return items.filter((item) => (item.checklistRows?.length ?? 0) > 0);
 }
 
 function workCategoryOptions(trade: SupervisionCatalogTrade | null | undefined) {
@@ -1080,7 +1000,6 @@ function emptyEntry(): DailySupervisionEntry {
     checklistRows: [],
     id: newId("entry"),
     inspectionItemName: "",
-    photoIds: [],
     supervisionContent: ""
   };
 }
@@ -1091,7 +1010,6 @@ function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySuperv
     id: newId("entry"),
     inspectionItemCode: catalogItem?.code,
     inspectionItemName: catalogItem?.name ?? "",
-    photoIds: [],
     supervisionContent: ""
   };
   return syncEntryGeneratedContent(entry);
@@ -1128,14 +1046,13 @@ function syncEntryGeneratedContent(entry: DailySupervisionEntry): DailySupervisi
   }
   return {
     ...entry,
-    photoIds: rowPhotoIds(entry),
     supervisionContent: buildSupervisionContent(entry)
   };
 }
 
 function buildSupervisionContent(entry: DailySupervisionEntry) {
   if (entry.checklistRows.length === 0) {
-    return entry.supervisionContent;
+    return "";
   }
   const rows = entry.checklistRows
     .map((row) => checklistRowContent(row))
@@ -1224,7 +1141,6 @@ function normalizeEntry(value: unknown, index: number): DailySupervisionEntry | 
     id: text(raw.id) || newId(`entry-${index}`),
     inspectionItemCode: optionalText(raw.inspectionItemCode),
     inspectionItemName: text(raw.inspectionItemName),
-    photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : []),
     supervisionContent: text(raw.supervisionContent)
   };
 }
@@ -1244,12 +1160,6 @@ function normalizeChecklistRow(value: unknown, index: number): DailyChecklistRow
     referenceNote: text(raw.referenceNote),
     result: normalizeChecklistResult(raw.result)
   };
-}
-
-function entryPhotoIds(entry: DailySupervisionEntry) {
-  return entry.checklistRows.length > 0
-    ? rowPhotoIds(entry)
-    : uniqueNumbers(entry.photoIds);
 }
 
 function rowPhotoIds(entry: DailySupervisionEntry) {

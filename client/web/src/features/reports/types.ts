@@ -72,8 +72,6 @@ export type SupervisionCatalogItem = {
   basis?: string | null;
   checklistRows?: SupervisionCatalogChecklistRow[];
   code: string;
-  hiddenInDailyLog?: boolean;
-  legacy?: boolean;
   name: string;
 };
 

@@ -235,7 +235,6 @@ public class SiteSupervisionLedgerService {
 
     private List<Long> photoIds(JsonNode item) {
         var result = new ArrayList<Long>();
-        collectPhotoIds(item.path("photoIds"), result);
         item.path("checklistRows").forEach(row -> collectPhotoIds(row.path("photoIds"), result));
         return result.stream().filter(id -> id > 0).distinct().toList();
     }

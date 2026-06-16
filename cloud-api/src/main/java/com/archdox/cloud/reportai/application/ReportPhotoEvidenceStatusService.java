@@ -108,7 +108,7 @@ public class ReportPhotoEvidenceStatusService {
                 .map(this::dailyItemsOrPayload)
                 .map(payload -> {
                     var ids = new LinkedHashSet<Long>();
-                    collectPhotoIds(payload, ids);
+                    collectDailyChecklistRowPhotoIds(payload, ids);
                     return Set.copyOf(ids);
                 })
                 .orElse(Set.of());
@@ -140,23 +140,30 @@ public class ReportPhotoEvidenceStatusService {
         return payload;
     }
 
-    private void collectPhotoIds(Object value, Set<Long> ids) {
-        if (value instanceof Map<?, ?> map) {
-            for (var entry : map.entrySet()) {
-                var key = String.valueOf(entry.getKey());
-                if ("photoIds".equals(key) || "photoId".equals(key)) {
-                    collectPhotoIdValue(entry.getValue(), ids);
-                } else {
-                    collectPhotoIds(entry.getValue(), ids);
+    private void collectDailyChecklistRowPhotoIds(Map<String, Object> payload, Set<Long> ids) {
+        for (Object groupValue : listValue(payload.get("groups"))) {
+            var group = mapValue(groupValue);
+            for (Object entryValue : listValue(group.get("entries"))) {
+                var entry = mapValue(entryValue);
+                for (Object rowValue : listValue(entry.get("checklistRows"))) {
+                    var row = mapValue(rowValue);
+                    collectPhotoIdValue(row.get("photoIds"), ids);
                 }
             }
-            return;
         }
-        if (value instanceof List<?> list) {
-            for (var item : list) {
-                collectPhotoIds(item, ids);
-            }
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
         }
+        var result = new java.util.LinkedHashMap<String, Object>();
+        map.forEach((key, mapValue) -> result.put(String.valueOf(key), mapValue));
+        return result;
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
     }
 
     private void collectPhotoIdValue(Object value, Set<Long> ids) {
