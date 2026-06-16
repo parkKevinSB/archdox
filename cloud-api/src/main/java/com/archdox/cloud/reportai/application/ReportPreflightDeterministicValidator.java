@@ -223,14 +223,18 @@ public class ReportPreflightDeterministicValidator {
                             entryNo));
                 }
                 var supervisionContentLocation = "groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
-                requireText(entry, "supervisionContent", "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED", "HIGH",
-                        "감리내용을 입력해야 문서 생성 시 감리내용 칸이 비지 않습니다.",
-                        supervisionContentLocation,
-                        groupNo,
-                        entryNo,
-                        findings);
+                var supervisionContent = dailySupervisionContent(entry);
+                if (isBlank(supervisionContent)) {
+                    findings.add(dailyFinding(
+                            "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED",
+                            "HIGH",
+                            "세부 감리항목에서 적합/부적합 또는 기준·참고사항/조치사항을 입력해야 문서 생성 시 감리내용 칸이 비지 않습니다.",
+                            supervisionContentLocation,
+                            groupNo,
+                            entryNo));
+                }
                 findings.addAll(ReportPreflightWordingLint.dailySupervisionContent(
-                        stringValue(entry.get("supervisionContent")),
+                        supervisionContent,
                         "steps.DAILY_LOG.payload.dailyItems." + supervisionContentLocation,
                         groupNo,
                         entryNo));
@@ -324,6 +328,58 @@ public class ReportPreflightDeterministicValidator {
 
     private List<?> listValue(Object value) {
         return value instanceof List<?> list ? list : List.of();
+    }
+
+    private String dailySupervisionContent(Map<String, Object> entry) {
+        var content = stringValue(entry.get("supervisionContent"));
+        if (!content.isBlank()) {
+            return content;
+        }
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = checklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return "";
+        }
+        var title = stringValue(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String checklistRowContent(Map<String, Object> row) {
+        var label = stringValue(row.get("label"));
+        var result = checklistResultLabel(stringValue(row.get("result")));
+        var referenceNote = stringValue(row.get("referenceNote"));
+        var actionNote = stringValue(row.get("actionNote"));
+        var parts = new ArrayList<String>();
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String checklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private void requireText(

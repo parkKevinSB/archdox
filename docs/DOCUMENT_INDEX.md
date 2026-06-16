@@ -68,6 +68,7 @@ all canonical files.
 | `docs/ai-harness/ARCHDOX_AI_ORCHESTRATION_FLOW.md` | L2 | canonical | AI orchestration flow details. |
 | `docs/ai-harness-worker-evaluation.md` | L2 | guide | AI/worker evaluation scenario and scoring guide. |
 | `docs/worker-service/README.md` | L2 | canonical | Worker service architecture and future extraction guide. |
+| `docs/development/CONSTRUCTION_SUPERVISION_CHECKLIST_ROW_AUDIT.md` | L2 | working-audit | Row-level audit of the construction supervision checklist catalog against the official reference PDF. |
 | `docs/development/GIT_WORKFLOW.md` | L2 | guide | Git workflow and commit discipline. |
 | `docs/testing/LOCAL_E2E_TEST_BOOTSTRAP.md` | L2 | guide | Local E2E startup and smoke procedure. |
 | `docs/reference-forms/korean/README.md` | Reference | reference | Korean form source/reference material. |

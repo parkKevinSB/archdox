@@ -157,14 +157,18 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(jsonPath("$.version").value(2))
                 .andExpect(jsonPath("$.source.revisionLabel").value("개정 2020. 12. 24."))
                 .andExpect(jsonPath("$.coverage.tradeCount").value(46))
-                .andExpect(jsonPath("$.coverage.detailGroupCount").value(49))
+                .andExpect(jsonPath("$.coverage.detailGroupCount").value(51))
                 .andExpect(jsonPath("$.documentLayoutPolicy.defaultOfficialLayout.layoutVersion").value(1))
                 .andExpect(jsonPath("$.trades[0].code").value("TEMPORARY_WORKS"))
                 .andExpect(jsonPath("$.trades.length()").value(46))
                 .andExpect(jsonPath("$.trades[4].code").value("REINFORCED_CONCRETE"))
                 .andExpect(jsonPath("$.trades[4].processGroups[0].code").value("REBAR_ASSEMBLY"))
                 .andExpect(jsonPath("$.trades[4].processGroups[0].items[0].code")
+                        .value("RC_REBAR_CONFIRMATION"))
+                .andExpect(jsonPath("$.trades[4].processGroups[0].items[0].checklistRows[0].code")
                         .value("RC_REBAR_COUNT_DIAMETER_PITCH"))
+                .andExpect(jsonPath("$.trades[4].processGroups[1].code").value("REBAR_CERTIFICATE"))
+                .andExpect(jsonPath("$.trades[4].processGroups[2].code").value("CONCRETE_MIX"))
                 .andExpect(jsonPath("$.trades[45].code").value("ELECTRICAL_FIRE_FIGHTING"));
 
         var constructionReportLayout = documentTypeJson("CONSTRUCTION_SUPERVISION_REPORT", "output_layout_json");

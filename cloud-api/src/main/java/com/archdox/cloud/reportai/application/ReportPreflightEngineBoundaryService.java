@@ -171,12 +171,64 @@ public class ReportPreflightEngineBoundaryService {
                 }
                 catalogSelections.add(Map.copyOf(selection));
 
-                var content = text(entry.get("supervisionContent"));
+                var content = dailySupervisionContent(entry);
                 if (!content.isBlank()) {
                     supervisionContent.add(content);
                 }
             }
         }
+    }
+
+    private String dailySupervisionContent(Map<String, Object> entry) {
+        var content = text(entry.get("supervisionContent"));
+        if (!content.isBlank()) {
+            return content;
+        }
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = checklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return "";
+        }
+        var title = text(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String checklistRowContent(Map<String, Object> row) {
+        var label = text(row.get("label"));
+        var result = checklistResultLabel(text(row.get("result")));
+        var referenceNote = text(row.get("referenceNote"));
+        var actionNote = text(row.get("actionNote"));
+        var parts = new ArrayList<String>();
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String checklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private Optional<Map<String, Object>> normalizedDailyItems(Map<String, Object> payload) {

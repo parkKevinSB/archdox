@@ -140,16 +140,53 @@ or the UI.
 
 ## Catalog Shape
 
-The catalog is intentionally hierarchical:
+The catalog is intentionally hierarchical. The row-level checklist model is the
+canonical direction for construction daily supervision data:
 
 ```text
 Catalog
 -> Trade
    -> ProcessGroup
+      -> workCategory: BASIC or BASIC_OUTSIDE
       -> InspectionItem
+         -> ChecklistRow
 ```
 
 Example:
+
+Canonical row-level example:
+
+```json
+{
+  "code": "REINFORCED_CONCRETE",
+  "name": "철근 콘크리트 공사",
+  "discipline": "ARCHITECTURE",
+  "processGroups": [
+    {
+      "code": "REBAR_ASSEMBLY",
+      "name": "철근 조립·배근",
+      "workCategory": "BASIC",
+      "workCategoryName": "기본 업무",
+      "items": [
+        {
+          "code": "RC_REBAR_CONFIRMATION",
+          "name": "철근배근의 확인사항",
+          "checklistRows": [
+            {
+              "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+              "label": "개수, 철근지름, 피치 확인",
+              "basis": "개수, 철근지름, 피치 확인"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+The simplified item-level example below is historical and must not override the
+row-level model above.
 
 ```json
 {
@@ -175,23 +212,70 @@ Example:
 The top-level `trades[].items` remains as a catalog convenience summary for UI
 lookup. The richer catalog structure is `trades[].processGroups[].items`.
 
+When an official inspection item contains multiple concrete supervision
+contents, those contents must be represented as `checklistRows`. The user's row
+answers, result, reference note, and action note are the canonical business
+data. `supervisionContent` is generated or authored prose for the daily log and
+must not be the only source of truth.
+
 ## Current Coverage
 
 Catalog version 2 covers the reference PDF pages 22-73 at this level:
 
 - 46 trade records
-- all 49 trade/detail-process headers from the reference pages
-- 55 internal process groups, including practical subdivisions for reinforced
-  concrete and steel-frame work
+- all trade/detail-process headers from the reference pages
+- 51 current process groups after the reinforced-concrete row-level refinement
 - 240 seeded supervision/check items
 
-This is not yet the final row-by-row extraction of every checklist line. It is
-the first production-shaped domain catalog: broad enough for real UI authoring,
-stable enough for report snapshots, and structured enough for future AI review.
+This is not yet the final row-by-row extraction of every checklist line. Most
+trades are still broad seeded items. Reinforced concrete is the first trade
+partially converted to the row-level model. The current row audit is tracked in:
+
+```text
+docs/development/CONSTRUCTION_SUPERVISION_CHECKLIST_ROW_AUDIT.md
+```
 
 ## Daily Log Payload
 
 The daily supervision step stores neutral structured data:
+
+Canonical row-level payload:
+
+```json
+{
+  "groups": [
+    {
+      "tradeCode": "REINFORCED_CONCRETE",
+      "tradeName": "철근 콘크리트 공사",
+      "processCode": "REBAR_ASSEMBLY",
+      "processName": "철근 조립·배근",
+      "workCategory": "BASIC",
+      "workCategoryName": "기본 업무",
+      "floor": "기초층",
+      "entries": [
+        {
+          "inspectionItemCode": "RC_REBAR_CONFIRMATION",
+          "inspectionItemName": "철근배근의 확인사항",
+          "checklistRows": [
+            {
+              "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+              "label": "개수, 철근지름, 피치 확인",
+              "result": "COMPLIANT",
+              "referenceNote": "도면 및 현장 배근 상태 확인",
+              "actionNote": ""
+            }
+          ],
+          "supervisionContent": "개수, 철근지름, 피치 확인 등 철근배근의 확인사항을 점검했습니다.",
+          "photoIds": [10, 11]
+        }
+      ]
+    }
+  ]
+}
+```
+
+The simplified payload below is historical and only shows the old item-level
+shape.
 
 ```json
 {
@@ -219,7 +303,10 @@ Codes are for stable traceability. Korean names are stored with the snapshot so
 reports remain readable even if catalog wording later changes.
 
 `entries[]`, `tradeName`, `processName`, `inspectionItemCode`,
-`inspectionItemName`, and `supervisionContent` are the canonical field names.
+`inspectionItemName`, `checklistRows[]`, and `supervisionContent` are the
+canonical field names. For row-level trades, `inspectionItemCode` identifies the
+official inspection item and `checklistRows[]` identifies the concrete
+supervision contents under that item.
 Earlier generic aliases such as `items`, `trade`, `process`, `itemCode`,
 `item`, and `content` were removed during the pre-production cleanup. This is
 intentional: ArchDox is not yet in a real office data migration phase, so the
@@ -228,6 +315,11 @@ domain schema should stay clear rather than preserve confusing compatibility.
 The catalog item is the official `검사항목`; the user's
 `supervisionContent` is the field-authored `감리내용` attached to that
 inspection item.
+
+In the row-level model, the catalog inspection item is the official 검사항목.
+Checklist rows are the official or ArchDox-normalized 감리내용 units under that
+검사항목. The user's `supervisionContent` is prose attached to the entry and may
+be generated from the selected checklist rows.
 
 ## Domain Asset Strategy
 

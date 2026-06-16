@@ -12,7 +12,7 @@
   "coverage": {
     "referencePages": "22-73",
     "tradeCount": 46,
-    "detailGroupCount": 49,
+    "detailGroupCount": 51,
     "level": "TRADE_AND_DETAIL_PROCESS_WITH_CORE_ITEMS",
     "note": "All trade/detail-process headers from the reference checklist pages are represented. Item lists are core structured seeds and should be expanded as the PDF extraction is reviewed item by item."
   },
@@ -180,23 +180,90 @@
       "name": "철근 콘크리트 공사",
       "discipline": "ARCHITECTURE",
       "sourcePages": [27, 28, 29],
-      "processes": ["철근 조립·배근", "압접", "콘크리트 타설", "콘크리트 양생", "콘크리트 상태 확인"],
+      "processes": ["철근 조립·배근", "철근 규격 증명서", "콘크리트 배합", "압접", "콘크리트 타설", "콘크리트 양생", "콘크리트 상태 확인"],
       "processGroups": [
         {
           "code": "REBAR_ASSEMBLY",
           "name": "철근 조립·배근",
+          "workCategory": "BASIC",
+          "workCategoryName": "기본 업무",
           "sourcePages": [27],
           "items": [
-            {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "name": "철근 개수·지름·피치", "basis": "철근 개수, 지름, 피치 확인"},
-            {"code": "RC_REBAR_ANCHORAGE", "name": "정착길이", "basis": "정착길이와 굽힘정착 깊이 확인"},
-            {"code": "RC_REBAR_SPLICE", "name": "이음위치와 이음길이", "basis": "이음 위치, 이음 길이, 결속 상태 확인"},
-            {"code": "RC_REBAR_SPACING", "name": "철근 상호간격", "basis": "철근 상호 간격 및 간격 유지 확인"},
-            {"code": "RC_STIRRUP", "name": "띠철근·스터럽", "basis": "띠철근과 스터럽의 위치, 간격, 결속상태 확인"}
+            {
+              "code": "RC_REBAR_CONFIRMATION",
+              "name": "철근배근의 확인사항",
+              "basis": "철근배근의 확인사항",
+              "checklistRows": [
+                {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "label": "개수, 철근지름, 피치 확인", "basis": "개수, 철근지름, 피치 확인"},
+                {"code": "RC_REBAR_ANCHORAGE", "label": "정착길이와 굽힘정착 깊이 확인", "basis": "정착길이와 굽힘정착 깊이 확인"},
+                {"code": "RC_REBAR_SPLICE", "label": "이음위치와 이음길이 확인", "basis": "이음위치와 이음길이 확인"},
+                {"code": "RC_REBAR_TIE_WIRE", "label": "결속선의 위치 및 간격유지 확인", "basis": "결속선의 위치 및 간격유지 확인"},
+                {"code": "RC_REBAR_OFFSET_BEND", "label": "철근의 좁히기(offset bend) 가공에 대한 양부 확인", "basis": "철근의 좁히기(offset bend) 가공에 대한 양부 확인"},
+                {"code": "RC_REBAR_SPACING", "label": "철근상호 간격 확인", "basis": "철근상호 간격 확인"},
+                {"code": "RC_STIRRUP", "label": "띠철근, 스터럽의 위치, 간격, 결속상태 확인", "basis": "띠철근, 스터럽의 위치, 간격, 결속상태 확인"},
+                {"code": "RC_REBAR_COLUMN_BEAM_JOINT", "label": "기둥과 보 교차점의 띠철근 위치 확인", "basis": "기둥과 보 교차점의 띠철근 위치 확인"},
+                {"code": "RC_REBAR_GIRDER_BEAM_JOINT", "label": "큰보와 작은보 교차점의 늑근 확인", "basis": "큰보와 작은보 교차점의 늑근 확인"},
+                {"code": "RC_REBAR_COVER_SPACER", "label": "피복두께 등 간격 유지근 등 확인", "basis": "피복두께 등 간격 유지근 등 확인"}
+              ]
+            },
+            {
+              "code": "RC_REBAR_AFTER_INSPECTION",
+              "name": "배근검사 후 처리 확인",
+              "basis": "배근검사 후 처리 확인",
+              "checklistRows": [
+                {"code": "RC_REBAR_REINFORCEMENT_PART", "label": "보강부분 확인", "basis": "보강부분 확인"},
+                {"code": "RC_REBAR_REINFORCEMENT_DETAIL", "label": "보강근의 개수, 지름, 길이, 방법 확인", "basis": "보강근의 개수, 지름, 길이, 방법 확인"},
+                {"code": "RC_REBAR_REINSPECTION_REQUIRED", "label": "재검사 여부 확인", "basis": "재검사 여부 확인"}
+              ]
+            },
+            {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "name": "철근 개수·지름·피치", "basis": "철근 개수, 지름, 피치 확인", "legacy": true, "hiddenInDailyLog": true},
+            {"code": "RC_REBAR_ANCHORAGE", "name": "정착길이", "basis": "정착길이와 굽힘정착 깊이 확인", "legacy": true, "hiddenInDailyLog": true},
+            {"code": "RC_REBAR_SPLICE", "name": "이음위치와 이음길이", "basis": "이음 위치, 이음 길이, 결속 상태 확인", "legacy": true, "hiddenInDailyLog": true},
+            {"code": "RC_REBAR_SPACING", "name": "철근 상호간격", "basis": "철근 상호 간격 및 간격 유지 확인", "legacy": true, "hiddenInDailyLog": true},
+            {"code": "RC_STIRRUP", "name": "띠철근·스터럽", "basis": "띠철근과 스터럽의 위치, 간격, 결속상태 확인", "legacy": true, "hiddenInDailyLog": true}
+          ]
+        },
+        {
+          "code": "REBAR_CERTIFICATE",
+          "name": "철근 규격 증명서",
+          "workCategory": "BASIC",
+          "workCategoryName": "기본 업무",
+          "sourcePages": [27],
+          "items": [
+            {
+              "code": "RC_REBAR_CERTIFICATE_CONFIRMATION",
+              "name": "철근 규격 증명서 확인사항",
+              "basis": "철근 규격품, 제조업체, 재료시험의 필요여부 및 KS규격제품 여부 확인",
+              "checklistRows": [
+                {"code": "RC_REBAR_STANDARD_PRODUCT", "label": "철근 규격품, 제조업체, 재료시험의 필요여부 확인", "basis": "철근 규격품, 제조업체, 재료시험의 필요여부 확인"},
+                {"code": "RC_REBAR_KS_CERTIFICATE", "label": "KS마크 또는 시험성적증명서에 의해 KS규격제품인지 확인", "basis": "KS마크 또는 시험성적증명서에 의해 KS규격제품인지를 확인"}
+              ]
+            }
+          ]
+        },
+        {
+          "code": "CONCRETE_MIX",
+          "name": "콘크리트 배합",
+          "workCategory": "BASIC",
+          "workCategoryName": "기본 업무",
+          "sourcePages": [27],
+          "items": [
+            {
+              "code": "RC_CONCRETE_MIX_CONFIRMATION",
+              "name": "콘크리트 배합 확인사항",
+              "basis": "KS 규격공장의 레디믹스트 콘크리트 및 레미콘 배합보고서·송장 확인",
+              "checklistRows": [
+                {"code": "RC_READY_MIXED_CONCRETE_KS_FACTORY", "label": "KS 규격공장의 레디믹스트 콘크리트인지 확인", "basis": "KS 규격공장의 레디믹스트 콘크리트인지 확인"},
+                {"code": "RC_READY_MIXED_CONCRETE_REPORT_INVOICE", "label": "레미콘 배합보고서 및 송장 확인", "basis": "레미콘 배합보고서 및 송장 확인"}
+              ]
+            }
           ]
         },
         {
           "code": "PRESSURE_WELDING",
           "name": "압접",
+          "workCategory": "BASIC_OUTSIDE",
+          "workCategoryName": "기본 외 업무",
           "sourcePages": [28],
           "items": [
             {"code": "RC_WELDING_TEST_DATA", "name": "압접 시험자료", "basis": "작업 시작 전 시험자료와 절단부분 확인"},

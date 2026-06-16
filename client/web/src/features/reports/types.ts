@@ -70,8 +70,17 @@ export type ReportWizardFormValues = Record<string, string>;
 
 export type SupervisionCatalogItem = {
   basis?: string | null;
+  checklistRows?: SupervisionCatalogChecklistRow[];
   code: string;
+  hiddenInDailyLog?: boolean;
+  legacy?: boolean;
   name: string;
+};
+
+export type SupervisionCatalogChecklistRow = {
+  basis?: string | null;
+  code: string;
+  label: string;
 };
 
 export type SupervisionCatalogProcessGroup = {
@@ -79,6 +88,8 @@ export type SupervisionCatalogProcessGroup = {
   items: SupervisionCatalogItem[];
   name: string;
   sourcePages?: number[];
+  workCategory?: string;
+  workCategoryName?: string;
 };
 
 export type SupervisionCatalogTrade = {

@@ -433,7 +433,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             for (Object entryValue : entries) {
                 var entry = mapValue(entryValue);
                 var focus = valueOrBlank(entry.get("inspectionItemName")).trim();
-                var content = valueOrBlank(entry.get("supervisionContent")).trim();
+                var content = dailySupervisionContent(entry).trim();
                 if (groupLabel.isBlank() && focus.isBlank() && content.isBlank()) {
                     continue;
                 }
@@ -442,6 +442,58 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         return rows;
+    }
+
+    private String dailySupervisionContent(Map<String, Object> entry) {
+        var content = valueOrBlank(entry.get("supervisionContent")).trim();
+        if (!content.isBlank()) {
+            return content;
+        }
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = dailyChecklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return "";
+        }
+        var title = valueOrBlank(entry.get("inspectionItemName")).trim();
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String dailyChecklistRowContent(Map<String, Object> row) {
+        var label = valueOrBlank(row.get("label")).trim();
+        var result = dailyChecklistResultLabel(valueOrBlank(row.get("result")));
+        var referenceNote = valueOrBlank(row.get("referenceNote")).trim();
+        var actionNote = valueOrBlank(row.get("actionNote")).trim();
+        var parts = new ArrayList<String>();
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String dailyChecklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private String officialGroupLabel(Map<String, Object> group) {

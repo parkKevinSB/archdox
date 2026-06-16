@@ -6,10 +6,23 @@ import { usePhotoWorkspace } from "../../../photos/hooks/usePhotoWorkspace";
 import { PhotoUploadTaskStrip } from "../../../photos/components/PhotoPipelinePanel";
 import type { PhotoAssetResponse, PhotoAssetType, PhotoResponse } from "../../../photos/types";
 import { getSupervisionDomainCatalog } from "../../api";
-import type { SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
+import type { SupervisionCatalogChecklistRow, SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
+type DailyChecklistResult = "" | "COMPLIANT" | "NON_COMPLIANT";
+
+type DailyChecklistRow = {
+  actionNote: string;
+  basis?: string;
+  code?: string;
+  id: string;
+  label: string;
+  referenceNote: string;
+  result: DailyChecklistResult;
+};
+
 type DailySupervisionEntry = {
+  checklistRows: DailyChecklistRow[];
   id: string;
   inspectionItemCode?: string;
   inspectionItemName: string;
@@ -31,6 +44,13 @@ type DailyItemsPayload = {
   groups: DailySupervisionGroup[];
 };
 
+type ChecklistNoteDialogState = {
+  entryId: string;
+  field: "referenceNote" | "actionNote";
+  groupId: string;
+  rowId: string;
+};
+
 const DAILY_ITEMS_FIELD = "dailyItems";
 const CATALOG_CODE = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
 
@@ -46,6 +66,7 @@ export function DailySupervisionItemsStep({
   token
 }: ReportStepComponentProps) {
   const [groups, setGroups] = useState<DailySupervisionGroup[]>([]);
+  const [noteDialog, setNoteDialog] = useState<ChecklistNoteDialogState | null>(null);
   const [deletingPhotoIds, setDeletingPhotoIds] = useState<Set<number>>(() => new Set());
   const workspace = usePhotoWorkspace({
     officeId,
@@ -63,6 +84,17 @@ export function DailySupervisionItemsStep({
   const processOptions = catalog?.processOptions ?? [];
 
   const totalItems = useMemo(() => groups.reduce((sum, group) => sum + group.entries.length, 0), [groups]);
+  const totalChecklistRows = useMemo(
+    () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entry.checklistRows.length, 0), 0),
+    [groups]
+  );
+  const checkedChecklistRows = useMemo(
+    () => groups.reduce((sum, group) => sum + group.entries.reduce(
+      (itemSum, entry) => itemSum + entry.checklistRows.filter((row) => row.result).length,
+      0
+    ), 0),
+    [groups]
+  );
   const totalPhotos = useMemo(
     () => groups.reduce((sum, group) => sum + group.entries.reduce((itemSum, entry) => itemSum + entry.photoIds.length, 0), 0),
     [groups]
@@ -84,7 +116,7 @@ export function DailySupervisionItemsStep({
 
   function updateGroups(updater: (current: DailySupervisionGroup[]) => DailySupervisionGroup[]) {
     setGroups((current) => {
-      const nextGroups = updater(current);
+      const nextGroups = updater(current).map(syncGroupGeneratedContent);
       form.setValue(DAILY_ITEMS_FIELD, JSON.stringify({ groups: nextGroups }), {
         shouldDirty: true,
         shouldTouch: true,
@@ -123,19 +155,13 @@ export function DailySupervisionItemsStep({
         return group;
       }
       return {
-        ...group,
-        entries: [
-          ...group.entries,
-          {
-            id: newId("entry"),
-            inspectionItemCode: catalogItem?.code,
-            inspectionItemName: catalogItem?.name ?? "",
-            photoIds: [],
-            supervisionContent: ""
-          }
-        ]
-      };
-    }));
+          ...group,
+          entries: [
+            ...group.entries,
+            entryFromCatalogItem(catalogItem)
+          ]
+        };
+      }));
   }
 
   function selectTrade(groupId: string, tradeCode: string) {
@@ -156,6 +182,31 @@ export function DailySupervisionItemsStep({
       return {
         ...group,
         entries: group.entries.map((entry) => (entry.id === entryId ? { ...entry, ...patch } : entry))
+      };
+    }));
+  }
+
+  function updateChecklistRow(
+    groupId: string,
+    entryId: string,
+    rowId: string,
+    patch: Partial<DailyChecklistRow>
+  ) {
+    updateGroups((current) => current.map((group) => {
+      if (group.id !== groupId) {
+        return group;
+      }
+      return {
+        ...group,
+        entries: group.entries.map((entry) => {
+          if (entry.id !== entryId) {
+            return entry;
+          }
+          return {
+            ...entry,
+            checklistRows: entry.checklistRows.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
+          };
+        })
       };
     }));
   }
@@ -251,6 +302,7 @@ export function DailySupervisionItemsStep({
       <div className="daily-supervision-summary">
         <span>공종 그룹 {groups.length}개</span>
         <span>검사항목 {totalItems}개</span>
+        <span>세부 감리항목 {checkedChecklistRows}/{totalChecklistRows}개 확인</span>
         <span>연결 사진 {totalPhotos}장</span>
         {catalog ? <span>카탈로그 v{catalog.version}</span> : null}
       </div>
@@ -345,7 +397,9 @@ export function DailySupervisionItemsStep({
                     >
                       <option value="">세부공정 선택</option>
                       {selectedTrade(group, trades)?.processGroups?.map((processGroup) => (
-                        <option key={processGroup.code} value={processGroup.code}>{processGroup.name}</option>
+                        <option key={processGroup.code} value={processGroup.code}>
+                          {processGroup.workCategoryName ? `${processGroup.workCategoryName} · ${processGroup.name}` : processGroup.name}
+                        </option>
                       ))}
                     </select>
                   ) : (
@@ -400,8 +454,10 @@ export function DailySupervisionItemsStep({
                           onChange={(event) => {
                             const catalogItem = itemOptions.find((item) => item.code === event.target.value);
                             updateEntry(group.id, entry.id, {
+                              checklistRows: checklistRowsFromCatalogItem(catalogItem),
                               inspectionItemCode: catalogItem?.code,
-                              inspectionItemName: catalogItem?.name ?? ""
+                              inspectionItemName: catalogItem?.name ?? "",
+                              supervisionContent: ""
                             });
                           }}
                           value={entry.inspectionItemCode ?? ""}
@@ -424,15 +480,24 @@ export function DailySupervisionItemsStep({
                     ) : (
                       <span className="daily-supervision-warning">카탈로그 검사항목을 선택해야 법령 근거가 연결됩니다.</span>
                     )}
-                    <label>
-                      감리내용
-                      <textarea
-                        disabled={!canWriteReports}
-                        onChange={(event) => updateEntry(group.id, entry.id, { supervisionContent: event.target.value })}
-                        placeholder="검사항목에 대해 확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
-                        value={entry.supervisionContent}
+                    {entry.checklistRows.length > 0 ? (
+                      <DailyChecklistRowsEditor
+                        canWriteReports={canWriteReports}
+                        entry={entry}
+                        onOpenNote={(rowId, field) => setNoteDialog({ entryId: entry.id, field, groupId: group.id, rowId })}
+                        onUpdateRow={(rowId, patch) => updateChecklistRow(group.id, entry.id, rowId, patch)}
                       />
-                    </label>
+                    ) : (
+                      <label>
+                        감리내용
+                        <textarea
+                          disabled={!canWriteReports}
+                          onChange={(event) => updateEntry(group.id, entry.id, { supervisionContent: event.target.value })}
+                          placeholder="검사항목에 대해 확인한 내용, 시험/입회 결과, 근거자료 등을 구체적으로 입력하세요."
+                          value={entry.supervisionContent}
+                        />
+                      </label>
+                    )}
                     <div className="daily-supervision-photo-row">
                       <DailyPhotoThumbStrip
                         canWriteReports={canWriteReports}
@@ -494,10 +559,143 @@ export function DailySupervisionItemsStep({
 
       <PhotoUploadTaskStrip onCancel={workspace.cancelUploadTask} tasks={workspace.uploadTasks} />
 
+      {noteDialog ? (
+        <ChecklistNoteDialog
+          canWriteReports={canWriteReports}
+          dialog={noteDialog}
+          groups={groups}
+          onClose={() => setNoteDialog(null)}
+          onUpdateRow={updateChecklistRow}
+        />
+      ) : null}
+
       <datalist id="daily-floor-options">
         {floorOptions.map((option) => <option key={option} value={option} />)}
       </datalist>
     </>
+  );
+}
+
+function DailyChecklistRowsEditor({
+  canWriteReports,
+  entry,
+  onOpenNote,
+  onUpdateRow
+}: {
+  canWriteReports: boolean;
+  entry: DailySupervisionEntry;
+  onOpenNote: (rowId: string, field: "referenceNote" | "actionNote") => void;
+  onUpdateRow: (rowId: string, patch: Partial<DailyChecklistRow>) => void;
+}) {
+  const generatedContent = buildSupervisionContent(entry);
+  return (
+    <div className="daily-checklist-rows">
+      <div className="daily-checklist-rows-head">
+        <strong>세부 감리항목</strong>
+        <span>각 항목별로 적합/부적합과 기준·참고사항, 조치사항을 남깁니다.</span>
+      </div>
+      {entry.checklistRows.map((row, index) => (
+        <div className="daily-checklist-row" key={row.id}>
+          <div className="daily-checklist-row-main">
+            <span className="daily-checklist-row-index">{index + 1}</span>
+            <div>
+              <strong>{row.label}</strong>
+              {row.code ? <span>코드: {row.code}</span> : null}
+              {row.basis ? <span>기본 기준: {row.basis}</span> : null}
+            </div>
+          </div>
+          <div className="daily-checklist-row-controls">
+            <label className={row.result === "COMPLIANT" ? "daily-check selected" : "daily-check"}>
+              <input
+                checked={row.result === "COMPLIANT"}
+                disabled={!canWriteReports}
+                onChange={() => onUpdateRow(row.id, { result: row.result === "COMPLIANT" ? "" : "COMPLIANT" })}
+                type="checkbox"
+              />
+              적합
+            </label>
+            <label className={row.result === "NON_COMPLIANT" ? "daily-check selected danger" : "daily-check danger"}>
+              <input
+                checked={row.result === "NON_COMPLIANT"}
+                disabled={!canWriteReports}
+                onChange={() => onUpdateRow(row.id, { result: row.result === "NON_COMPLIANT" ? "" : "NON_COMPLIANT" })}
+                type="checkbox"
+              />
+              부적합
+            </label>
+            <button
+              className={row.referenceNote ? "secondary-button compact active" : "secondary-button compact"}
+              disabled={!canWriteReports}
+              onClick={() => onOpenNote(row.id, "referenceNote")}
+              type="button"
+            >
+              기준·참고사항
+            </button>
+            <button
+              className={row.actionNote ? "secondary-button compact active" : "secondary-button compact"}
+              disabled={!canWriteReports}
+              onClick={() => onOpenNote(row.id, "actionNote")}
+              type="button"
+            >
+              조치사항
+            </button>
+          </div>
+        </div>
+      ))}
+      <div className="daily-generated-content">
+        <span>문서 반영 감리내용</span>
+        <p>{generatedContent || "아직 적합/부적합 또는 메모가 입력된 세부 감리항목이 없습니다."}</p>
+      </div>
+    </div>
+  );
+}
+
+function ChecklistNoteDialog({
+  canWriteReports,
+  dialog,
+  groups,
+  onClose,
+  onUpdateRow
+}: {
+  canWriteReports: boolean;
+  dialog: ChecklistNoteDialogState;
+  groups: DailySupervisionGroup[];
+  onClose: () => void;
+  onUpdateRow: (groupId: string, entryId: string, rowId: string, patch: Partial<DailyChecklistRow>) => void;
+}) {
+  const group = groups.find((current) => current.id === dialog.groupId);
+  const entry = group?.entries.find((current) => current.id === dialog.entryId);
+  const row = entry?.checklistRows.find((current) => current.id === dialog.rowId);
+  if (!row) {
+    return null;
+  }
+  const title = dialog.field === "referenceNote" ? "기준·참고사항" : "조치사항";
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="modal-panel daily-note-dialog" role="dialog" aria-modal="true" aria-label={title}>
+        <header className="modal-header">
+          <div>
+            <strong>{title}</strong>
+            <span>{row.label}</span>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button" aria-label="닫기">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="modal-body">
+          <textarea
+            autoFocus
+            disabled={!canWriteReports}
+            onChange={(event) => onUpdateRow(dialog.groupId, dialog.entryId, dialog.rowId, { [dialog.field]: event.target.value })}
+            placeholder={dialog.field === "referenceNote" ? "기준, 참고사항, 확인한 도면/시방/서류 등을 입력하세요." : "부적합 또는 보완이 필요한 경우 조치사항을 입력하세요."}
+            value={row[dialog.field]}
+          />
+        </div>
+        <footer className="modal-actions">
+          <button className="primary-button" onClick={onClose} type="button">확인</button>
+        </footer>
+      </section>
+    </div>
   );
 }
 
@@ -668,11 +866,8 @@ function DailyItemPicker({
 function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
   const trade = selectedTrade(group, trades);
   const processGroup = selectedProcessGroup(group, trade);
-  return processGroup?.items?.length ? processGroup.items : trade?.items ?? [];
-}
-
-function itemByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
-  return suggestedItems(group, trades).find((item) => item.name === name);
+  const items = processGroup?.items?.length ? processGroup.items : trade?.items ?? [];
+  return items.filter((item) => !item.hiddenInDailyLog && !item.legacy);
 }
 
 function suggestedProcesses(
@@ -722,11 +917,97 @@ function selectDailyPreviewAssetType(photo?: PhotoResponse): Exclude<PhotoAssetT
 
 function emptyEntry(): DailySupervisionEntry {
   return {
+    checklistRows: [],
     id: newId("entry"),
     inspectionItemName: "",
     photoIds: [],
     supervisionContent: ""
   };
+}
+
+function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySupervisionEntry {
+  const entry = {
+    checklistRows: checklistRowsFromCatalogItem(catalogItem),
+    id: newId("entry"),
+    inspectionItemCode: catalogItem?.code,
+    inspectionItemName: catalogItem?.name ?? "",
+    photoIds: [],
+    supervisionContent: ""
+  };
+  return syncEntryGeneratedContent(entry);
+}
+
+function checklistRowsFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailyChecklistRow[] {
+  const rows = catalogItem?.checklistRows ?? [];
+  return rows.map((row, index) => checklistRowFromCatalogRow(row, index));
+}
+
+function checklistRowFromCatalogRow(row: SupervisionCatalogChecklistRow, index: number): DailyChecklistRow {
+  return {
+    actionNote: "",
+    basis: optionalText(row.basis),
+    code: optionalText(row.code),
+    id: newId(`row-${index}`),
+    label: text(row.label),
+    referenceNote: "",
+    result: ""
+  };
+}
+
+function syncGroupGeneratedContent(group: DailySupervisionGroup): DailySupervisionGroup {
+  return {
+    ...group,
+    entries: group.entries.map(syncEntryGeneratedContent)
+  };
+}
+
+function syncEntryGeneratedContent(entry: DailySupervisionEntry): DailySupervisionEntry {
+  if (entry.checklistRows.length === 0) {
+    return entry;
+  }
+  return {
+    ...entry,
+    supervisionContent: buildSupervisionContent(entry)
+  };
+}
+
+function buildSupervisionContent(entry: DailySupervisionEntry) {
+  if (entry.checklistRows.length === 0) {
+    return entry.supervisionContent;
+  }
+  const rows = entry.checklistRows
+    .map((row) => checklistRowContent(row))
+    .filter(Boolean);
+  if (rows.length === 0) {
+    return "";
+  }
+  const title = entry.inspectionItemName ? `${entry.inspectionItemName}` : "";
+  return [title, ...rows.map((row) => `- ${row}`)].filter(Boolean).join("\n");
+}
+
+function checklistRowContent(row: DailyChecklistRow) {
+  const parts = [row.label.trim()];
+  const result = resultLabel(row.result);
+  if (result) {
+    parts.push(result);
+  }
+  if (row.referenceNote.trim()) {
+    parts.push(`기준·참고: ${row.referenceNote.trim()}`);
+  }
+  if (row.actionNote.trim()) {
+    parts.push(`조치사항: ${row.actionNote.trim()}`);
+  }
+  return parts.length > 1 ? parts.join(" / ") : "";
+}
+
+function resultLabel(result: DailyChecklistResult) {
+  if (result === "COMPLIANT") {
+    return "적합";
+  }
+  if (result === "NON_COMPLIANT") {
+    return "부적합";
+  }
+  return "";
 }
 
 function parsePayload(value: unknown): DailyItemsPayload {
@@ -772,12 +1053,36 @@ function normalizeEntry(value: unknown, index: number): DailySupervisionEntry | 
   }
   const raw = value as Partial<DailySupervisionEntry>;
   return {
+    checklistRows: Array.isArray(raw.checklistRows)
+      ? raw.checklistRows.map((row, rowIndex) => normalizeChecklistRow(row, rowIndex)).filter(Boolean) as DailyChecklistRow[]
+      : [],
     id: text(raw.id) || newId(`entry-${index}`),
     inspectionItemCode: optionalText(raw.inspectionItemCode),
     inspectionItemName: text(raw.inspectionItemName),
     photoIds: uniqueNumbers(Array.isArray(raw.photoIds) ? raw.photoIds : []),
     supervisionContent: text(raw.supervisionContent)
   };
+}
+
+function normalizeChecklistRow(value: unknown, index: number): DailyChecklistRow | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const raw = value as Partial<DailyChecklistRow>;
+  return {
+    actionNote: text(raw.actionNote),
+    basis: optionalText(raw.basis),
+    code: optionalText(raw.code),
+    id: text(raw.id) || newId(`row-${index}`),
+    label: text(raw.label),
+    referenceNote: text(raw.referenceNote),
+    result: normalizeChecklistResult(raw.result)
+  };
+}
+
+function normalizeChecklistResult(value: unknown): DailyChecklistResult {
+  const normalized = text(value).trim().toUpperCase();
+  return normalized === "COMPLIANT" || normalized === "NON_COMPLIANT" ? normalized : "";
 }
 
 function text(value: unknown) {

@@ -450,7 +450,7 @@ public class HtmlPreviewDocumentRenderer {
             for (var rawEntry : entries) {
                 var entry = mapValue(rawEntry);
                 var itemName = valueOrBlank(entry.get("inspectionItemName"));
-                var content = valueOrBlank(entry.get("supervisionContent"));
+                var content = dailySupervisionContent(entry);
                 var photoIds = joinValues(listValue(entry.get("photoIds")));
                 if (groupLabel.isBlank() && itemName.isBlank() && content.isBlank() && photoIds.isBlank()) {
                     continue;
@@ -477,6 +477,58 @@ public class HtmlPreviewDocumentRenderer {
                   <table>%s</table>
                 </section>
                 """.formatted(rows);
+    }
+
+    private String dailySupervisionContent(Map<String, Object> entry) {
+        var content = valueOrBlank(entry.get("supervisionContent"));
+        if (!content.isBlank()) {
+            return content;
+        }
+        var rows = new ArrayList<String>();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowContent = dailyChecklistRowContent(row);
+            if (!rowContent.isBlank()) {
+                rows.add("- " + rowContent);
+            }
+        }
+        if (rows.isEmpty()) {
+            return "";
+        }
+        var title = valueOrBlank(entry.get("inspectionItemName"));
+        if (!title.isBlank()) {
+            rows.add(0, title);
+        }
+        return String.join("\n", rows);
+    }
+
+    private String dailyChecklistRowContent(Map<String, Object> row) {
+        var label = valueOrBlank(row.get("label"));
+        var result = dailyChecklistResultLabel(valueOrBlank(row.get("result")));
+        var referenceNote = valueOrBlank(row.get("referenceNote"));
+        var actionNote = valueOrBlank(row.get("actionNote"));
+        var parts = new ArrayList<String>();
+        if (!label.isBlank()) {
+            parts.add(label);
+        }
+        if (!result.isBlank()) {
+            parts.add(result);
+        }
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return parts.size() <= 1 ? "" : String.join(" / ", parts);
+    }
+
+    private String dailyChecklistResultLabel(String result) {
+        return switch (result.trim().toUpperCase(Locale.ROOT)) {
+            case "COMPLIANT" -> "적합";
+            case "NON_COMPLIANT" -> "부적합";
+            default -> "";
+        };
     }
 
     private String defaultPhotoSection(DocumentGenerationRequest request) {
