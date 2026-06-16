@@ -3057,7 +3057,8 @@ button {
 }
 
 .daily-checklist-rows-head span,
-.daily-checklist-row-main span {
+.daily-checklist-row-main span,
+.daily-generated-content span {
   color: #687977;
   font-size: 11px;
   font-weight: 750;
@@ -3131,6 +3132,25 @@ button {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+.daily-generated-content {
+  display: grid;
+  gap: 6px;
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid #d7e4e1;
+  border-radius: 7px;
+  background: #eef6f4;
+}
+
+.daily-generated-content p {
+  margin: 0;
+  color: #263735;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .daily-check {

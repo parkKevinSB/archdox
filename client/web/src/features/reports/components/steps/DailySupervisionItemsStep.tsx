@@ -335,7 +335,7 @@ export function DailySupervisionItemsStep({
       {groups.length === 0 ? (
         <div className="daily-supervision-empty">
           <strong>아직 입력한 검사항목이 없습니다.</strong>
-          <span>공종을 추가한 뒤 검사항목을 선택하고 감리내용과 사진을 연결하세요.</span>
+          <span>공종을 추가한 뒤 검사항목을 선택하고 세부 감리항목별 결과와 사진을 연결하세요.</span>
           <button className="primary-button" disabled={!canWriteReports} onClick={addGroup} type="button">
             <Plus size={17} />
             공종 추가
@@ -603,6 +603,7 @@ function DailyChecklistRowsEditor({
   photosById: Map<number, PhotoResponse>;
   token: string;
 }) {
+  const generatedContent = buildSupervisionContent(entry);
   return (
     <div className="daily-checklist-rows">
       <div className="daily-checklist-rows-head">
@@ -690,6 +691,12 @@ function DailyChecklistRowsEditor({
           </div>
         </div>
       ))}
+      {generatedContent ? (
+        <div className="daily-generated-content">
+          <span>문서 반영 감리내용</span>
+          <p>{generatedContent}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
