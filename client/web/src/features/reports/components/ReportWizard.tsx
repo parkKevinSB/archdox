@@ -89,6 +89,7 @@ export function ReportWizard({
         <div className="context-strip">
           <span>프로젝트: {project?.name ?? `project #${report.projectId}`}</span>
           <span>현장: {site?.name ?? (report.siteId ? `site #${report.siteId}` : "미지정")}</span>
+          <span>감리업무: {supervisionWorkModeLabel(site?.supervisionWorkMode ?? workflowDefinition?.supervisionWorkMode)}</span>
           <span>유형: {reportTypeLabel(report.reportType)}</span>
           <span>흐름: {workflowDefinition?.title ?? "기본 작성 흐름"}</span>
         </div>
@@ -120,6 +121,7 @@ export function ReportWizard({
           savedSteps={savedSteps}
           saveActiveStep={saveActiveStep}
           selectStep={selectStep}
+          site={site}
           stepDefinitions={stepDefinitions}
           stepSaveStatus={stepSaveStatus}
           submitReport={submitReport}
@@ -128,4 +130,16 @@ export function ReportWizard({
       </div>
     </Panel>
   );
+}
+
+function supervisionWorkModeLabel(value?: string | null) {
+  switch (value) {
+    case "RESIDENT":
+      return "상주 감리";
+    case "RESPONSIBLE_RESIDENT":
+      return "책임상주 감리";
+    case "NON_RESIDENT":
+    default:
+      return "비상주 감리";
+  }
 }

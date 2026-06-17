@@ -177,6 +177,7 @@ export function createSite(
     name: string;
     address?: string | null;
     siteType?: string | null;
+    supervisionWorkMode?: string | null;
     startDate?: string | null;
     endDate?: string | null;
   }

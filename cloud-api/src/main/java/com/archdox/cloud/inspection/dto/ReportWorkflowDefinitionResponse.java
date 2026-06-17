@@ -7,6 +7,7 @@ public record ReportWorkflowDefinitionResponse(
         Long officeId,
         String reportType,
         String siteType,
+        String supervisionWorkMode,
         String targetType,
         String flowId,
         String title,

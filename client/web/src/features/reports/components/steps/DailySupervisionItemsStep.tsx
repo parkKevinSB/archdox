@@ -65,6 +65,7 @@ export function DailySupervisionItemsStep({
   report,
   revision,
   savedStep,
+  site,
   token
 }: ReportStepComponentProps) {
   const [groups, setGroups] = useState<DailySupervisionGroup[]>([]);
@@ -77,8 +78,8 @@ export function DailySupervisionItemsStep({
     uploadContext: { stepCode: definition.code }
   });
   const catalogQuery = useQuery({
-    queryKey: ["supervisionDomainCatalog", officeId, CATALOG_CODE],
-    queryFn: () => getSupervisionDomainCatalog(token, officeId, CATALOG_CODE)
+    queryKey: ["supervisionDomainCatalog", officeId, CATALOG_CODE, report.siteId, site?.supervisionWorkMode],
+    queryFn: () => getSupervisionDomainCatalog(token, officeId, CATALOG_CODE, report.siteId)
   });
   const catalog = catalogQuery.data ?? null;
   const trades = catalog?.trades ?? [];
@@ -325,6 +326,7 @@ export function DailySupervisionItemsStep({
       <input type="hidden" {...register(DAILY_ITEMS_FIELD)} />
 
       <div className="daily-supervision-summary">
+        <span>감리업무 {catalog?.selectedSupervisionWorkModeName ?? supervisionWorkModeLabel(site?.supervisionWorkMode)}</span>
         <span>공종 그룹 {groups.length}개</span>
         <span>검사항목 {totalItems}개</span>
         <span>검사 대상 세부항목 {checkedChecklistRows}/{totalChecklistRows}개</span>
@@ -341,6 +343,11 @@ export function DailySupervisionItemsStep({
       {catalog?.source ? (
         <p className="daily-supervision-muted">
           기준: {catalog.source.documentTitle} {catalog.source.revisionLabel ? `· ${catalog.source.revisionLabel}` : ""}
+        </p>
+      ) : null}
+      {catalog?.selectedSupervisionWorkModeCatalogCoverage?.status === "EXTRACTION_PENDING" ? (
+        <p className="daily-supervision-warning">
+          {catalog.selectedSupervisionWorkModeName} 기준은 현장에 저장되었습니다. 상세 체크리스트 전사는 다음 단계에서 확장되며, 현재 표시 항목은 기존 전사 카탈로그를 기준으로 합니다.
         </p>
       ) : null}
 
@@ -1140,6 +1147,18 @@ function resultLabel(result: DailyChecklistResult) {
     return "부적합";
   }
   return "";
+}
+
+function supervisionWorkModeLabel(value?: string | null) {
+  switch (value) {
+    case "RESIDENT":
+      return "상주 감리";
+    case "RESPONSIBLE_RESIDENT":
+      return "책임상주 감리";
+    case "NON_RESIDENT":
+    default:
+      return "비상주 감리";
+  }
 }
 
 function parsePayload(value: unknown): DailyItemsPayload {

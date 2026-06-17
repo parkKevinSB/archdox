@@ -8,7 +8,8 @@ import type {
   InspectionStep,
   ReportStepCode,
   ReportStepDefinition,
-  ReportWizardFormValues
+  ReportWizardFormValues,
+  Site
 } from "../types";
 
 type ReportStepRunnerProps = {
@@ -30,6 +31,7 @@ type ReportStepRunnerProps = {
   savedSteps: Record<string, InspectionStep>;
   saveActiveStep: (values: ReportWizardFormValues) => Promise<boolean>;
   selectStep: (stepCode: ReportStepCode) => Promise<void>;
+  site?: Site | null;
   stepSaveStatus: StepSaveStatus;
   stepDefinitions: ReportStepDefinition[];
   submitReport: () => Promise<void>;
@@ -55,6 +57,7 @@ export function ReportStepRunner({
   savedSteps,
   saveActiveStep,
   selectStep,
+  site,
   stepSaveStatus,
   stepDefinitions,
   submitReport,
@@ -99,6 +102,7 @@ export function ReportStepRunner({
           revision={savedSteps[activeDefinition.code]?.clientRevision}
           savedStep={savedSteps[activeDefinition.code]}
           savedSteps={savedSteps}
+          site={site}
           token={token}
         />
 

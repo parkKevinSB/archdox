@@ -62,6 +62,7 @@ public class ReportWorkflowDefinitionService {
     @Transactional(readOnly = true)
     public ReportWorkflowDefinitionResponse resolveForReport(InspectionReport report) {
         var siteType = resolveSiteType(report);
+        var supervisionWorkMode = resolveSupervisionWorkMode(report);
         var targetType = resolveTargetType(report);
         var checklistSchema = resolveChecklistSchema(report, siteType, targetType);
         var workflowPart = configurationRegistryService
@@ -75,6 +76,7 @@ public class ReportWorkflowDefinitionService {
                     report.officeId(),
                     report.reportType(),
                     siteType,
+                    supervisionWorkMode,
                     targetType,
                     textOrDefault(workflowPart.payload().get("flowId"), workflowPart.code()),
                     textOrDefault(workflowPart.payload().get("title"), workflowPart.name()),
@@ -88,7 +90,7 @@ public class ReportWorkflowDefinitionService {
                     configuredSteps);
         }
 
-        return builtInDefault(report, siteType, targetType, checklistSchema);
+        return builtInDefault(report, siteType, supervisionWorkMode, targetType, checklistSchema);
     }
 
     private InspectionReport requireReport(Long reportId) {
@@ -107,6 +109,15 @@ public class ReportWorkflowDefinitionService {
         }
         return siteRepository.findByIdAndOfficeId(report.siteId(), report.officeId())
                 .map(site -> normalizeCode(site.siteType()))
+                .orElse(null);
+    }
+
+    private String resolveSupervisionWorkMode(InspectionReport report) {
+        if (report.siteId() == null) {
+            return null;
+        }
+        return siteRepository.findByIdAndOfficeId(report.siteId(), report.officeId())
+                .map(site -> site.supervisionWorkMode().name())
                 .orElse(null);
     }
 
@@ -146,6 +157,7 @@ public class ReportWorkflowDefinitionService {
     private ReportWorkflowDefinitionResponse builtInDefault(
             InspectionReport report,
             String siteType,
+            String supervisionWorkMode,
             String targetType,
             ChecklistSchema checklistSchema
     ) {
@@ -159,6 +171,7 @@ public class ReportWorkflowDefinitionService {
                         report.officeId(),
                         report.reportType(),
                         siteType,
+                        supervisionWorkMode,
                         targetType,
                         documentTypeRegistryService.workflowId(definition),
                         documentTypeRegistryService.workflowTitle(definition),
@@ -177,6 +190,7 @@ public class ReportWorkflowDefinitionService {
                 report.officeId(),
                 report.reportType(),
                 siteType,
+                supervisionWorkMode,
                 targetType,
                 "inspection-report-writing",
                 "리포트 작성",

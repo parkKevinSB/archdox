@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { UseFormRegister, UseFormReturn } from "react-hook-form";
-import type { InspectionReport, ReportStepDefinition, ReportWizardFormValues } from "../../types";
+import type { InspectionReport, InspectionStep, ReportStepDefinition, ReportWizardFormValues, Site } from "../../types";
 
 export type ReportStepComponentProps = {
   canWriteReports: boolean;
@@ -13,6 +13,7 @@ export type ReportStepComponentProps = {
   revision?: number;
   savedStep?: InspectionStep;
   savedSteps?: Record<string, InspectionStep>;
+  site?: Site | null;
   token: string;
 };
 

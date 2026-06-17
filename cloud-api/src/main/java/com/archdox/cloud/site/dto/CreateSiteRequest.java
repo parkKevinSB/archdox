@@ -9,6 +9,7 @@ public record CreateSiteRequest(
         @NotBlank @Size(max = 200) String name,
         @Size(max = 500) String address,
         @Size(max = 100) String siteType,
+        @Size(max = 60) String supervisionWorkMode,
         LocalDate startDate,
         LocalDate endDate
 ) {

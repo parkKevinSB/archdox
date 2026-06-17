@@ -9,6 +9,7 @@ import com.archdox.cloud.project.application.ProjectService;
 import com.archdox.cloud.site.domain.Site;
 import com.archdox.cloud.site.dto.CreateSiteRequest;
 import com.archdox.cloud.site.dto.SiteResponse;
+import com.archdox.cloud.site.domain.SupervisionWorkMode;
 import com.archdox.cloud.site.infra.SiteRepository;
 import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.time.OffsetDateTime;
@@ -68,6 +69,7 @@ public class SiteService {
                 request.name().trim(),
                 trimToNull(request.address()),
                 normalizeSupportedCode(request.siteType(), SUPPORTED_SITE_TYPES, "siteType"),
+                normalizeSupervisionWorkMode(request.supervisionWorkMode()),
                 request.startDate(),
                 request.endDate(),
                 principal.userId(),
@@ -118,6 +120,7 @@ public class SiteService {
                 site.name(),
                 site.address(),
                 site.siteType(),
+                site.supervisionWorkMode(),
                 site.startDate(),
                 site.endDate(),
                 site.status());
@@ -140,5 +143,14 @@ public class SiteService {
             throw new BadRequestException("Unsupported " + fieldName + ": " + value);
         }
         return normalized;
+    }
+
+    private SupervisionWorkMode normalizeSupervisionWorkMode(String value) {
+        try {
+            return SupervisionWorkMode.normalize(value);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(
+                    "Unsupported supervisionWorkMode: " + value);
+        }
     }
 }

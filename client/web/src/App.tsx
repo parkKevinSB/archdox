@@ -96,6 +96,7 @@ type SiteFormValues = {
   name: string;
   address: string;
   siteType: string;
+  supervisionWorkMode: string;
   startDate: string;
   endDate: string;
 };
@@ -151,6 +152,12 @@ const siteTypeOptions: CodeOption[] = [
   { value: "CAMPUS", label: "단지/캠퍼스" },
   { value: "WORK_AREA", label: "작업구역" },
   { value: "OTHER", label: "기타" }
+];
+
+const supervisionWorkModeOptions: CodeOption[] = [
+  { value: "NON_RESIDENT", label: "비상주 감리" },
+  { value: "RESIDENT", label: "상주 감리" },
+  { value: "RESPONSIBLE_RESIDENT", label: "책임상주 감리" }
 ];
 
 const inspectionTargetTypeOptions: CodeOption[] = [
@@ -602,6 +609,7 @@ export default function App() {
         name: values.name,
         address: normalizeFormValue(values.address),
         siteType: normalizeFormValue(values.siteType),
+        supervisionWorkMode: normalizeFormValue(values.supervisionWorkMode),
         startDate: normalizeFormValue(values.startDate),
         endDate: normalizeFormValue(values.endDate)
       });
@@ -1799,7 +1807,10 @@ function SiteList({
             </div>
             <div>
               <strong>{site.name}</strong>
-              <span>{site.address || optionLabel(siteTypeOptions, site.siteType) || site.siteCode || "현장 정보 없음"}</span>
+              <span>
+                {optionLabel(supervisionWorkModeOptions, site.supervisionWorkMode) ?? "비상주 감리"}
+                {site.address ? ` · ${site.address}` : site.siteType ? ` · ${optionLabel(siteTypeOptions, site.siteType)}` : site.siteCode ? ` · ${site.siteCode}` : ""}
+              </span>
             </div>
             <StatusBadge status={site.status} />
           </button>
@@ -2019,6 +2030,7 @@ function SiteForm({ busy, onSubmit }: { busy: boolean; onSubmit: (values: SiteFo
     name: "",
     address: "",
     siteType: siteTypeOptions[0].value,
+    supervisionWorkMode: supervisionWorkModeOptions[0].value,
     startDate: "",
     endDate: ""
   });
@@ -2026,7 +2038,15 @@ function SiteForm({ busy, onSubmit }: { busy: boolean; onSubmit: (values: SiteFo
   async function submit(event: FormEvent) {
     event.preventDefault();
     await onSubmit(values);
-    setValues({ siteCode: "", name: "", address: "", siteType: siteTypeOptions[0].value, startDate: "", endDate: "" });
+    setValues({
+      siteCode: "",
+      name: "",
+      address: "",
+      siteType: siteTypeOptions[0].value,
+      supervisionWorkMode: supervisionWorkModeOptions[0].value,
+      startDate: "",
+      endDate: ""
+    });
   }
 
   return (
@@ -2064,6 +2084,20 @@ function SiteForm({ busy, onSubmit }: { busy: boolean; onSubmit: (values: SiteFo
           value={values.siteType}
         >
           {siteTypeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        감리업무 종류
+        <select
+          onChange={(event) => setValues({ ...values, supervisionWorkMode: event.target.value })}
+          required
+          value={values.supervisionWorkMode}
+        >
+          {supervisionWorkModeOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

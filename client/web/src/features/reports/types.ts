@@ -43,6 +43,7 @@ export type ReportFlowDefinition = {
   reportType?: string;
   revisionId?: number | null;
   siteType?: string | null;
+  supervisionWorkMode?: string | null;
   source?: string;
   targetType?: string | null;
   title: string;
@@ -103,6 +104,13 @@ export type SupervisionCatalogTrade = {
 export type SupervisionDomainCatalog = {
   catalogCode: string;
   catalogName: string;
+  selectedSupervisionWorkMode?: string;
+  selectedSupervisionWorkModeName?: string;
+  selectedSupervisionWorkModeCatalogCoverage?: {
+    message?: string;
+    referencePages?: string;
+    status?: string;
+  };
   documentLayoutPolicy?: {
     defaultOfficialLayout?: {
       formRevision?: string;
@@ -117,6 +125,12 @@ export type SupervisionDomainCatalog = {
     revisionLabel?: string;
   };
   status: string;
+  supervisionWorkModes?: Array<{
+    code: string;
+    description?: string;
+    name: string;
+    referencePages?: string;
+  }>;
   trades: SupervisionCatalogTrade[];
   version: number;
 };

@@ -77,6 +77,10 @@ export function ReportStartForm({
         <input readOnly value={selectedSite?.name ?? "현장을 선택하세요"} />
       </label>
       <label>
+        감리업무 종류
+        <input readOnly value={supervisionWorkModeLabel(selectedSite?.supervisionWorkMode)} />
+      </label>
+      <label>
         문서 유형
         <select disabled={documentTypes.length === 0} {...form.register("reportType", { required: true })}>
           {documentTypes.length === 0 ? <option value="">문서 유형을 불러오는 중입니다</option> : null}
@@ -121,6 +125,18 @@ export function ReportStartForm({
       </button>
     </form>
   );
+}
+
+function supervisionWorkModeLabel(value?: string | null) {
+  switch (value) {
+    case "RESIDENT":
+      return "상주 감리";
+    case "RESPONSIBLE_RESIDENT":
+      return "책임상주 감리";
+    case "NON_RESIDENT":
+    default:
+      return "비상주 감리";
+  }
 }
 
 function categoryLabel(category: string) {

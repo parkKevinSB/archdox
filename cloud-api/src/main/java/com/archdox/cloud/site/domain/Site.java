@@ -35,6 +35,10 @@ public class Site {
     @Column(name = "site_type")
     private String siteType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "supervision_work_mode", nullable = false)
+    private SupervisionWorkMode supervisionWorkMode = SupervisionWorkMode.defaultMode();
+
     @Column(name = "start_date")
     private LocalDate startDate;
 
@@ -64,6 +68,7 @@ public class Site {
             String name,
             String address,
             String siteType,
+            SupervisionWorkMode supervisionWorkMode,
             LocalDate startDate,
             LocalDate endDate,
             Long createdBy,
@@ -75,6 +80,7 @@ public class Site {
         this.name = name;
         this.address = address;
         this.siteType = siteType;
+        this.supervisionWorkMode = supervisionWorkMode == null ? SupervisionWorkMode.defaultMode() : supervisionWorkMode;
         this.startDate = startDate;
         this.endDate = endDate;
         this.createdBy = createdBy;
@@ -113,6 +119,10 @@ public class Site {
 
     public String siteType() {
         return siteType;
+    }
+
+    public SupervisionWorkMode supervisionWorkMode() {
+        return supervisionWorkMode == null ? SupervisionWorkMode.defaultMode() : supervisionWorkMode;
     }
 
     public LocalDate startDate() {

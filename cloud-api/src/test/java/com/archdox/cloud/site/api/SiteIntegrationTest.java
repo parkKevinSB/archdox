@@ -59,6 +59,7 @@ class SiteIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].id").value(siteId))
                 .andExpect(jsonPath("$[0].name").value("Main Site"))
+                .andExpect(jsonPath("$[0].supervisionWorkMode").value("NON_RESIDENT"))
                 .andExpect(jsonPath("$[0].status").value("ACTIVE"));
 
         mockMvc.perform(post("/api/v1/projects/{projectId}/sites/{siteId}/archive", projectId, siteId)
@@ -283,6 +284,38 @@ class SiteIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createsSiteWithSupervisionWorkMode() throws Exception {
+        var user = signup("site-supervision-mode@example.com", "Site Supervision Mode");
+        var projectId = createProject(user, "Mode Project");
+
+        var result = mockMvc.perform(post("/api/v1/projects/{projectId}/sites", projectId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "siteCode": "MODE-1",
+                                  "name": "Resident Site",
+                                  "address": "Seoul",
+                                  "siteType": "CONSTRUCTION_SITE",
+                                  "supervisionWorkMode": "RESIDENT"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.supervisionWorkMode").value("RESIDENT"))
+                .andReturn();
+        var siteId = readId(result.getResponse().getContentAsString());
+
+        mockMvc.perform(get("/api/v1/supervision-domain-catalogs/{catalogCode}", "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24")
+                        .queryParam("siteId", String.valueOf(siteId))
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.selectedSupervisionWorkMode").value("RESIDENT"))
+                .andExpect(jsonPath("$.selectedSupervisionWorkModeCatalogCoverage.status").value("EXTRACTION_PENDING"));
     }
 
     private TestUser signup(String email, String name) throws Exception {

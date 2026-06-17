@@ -11,10 +11,15 @@
   },
   "coverage": {
     "referencePages": "22-73",
+    "referencePagesBySupervisionWorkMode": {
+      "NON_RESIDENT": "22-73",
+      "RESIDENT": "74-126",
+      "RESPONSIBLE_RESIDENT": "127-178"
+    },
     "tradeCount": 46,
     "detailGroupCount": 51,
     "level": "TRADE_AND_DETAIL_PROCESS_WITH_CORE_ITEMS",
-    "note": "All trade/detail-process headers from the reference checklist pages are represented. Item lists are core structured seeds and should be expanded as the PDF extraction is reviewed item by item."
+    "note": "Current structured item rows are based on the non-resident supervision checklist pages. Resident and responsible-resident page ranges are identified and should be transcribed as mode-specific catalog data."
   },
   "documentLayoutPolicy": {
     "canonicalData": "report snapshot + workflow revision + domain catalog version + template/layout revision",

@@ -320,6 +320,7 @@ public class ArchDoxWorkerChatService {
                         name,
                         stringValue(payload.get("address")),
                         defaultString(payload.get("siteType"), "CONSTRUCTION_SITE"),
+                        defaultString(payload.get("supervisionWorkMode"), "NON_RESIDENT"),
                         localDateValue(payload.get("startDate")),
                         localDateValue(payload.get("endDate"))),
                 workerPrincipal(userId)));

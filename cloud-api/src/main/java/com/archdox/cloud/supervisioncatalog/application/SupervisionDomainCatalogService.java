@@ -2,12 +2,18 @@ package com.archdox.cloud.supervisioncatalog.application;
 
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
+import com.archdox.cloud.office.application.OfficeContext;
+import com.archdox.cloud.site.domain.SupervisionWorkMode;
+import com.archdox.cloud.site.infra.SiteRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -22,15 +28,29 @@ public class SupervisionDomainCatalogService {
     );
 
     private final ObjectMapper objectMapper;
+    private final SiteRepository siteRepository;
     private final Map<String, JsonNode> catalogCache = new ConcurrentHashMap<>();
+
+    @Autowired
+    public SupervisionDomainCatalogService(ObjectMapper objectMapper, SiteRepository siteRepository) {
+        this.objectMapper = objectMapper;
+        this.siteRepository = siteRepository;
+    }
 
     public SupervisionDomainCatalogService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.siteRepository = null;
     }
 
     public JsonNode get(String catalogCode) {
+        return get(catalogCode, null);
+    }
+
+    public JsonNode get(String catalogCode, Long siteId) {
         var normalized = normalize(catalogCode);
-        return catalog(normalized).deepCopy();
+        var result = (ObjectNode) catalog(normalized).deepCopy();
+        enrichSupervisionWorkMode(result, resolveSupervisionWorkMode(siteId));
+        return result;
     }
 
     public String defaultConstructionCatalogCode() {
@@ -81,6 +101,56 @@ public class SupervisionDomainCatalogService {
 
     private JsonNode catalog(String normalized) {
         return catalogCache.computeIfAbsent(normalized, this::readCatalog);
+    }
+
+    private SupervisionWorkMode resolveSupervisionWorkMode(Long siteId) {
+        if (siteId == null) {
+            return SupervisionWorkMode.defaultMode();
+        }
+        if (siteRepository == null) {
+            return SupervisionWorkMode.defaultMode();
+        }
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        return siteRepository.findByIdAndOfficeId(siteId, officeId)
+                .map(site -> site.supervisionWorkMode())
+                .orElse(SupervisionWorkMode.defaultMode());
+    }
+
+    private void enrichSupervisionWorkMode(ObjectNode catalog, SupervisionWorkMode selectedMode) {
+        var mode = selectedMode == null ? SupervisionWorkMode.defaultMode() : selectedMode;
+        catalog.put("selectedSupervisionWorkMode", mode.name());
+        catalog.put("selectedSupervisionWorkModeName", supervisionWorkModeName(mode));
+        catalog.set("supervisionWorkModes", objectMapper.valueToTree(List.of(
+                mode("NON_RESIDENT", "비상주 감리", "22-73", "현재 전사된 기본 공종별 체크리스트입니다."),
+                mode("RESIDENT", "상주 감리", "74-126", "상주 공사감리 체크리스트 구간입니다. 상세 항목 전사 후 모드별 필터링 대상입니다."),
+                mode("RESPONSIBLE_RESIDENT", "책임상주 감리", "127-178", "책임상주 공사감리 체크리스트 구간입니다. 상세 항목 전사 후 모드별 필터링 대상입니다.")
+        )));
+        catalog.set("selectedSupervisionWorkModeCatalogCoverage", objectMapper.valueToTree(
+                mode == SupervisionWorkMode.NON_RESIDENT
+                        ? Map.of(
+                                "status", "READY",
+                                "referencePages", "22-73",
+                                "message", "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다.")
+                        : Map.of(
+                                "status", "EXTRACTION_PENDING",
+                                "referencePages", mode == SupervisionWorkMode.RESIDENT ? "74-126" : "127-178",
+                                "message", "현장 감리업무 종류는 저장되었지만, 이 모드의 상세 체크리스트 전사는 다음 단계에서 확장됩니다.")));
+    }
+
+    private Map<String, String> mode(String code, String name, String referencePages, String description) {
+        return Map.of(
+                "code", code,
+                "name", name,
+                "referencePages", referencePages,
+                "description", description);
+    }
+
+    private String supervisionWorkModeName(SupervisionWorkMode mode) {
+        return switch (mode) {
+            case NON_RESIDENT -> "비상주 감리";
+            case RESIDENT -> "상주 감리";
+            case RESPONSIBLE_RESIDENT -> "책임상주 감리";
+        };
     }
 
     private JsonNode readCatalog(String normalized) {

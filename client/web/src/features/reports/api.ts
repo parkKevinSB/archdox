@@ -27,9 +27,10 @@ export function getReportWorkflowDefinition(token: string, officeId: number, rep
   });
 }
 
-export function getSupervisionDomainCatalog(token: string, officeId: number, catalogCode: string) {
+export function getSupervisionDomainCatalog(token: string, officeId: number, catalogCode: string, siteId?: number | null) {
+  const query = siteId ? `?siteId=${encodeURIComponent(String(siteId))}` : "";
   return request<SupervisionDomainCatalog>(
-    `/api/v1/supervision-domain-catalogs/${encodeURIComponent(catalogCode)}`,
+    `/api/v1/supervision-domain-catalogs/${encodeURIComponent(catalogCode)}${query}`,
     { token, officeId }
   );
 }
