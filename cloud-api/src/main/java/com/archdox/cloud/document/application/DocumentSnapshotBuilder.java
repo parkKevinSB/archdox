@@ -6,6 +6,7 @@ import com.archdox.cloud.configuration.application.ResolvedDocumentConfiguration
 import com.archdox.cloud.configuration.application.ResolvedDocumentTemplateConfig;
 import com.archdox.cloud.documenttype.application.DocumentTypeRegistryService;
 import com.archdox.cloud.global.api.BadRequestException;
+import com.archdox.cloud.inspection.application.DailySupervisionContentFormatter;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
@@ -30,8 +31,6 @@ import org.springframework.stereotype.Component;
 public class DocumentSnapshotBuilder {
     private static final int MAX_RENDER_OVERRIDE_COUNT = 30;
     private static final int MAX_RENDER_OVERRIDE_VALUE_LENGTH = 4_000;
-    private static final Pattern DAILY_SUPERVISION_CONTENT_PATH = Pattern.compile(
-            "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.supervisionContent$");
     private static final Pattern REMARKS_TEXT_PATH = Pattern.compile(
             "^steps\\.REMARKS\\.payload\\.(issueAndAction|nextAction)$");
     private static final Pattern DAILY_LOG_TEXT_PATH = Pattern.compile(
@@ -168,15 +167,6 @@ public class DocumentSnapshotBuilder {
     }
 
     private boolean applyRenderOverride(Map<String, Object> snapshot, String path, String value) {
-        var dailyMatcher = DAILY_SUPERVISION_CONTENT_PATH.matcher(path);
-        if (dailyMatcher.matches()) {
-            applyDailySupervisionContentOverride(
-                    snapshot,
-                    Integer.parseInt(dailyMatcher.group(1)),
-                    Integer.parseInt(dailyMatcher.group(2)),
-                    value);
-            return true;
-        }
         var remarksMatcher = REMARKS_TEXT_PATH.matcher(path);
         if (remarksMatcher.matches()) {
             applyRemarksTextOverride(snapshot, remarksMatcher.group(1), value);
@@ -188,37 +178,6 @@ public class DocumentSnapshotBuilder {
             return true;
         }
         return false;
-    }
-
-    private void applyDailySupervisionContentOverride(
-            Map<String, Object> snapshot,
-            int groupIndex,
-            int entryIndex,
-            String value
-    ) {
-        var payload = mutableStepPayload(snapshot, "DAILY_LOG", false);
-        var dailyItems = mutableChildMap(payload, "dailyItems");
-        var groups = mutableChildList(dailyItems, "groups");
-        if (groupIndex < 0 || groupIndex >= groups.size()) {
-            throw new BadRequestException(
-                    "DOCUMENT_RENDER_OVERRIDE_TARGET_NOT_FOUND",
-                    "errors.document.renderOverrideTargetNotFound",
-                    "Document render override group target was not found.",
-                    Map.of("stepCode", "DAILY_LOG", "groupIndex", groupIndex));
-        }
-        var group = mutableMap(groups.get(groupIndex));
-        groups.set(groupIndex, group);
-        var entries = mutableChildList(group, "entries");
-        if (entryIndex < 0 || entryIndex >= entries.size()) {
-            throw new BadRequestException(
-                    "DOCUMENT_RENDER_OVERRIDE_TARGET_NOT_FOUND",
-                    "errors.document.renderOverrideTargetNotFound",
-                    "Document render override entry target was not found.",
-                    Map.of("stepCode", "DAILY_LOG", "groupIndex", groupIndex, "entryIndex", entryIndex));
-        }
-        var entry = mutableMap(entries.get(entryIndex));
-        entry.put("supervisionContent", value);
-        entries.set(entryIndex, entry);
     }
 
     private void applyRemarksTextOverride(Map<String, Object> snapshot, String key, String value) {
@@ -500,10 +459,7 @@ public class DocumentSnapshotBuilder {
                 for (Object rowValue : listValue(entry.get("checklistRows"))) {
                     var row = mapValue(rowValue);
                     var rowLabel = stringValue(row.get("label"));
-                    var rowDetail = joinNonBlank(
-                            stringValue(row.get("result")),
-                            stringValue(row.get("referenceNote")),
-                            stringValue(row.get("actionNote")));
+                    var rowDetail = DailySupervisionContentFormatter.formatRowContent(row);
                     for (Object photoIdValue : listValue(row.get("photoIds"))) {
                         var photoId = longValue(photoIdValue);
                         if (photoId == null) {

@@ -352,10 +352,6 @@ public class ReportPreflightReviewService {
         if (groupedDailyRow != null) {
             return groupedDailyRow;
         }
-        var flatDaily = flatDailyLogLocation(location);
-        if (flatDaily != null) {
-            return flatDaily;
-        }
         return null;
     }
 
@@ -381,15 +377,6 @@ public class ReportPreflightReviewService {
                 integerOrNull(matcher.group(2)),
                 integerOrNull(matcher.group(3)),
                 matcher.group(4));
-    }
-
-    private static FindingFixTarget flatDailyLogLocation(String location) {
-        var matcher = Pattern.compile(".*DAILY_LOG\\.entries\\[(\\d+)]\\.supervisionContent$")
-                .matcher(location);
-        if (!matcher.matches()) {
-            return null;
-        }
-        return FindingFixTarget.dailyFlat(integerOrNull(matcher.group(1)));
     }
 
     private static Integer integerOrNull(String value) {
@@ -480,9 +467,6 @@ public class ReportPreflightReviewService {
         if (target.rowField() != null) {
             payload.put("rowField", target.rowField());
         }
-        if (target.flatEntryIndex() != null) {
-            payload.put("flatEntryIndex", target.flatEntryIndex());
-        }
         return payload;
     }
 
@@ -490,25 +474,6 @@ public class ReportPreflightReviewService {
     private static void applyDailyLogReplacement(Map<String, Object> payload, FindingFixTarget target, String replacement) {
         var dailyItems = mutableChildMap(payload, "dailyItems");
         var groups = mutableChildList(dailyItems, "groups");
-        if (target.flatEntryIndex() != null) {
-            var remaining = target.flatEntryIndex();
-            for (Object groupValue : groups) {
-                var group = asMutableMap(groupValue);
-                var entries = mutableChildList(group, "entries");
-                if (remaining < entries.size()) {
-                    var entry = asMutableMap(entries.get(remaining));
-                    entry.put("supervisionContent", replacement);
-                    entries.set(remaining, entry);
-                    return;
-                }
-                remaining -= entries.size();
-            }
-            throw new BadRequestException(
-                    "REPORT_PREFLIGHT_FIX_TARGET_NOT_FOUND",
-                    "errors.reportPreflight.fixTargetNotFound",
-                    "Preflight fix target entry was not found.",
-                    Map.of("flatEntryIndex", target.flatEntryIndex()));
-        }
         if (target.groupIndex() == null || target.entryIndex() == null
                 || target.groupIndex() < 0 || target.entryIndex() < 0
                 || target.groupIndex() >= groups.size()) {
@@ -543,7 +508,6 @@ public class ReportPreflightReviewService {
             var row = asMutableMap(rows.get(target.rowIndex()));
             row.put(target.rowField(), replacement);
             rows.set(target.rowIndex(), row);
-            entry.put("supervisionContent", buildDailyEntrySupervisionContent(entry));
             entries.set(target.entryIndex(), entry);
             return;
         }
@@ -552,55 +516,6 @@ public class ReportPreflightReviewService {
                 "errors.reportPreflight.fixTargetNotSupported",
                 "Generated daily supervision content cannot be edited directly.",
                 Map.of("groupIndex", target.groupIndex(), "entryIndex", target.entryIndex()));
-    }
-
-    private static String buildDailyEntrySupervisionContent(Map<String, Object> entry) {
-        var rows = new ArrayList<String>();
-        for (Object rowValue : listValue(entry.get("checklistRows"))) {
-            var row = asMutableMap(rowValue);
-            var rowContent = checklistRowContent(row);
-            if (!rowContent.isBlank()) {
-                rows.add("- " + rowContent);
-            }
-        }
-        if (rows.isEmpty()) {
-            return textValue(entry.get("supervisionContent"));
-        }
-        var title = textValue(entry.get("inspectionItemName"));
-        if (!title.isBlank()) {
-            rows.add(0, title);
-        }
-        return String.join("\n", rows);
-    }
-
-    private static String checklistRowContent(Map<String, Object> row) {
-        var parts = new ArrayList<String>();
-        var label = textValue(row.get("label"));
-        var result = checklistResultLabel(textValue(row.get("result")));
-        var referenceNote = textValue(row.get("referenceNote"));
-        var actionNote = textValue(row.get("actionNote"));
-        if (!label.isBlank()) {
-            parts.add(label);
-        }
-        if (!result.isBlank()) {
-            parts.add(result);
-        }
-        if (!referenceNote.isBlank()) {
-            parts.add("기준·참고: " + referenceNote);
-        }
-        if (!actionNote.isBlank()) {
-            parts.add("조치사항: " + actionNote);
-        }
-        return parts.size() <= 1 ? "" : String.join(" / ", parts);
-    }
-
-    private static String checklistResultLabel(String result) {
-        return switch (result) {
-            case "COMPLIANT" -> "적합";
-            case "NON_COMPLIANT" -> "부적합";
-            case "NOT_APPLICABLE" -> "";
-            default -> "";
-        };
     }
 
     private static List<?> listValue(Object value) {
@@ -674,33 +589,25 @@ public class ReportPreflightReviewService {
             String payloadKey,
             Integer groupIndex,
             Integer entryIndex,
-            Integer flatEntryIndex,
             Integer rowIndex,
             String rowField
     ) {
         private static FindingFixTarget remarks(String payloadKey) {
-            return new FindingFixTarget("REMARKS", payloadKey, null, null, null, null, null);
+            return new FindingFixTarget("REMARKS", payloadKey, null, null, null, null);
         }
 
         private static FindingFixTarget dailyGroupedRow(Integer groupIndex, Integer entryIndex, Integer rowIndex, String rowField) {
-            return new FindingFixTarget("DAILY_LOG", null, groupIndex, entryIndex, null, rowIndex, rowField);
-        }
-
-        private static FindingFixTarget dailyFlat(Integer flatEntryIndex) {
-            return new FindingFixTarget("DAILY_LOG", null, null, null, flatEntryIndex, null, null);
+            return new FindingFixTarget("DAILY_LOG", null, groupIndex, entryIndex, rowIndex, rowField);
         }
 
         private String description() {
             if ("REMARKS".equals(stepCode)) {
                 return stepCode + "." + payloadKey;
             }
-            if (flatEntryIndex != null) {
-                return stepCode + ".entries[" + flatEntryIndex + "].supervisionContent";
-            }
             if (rowIndex != null && rowField != null) {
                 return stepCode + ".groups[" + groupIndex + "].entries[" + entryIndex + "].checklistRows[" + rowIndex + "]." + rowField;
             }
-            return stepCode + ".groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
+            throw new IllegalStateException("Unsupported preflight fix target: " + stepCode);
         }
     }
 

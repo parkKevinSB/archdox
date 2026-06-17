@@ -1,36 +1,23 @@
 package com.archdox.cloud.reportai.application;
 
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ReportPreflightFieldValueResolver {
-    private static final Pattern DAILY_GROUPED_SUPERVISION_CONTENT = Pattern.compile(
-            ".*groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.supervisionContent$");
-    private static final Pattern DAILY_FLAT_SUPERVISION_CONTENT = Pattern.compile(
-            ".*DAILY_LOG\\.entries\\[(\\d+)]\\.supervisionContent$");
     private static final Pattern REMARKS_DIRECT_FIELD = Pattern.compile(
             ".*REMARKS(?:\\.payload)?\\.(issueAndAction|nextAction)$");
 
     private final InspectionReportStepRepository stepRepository;
-    private final ObjectMapper objectMapper;
 
-    public ReportPreflightFieldValueResolver(
-            InspectionReportStepRepository stepRepository,
-            ObjectMapper objectMapper
-    ) {
+    public ReportPreflightFieldValueResolver(InspectionReportStepRepository stepRepository) {
         this.stepRepository = stepRepository;
-        this.objectMapper = objectMapper;
     }
 
     public Optional<String> resolve(Long reportId, String location) {
@@ -41,17 +28,6 @@ public class ReportPreflightFieldValueResolver {
         var remarksMatcher = REMARKS_DIRECT_FIELD.matcher(normalized);
         if (remarksMatcher.matches()) {
             return resolveRemarks(reportId, remarksMatcher.group(1));
-        }
-        var groupedDailyMatcher = DAILY_GROUPED_SUPERVISION_CONTENT.matcher(normalized);
-        if (groupedDailyMatcher.matches()) {
-            return resolveDailyGrouped(
-                    reportId,
-                    integerOrNull(groupedDailyMatcher.group(1)),
-                    integerOrNull(groupedDailyMatcher.group(2)));
-        }
-        var flatDailyMatcher = DAILY_FLAT_SUPERVISION_CONTENT.matcher(normalized);
-        if (flatDailyMatcher.matches()) {
-            return resolveDailyFlat(reportId, integerOrNull(flatDailyMatcher.group(1)));
         }
         return Optional.empty();
     }
@@ -75,131 +51,6 @@ public class ReportPreflightFieldValueResolver {
         return stepRepository.findByReportIdAndStepCode(reportId, "REMARKS")
                 .map(step -> text(step.payloadJson() == null ? null : step.payloadJson().get(fieldName)))
                 .filter(value -> !value.isBlank());
-    }
-
-    private Optional<String> resolveDailyGrouped(Long reportId, Integer groupIndex, Integer entryIndex) {
-        if (groupIndex == null || entryIndex == null || groupIndex < 0 || entryIndex < 0) {
-            return Optional.empty();
-        }
-        return dailyItems(reportId)
-                .flatMap(dailyItems -> {
-                    var groups = listValue(dailyItems.get("groups"));
-                    if (groupIndex >= groups.size()) {
-                        return Optional.empty();
-                    }
-                    var entries = listValue(mapValue(groups.get(groupIndex)).get("entries"));
-                    if (entryIndex >= entries.size()) {
-                        return Optional.empty();
-                    }
-                    var value = dailySupervisionContent(mapValue(entries.get(entryIndex)));
-                    return value.isBlank() ? Optional.empty() : Optional.of(value);
-                });
-    }
-
-    private Optional<String> resolveDailyFlat(Long reportId, Integer flatEntryIndex) {
-        if (flatEntryIndex == null || flatEntryIndex < 0) {
-            return Optional.empty();
-        }
-        return dailyItems(reportId)
-                .flatMap(dailyItems -> {
-                    var remaining = flatEntryIndex;
-                    for (Object groupValue : listValue(dailyItems.get("groups"))) {
-                        var entries = listValue(mapValue(groupValue).get("entries"));
-                        if (remaining < entries.size()) {
-                            var value = dailySupervisionContent(mapValue(entries.get(remaining)));
-                            return value.isBlank() ? Optional.empty() : Optional.of(value);
-                        }
-                        remaining -= entries.size();
-                    }
-                    return Optional.empty();
-                });
-    }
-
-    private Optional<Map<String, Object>> dailyItems(Long reportId) {
-        return stepRepository.findByReportIdAndStepCode(reportId, "DAILY_LOG")
-                .flatMap(step -> normalizedMap(step.payloadJson() == null ? null : step.payloadJson().get("dailyItems")));
-    }
-
-    @SuppressWarnings("unchecked")
-    private Optional<Map<String, Object>> normalizedMap(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return Optional.of((Map<String, Object>) map);
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Optional.of(objectMapper.readValue(text, new TypeReference<Map<String, Object>>() {
-                }));
-            } catch (Exception ignored) {
-                return Optional.empty();
-            }
-        }
-        return Optional.empty();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> mapValue(Object value) {
-        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
-    }
-
-    private static String dailySupervisionContent(Map<String, Object> entry) {
-        var rows = new java.util.ArrayList<String>();
-        for (Object rowValue : listValue(entry.get("checklistRows"))) {
-            var row = mapValue(rowValue);
-            var rowContent = checklistRowContent(row);
-            if (!rowContent.isBlank()) {
-                rows.add("- " + rowContent);
-            }
-        }
-        if (rows.isEmpty()) {
-            return text(entry.get("supervisionContent"));
-        }
-        var title = text(entry.get("inspectionItemName"));
-        if (!title.isBlank()) {
-            rows.add(0, title);
-        }
-        return String.join("\n", rows);
-    }
-
-    private static String checklistRowContent(Map<String, Object> row) {
-        var parts = new java.util.ArrayList<String>();
-        var label = text(row.get("label"));
-        var result = checklistResultLabel(text(row.get("result")));
-        var referenceNote = text(row.get("referenceNote"));
-        var actionNote = text(row.get("actionNote"));
-        if (!label.isBlank()) {
-            parts.add(label);
-        }
-        if (!result.isBlank()) {
-            parts.add(result);
-        }
-        if (!referenceNote.isBlank()) {
-            parts.add("기준·참고: " + referenceNote);
-        }
-        if (!actionNote.isBlank()) {
-            parts.add("조치사항: " + actionNote);
-        }
-        return parts.size() <= 1 ? "" : String.join(" / ", parts);
-    }
-
-    private static String checklistResultLabel(String result) {
-        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
-            case "COMPLIANT" -> "적합";
-            case "NON_COMPLIANT" -> "부적합";
-            case "NOT_APPLICABLE" -> "";
-            default -> "";
-        };
-    }
-
-    private static List<?> listValue(Object value) {
-        return value instanceof List<?> list ? list : List.of();
-    }
-
-    private static Integer integerOrNull(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
     }
 
     private static String normalizedText(String value) {

@@ -77,7 +77,7 @@ class CoreKoreanDocumentGenerationSmokeTest {
         assertTrue(documentXml.contains("25"));
         assertTrue(documentXml.contains("철근 콘크리트 공사"));
         assertTrue(documentXml.contains("기초, 지하층 바닥"));
-        assertTrue(documentXml.contains("철근 조립, 배근"));
+        assertTrue(documentXml.contains("철근배근의 확인사항"));
         assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
         assertTrue(documentXml.contains("전경 사진"));
         assertTrue(documentXml.contains("사진 및 설명"));
@@ -159,12 +159,17 @@ class CoreKoreanDocumentGenerationSmokeTest {
                                                                 "floor", "",
                                                                 "entries", List.of(
                                                                         Map.of(
-                                                                                "inspectionItemName", "철근 조립, 배근",
-                                                                                "supervisionContent", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                "inspectionItemName", "철근배근의 확인사항",
+                                                                                "checklistRows", List.of(
+                                                                                        Map.of("code", "RC_REBAR_COUNT_DIAMETER_PITCH", "label", "개수, 철근지름, 피치 확인", "result", "COMPLIANT"),
+                                                                                        Map.of("code", "RC_REBAR_ANCHORAGE", "label", "정착길이와 굽힘정착 깊이 확인", "result", "COMPLIANT")),
                                                                                 "photoIds", List.of(1, 2)),
                                                                         Map.of(
-                                                                                "inspectionItemName", "철근 규격 증명서",
-                                                                                "supervisionContent", "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
+                                                                                "inspectionItemName", "철근 규격 증명서 확인사항",
+                                                                                "checklistRows", List.of(Map.of(
+                                                                                        "code", "RC_REBAR_KS_CERTIFICATE",
+                                                                                        "label", "KS마크 또는 시험성적증명서에 의한 KS규격제품인지 확인",
+                                                                                        "result", "COMPLIANT")),
                                                                                 "photoIds", List.of()))),
                                                         Map.of(
                                                                 "tradeName", "가설공사",
@@ -173,7 +178,10 @@ class CoreKoreanDocumentGenerationSmokeTest {
                                                                 "entries", List.of(
                                                                         Map.of(
                                                                                 "inspectionItemName", "안전난간 설치 상태",
-                                                                                "supervisionContent", "개구부 주변 안전난간 보강 완료",
+                                                                                "checklistRows", List.of(Map.of(
+                                                                                        "code", "TEMP_GUARDRAIL_REINFORCEMENT",
+                                                                                        "label", "개구부 주변 안전난간 보강 완료",
+                                                                                        "result", "COMPLIANT")),
                                                                                 "photoIds", List.of(3))))))))),
                 "checklistAnswers", List.of(
                         Map.of(

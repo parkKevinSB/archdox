@@ -12,6 +12,7 @@ final class ReportPreflightFindingClassifier {
             "LEGAL_REVIEW_PASSED",
             "LEGAL_REVIEW_NEEDS_HUMAN_REVIEW",
             "LEGAL_REVIEW_BLOCKED",
+            "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
             "LEGAL_REVIEW_SKIPPED");
 
     private ReportPreflightFindingClassifier() {

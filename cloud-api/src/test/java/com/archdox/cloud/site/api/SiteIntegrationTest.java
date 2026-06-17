@@ -157,16 +157,34 @@ class SiteIntegrationTest {
                                           "entries": [
                                               {
                                                 "id": "entry-1",
-                                                "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                                "inspectionItemName": "Rebar count and pitch",
-                                                "supervisionContent": "Checked rebar spacing and count.",
+                                                "inspectionItemCode": "RC_REBAR_CONFIRMATION",
+                                                "inspectionItemName": "Rebar confirmation",
+                                                "checklistRows": [
+                                                  {
+                                                    "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                    "label": "Checked rebar spacing and count",
+                                                    "result": "COMPLIANT",
+                                                    "referenceNote": "",
+                                                    "actionNote": "",
+                                                    "photoIds": [10, 11]
+                                                  }
+                                                ],
                                                 "photoIds": [10, 11]
                                               },
                                             {
                                               "id": "entry-2",
-                                              "inspectionItemCode": "RC_REBAR_ANCHORAGE",
-                                              "inspectionItemName": "Anchorage length",
-                                              "supervisionContent": "Anchorage length reviewed.",
+                                              "inspectionItemCode": "RC_REBAR_CONFIRMATION",
+                                              "inspectionItemName": "Rebar confirmation",
+                                              "checklistRows": [
+                                                {
+                                                  "code": "RC_REBAR_ANCHORAGE",
+                                                  "label": "Anchorage length reviewed",
+                                                  "result": "COMPLIANT",
+                                                  "referenceNote": "",
+                                                  "actionNote": "",
+                                                  "photoIds": []
+                                                }
+                                              ],
                                               "photoIds": []
                                             }
                                           ]
@@ -188,7 +206,7 @@ class SiteIntegrationTest {
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                   .andExpect(jsonPath("$[0].tradeCode").value("REINFORCED_CONCRETE"))
                   .andExpect(jsonPath("$[0].processCode").value("REBAR_ASSEMBLY"))
-                  .andExpect(jsonPath("$[*].inspectionItemCode", hasItem("RC_REBAR_COUNT_DIAMETER_PITCH")))
+                  .andExpect(jsonPath("$[*].inspectionItemCode", hasItem("RC_REBAR_CONFIRMATION")))
                   .andExpect(jsonPath("$[0].catalogCode").value("CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24"))
                   .andExpect(jsonPath("$[0].catalogVersion").value(2))
                   .andExpect(jsonPath("$[0].sourceReportId").value(reportId))

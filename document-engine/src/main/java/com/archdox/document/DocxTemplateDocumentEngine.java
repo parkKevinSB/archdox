@@ -454,7 +454,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         if (rows.isEmpty()) {
-            return valueOrBlank(entry.get("supervisionContent")).trim();
+            return "";
         }
         var title = valueOrBlank(entry.get("inspectionItemName")).trim();
         if (!title.isBlank()) {

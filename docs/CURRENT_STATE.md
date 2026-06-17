@@ -306,7 +306,10 @@ These are development-only credentials.
   `dailyItems.groups[]` now uses canonical keys only:
   `tradeCode`, `tradeName`, `processCode`, `processName`, `floor`, and
   `entries[]` with `inspectionItemCode`, `inspectionItemName`,
-  `supervisionContent`, and `photoIds`.
+  `checklistRows[]`, and `photoIds`. `supervisionContent` is derived prose for
+  rendering and ledger projection only; it is not a canonical daily-log input
+  field and must not be used as a compatibility fallback for old report
+  payloads.
 - Current active business scope is **construction supervision** only. Fresh
   database seed migrations create only `CONSTRUCTION_DAILY_SUPERVISION_LOG`
   and `CONSTRUCTION_SUPERVISION_REPORT`; legacy safety/facility/demo document

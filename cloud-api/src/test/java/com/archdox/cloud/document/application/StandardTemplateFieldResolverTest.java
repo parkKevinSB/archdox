@@ -1,6 +1,7 @@
 package com.archdox.cloud.document.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -39,9 +40,13 @@ class StandardTemplateFieldResolverTest {
                                                 "processName", "Slab",
                                                 "floor", "3F",
                                                 "entries", List.of(Map.of(
-                                                        "inspectionItemCode", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                                        "inspectionItemName", "Rebar count and pitch",
-                                                        "supervisionContent", "Checked rebar",
+                                                        "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                                        "inspectionItemName", "Rebar confirmation",
+                                                        "checklistRows", List.of(Map.of(
+                                                                "label", "Checked rebar",
+                                                                "result", "COMPLIANT",
+                                                                "referenceNote", "",
+                                                                "actionNote", "")),
                                                         "photoIds", List.of()))))),
                                 "specialNotes", "No special issue",
                                 "issueAndAction", "None"))),
@@ -62,8 +67,8 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Concrete", fields.get("constructionTrade"));
         assertEquals("Slab", fields.get("detailedProcess"));
         assertEquals("3F", fields.get("floor"));
-        assertEquals("Rebar count and pitch", fields.get("inspectionItem"));
-        assertEquals("Checked rebar", fields.get("supervisionContent"));
+        assertEquals("Rebar confirmation", fields.get("inspectionItem"));
+        assertTrue(String.valueOf(fields.get("supervisionContent")).contains("Checked rebar"));
         assertEquals("None", fields.get("issueAndAction"));
         assertEquals("None", fields.get("correctionResults"));
     }

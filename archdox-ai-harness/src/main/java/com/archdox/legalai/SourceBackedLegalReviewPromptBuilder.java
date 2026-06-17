@@ -80,18 +80,18 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Do not decide whether those documents really exist or were actually attached. That is the supervising professional's responsibility after reviewing the draft.
                 - Your job is to propose report prose that tells the supervising professional which checks and attachments should be reflected in the daily log.
                 - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", propose final daily-log prose that includes confirmation and attachment wording for the relevant evidence classes.
-                - Good replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
+                - Good replacement example: "창호 자재의 단열, 기밀, 수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서, 시험성적서, 자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
                 - If the report already states the evidence document was verified or attached, preserve and refine that fact.
                 - For issues on direct report text fields, set relatedFieldPath and replacement when you can produce safe final report prose.
-                - Direct report text fields include DAILY_LOG.entries[n].supervisionContent, DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote, DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
-                - DAILY_LOG.groups[n].entries[m].supervisionContent is generated compatibility text. Do not target it for automatic replacement.
+                - Direct report text fields include DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote, DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - Do not target generated daily supervision summary text for automatic replacement.
                 - replacement must be final report prose, not an instruction. Do not write "명시하십시오", "첨부하십시오", "권고합니다", or "확인 후 첨부합니다" in replacement.
                 - If you cannot safely produce final prose, set replacement to "" and put the human action in suggestion.
                 - Do not ask the user to attach technical documents unless the workflow explicitly supports technical document evidence. Prefer a scope limitation over a blocking issue for ordinary daily-log generation.
                 - Missing technical documents alone is not a legal-risk finding for ordinary daily-log generation. Put it in limitations, not issues, unless the report explicitly claims technical compliance or contradicts the supplied anchors.
                 - DAILY_LOG checklistRows with result NOT_APPLICABLE are intentionally out of today's inspection scope.
-                  Legacy blank/empty result with no notes and no photos is also equivalent to NOT_APPLICABLE.
-                  Do not treat these rows as missing inspection result, missing photo evidence, or missing legal evidence.
+                  Do not treat NOT_APPLICABLE rows as missing inspection result, missing photo evidence, or missing legal evidence.
+                - A blank/empty checklistRows result is invalid report payload. Deterministic validation may flag it as a data-shape error; do not reinterpret it as NOT_APPLICABLE.
                 - Only COMPLIANT and NON_COMPLIANT checklistRows are inspected rows for this daily log.
                 - For each issue, evidence must mention both the report input evidence and the supplied source anchor evidence.
                 - Use WARN for items needing human review before document generation.
@@ -100,7 +100,7 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - PASS means no additional legal-risk issue was detected in this source-backed draft scope.
                 - PASS does not mean final legal compliance, legality confirmation, agency approval, or professional legal advice.
                 - Never say the report "meets legal requirements", "complies with law", "is lawful", or equivalent final compliance wording.
-                - In Korean, prefer cautious wording such as "제공된 근거와 입력 범위에서는 추가 법률 리스크가 표시되지 않습니다."
+                - In Korean, prefer cautious wording such as "제공된 근거와 입력 범위에서는 추가 법률 리스크가 표시되지 않았습니다."
                 - State limitations briefly for every status, including PASS.
 
                 Korean writing rules:

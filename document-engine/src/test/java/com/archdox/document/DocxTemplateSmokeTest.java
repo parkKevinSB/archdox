@@ -258,14 +258,19 @@ class DocxTemplateSmokeTest {
                                                                             "floor", "기초층",
                                                                             "entries", List.of(
                                                                                     Map.of(
-                                                                                            "inspectionItemCode", "REBAR_ASSEMBLY",
-                                                                                            "inspectionItemName", "철근 조립, 배근",
-                                                                                            "supervisionContent", "철근배근의 확인\n- 개수, 철근지름, 피치 확인\n- 정착길이와 굽힘정착 깊이 확인",
+                                                                                            "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                                                                            "inspectionItemName", "철근배근의 확인사항",
+                                                                                            "checklistRows", List.of(
+                                                                                                    Map.of("code", "RC_REBAR_COUNT_DIAMETER_PITCH", "label", "개수, 철근지름, 피치 확인", "result", "COMPLIANT"),
+                                                                                                    Map.of("code", "RC_REBAR_ANCHORAGE", "label", "정착길이와 굽힘정착 깊이 확인", "result", "COMPLIANT")),
                                                                                             "photoIds", List.of(1, 2)),
                                                                                     Map.of(
-                                                                                            "inspectionItemCode", "REBAR_CERTIFICATE",
-                                                                                            "inspectionItemName", "철근 규격 증명서",
-                                                                                            "supervisionContent", "KS마크 또는 시험성적증명서 확인",
+                                                                                            "inspectionItemCode", "RC_REBAR_CERTIFICATE_CONFIRMATION",
+                                                                                            "inspectionItemName", "철근 규격 증명서 확인사항",
+                                                                                            "checklistRows", List.of(Map.of(
+                                                                                                    "code", "RC_REBAR_KS_CERTIFICATE",
+                                                                                                    "label", "KS마크 또는 시험성적증명서 확인",
+                                                                                                    "result", "COMPLIANT")),
                                                                                             "photoIds", List.of()))),
                                                                     Map.of(
                                                                             "tradeCode", "TEMPORARY_WORKS",
@@ -275,7 +280,10 @@ class DocxTemplateSmokeTest {
                                                                             "entries", List.of(Map.of(
                                                                                     "inspectionItemCode", "SETTING_OUT",
                                                                                     "inspectionItemName", "줄쳐보기",
-                                                                                    "supervisionContent", "대지경계 및 기준선 확인",
+                                                                                    "checklistRows", List.of(Map.of(
+                                                                                            "code", "SETTING_OUT_BOUNDARY",
+                                                                                            "label", "대지경계 및 기준선 확인",
+                                                                                            "result", "COMPLIANT")),
                                                                                     "photoIds", List.of()))))))))),
                 List.of(),
                 OutputFormat.DOCX));
@@ -297,7 +305,7 @@ class DocxTemplateSmokeTest {
         assertTrue(documentXml.contains("2026"));
         assertTrue(documentXml.contains("24"));
         assertTrue(documentXml.contains("철근 콘크리트 공사"));
-        assertTrue(documentXml.contains("철근 조립, 배근"));
+        assertTrue(documentXml.contains("철근배근의 확인사항"));
         assertTrue(documentXml.contains("개구부 주변 안전난간 보강 완료"));
         assertTrue(documentXml.contains("다음 조치"));
         assertTrue(documentXml.contains("콘크리트 타설 전 재점검 예정"));

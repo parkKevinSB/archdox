@@ -105,20 +105,21 @@ class ReportPhotoEvidenceStatusServiceTest {
     }
 
     private Map<String, Object> dailyLogPayload(List<Long> photoIds) {
+        var entry = Map.of(
+                "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                "inspectionItemName", "철근배근의 확인사항",
+                "checklistRows", List.of(Map.of(
+                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                        "label", "개수, 철근지름, 피치 확인",
+                        "result", "COMPLIANT",
+                        "referenceNote", "철근 배근 상태를 확인했습니다.",
+                        "photoIds", photoIds)));
         return Map.of(
                 "dailyItems", Map.of("groups", List.of(Map.of(
                         "floor", "1F",
                         "tradeCode", "REINFORCED_CONCRETE",
                         "processCode", "REBAR_ASSEMBLY",
-                        "entries", List.of(Map.of(
-                                "inspectionItemCode", "RC_REBAR_CONFIRMATION",
-                                "inspectionItemName", "철근배근의 확인사항",
-                                "checklistRows", List.of(Map.of(
-                                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                        "label", "개수, 철근지름, 피치 확인",
-                                        "result", "COMPLIANT",
-                                        "photoIds", photoIds)),
-                                "supervisionContent", "철근 배근 상태를 확인했습니다."))))));
+                        "entries", List.of(entry)))));
     }
 
     private Photo uploadedPhoto(Long id) {

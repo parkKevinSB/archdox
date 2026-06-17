@@ -9,7 +9,7 @@ import { getSupervisionDomainCatalog } from "../../api";
 import type { SupervisionCatalogChecklistRow, SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
-type DailyChecklistResult = "NOT_APPLICABLE" | "COMPLIANT" | "NON_COMPLIANT";
+type DailyChecklistResult = "" | "NOT_APPLICABLE" | "COMPLIANT" | "NON_COMPLIANT";
 
 type DailyChecklistRow = {
   actionNote: string;
@@ -27,7 +27,6 @@ type DailySupervisionEntry = {
   id: string;
   inspectionItemCode?: string;
   inspectionItemName: string;
-  supervisionContent: string;
 };
 
 type DailySupervisionGroup = {
@@ -118,7 +117,7 @@ export function DailySupervisionItemsStep({
 
   function updateGroups(updater: (current: DailySupervisionGroup[]) => DailySupervisionGroup[]) {
     setGroups((current) => {
-      const nextGroups = updater(current).map(syncGroupGeneratedContent);
+      const nextGroups = updater(current);
       form.setValue(DAILY_ITEMS_FIELD, JSON.stringify({ groups: nextGroups }), {
         shouldDirty: true,
         shouldTouch: true,
@@ -493,8 +492,7 @@ export function DailySupervisionItemsStep({
                             updateEntry(group.id, entry.id, {
                               checklistRows: checklistRowsFromCatalogItem(catalogItem),
                               inspectionItemCode: catalogItem?.code,
-                              inspectionItemName: catalogItem?.name ?? "",
-                              supervisionContent: ""
+                              inspectionItemName: catalogItem?.name ?? ""
                             });
                           }}
                           value={entry.inspectionItemCode ?? ""}
@@ -1011,20 +1009,17 @@ function emptyEntry(): DailySupervisionEntry {
   return {
     checklistRows: [],
     id: newId("entry"),
-    inspectionItemName: "",
-    supervisionContent: ""
+    inspectionItemName: ""
   };
 }
 
 function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySupervisionEntry {
-  const entry = {
+  return {
     checklistRows: checklistRowsFromCatalogItem(catalogItem),
     id: newId("entry"),
     inspectionItemCode: catalogItem?.code,
-    inspectionItemName: catalogItem?.name ?? "",
-    supervisionContent: ""
+    inspectionItemName: catalogItem?.name ?? ""
   };
-  return syncEntryGeneratedContent(entry);
 }
 
 function checklistRowsFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailyChecklistRow[] {
@@ -1042,23 +1037,6 @@ function checklistRowFromCatalogRow(row: SupervisionCatalogChecklistRow, index: 
     photoIds: [],
     referenceNote: "",
     result: "NOT_APPLICABLE"
-  };
-}
-
-function syncGroupGeneratedContent(group: DailySupervisionGroup): DailySupervisionGroup {
-  return {
-    ...group,
-    entries: group.entries.map(syncEntryGeneratedContent)
-  };
-}
-
-function syncEntryGeneratedContent(entry: DailySupervisionEntry): DailySupervisionEntry {
-  if (entry.checklistRows.length === 0) {
-    return entry;
-  }
-  return {
-    ...entry,
-    supervisionContent: buildSupervisionContent(entry)
   };
 }
 
@@ -1095,6 +1073,9 @@ function checklistRowContent(row: DailyChecklistRow) {
 }
 
 function resultLabel(result: DailyChecklistResult) {
+  if (!result) {
+    return "";
+  }
   if (result === "NOT_APPLICABLE") {
     return "해당없음";
   }
@@ -1124,8 +1105,7 @@ function normalizePayload(value: unknown): DailyItemsPayload {
     return { groups: [] };
   }
   return {
-    groups: (raw.groups.map((group, index) => normalizeGroup(group, index)).filter(Boolean) as DailySupervisionGroup[])
-      .map(syncGroupGeneratedContent)
+    groups: raw.groups.map((group, index) => normalizeGroup(group, index)).filter(Boolean) as DailySupervisionGroup[]
   };
 }
 
@@ -1158,8 +1138,7 @@ function normalizeEntry(value: unknown, index: number): DailySupervisionEntry | 
       : [],
     id: text(raw.id) || newId(`entry-${index}`),
     inspectionItemCode: optionalText(raw.inspectionItemCode),
-    inspectionItemName: text(raw.inspectionItemName),
-    supervisionContent: text(raw.supervisionContent)
+    inspectionItemName: text(raw.inspectionItemName)
   };
 }
 
@@ -1188,7 +1167,7 @@ function normalizeChecklistResult(value: unknown): DailyChecklistResult {
   const normalized = text(value).trim().toUpperCase();
   return normalized === "COMPLIANT" || normalized === "NON_COMPLIANT" || normalized === "NOT_APPLICABLE"
     ? normalized
-    : "NOT_APPLICABLE";
+    : "";
 }
 
 function text(value: unknown) {

@@ -58,7 +58,7 @@ class ReportPreflightReviewFlowServiceTest {
         var report = report(now);
         var currentRun = run(200L, now);
         var previousRun = run(199L, now.minusMinutes(10));
-        var location = "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent";
+        var location = "steps.REMARKS.payload.issueAndAction";
         var hash = ReportPreflightFieldValueResolver.hashText("column \uACFC \uB97C checked");
         var previousFinding = previousFinding(300L, previousRun.id(), location, hash, now.minusMinutes(10));
         var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);
@@ -95,7 +95,7 @@ class ReportPreflightReviewFlowServiceTest {
         var report = report(now);
         var currentRun = run(200L, now);
         var previousRun = run(199L, now.minusMinutes(10));
-        var location = "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent";
+        var location = "steps.REMARKS.payload.issueAndAction";
         var hash = ReportPreflightFieldValueResolver.hashText("column \uACFC \uB97C checked");
         var previousFinding = previousFinding(300L, previousRun.id(), location, hash, now.minusMinutes(10));
         var request = new ReportPreflightReviewRequest(10L, 100L, 200L, 7L);

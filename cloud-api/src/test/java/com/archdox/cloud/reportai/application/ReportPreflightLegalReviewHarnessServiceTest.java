@@ -113,7 +113,17 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 report,
                 "DAILY_LOG",
                 PayloadStorageMode.CLOUD_ENCRYPTED,
-                Map.of("supervisionContent", "철근 배근 상태를 확인했습니다."),
+                Map.of("dailyItems", Map.of("groups", List.of(Map.of(
+                        "tradeCode", "REINFORCED_CONCRETE",
+                        "processCode", "REBAR_ASSEMBLY",
+                        "entries", List.of(Map.of(
+                                "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                "inspectionItemName", "철근배근의 확인사항",
+                                "checklistRows", List.of(Map.of(
+                                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                        "label", "개수, 철근지름, 피치 확인",
+                                        "result", "COMPLIANT",
+                                        "referenceNote", "철근 배근 상태를 확인했습니다.")))))))),
                 7L,
                 now)));
         when(policyExecutionService.resolve(AiHarnessPolicyKey.SOURCE_BACKED_LEGAL_REVIEW))
@@ -398,7 +408,11 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 Map.of(
                         "inspectionItemName", "창호 자재성능",
                         "inspectionItemCode", "WINDOW_MATERIAL_PERFORMANCE",
-                        "supervisionContent", "창호 자재 성능 확인시 이상 없음"));
+                        "checklistRows", List.of(Map.of(
+                                "code", "WINDOW_MATERIAL_PERFORMANCE",
+                                "label", "창호 자재 성능 확인",
+                                "result", "COMPLIANT",
+                                "referenceNote", "창호 자재 성능 확인시 이상 없음"))));
         var insulationReplacement = (String) ReflectionTestUtils.invokeMethod(
                 service,
                 "documentCompletionReplacement",
@@ -406,7 +420,11 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 Map.of(
                         "inspectionItemName", "단열재 자재성능",
                         "inspectionItemCode", "INSULATION_MATERIAL",
-                        "supervisionContent", "단열재 자재성능 확인"));
+                        "checklistRows", List.of(Map.of(
+                                "code", "INSULATION_MATERIAL",
+                                "label", "단열재 자재성능 확인",
+                                "result", "COMPLIANT",
+                                "referenceNote", "단열재 자재성능 확인"))));
 
         assertThat(windowReplacement)
                 .contains("창호 자재의 단열·기밀·수밀·내풍압")
@@ -428,7 +446,7 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                 "감리일지에는 기록과 사진이 있으나 성능·규격 근거 문서는 연결되지 않았습니다.",
                 "일반 감리일지 생성에서는 범위 제한으로 표시합니다.",
                 List.of("BUILDING_ACT:0025001@0018232025082621035"),
-                "DAILY_LOG.groups[0].entries[0].supervisionContent");
+                "DAILY_LOG.groups[0].entries[0].checklistRows");
 
         var approvalRequired = ReflectionTestUtils.invokeMethod(service, "legalIssueApprovalRequired", issue);
 

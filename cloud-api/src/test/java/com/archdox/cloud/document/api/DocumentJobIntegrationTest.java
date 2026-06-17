@@ -344,12 +344,6 @@ class DocumentJobIntegrationTest {
                                   "outputFormat": "DOCX",
                                   "renderOverrides": [
                                     {
-                                      "path": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent",
-                                      "value": "Rebar spacing was inspected and confirmed to comply with the approved drawings.",
-                                      "label": "Supervision content",
-                                      "source": "TEST"
-                                    },
-                                    {
                                       "path": "steps.REMARKS.payload.issueAndAction",
                                       "value": "No corrective action was required.",
                                       "label": "Issue and action",
@@ -378,18 +372,16 @@ class DocumentJobIntegrationTest {
         var group = (Map<String, Object>) groups.get(0);
         var entries = (List<Object>) group.get("entries");
         var entry = (Map<String, Object>) entries.get(0);
-        assertTrue("Rebar spacing was inspected and confirmed to comply with the approved drawings."
-                .equals(entry.get("supervisionContent")));
+        assertTrue(!entry.containsKey("supervisionContent"));
 
         var templateFields = (Map<String, Object>) snapshot.get("templateFields");
-        assertTrue("Rebar spacing was inspected and confirmed to comply with the approved drawings."
-                .equals(templateFields.get("supervisionContent")));
+        assertTrue(String.valueOf(templateFields.get("supervisionContent")).contains("Checked rebar spacing"));
         assertTrue("No corrective action was required.".equals(templateFields.get("issueAndAction")));
         assertTrue("Continue monitoring before the next concrete placement.".equals(templateFields.get("nextAction")));
         assertTrue(String.valueOf(templateFields.get("dailyLogSection"))
-                .contains("Rebar spacing was inspected and confirmed to comply with the approved drawings."));
+                .contains("Checked rebar spacing"));
         var renderOverrides = (List<Object>) snapshot.get("renderOverrides");
-        assertTrue(renderOverrides.size() == 3);
+        assertTrue(renderOverrides.size() == 2);
     }
 
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {
@@ -421,7 +413,7 @@ class DocumentJobIntegrationTest {
                                       "inspectionDate": "steps.BASIC_INFO.payload.inspectionDate",
                                       "inspectorName": "steps.BASIC_INFO.payload.inspectorName",
                                       "weather": "steps.BASIC_INFO.payload.weather",
-                                      "supervisionContent": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent"
+                                      "supervisionContent": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].checklistRows[0].label"
                                     }
                                   },
                                   "composePolicy": {
@@ -544,7 +536,7 @@ class DocumentJobIntegrationTest {
                                         "type": "VALUE",
                                         "title": "Daily Log Section",
                                         "valueLabel": "Supervision Content",
-                                        "source": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent"
+                                        "source": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].checklistRows[0].label"
                                       }
                                     ]
                                   }
@@ -745,7 +737,24 @@ class DocumentJobIntegrationTest {
             }
             Thread.sleep(50);
         }
-        fail("Preflight review did not reach PASSED status");
+        var runsResult = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andReturn();
+        var runs = objectMapper.readTree(runsResult.getResponse().getContentAsString());
+        var findingSummary = "";
+        if (runs.size() > 0) {
+            var runId = runs.get(0).get("id").asLong();
+            var findingsResult = mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/preflight-review-runs/{runId}/findings", reportId, runId)
+                            .header("Authorization", bearer(user.accessToken()))
+                            .header("X-Office-Id", user.officeId()))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            findingSummary = findingsResult.getResponse().getContentAsString();
+        }
+        fail("Preflight review did not reach PASSED status. runs=%s findings=%s"
+                .formatted(runsResult.getResponse().getContentAsString(), findingSummary));
     }
 
     private TestUser signup(String email) throws Exception {
@@ -855,9 +864,18 @@ class DocumentJobIntegrationTest {
                                           "floor": "1F",
                                           "entries": [
                                             {
-                                              "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                              "inspectionItemName": "Rebar count and pitch",
-                                              "supervisionContent": "Checked rebar spacing",
+                                              "inspectionItemCode": "RC_REBAR_CONFIRMATION",
+                                              "inspectionItemName": "Rebar confirmation",
+                                              "checklistRows": [
+                                                {
+                                                  "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                  "label": "Checked rebar spacing",
+                                                  "result": "COMPLIANT",
+                                                  "referenceNote": "",
+                                                  "actionNote": "",
+                                                  "photoIds": []
+                                                }
+                                              ],
                                               "photoIds": []
                                             }
                                           ]

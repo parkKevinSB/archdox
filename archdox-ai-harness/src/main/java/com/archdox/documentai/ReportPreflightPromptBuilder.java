@@ -68,9 +68,10 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 dispute, or agency-review risk from the report data itself.
                 Daily checklist result guidance:
                 - DAILY_LOG checklistRows with result NOT_APPLICABLE are intentionally out of
-                  today's inspection scope. Legacy blank/empty result with no notes and no photos
-                  is also equivalent to NOT_APPLICABLE. Do not flag them as missing result,
+                  today's inspection scope. Do not flag NOT_APPLICABLE rows as missing result,
                   missing photo, or incomplete evidence.
+                - A blank/empty checklistRows result is invalid report payload. Deterministic
+                  validation may flag it as a data-shape error; do not reinterpret it as NOT_APPLICABLE.
                 - Only COMPLIANT and NON_COMPLIANT checklistRows are today's inspected rows.
                 - For NOT_APPLICABLE rows, ignore empty referenceNote, actionNote, and photoIds
                   unless the row explicitly contradicts another inspected row.
@@ -98,12 +99,10 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 Auto-fix replacement guidance:
                 - For WORDING issues on direct text fields, set replacement to the exact full Korean text
                   that should be saved into that field.
-                - Direct text fields include DAILY_LOG.entries[n].supervisionContent,
-                  DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote,
+                - Direct text fields include DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote,
                   DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote,
                   REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
-                - DAILY_LOG.groups[n].entries[m].supervisionContent is generated compatibility text.
-                  Do not target it for automatic replacement.
+                - Do not target generated daily supervision summary text for automatic replacement.
                 - The replacement value must be final report prose, not an instruction.
                 - Do not write values like "수정하십시오", "명확히 기재하십시오", "문장을 다듬으십시오",
                   or "보고서 최종 문장으로 수정하십시오" in replacement.

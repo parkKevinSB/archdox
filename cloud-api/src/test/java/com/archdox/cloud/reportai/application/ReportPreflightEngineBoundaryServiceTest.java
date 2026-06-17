@@ -132,20 +132,21 @@ class ReportPreflightEngineBoundaryServiceTest {
     }
 
     private Map<String, Object> dailyLogPayload(String inspectionItemCode) {
+        var entry = Map.of(
+                "inspectionItemCode", inspectionItemCode,
+                "inspectionItemName", "철근배근의 확인사항",
+                "checklistRows", List.of(Map.of(
+                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                        "label", "Checked rebar count, diameter, and pitch.",
+                        "result", "COMPLIANT",
+                        "referenceNote", "Checked rebar count, diameter, and pitch.",
+                        "photoIds", List.of(1L))));
         return Map.of(
                 "dailyItems", Map.of(
                         "groups", List.of(Map.of(
                                 "floor", "1F",
                                 "tradeCode", "REINFORCED_CONCRETE",
                                 "processCode", "REBAR_ASSEMBLY",
-                                "entries", List.of(Map.of(
-                                        "inspectionItemCode", inspectionItemCode,
-                                        "inspectionItemName", "철근배근의 확인사항",
-                                        "checklistRows", List.of(Map.of(
-                                                "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                                "label", "Checked rebar count, diameter, and pitch.",
-                                                "result", "COMPLIANT",
-                                                "photoIds", List.of(1L))),
-                                        "supervisionContent", "Checked rebar count, diameter, and pitch."))))));
+                                "entries", List.of(entry)))));
     }
 }

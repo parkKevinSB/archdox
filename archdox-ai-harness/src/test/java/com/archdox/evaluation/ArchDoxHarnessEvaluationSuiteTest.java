@@ -249,12 +249,13 @@ class ArchDoxHarnessEvaluationSuiteTest {
                                       "code": "LEGAL_EVIDENCE_CONTEXT_REVIEW_REQUIRED",
                                       "category": "EVIDENCE",
                                       "severity": "MEDIUM",
-                                      "location": "DAILY_LOG.groups[0].entries[0].supervisionContent",
+                                      "location": "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
                                       "message": "감리 내용이 포괄적이어서 제공된 근거와 사진 증거가 어떤 시공 위치를 뒷받침하는지 확인이 필요합니다.",
                                       "evidence": "리포트에는 감리 확인 문장이 있으나 위치와 대상 부재가 제한적으로 기재되어 있고, 제공된 근거는 감리 업무 기록과 연결되어 있습니다.",
                                       "suggestion": "검사 대상, 위치, 사진 증거의 대응 관계를 사람이 확인하십시오.",
                                       "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
-                                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].supervisionContent"
+                                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
+                                      "replacement": ""
                                     }
                                   ]
                                 }
@@ -652,7 +653,11 @@ class ArchDoxHarnessEvaluationSuiteTest {
                                 "dailyItems", Map.of("groups", List.of(Map.of(
                                         "entries", List.of(Map.of(
                                                 "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
-                                                "supervisionContent", "철골 부재의 기둥·보 부호와 사진 증거를 확인했습니다.",
+                                                "checklistRows", List.of(Map.of(
+                                                        "code", "STEEL_MEMBER_SYMBOL_CONFIRMATION",
+                                                        "label", "기둥·보 부호와 사진 증거 확인",
+                                                        "result", "COMPLIANT",
+                                                        "referenceNote", "철골 부재의 기둥·보 부호와 사진 증거를 확인했습니다.")),
                                                 "photoIds", List.of(10))))))))),
                 List.of(),
                 List.of(Map.copyOf(reference)),

@@ -29,14 +29,20 @@ class ReportPreflightFindingClassifierTest {
     }
 
     @Test
-    void insufficientLegalContextStillRequiresResolution() {
+    void insufficientLegalContextIsDisplayOnlyAndDoesNotBlockGeneration() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
         var finding = finding(
                 "LEGAL_REVIEW",
                 "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
                 "MEDIUM",
                 Map.of("approvalRequired", "true"));
 
-        assertThat(ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding)).isTrue();
+        assertThat(ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding)).isFalse();
+
+        ReportPreflightFindingClassifier.autoResolveOnCreate(finding, 7L, now);
+
+        assertThat(finding.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.RESOLVED);
+        assertThat(finding.resolutionNote()).isEqualTo("DISPLAY_ONLY_LEGAL_REVIEW_SUMMARY");
     }
 
     @Test

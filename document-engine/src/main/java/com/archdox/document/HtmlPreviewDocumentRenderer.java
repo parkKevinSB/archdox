@@ -489,7 +489,7 @@ public class HtmlPreviewDocumentRenderer {
             }
         }
         if (rows.isEmpty()) {
-            return valueOrBlank(entry.get("supervisionContent"));
+            return "";
         }
         var title = valueOrBlank(entry.get("inspectionItemName"));
         if (!title.isBlank()) {

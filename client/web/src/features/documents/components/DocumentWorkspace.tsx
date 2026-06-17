@@ -1048,29 +1048,6 @@ function documentNarrativeRenderFields(steps: InspectionStep[]): NarrativeRender
   const stepsByCode = new Map(steps.map((step) => [step.stepCode, step]));
   const fields: NarrativeRenderField[] = [];
   const dailyPayload = recordValue(stepsByCode.get("DAILY_LOG")?.payload);
-  const dailyItems = recordValue(dailyPayload.dailyItems);
-  listValue(dailyItems.groups).forEach((groupValue, groupIndex) => {
-    const group = recordValue(groupValue);
-    const groupLabel = joinNonBlank(
-      stringValue(group.tradeName),
-      stringValue(group.processName),
-      stringValue(group.floor)
-    );
-    listValue(group.entries).forEach((entryValue, entryIndex) => {
-      const entry = recordValue(entryValue);
-      const value = stringValue(entry.supervisionContent);
-      if (!value.trim()) {
-        return;
-      }
-      const itemName = stringValue(entry.inspectionItemName);
-      fields.push({
-        label: joinNonBlank("감리내용", groupLabel, itemName) || `감리내용 ${groupIndex + 1}-${entryIndex + 1}`,
-        path: `steps.DAILY_LOG.payload.dailyItems.groups[${groupIndex}].entries[${entryIndex}].supervisionContent`,
-        value
-      });
-    });
-  });
-
   const remarksPayload = recordValue(stepsByCode.get("REMARKS")?.payload);
   addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndAction", dailyPayload.issueAndAction);
   addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndActionResult", dailyPayload.issueAndActionResult);
@@ -2440,7 +2417,7 @@ function preflightFixTargetLabel(finding: ReportPreflightReviewFindingResponse) 
   if (location.endsWith("REMARKS.nextAction") || location.endsWith("REMARKS.payload.nextAction") || location === "REMARKS.nextAction") {
     return "다음 조치";
   }
-  const flatDaily = location.match(/DAILY_LOG\.entries\[(\d+)]\.supervisionContent$/);
+  const flatDaily = null as RegExpMatchArray | null;
   if (flatDaily) {
     return `감리내용 ${Number(flatDaily[1]) + 1}`;
   }

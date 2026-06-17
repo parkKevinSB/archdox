@@ -108,7 +108,14 @@ current architecture.
     job to `ARCHDOX_AGENT`; the selected `archdox-agent` instance performs the
     render/export work. Personal users and offices without local agents use a
     `CLOUD_MANAGED` ArchDox Agent, not Cloud API inline generation.
-25. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
+25. Do not add compatibility fallback paths that reinterpret old report payload
+    shapes as current canonical input. When a pre-production canonical payload
+    changes, old report data must be explicitly purged, migrated, or rejected
+    with a visible validation error. Do not silently read old fields, regenerate
+    missing structure, or call an older flow/service path unless the user
+    explicitly approves a bounded compatibility phase and the relevant canonical
+    document is updated.
+26. Follow `docs/development/GIT_WORKFLOW.md` for branch names, commit messages,
     PR expectations, CI checks, and files that must never be committed.
 
 ## Tenant And Security Rules

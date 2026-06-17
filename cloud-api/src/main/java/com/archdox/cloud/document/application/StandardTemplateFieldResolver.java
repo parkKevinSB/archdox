@@ -2,6 +2,7 @@ package com.archdox.cloud.document.application;
 
 import static com.archdox.cloud.document.application.DocumentSnapshotPath.readPath;
 
+import com.archdox.cloud.inspection.application.DailySupervisionContentFormatter;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -97,7 +98,7 @@ public class StandardTemplateFieldResolver {
                 snapshot,
                 "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].inspectionItemName"));
         put(fields, "supervisionFocus", readFirst(snapshot, "steps.DAILY_LOG.payload.supervisionFocus"));
-        put(fields, "supervisionContent", dailySupervisionContent(snapshot));
+        put(fields, "supervisionContent", firstDailyLogSupervisionContent(snapshot));
         put(fields, "specialNotes", readFirst(
                 snapshot,
                 "steps.DAILY_LOG.payload.specialNotes",
@@ -179,59 +180,11 @@ public class StandardTemplateFieldResolver {
         fields.put(key, value == null ? "" : value);
     }
 
-    private String dailySupervisionContent(Map<String, Object> snapshot) {
+    private String firstDailyLogSupervisionContent(Map<String, Object> snapshot) {
         var entry = readPath(snapshot, "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0]")
                 .map(StandardTemplateFieldResolver::mapValue)
                 .orElse(Map.of());
-        if (entry.isEmpty()) {
-            return readFirst(snapshot, "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent");
-        }
-        var rows = new ArrayList<String>();
-        for (Object rowValue : listValue(entry.get("checklistRows"))) {
-            var row = mapValue(rowValue);
-            var rowContent = dailyChecklistRowContent(row);
-            if (!rowContent.isBlank()) {
-                rows.add("- " + rowContent);
-            }
-        }
-        if (rows.isEmpty()) {
-            return stringValue(entry.get("supervisionContent"));
-        }
-        var title = stringValue(entry.get("inspectionItemName"));
-        if (!title.isBlank()) {
-            rows.add(0, title);
-        }
-        return String.join("\n", rows);
-    }
-
-    private String dailyChecklistRowContent(Map<String, Object> row) {
-        var parts = new ArrayList<String>();
-        var label = stringValue(row.get("label"));
-        var result = dailyChecklistResultLabel(stringValue(row.get("result")));
-        var referenceNote = stringValue(row.get("referenceNote"));
-        var actionNote = stringValue(row.get("actionNote"));
-        if (!label.isBlank()) {
-            parts.add(label);
-        }
-        if (!result.isBlank()) {
-            parts.add(result);
-        }
-        if (!referenceNote.isBlank()) {
-            parts.add("기준·참고: " + referenceNote);
-        }
-        if (!actionNote.isBlank()) {
-            parts.add("조치사항: " + actionNote);
-        }
-        return parts.size() <= 1 ? "" : String.join(" / ", parts);
-    }
-
-    private String dailyChecklistResultLabel(String result) {
-        return switch (result.trim().toUpperCase(java.util.Locale.ROOT)) {
-            case "COMPLIANT" -> "적합";
-            case "NON_COMPLIANT" -> "부적합";
-            case "NOT_APPLICABLE" -> "";
-            default -> "";
-        };
+        return DailySupervisionContentFormatter.formatEntry(entry);
     }
 
     @SuppressWarnings("unchecked")

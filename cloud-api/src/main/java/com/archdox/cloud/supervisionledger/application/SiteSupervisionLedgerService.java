@@ -1,6 +1,7 @@
 package com.archdox.cloud.supervisionledger.application;
 
 import com.archdox.cloud.global.security.UserPrincipal;
+import com.archdox.cloud.inspection.application.DailySupervisionContentFormatter;
 import com.archdox.cloud.inspection.domain.InspectionReport;
 import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
@@ -119,7 +120,7 @@ public class SiteSupervisionLedgerService {
             }
             for (int itemIndex = 0; itemIndex < items.size(); itemIndex++) {
                 var item = items.get(itemIndex);
-                var supervisionContent = text(item, "supervisionContent");
+                var supervisionContent = DailySupervisionContentFormatter.formatEntry(item);
                 var photos = photoIds(item);
                 if (isBlank(text(group, "tradeCode"))
                         && isBlank(text(group, "processCode"))

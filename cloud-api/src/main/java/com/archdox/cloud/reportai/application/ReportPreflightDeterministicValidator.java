@@ -1,8 +1,9 @@
 package com.archdox.cloud.reportai.application;
 
-import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.application.ReportSubmitValidationService;
 import com.archdox.cloud.inspection.domain.InspectionReport;
+import com.archdox.cloud.inspection.application.DailySupervisionContentFormatter;
+import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.domain.InspectionReportStatus;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.inspectiontarget.infra.InspectionReportTargetRepository;
@@ -149,6 +150,7 @@ public class ReportPreflightDeterministicValidator {
             return;
         }
 
+        var inspectedChecklistRowCount = 0;
         for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
             var group = mapValue(groups.get(groupIndex));
             var groupNo = groupIndex + 1;
@@ -222,8 +224,12 @@ public class ReportPreflightDeterministicValidator {
                             groupNo,
                             entryNo));
                 }
-                var supervisionContentLocation = "groups[" + groupIndex + "].entries[" + entryIndex + "].supervisionContent";
-                var supervisionContent = dailySupervisionContent(entry);
+                inspectedChecklistRowCount += validateChecklistRows(entry, groupIndex, entryIndex, groupNo, entryNo, findings);
+                if (!DailySupervisionContentFormatter.hasInspectedRow(entry)) {
+                    continue;
+                }
+                var supervisionContentLocation = "groups[" + groupIndex + "].entries[" + entryIndex + "].checklistRows";
+                var supervisionContent = DailySupervisionContentFormatter.formatEntry(entry);
                 if (isBlank(supervisionContent)) {
                     findings.add(dailyFinding(
                             "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED",
@@ -248,6 +254,15 @@ public class ReportPreflightDeterministicValidator {
                             entryNo));
                 }
             }
+        }
+        if (inspectedChecklistRowCount == 0) {
+            findings.add(finding(
+                    "DAILY_LOG_INSPECTED_CHECKLIST_ROW_REQUIRED",
+                    "HIGH",
+                    "steps.DAILY_LOG.payload.dailyItems.groups",
+                    "공사감리일지는 적합 또는 부적합으로 선택된 세부 감리항목이 최소 1개 필요합니다.",
+                    "No COMPLIANT or NON_COMPLIANT checklist row was found",
+                    Map.of("reportType", normalizeReportType(report.reportType()))));
         }
     }
 
@@ -330,26 +345,6 @@ public class ReportPreflightDeterministicValidator {
         return value instanceof List<?> list ? list : List.of();
     }
 
-    private String dailySupervisionContent(Map<String, Object> entry) {
-        var rows = new ArrayList<String>();
-        for (Object rowValue : listValue(entry.get("checklistRows"))) {
-            var row = mapValue(rowValue);
-            var rowContent = checklistRowContent(row);
-            if (!rowContent.isBlank()) {
-                rows.add("- " + rowContent);
-            }
-        }
-        if (rows.isEmpty()) {
-            return "";
-        }
-        var title = stringValue(entry.get("inspectionItemName"));
-        if (!title.isBlank()) {
-            rows.add(0, title);
-        }
-        var rowContent = String.join("\n", rows);
-        return rowContent.isBlank() ? stringValue(entry.get("supervisionContent")) : rowContent;
-    }
-
     private List<?> dailyEntryPhotoIds(Map<String, Object> entry) {
         var photoIds = new ArrayList<Object>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
@@ -358,34 +353,54 @@ public class ReportPreflightDeterministicValidator {
         return photoIds;
     }
 
-    private String checklistRowContent(Map<String, Object> row) {
-        var label = stringValue(row.get("label"));
-        var result = checklistResultLabel(stringValue(row.get("result")));
-        var referenceNote = stringValue(row.get("referenceNote"));
-        var actionNote = stringValue(row.get("actionNote"));
-        var parts = new ArrayList<String>();
-        if (!label.isBlank()) {
-            parts.add(label);
+    private int validateChecklistRows(
+            Map<String, Object> entry,
+            int groupIndex,
+            int entryIndex,
+            int groupNo,
+            int entryNo,
+            ArrayList<ReportPreflightFinding> findings
+    ) {
+        var rows = listValue(entry.get("checklistRows"));
+        if (rows.isEmpty()) {
+            findings.add(dailyFinding(
+                    "DAILY_LOG_CHECKLIST_ROWS_REQUIRED",
+                    "HIGH",
+                    "선택한 검사항목에는 세부 감리항목 checklistRows가 필요합니다.",
+                    "groups[" + groupIndex + "].entries[" + entryIndex + "].checklistRows",
+                    groupNo,
+                    entryNo));
+            return 0;
         }
-        if (!result.isBlank()) {
-            parts.add(result);
+        var inspected = 0;
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            var row = mapValue(rows.get(rowIndex));
+            var result = stringValue(row.get("result"));
+            if (isBlank(result)) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_CHECKLIST_RESULT_REQUIRED",
+                        "HIGH",
+                        "세부 감리항목 결과는 해당없음, 적합, 부적합 중 하나로 저장되어야 합니다.",
+                        "groups[" + groupIndex + "].entries[" + entryIndex + "].checklistRows[" + rowIndex + "].result",
+                        groupNo,
+                        entryNo));
+                continue;
+            }
+            if (!DailySupervisionContentFormatter.isKnownResult(result)) {
+                findings.add(dailyFinding(
+                        "DAILY_LOG_CHECKLIST_RESULT_INVALID",
+                        "HIGH",
+                        "세부 감리항목 결과 값이 허용된 코드가 아닙니다.",
+                        "groups[" + groupIndex + "].entries[" + entryIndex + "].checklistRows[" + rowIndex + "].result",
+                        groupNo,
+                        entryNo));
+                continue;
+            }
+            if (DailySupervisionContentFormatter.isInspectedResult(result)) {
+                inspected++;
+            }
         }
-        if (!referenceNote.isBlank()) {
-            parts.add("기준·참고: " + referenceNote);
-        }
-        if (!actionNote.isBlank()) {
-            parts.add("조치사항: " + actionNote);
-        }
-        return parts.size() <= 1 ? "" : String.join(" / ", parts);
-    }
-
-    private String checklistResultLabel(String result) {
-        return switch (result.trim().toUpperCase(Locale.ROOT)) {
-            case "COMPLIANT" -> "적합";
-            case "NON_COMPLIANT" -> "부적합";
-            case "NOT_APPLICABLE" -> "";
-            default -> "";
-        };
+        return inspected;
     }
 
     private void requireText(

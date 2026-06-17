@@ -715,7 +715,13 @@ public class AiWorkerEvaluationRuntimeScenarioService {
                                                 "entries", List.of(Map.of(
                                                         "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
                                                         "inspectionItemName", "기둥·보 부호",
-                                                        "supervisionContent", "철골 부재의 기둥·보 부호와 접합 상태를 확인하고 사진 증거와 대조했습니다.",
+                                                        "checklistRows", List.of(Map.of(
+                                                                "code", "STEEL_MEMBER_SYMBOL_CONFIRMATION",
+                                                                "label", "기둥·보 부호와 접합 상태 확인",
+                                                                "result", "COMPLIANT",
+                                                                "referenceNote", "철골 부재의 기둥·보 부호와 접합 상태를 확인하고 사진 증거와 대조했습니다.",
+                                                                "actionNote", "",
+                                                                "photoIds", List.of(1001))),
                                                         "photoIds", List.of(1001)))))),
                                         "issueAndAction", "특이사항 없이 감리 확인을 완료했습니다.",
                                         "nextAction", "다음 공정 진행 시 접합부 상태와 사진 증거를 계속 확인할 예정입니다."))),

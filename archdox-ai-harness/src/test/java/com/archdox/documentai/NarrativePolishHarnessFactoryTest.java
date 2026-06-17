@@ -30,8 +30,8 @@ class NarrativePolishHarnessFactoryTest {
                   "summary": "2개 문장을 보고서 문체로 다듬었습니다.",
                   "suggestions": [
                     {
-                      "path": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent",
-                      "label": "감리내용 철근",
+                      "path": "steps.REMARKS.payload.issueAndAction",
+                      "label": "지적사항 및 처리결과",
                       "originalText": "철근 갯수 확인함",
                       "polishedText": "철근 배근 수량을 확인하였으며 특이사항은 없습니다.",
                       "reason": "보고서 문체로 정리",
@@ -98,8 +98,8 @@ class NarrativePolishHarnessFactoryTest {
                 "공사감리일지",
                 "DOCUMENT_RENDER_DRAFT",
                 List.of(new NarrativePolishField(
-                        "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].supervisionContent",
-                        "감리내용 철근",
+                        "steps.REMARKS.payload.issueAndAction",
+                        "지적사항 및 처리결과",
                         "철근 갯수 확인함")),
                 Map.of("status", "READY_TO_GENERATE"));
     }

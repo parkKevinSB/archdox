@@ -467,9 +467,18 @@ class ReportSubmitValidationIntegrationTest {
                                           "floor": "1F",
                                           "entries": [
                                             {
-                                              "inspectionItemCode": "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                              "inspectionItemName": "Rebar count and pitch",
-                                              "supervisionContent": "Checked rebar spacing.",
+                                              "inspectionItemCode": "RC_REBAR_CONFIRMATION",
+                                              "inspectionItemName": "Rebar confirmation",
+                                              "checklistRows": [
+                                                {
+                                                  "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                  "label": "Checked rebar spacing",
+                                                  "result": "COMPLIANT",
+                                                  "referenceNote": "",
+                                                  "actionNote": "",
+                                                  "photoIds": []
+                                                }
+                                              ],
                                               "photoIds": []
                                             }
                                           ]

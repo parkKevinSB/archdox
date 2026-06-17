@@ -121,7 +121,6 @@ class ReportPreflightDeterministicValidatorTest {
                         "processName", "",
                         "entries", List.of(Map.of(
                                 "inspectionItemName", "",
-                                "supervisionContent", "",
                                 "photoIds", List.of()
                         ))
                 )))
@@ -135,8 +134,8 @@ class ReportPreflightDeterministicValidatorTest {
         assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_TRADE_REQUIRED".equals(finding.code())));
         assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_GROUP_PROCESS_REQUIRED".equals(finding.code())));
         assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_INSPECTION_ITEM_REQUIRED".equals(finding.code())));
-        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_SUPERVISION_CONTENT_REQUIRED".equals(finding.code())));
-        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_PHOTO_EVIDENCE_RECOMMENDED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_CHECKLIST_ROWS_REQUIRED".equals(finding.code())));
+        assertTrue(result.findings().stream().anyMatch(finding -> "DAILY_LOG_INSPECTED_CHECKLIST_ROW_REQUIRED".equals(finding.code())));
     }
 
     @Test
@@ -153,7 +152,6 @@ class ReportPreflightDeterministicValidatorTest {
                         "processName", "기초",
                         "entries", List.of(Map.of(
                                 "inspectionItemName", "철근 배근 상태",
-                                "supervisionContent", "철근 배근 상태를 확인했습니다.",
                                 "photoIds", List.of(1)
                         ))
                 )))
@@ -177,7 +175,7 @@ class ReportPreflightDeterministicValidatorTest {
         when(submitValidationService.validate(report)).thenReturn(ReportSubmitValidationResponse.valid(List.of()));
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.of(step(report, Map.of(
                 "dailyItems", """
-                        {"groups":[{"floor":"전층","tradeCode":"REINFORCED_CONCRETE","tradeName":"철근콘크리트공사","processCode":"REBAR_ASSEMBLY","processName":"철근 조립","entries":[{"inspectionItemCode":"RC_REBAR_CONFIRMATION","inspectionItemName":"철근배근의 확인사항","checklistRows":[{"code":"RC_REBAR_COUNT_DIAMETER_PITCH","label":"개수, 철근지름, 피치 확인","result":"COMPLIANT","referenceNote":"철근 배근 상태를 확인했습니다.","photoIds":[1]}],"supervisionContent":"철근 배근 상태를 확인했습니다."}]}]}
+                        {"groups":[{"floor":"전층","tradeCode":"REINFORCED_CONCRETE","tradeName":"철근콘크리트공사","processCode":"REBAR_ASSEMBLY","processName":"철근 조립","entries":[{"inspectionItemCode":"RC_REBAR_CONFIRMATION","inspectionItemName":"철근배근의 확인사항","checklistRows":[{"code":"RC_REBAR_COUNT_DIAMETER_PITCH","label":"개수, 철근지름, 피치 확인","result":"COMPLIANT","referenceNote":"철근 배근 상태를 확인했습니다.","photoIds":[1]}]}]}]}
                         """
         ))));
 
@@ -207,8 +205,7 @@ class ReportPreflightDeterministicValidatorTest {
                                         "code", "STEEL_MEMBER_SYMBOL",
                                         "label", content,
                                         "result", "COMPLIANT",
-                                        "photoIds", List.of(101L))),
-                                "supervisionContent", content
+                                        "photoIds", List.of(101L)))
                         ))
                 )))
         ))));
@@ -245,8 +242,8 @@ class ReportPreflightDeterministicValidatorTest {
                                         "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
                                         "label", "개수, 철근지름, 피치 확인",
                                         "result", "COMPLIANT",
-                                        "photoIds", List.of(101L))),
-                                "supervisionContent", "철근 배근 상태를 확인했습니다."
+                                        "referenceNote", "철근 배근 상태를 확인했습니다.",
+                                        "photoIds", List.of(101L)))
                         ))
                 )))
         ))));
@@ -290,8 +287,8 @@ class ReportPreflightDeterministicValidatorTest {
                                         "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
                                         "label", "개수, 철근지름, 피치 확인",
                                         "result", "COMPLIANT",
-                                        "photoIds", List.of(101L))),
-                                "supervisionContent", "철근 배근 상태를 확인했습니다."
+                                        "referenceNote", "철근 배근 상태를 확인했습니다.",
+                                        "photoIds", List.of(101L)))
                         ))
                 )))
         ))));

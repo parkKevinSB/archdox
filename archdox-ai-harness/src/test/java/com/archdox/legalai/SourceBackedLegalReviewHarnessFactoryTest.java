@@ -75,7 +75,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                       "evidence": "The supplied legal anchor is linked to the checklist item, but field evidence text is generic.",
                       "suggestion": "Add the inspected member, location, and photo evidence context.",
                       "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
-                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].supervisionContent",
+                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].checklistRows",
                       "replacement": "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도 보관 대상으로 기록합니다."
                     }
                   ]

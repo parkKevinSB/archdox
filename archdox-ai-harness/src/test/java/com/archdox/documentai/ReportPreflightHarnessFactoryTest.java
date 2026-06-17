@@ -126,7 +126,11 @@ class ReportPreflightHarnessFactoryTest {
     private static ReportPreflightInput input() {
         var dailyEntry = Map.<String, Object>of(
                 "inspectionItemName", "철근 배근",
-                "supervisionContent", "배근 상태 확인",
+                "checklistRows", List.of(Map.of(
+                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                        "label", "배근 상태 확인",
+                        "result", "COMPLIANT",
+                        "referenceNote", "배근 상태 확인")),
                 "photoIds", List.of(10));
         var dailyGroup = Map.<String, Object>of("entries", List.of(dailyEntry));
         var steps = Map.<String, Object>of(
