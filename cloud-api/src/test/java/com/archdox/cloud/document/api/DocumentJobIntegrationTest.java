@@ -344,6 +344,12 @@ class DocumentJobIntegrationTest {
                                   "outputFormat": "DOCX",
                                   "renderOverrides": [
                                     {
+                                      "path": "steps.REMARKS.payload.specialNotes",
+                                      "value": "No special notes were identified.",
+                                      "label": "Special notes",
+                                      "source": "TEST"
+                                    },
+                                    {
                                       "path": "steps.REMARKS.payload.issueAndAction",
                                       "value": "No corrective action was required.",
                                       "label": "Issue and action",
@@ -376,12 +382,13 @@ class DocumentJobIntegrationTest {
 
         var templateFields = (Map<String, Object>) snapshot.get("templateFields");
         assertTrue(String.valueOf(templateFields.get("supervisionContent")).contains("Checked rebar spacing"));
+        assertTrue("No special notes were identified.".equals(templateFields.get("specialNotes")));
         assertTrue("No corrective action was required.".equals(templateFields.get("issueAndAction")));
         assertTrue("Continue monitoring before the next concrete placement.".equals(templateFields.get("nextAction")));
         assertTrue(String.valueOf(templateFields.get("dailyLogSection"))
                 .contains("Checked rebar spacing"));
         var renderOverrides = (List<Object>) snapshot.get("renderOverrides");
-        assertTrue(renderOverrides.size() == 2);
+        assertTrue(renderOverrides.size() == 3);
     }
 
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {

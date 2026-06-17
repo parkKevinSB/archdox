@@ -45,9 +45,9 @@ public class DocumentNarrativePolishService {
     private static final int MAX_FIELD_COUNT = 30;
     private static final int MAX_FIELD_TEXT_LENGTH = 2000;
     private static final Pattern DAILY_LOG_REMARK_PATH = Pattern.compile(
-            "^steps\\.DAILY_LOG\\.payload\\.(issueAndAction|issueAndActionResult|nextAction)$");
+            "^steps\\.DAILY_LOG\\.payload\\.(specialNotes|issueAndAction|issueAndActionResult|nextAction)$");
     private static final Pattern REMARKS_PATH = Pattern.compile(
-            "^steps\\.REMARKS\\.payload\\.(issueAndAction|nextAction)$");
+            "^steps\\.REMARKS\\.payload\\.(specialNotes|remarks|issueAndAction|nextAction)$");
 
     private final InspectionReportService reportService;
     private final OfficePermissionService permissionService;

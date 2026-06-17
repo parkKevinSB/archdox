@@ -796,8 +796,7 @@ function DocumentSignatureDialog({
     rememberDraft();
     await onSkip(renderOverrides());
   };
-  const closeDialog = () => {
-    rememberDraft();
+  const discardAndCloseDialog = () => {
     onClose();
   };
   const polishSection = (
@@ -910,7 +909,7 @@ function DocumentSignatureDialog({
               <strong>{report.title || report.reportNo}</strong>
               <small>다듬은 문장은 생성본에만 반영하거나, 원하면 원본 리포트에도 적용할 수 있습니다.</small>
             </div>
-            <button className="icon-button" disabled={submitting || applyingNarrative} onClick={closeDialog} type="button" aria-label="문장 다듬기 닫기">
+            <button className="icon-button" disabled={submitting || applyingNarrative} onClick={discardAndCloseDialog} type="button" aria-label="문장 다듬기 닫기">
               <X size={18} />
             </button>
           </header>
@@ -919,7 +918,7 @@ function DocumentSignatureDialog({
             {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
           </div>
           <footer className="signature-dialog-actions">
-            <button className="secondary-button" disabled={submitting || applyingNarrative} onClick={closeDialog} type="button">
+            <button className="secondary-button" disabled={submitting || applyingNarrative} onClick={discardAndCloseDialog} type="button">
               취소
             </button>
             <button className="secondary-button" disabled={submitting || applyingNarrative || appliedNarrativeCount === 0} onClick={applyNarrativeToReport} type="button">
@@ -958,7 +957,7 @@ function DocumentSignatureDialog({
                 : `${outputFormat} 생성 전에 서명과 다듬은 문장을 확인합니다.`}
             </small>
           </div>
-          <button className="icon-button" disabled={submitting} onClick={closeDialog} type="button" aria-label={`${outputLabel} 창 닫기`}>
+          <button className="icon-button" disabled={submitting} onClick={discardAndCloseDialog} type="button" aria-label={`${outputLabel} 창 닫기`}>
             <X size={18} />
           </button>
         </header>
@@ -1024,7 +1023,7 @@ function DocumentSignatureDialog({
           {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
         </div>
         <footer className="signature-dialog-actions">
-          <button className="secondary-button" disabled={submitting} onClick={closeDialog} type="button">
+          <button className="secondary-button" disabled={submitting} onClick={discardAndCloseDialog} type="button">
             취소
           </button>
           {isHtmlOutput ? (
@@ -1055,6 +1054,9 @@ function documentNarrativeRenderFields(steps: InspectionStep[]): NarrativeRender
   const fields: NarrativeRenderField[] = [];
   const dailyPayload = recordValue(stepsByCode.get("DAILY_LOG")?.payload);
   const remarksPayload = recordValue(stepsByCode.get("REMARKS")?.payload);
+  addNarrativeField(fields, "특기사항", "steps.DAILY_LOG.payload.specialNotes", dailyPayload.specialNotes);
+  addNarrativeField(fields, "특기사항", "steps.REMARKS.payload.specialNotes", remarksPayload.specialNotes);
+  addNarrativeField(fields, "특기사항", "steps.REMARKS.payload.remarks", remarksPayload.remarks);
   addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndAction", dailyPayload.issueAndAction);
   addNarrativeField(fields, "지적사항 및 처리결과", "steps.DAILY_LOG.payload.issueAndActionResult", dailyPayload.issueAndActionResult);
   addNarrativeField(fields, "다음 조치", "steps.DAILY_LOG.payload.nextAction", dailyPayload.nextAction);

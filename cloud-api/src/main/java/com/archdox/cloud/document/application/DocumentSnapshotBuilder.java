@@ -32,9 +32,9 @@ public class DocumentSnapshotBuilder {
     private static final int MAX_RENDER_OVERRIDE_COUNT = 30;
     private static final int MAX_RENDER_OVERRIDE_VALUE_LENGTH = 4_000;
     private static final Pattern REMARKS_TEXT_PATH = Pattern.compile(
-            "^steps\\.REMARKS\\.payload\\.(issueAndAction|nextAction)$");
+            "^steps\\.REMARKS\\.payload\\.(specialNotes|remarks|issueAndAction|nextAction)$");
     private static final Pattern DAILY_LOG_TEXT_PATH = Pattern.compile(
-            "^steps\\.DAILY_LOG\\.payload\\.(issueAndAction|issueAndActionResult|nextAction)$");
+            "^steps\\.DAILY_LOG\\.payload\\.(specialNotes|issueAndAction|issueAndActionResult|nextAction)$");
 
     private final InspectionReportStepRepository stepRepository;
     private final PhotoRepository photoRepository;
