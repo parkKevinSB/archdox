@@ -188,15 +188,19 @@ public class DocumentNarrativePolishService {
                 .map(suggestion -> {
                     var field = fieldsByPath.get(suggestion.path());
                     var polishedText = suggestion.polishedText();
+                    var containsForeignText = DocumentNarrativePolishLanguageGuard.containsJapaneseText(polishedText);
                     var applicable = suggestion.applicable()
+                            && !containsForeignText
                             && !polishedText.isBlank()
                             && !polishedText.equals(field.originalText());
                     return new DocumentNarrativePolishResponse.SuggestionResponse(
                             field.path(),
                             field.label(),
                             field.originalText(),
-                            polishedText,
-                            suggestion.reason(),
+                            containsForeignText ? field.originalText() : polishedText,
+                            containsForeignText
+                                    ? DocumentNarrativePolishLanguageGuard.unsafeAiTextReason()
+                                    : DocumentNarrativePolishLanguageGuard.sanitizeAiReason(suggestion.reason()),
                             "AI_HARNESS",
                             suggestion.confidence().name(),
                             applicable);

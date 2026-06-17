@@ -81,13 +81,15 @@ class NarrativePolishHarnessFactoryTest {
         var prompt = new NarrativePolishPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.0.1");
+        assertThat(prompt.version().version()).isEqualTo("1.0.2");
         assertThat(system)
                 .contains("Avoid ceremonial or self-reporting endings")
                 .contains("\"보고합니다\"")
                 .contains("지적사항이 없습니다.")
                 .contains("특기사항이 없습니다.")
-                .contains("Do not expand simple no-issue fields");
+                .contains("Do not expand simple no-issue fields")
+                .contains("Use Korean only in summary, polishedText, and reason")
+                .contains("箇条書き");
     }
 
     private static NarrativePolishInput input() {

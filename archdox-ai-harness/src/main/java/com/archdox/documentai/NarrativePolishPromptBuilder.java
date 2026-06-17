@@ -53,6 +53,9 @@ public final class NarrativePolishPromptBuilder implements PromptBuilder<Narrati
                 - Prefer direct daily-log statements such as "지적사항이 없습니다.", "특기사항이 없습니다.", "추가 조치 사항이 없습니다.", and "확인하였습니다."
                 - Do not expand simple no-issue fields into verbose sentences like "본 현장 점검 결과, 별도의 지적사항이 없었음을 보고합니다."
                 - For remarks fields, "특기사항 없이 좋음", "특기사항 없음", or similar no-issue phrases should become "특기사항이 없습니다."
+                - Use Korean only in summary, polishedText, and reason.
+                - Do not use Japanese kana, Japanese words, Chinese prose, or mixed-language phrases such as "箇条書き", "を", or "です".
+                - Keep reason short and Korean, such as "보고서 문체로 다듬었습니다." or "항목형 문장을 자연스럽게 연결했습니다."
                 """;
         var user = """
                 Polish these ArchDox report narrative fields.
