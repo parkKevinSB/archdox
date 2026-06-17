@@ -799,6 +799,23 @@ function DocumentSignatureDialog({
   const discardAndCloseDialog = () => {
     onClose();
   };
+  const resetNarrativeValues = () => {
+    setNarrativeValues(Object.fromEntries(narrativeFields.map((field) => [
+      field.path,
+      initialNarrativeValues[field.path] ?? field.value
+    ])));
+    setPolishSummary(null);
+    setPolishSuggestions([]);
+    setLocalError(null);
+  };
+  const cancelPolishScreen = () => {
+    resetNarrativeValues();
+    if (isHtmlOutput) {
+      onClose();
+      return;
+    }
+    setScreen("generate");
+  };
   const polishSection = (
     <section className="document-narrative-polish" aria-label="문장 다듬기">
       <div className="document-narrative-polish-head">
@@ -918,7 +935,7 @@ function DocumentSignatureDialog({
             {localError || error ? <InlineAlert message={localError ?? error ?? ""} /> : null}
           </div>
           <footer className="signature-dialog-actions">
-            <button className="secondary-button" disabled={submitting || applyingNarrative} onClick={discardAndCloseDialog} type="button">
+            <button className="secondary-button" disabled={submitting || applyingNarrative} onClick={cancelPolishScreen} type="button">
               취소
             </button>
             <button className="secondary-button" disabled={submitting || applyingNarrative || appliedNarrativeCount === 0} onClick={applyNarrativeToReport} type="button">
