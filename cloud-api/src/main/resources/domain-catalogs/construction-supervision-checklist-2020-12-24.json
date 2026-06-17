@@ -31,7 +31,24 @@
       "dataPolicy": "CANONICAL",
       "canWriteReports": true,
       "description": "현재 전사된 기본 공종별 체크리스트입니다.",
-      "message": "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다."
+      "message": "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다.",
+      "tradeRefs": [
+        {
+          "tradeCode": "REINFORCED_CONCRETE",
+          "sourcePages": [27, 28, 29],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본 업무",
+              "processGroupRefs": [
+                {"code": "REBAR_ASSEMBLY", "itemRefs": ["RC_REBAR_CONFIRMATION", "RC_REBAR_AFTER_INSPECTION"]},
+                {"code": "REBAR_CERTIFICATE", "itemRefs": ["RC_REBAR_CERTIFICATE_CONFIRMATION"]},
+                {"code": "CONCRETE_MIX", "itemRefs": ["RC_CONCRETE_MIX_CONFIRMATION"]}
+              ]
+            }
+          ]
+        }
+      ]
     },
     "RESIDENT": {
       "code": "RESIDENT",
@@ -42,7 +59,27 @@
       "dataPolicy": "SEPARATE_MODE_SLOT",
       "canWriteReports": true,
       "description": "상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 상주 기준을 전사하며 교체합니다.",
-      "message": "상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+      "message": "상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다.",
+      "tradeRefs": [
+        {
+          "tradeCode": "REINFORCED_CONCRETE",
+          "sourcePages": [79, 80, 81, 82],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본 업무",
+              "processGroupRefs": [
+                {"code": "REBAR_ASSEMBLY", "itemRefs": ["RC_REBAR_CONFIRMATION", "RC_REBAR_AFTER_INSPECTION"]},
+                {"code": "REBAR_CERTIFICATE", "itemRefs": ["RC_REBAR_CERTIFICATE_CONFIRMATION"]},
+                {"code": "CONCRETE_MIX", "itemRefs": ["RC_CONCRETE_MIX_CONFIRMATION"]},
+                {"code": "CONCRETE_PLACEMENT_PREPARATION", "itemRefs": ["RC_CONCRETE_PLACEMENT_PREPARATION_CONFIRMATION"]},
+                {"code": "CONCRETE_STRENGTH_TEST", "itemRefs": ["RC_CONCRETE_STRENGTH_TEST_CONFIRMATION"]},
+                {"code": "CONCRETE_CONDITION_CONFIRMATION", "itemRefs": ["RC_CONCRETE_CONDITION_CONFIRMATION"]}
+              ]
+            }
+          ]
+        }
+      ]
     },
     "RESPONSIBLE_RESIDENT": {
       "code": "RESPONSIBLE_RESIDENT",
@@ -53,7 +90,165 @@
       "dataPolicy": "SEPARATE_MODE_SLOT",
       "canWriteReports": true,
       "description": "책임상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 책임상주 기준을 전사하며 교체합니다.",
-      "message": "책임상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+      "message": "책임상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다.",
+      "tradeRefs": [
+        {
+          "tradeCode": "REINFORCED_CONCRETE",
+          "sourcePages": [132, 133, 134],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본 업무",
+              "processGroupRefs": [
+                {"code": "REBAR_ASSEMBLY", "itemRefs": ["RC_REBAR_DOCUMENT_REVIEW", "RC_REBAR_SPACER_SAMPLE", "RC_REBAR_CONFIRMATION", "RC_REBAR_AFTER_INSPECTION"]},
+                {"code": "REBAR_SHOP_DRAWING_REVIEW", "itemRefs": ["RC_REBAR_SHOP_DRAWING_CONFIRMATION"]},
+                {"code": "GAS_PRESSURE_WELDING", "itemRefs": ["RC_GAS_PRESSURE_WELDING_CONFIRMATION"]},
+                {"code": "REBAR_CERTIFICATE", "itemRefs": ["RC_REBAR_CERTIFICATE_CONFIRMATION"]},
+                {"code": "CONCRETE_PLACEMENT_PLAN", "itemRefs": ["RC_CONCRETE_PLACEMENT_PLAN_CONFIRMATION"]},
+                {"code": "CONCRETE_MIX", "itemRefs": ["RC_CONCRETE_MIX_CONFIRMATION"]},
+                {"code": "CONCRETE_PLACEMENT_PREPARATION", "itemRefs": ["RC_CONCRETE_PLACEMENT_PREPARATION_CONFIRMATION", "RC_CONCRETE_PLACEMENT_PREPARATION_RESPONSIBLE_EXTRA"]},
+                {"code": "CONCRETE_PLACEMENT", "itemRefs": ["RC_CONCRETE_PLACEMENT_CONFIRMATION"]},
+                {"code": "CONCRETE_CURING", "itemRefs": ["RC_CONCRETE_CURING_CONFIRMATION"]},
+                {"code": "CONCRETE_STRENGTH_TEST", "itemRefs": ["RC_CONCRETE_STRENGTH_TEST_CONFIRMATION", "RC_CONCRETE_STRENGTH_TEST_RESPONSIBLE_EXTRA"]},
+                {"code": "CONCRETE_CONDITION_CONFIRMATION", "itemRefs": ["RC_CONCRETE_CONDITION_CONFIRMATION", "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA"]}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "catalogModel": {
+    "version": 1,
+    "pattern": "ATOMIC_CHECKLIST_ITEMS_WITH_MODE_REFS",
+    "canonicalAtoms": "공종, 세부공정, 검사항목, 세부 감리항목은 canonicalAtoms에 한 번만 정의합니다.",
+    "modeRefs": "비상주, 상주, 책임상주 카탈로그는 supervisionWorkModeCatalogs.*.tradeRefs에서 원자 항목을 참조합니다.",
+    "runtimeProjection": "현재 UI 호환을 위해 trades 배열은 유지합니다. 모드별 전사가 진행되면 selectedSupervisionWorkModeCatalog.tradeRefs를 기준으로 trades projection을 생성합니다.",
+    "rule": "동일한 세부 감리항목은 새 코드를 만들지 않고 같은 row code를 재사용하고, 모드별 추가 항목만 새 atom으로 추가합니다."
+  },
+  "canonicalAtoms": {
+    "trades": {
+      "REINFORCED_CONCRETE": {
+        "code": "REINFORCED_CONCRETE",
+        "name": "철근 콘크리트 공사",
+        "discipline": "ARCHITECTURE"
+      }
+    },
+    "processGroups": {
+      "REBAR_ASSEMBLY": {"code": "REBAR_ASSEMBLY", "tradeCode": "REINFORCED_CONCRETE", "name": "철근 조립·배근"},
+      "REBAR_CERTIFICATE": {"code": "REBAR_CERTIFICATE", "tradeCode": "REINFORCED_CONCRETE", "name": "철근 규격 증명서"},
+      "CONCRETE_MIX": {"code": "CONCRETE_MIX", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 배합"},
+      "CONCRETE_PLACEMENT_PREPARATION": {"code": "CONCRETE_PLACEMENT_PREPARATION", "tradeCode": "REINFORCED_CONCRETE", "name": "타설 준비"},
+      "CONCRETE_STRENGTH_TEST": {"code": "CONCRETE_STRENGTH_TEST", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 강도 시험"},
+      "CONCRETE_CONDITION_CONFIRMATION": {"code": "CONCRETE_CONDITION_CONFIRMATION", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 상태 확인"},
+      "REBAR_SHOP_DRAWING_REVIEW": {"code": "REBAR_SHOP_DRAWING_REVIEW", "tradeCode": "REINFORCED_CONCRETE", "name": "철근 가공도 확인·검토"},
+      "GAS_PRESSURE_WELDING": {"code": "GAS_PRESSURE_WELDING", "tradeCode": "REINFORCED_CONCRETE", "name": "가스압점"},
+      "CONCRETE_PLACEMENT_PLAN": {"code": "CONCRETE_PLACEMENT_PLAN", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 타설 계획서"},
+      "CONCRETE_PLACEMENT": {"code": "CONCRETE_PLACEMENT", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 타설"},
+      "CONCRETE_CURING": {"code": "CONCRETE_CURING", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 양생"}
+    },
+    "inspectionItems": {
+      "RC_REBAR_DOCUMENT_REVIEW": {"code": "RC_REBAR_DOCUMENT_REVIEW", "processGroupCode": "REBAR_ASSEMBLY", "name": "철근조립·배근 관련 도서 확인", "rowRefs": ["RC_REBAR_DOCUMENT_REVIEW"]},
+      "RC_REBAR_SPACER_SAMPLE": {"code": "RC_REBAR_SPACER_SAMPLE", "processGroupCode": "REBAR_ASSEMBLY", "name": "스페이서·달철물 등 견본품 확인", "rowRefs": ["RC_REBAR_SPACER_SAMPLE"]},
+      "RC_REBAR_CONFIRMATION": {"code": "RC_REBAR_CONFIRMATION", "processGroupCode": "REBAR_ASSEMBLY", "name": "철근배근의 확인사항", "rowRefs": ["RC_REBAR_COUNT_DIAMETER_PITCH", "RC_REBAR_ANCHORAGE", "RC_REBAR_SPLICE", "RC_REBAR_TIE_WIRE", "RC_REBAR_OFFSET_BEND", "RC_REBAR_SPACING", "RC_STIRRUP", "RC_REBAR_COLUMN_BEAM_JOINT", "RC_REBAR_GIRDER_BEAM_JOINT", "RC_REBAR_COVER_SPACER"]},
+      "RC_REBAR_AFTER_INSPECTION": {"code": "RC_REBAR_AFTER_INSPECTION", "processGroupCode": "REBAR_ASSEMBLY", "name": "배근검사 후 처리 확인", "rowRefs": ["RC_REBAR_REINFORCEMENT_PART", "RC_REBAR_REINFORCEMENT_DETAIL", "RC_REBAR_REINSPECTION_REQUIRED"]},
+      "RC_REBAR_CERTIFICATE_CONFIRMATION": {"code": "RC_REBAR_CERTIFICATE_CONFIRMATION", "processGroupCode": "REBAR_CERTIFICATE", "name": "철근 규격 증명서 확인사항", "rowRefs": ["RC_REBAR_STANDARD_PRODUCT", "RC_REBAR_KS_CERTIFICATE"]},
+      "RC_CONCRETE_MIX_CONFIRMATION": {"code": "RC_CONCRETE_MIX_CONFIRMATION", "processGroupCode": "CONCRETE_MIX", "name": "콘크리트 배합 확인사항", "rowRefs": ["RC_READY_MIXED_CONCRETE_KS_FACTORY", "RC_READY_MIXED_CONCRETE_REPORT_INVOICE"]},
+      "RC_CONCRETE_PLACEMENT_PREPARATION_CONFIRMATION": {"code": "RC_CONCRETE_PLACEMENT_PREPARATION_CONFIRMATION", "processGroupCode": "CONCRETE_PLACEMENT_PREPARATION", "name": "타설 준비 확인사항", "rowRefs": ["RC_PLACEMENT_STRUCTURE_THICKNESS", "RC_PLACEMENT_INSULATION_LOCATION", "RC_PLACEMENT_EMBEDDED_INSTALLATIONS", "RC_PLACEMENT_VENT_SLEEVE", "RC_PLACEMENT_DUCT_SLEEVE_FINISH", "RC_PLACEMENT_CEILING_BEAM_CLEARANCE"]},
+      "RC_CONCRETE_STRENGTH_TEST_CONFIRMATION": {"code": "RC_CONCRETE_STRENGTH_TEST_CONFIRMATION", "processGroupCode": "CONCRETE_STRENGTH_TEST", "name": "콘크리트 강도 시험 확인사항", "rowRefs": ["RC_CONCRETE_28_DAY_STRENGTH", "RC_CONCRETE_COMPRESSIVE_TEST", "RC_CONCRETE_TEST_SAMPLING_TIME", "RC_CONCRETE_TEST_SAMPLE_AMOUNT"]},
+      "RC_CONCRETE_CONDITION_CONFIRMATION": {"code": "RC_CONCRETE_CONDITION_CONFIRMATION", "processGroupCode": "CONCRETE_CONDITION_CONFIRMATION", "name": "콘크리트 상태 확인사항", "rowRefs": ["RC_CONCRETE_CONSTRUCTION_JOINT", "RC_CONCRETE_JOINT_REPAIR_METHOD"]},
+      "RC_REBAR_SHOP_DRAWING_CONFIRMATION": {"code": "RC_REBAR_SHOP_DRAWING_CONFIRMATION", "processGroupCode": "REBAR_SHOP_DRAWING_REVIEW", "name": "철근 가공도 확인·검토 사항", "rowRefs": ["RC_REBAR_SPLICE_TYPE_REVIEW", "RC_REBAR_LAP_SPLICE_REVIEW", "RC_REBAR_DRAWING_BEFORE_FABRICATION", "RC_REBAR_SHAPE_AND_LENGTH", "RC_REBAR_STEEL_FRAME_FIT", "RC_REBAR_DRAWING_SPLICE_POSITION_METHOD", "RC_REBAR_CONCRETE_DRAWING_MATCH", "RC_REBAR_DEVELOPMENT_LENGTH", "RC_REBAR_AUXILIARY_REINFORCEMENT_METHOD", "RC_REBAR_SHOP_DRAWING_SPLICE_AND_HOOK", "RC_REBAR_COLUMN_BEAM_MARK_REVIEW"]},
+      "RC_GAS_PRESSURE_WELDING_CONFIRMATION": {"code": "RC_GAS_PRESSURE_WELDING_CONFIRMATION", "processGroupCode": "GAS_PRESSURE_WELDING", "name": "가스압점 확인사항", "rowRefs": ["RC_GAS_PRESSURE_WELDING_METHOD_STATEMENT", "RC_GAS_PRESSURE_WELDING_SAMPLE_AGREEMENT", "RC_GAS_PRESSURE_WELDING_TEST_DATA", "RC_GAS_PRESSURE_WELDING_ECCENTRICITY", "RC_GAS_PRESSURE_WELDING_DEFECT_SHAPE", "RC_GAS_PRESSURE_WELDING_PRE_PLACEMENT_STRENGTH", "RC_GAS_PRESSURE_WELDING_TENSILE_TEST"]},
+      "RC_CONCRETE_PLACEMENT_PLAN_CONFIRMATION": {"code": "RC_CONCRETE_PLACEMENT_PLAN_CONFIRMATION", "processGroupCode": "CONCRETE_PLACEMENT_PLAN", "name": "콘크리트 타설 계획서 확인사항", "rowRefs": ["RC_PLACEMENT_PLAN_WEATHER_DELAY", "RC_PLACEMENT_PLAN_ZONE_VOLUME", "RC_PLACEMENT_PLAN_METAL_LATH_REINFORCEMENT", "RC_PLACEMENT_PLAN_PUMP_CAPACITY", "RC_PLACEMENT_PLAN_TRUCK_AND_ROAD", "RC_PLACEMENT_PLAN_BOOM_RADIUS", "RC_PLACEMENT_PLAN_SEQUENCE_PIPE_SUPPORT", "RC_PLACEMENT_PLAN_PERSONNEL_EQUIPMENT"]},
+      "RC_CONCRETE_PLACEMENT_PREPARATION_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_PLACEMENT_PREPARATION_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_PLACEMENT_PREPARATION", "name": "책임상주 타설 준비 추가 확인사항", "rowRefs": ["RC_PLACEMENT_RELATED_WORK_INSPECTION", "RC_PLACEMENT_WEATHER_TEMPERATURE_RECORD", "RC_PLACEMENT_REBAR_PIPE_EMBED_FIXING", "RC_PLACEMENT_CONSTRUCTION_JOINT_GAP", "RC_PLACEMENT_SLAB_LEVEL_DIFFERENCE", "RC_PLACEMENT_FIRE_COMPARTMENT_OPENING", "RC_PLACEMENT_WATERPROOF_ANCHOR_PENETRATION", "RC_PLACEMENT_EXPANSION_JOINT", "RC_PLACEMENT_FORM_BULGING_CHECK_MATERIAL", "RC_PLACEMENT_CURING_SHEET_TEMP_RAIN_PREP", "RC_PLACEMENT_ACCESS_AND_SUPPORT_PREP", "RC_PLACEMENT_FORM_CLEANING_BEFORE_30_60_MIN"]},
+      "RC_CONCRETE_PLACEMENT_CONFIRMATION": {"code": "RC_CONCRETE_PLACEMENT_CONFIRMATION", "processGroupCode": "CONCRETE_PLACEMENT", "name": "콘크리트 타설 확인사항", "rowRefs": ["RC_CONCRETE_PLACEMENT_WORKER_COUNT", "RC_CONCRETE_PLACEMENT_STOP_JOINT_BOARD", "RC_CONCRETE_PLACEMENT_PIPE_HOSE_SUPPORT", "RC_CONCRETE_PLACEMENT_PIPE_BLOCKAGE_RESPONSE", "RC_CONCRETE_PLACEMENT_SLUMP_AIR", "RC_CONCRETE_PLACEMENT_SURFACE_LEVELING"]},
+      "RC_CONCRETE_CURING_CONFIRMATION": {"code": "RC_CONCRETE_CURING_CONFIRMATION", "processGroupCode": "CONCRETE_CURING", "name": "콘크리트 양생 확인사항", "rowRefs": ["RC_CONCRETE_CURING_HEATING_AND_TEMPERATURE"]},
+      "RC_CONCRETE_STRENGTH_TEST_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_STRENGTH_TEST_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_STRENGTH_TEST", "name": "책임상주 콘크리트 강도 시험 추가 확인사항", "rowRefs": ["RC_CONCRETE_COMPRESSIVE_TEST_RECORD", "RC_CONCRETE_SPECIMEN_COLLECTION_METHOD_LOCATION", "RC_CONCRETE_QUALITY_GRADE_STRENGTH"]},
+      "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_CONDITION_CONFIRMATION", "name": "책임상주 콘크리트 상태 추가 확인사항", "rowRefs": ["RC_CONCRETE_FORM_REMOVAL_REPAIR_PART", "RC_CONCRETE_VOID_AGGREGATE_CRACK", "RC_CONCRETE_EXPOSED_REBAR_FINISH"]}
+    },
+    "checklistRows": {
+      "RC_REBAR_DOCUMENT_REVIEW": {"code": "RC_REBAR_DOCUMENT_REVIEW", "label": "철근조립·배근 관련 도서 확인"},
+      "RC_REBAR_SPACER_SAMPLE": {"code": "RC_REBAR_SPACER_SAMPLE", "label": "스페이서, 달철물 등의 견본품 확인"},
+      "RC_REBAR_COUNT_DIAMETER_PITCH": {"code": "RC_REBAR_COUNT_DIAMETER_PITCH", "label": "개수, 철근지름, 피치 확인"},
+      "RC_REBAR_ANCHORAGE": {"code": "RC_REBAR_ANCHORAGE", "label": "정착길이와 굽힘정착 깊이 확인"},
+      "RC_REBAR_SPLICE": {"code": "RC_REBAR_SPLICE", "label": "이음위치와 이음길이 확인"},
+      "RC_REBAR_TIE_WIRE": {"code": "RC_REBAR_TIE_WIRE", "label": "결속선의 위치 및 간격유지 확인"},
+      "RC_REBAR_OFFSET_BEND": {"code": "RC_REBAR_OFFSET_BEND", "label": "철근의 좁히기(offset bend) 가공에 대한 양부 확인"},
+      "RC_REBAR_SPACING": {"code": "RC_REBAR_SPACING", "label": "철근상호 간격 확인"},
+      "RC_STIRRUP": {"code": "RC_STIRRUP", "label": "띠철근, 스터럽의 위치, 간격, 결속상태 확인"},
+      "RC_REBAR_COLUMN_BEAM_JOINT": {"code": "RC_REBAR_COLUMN_BEAM_JOINT", "label": "기둥과 보 교차점의 띠철근 위치 확인"},
+      "RC_REBAR_GIRDER_BEAM_JOINT": {"code": "RC_REBAR_GIRDER_BEAM_JOINT", "label": "큰보와 작은보 교차점의 늑근 확인"},
+      "RC_REBAR_COVER_SPACER": {"code": "RC_REBAR_COVER_SPACER", "label": "피복두께 등 간격 유지근 등 확인"},
+      "RC_REBAR_REINFORCEMENT_PART": {"code": "RC_REBAR_REINFORCEMENT_PART", "label": "보강부분 확인"},
+      "RC_REBAR_REINFORCEMENT_DETAIL": {"code": "RC_REBAR_REINFORCEMENT_DETAIL", "label": "보강근의 개수, 지름, 길이, 방법 확인"},
+      "RC_REBAR_REINSPECTION_REQUIRED": {"code": "RC_REBAR_REINSPECTION_REQUIRED", "label": "재검사 여부 확인"},
+      "RC_REBAR_STANDARD_PRODUCT": {"code": "RC_REBAR_STANDARD_PRODUCT", "label": "철근 규격품, 제조업체, 재료시험의 필요여부 확인"},
+      "RC_REBAR_KS_CERTIFICATE": {"code": "RC_REBAR_KS_CERTIFICATE", "label": "KS마크 또는 시험성적증명서에 의해 KS규격제품인지 확인"},
+      "RC_READY_MIXED_CONCRETE_KS_FACTORY": {"code": "RC_READY_MIXED_CONCRETE_KS_FACTORY", "label": "KS 규격공장의 레디믹스트 콘크리트인지 확인"},
+      "RC_READY_MIXED_CONCRETE_REPORT_INVOICE": {"code": "RC_READY_MIXED_CONCRETE_REPORT_INVOICE", "label": "레미콘 배합보고서 및 송장 확인"},
+      "RC_PLACEMENT_STRUCTURE_THICKNESS": {"code": "RC_PLACEMENT_STRUCTURE_THICKNESS", "label": "구조체 기둥, 보, 내력벽, 슬래브 두께 등 확인"},
+      "RC_PLACEMENT_INSULATION_LOCATION": {"code": "RC_PLACEMENT_INSULATION_LOCATION", "label": "단열재의 시공장소 확인"},
+      "RC_PLACEMENT_EMBEDDED_INSTALLATIONS": {"code": "RC_PLACEMENT_EMBEDDED_INSTALLATIONS", "label": "설비용 매설물 확인"},
+      "RC_PLACEMENT_VENT_SLEEVE": {"code": "RC_PLACEMENT_VENT_SLEEVE", "label": "통풍·환기 슬리브 확인"},
+      "RC_PLACEMENT_DUCT_SLEEVE_FINISH": {"code": "RC_PLACEMENT_DUCT_SLEEVE_FINISH", "label": "설비배관 및 덕트 관통슬리브 부분의 마감 확인"},
+      "RC_PLACEMENT_CEILING_BEAM_CLEARANCE": {"code": "RC_PLACEMENT_CEILING_BEAM_CLEARANCE", "label": "천장보밑 배관구배의 공간 확인"},
+      "RC_CONCRETE_28_DAY_STRENGTH": {"code": "RC_CONCRETE_28_DAY_STRENGTH", "label": "28일 압축강도 확인·검토"},
+      "RC_CONCRETE_COMPRESSIVE_TEST": {"code": "RC_CONCRETE_COMPRESSIVE_TEST", "label": "콘크리트 압축강도 시험 확인·검토"},
+      "RC_CONCRETE_TEST_SAMPLING_TIME": {"code": "RC_CONCRETE_TEST_SAMPLING_TIME", "label": "시험채취의 시기 확인·검토"},
+      "RC_CONCRETE_TEST_SAMPLE_AMOUNT": {"code": "RC_CONCRETE_TEST_SAMPLE_AMOUNT", "label": "시험채취량 확인·검토"},
+      "RC_CONCRETE_CONSTRUCTION_JOINT": {"code": "RC_CONCRETE_CONSTRUCTION_JOINT", "label": "이어치기면의 확인"},
+      "RC_CONCRETE_JOINT_REPAIR_METHOD": {"code": "RC_CONCRETE_JOINT_REPAIR_METHOD", "label": "이어치기면의 보수방법 확인"},
+      "RC_REBAR_SPLICE_TYPE_REVIEW": {"code": "RC_REBAR_SPLICE_TYPE_REVIEW", "label": "이음 형식의 확인·검토"},
+      "RC_REBAR_LAP_SPLICE_REVIEW": {"code": "RC_REBAR_LAP_SPLICE_REVIEW", "label": "겹침이음 확인·검토"},
+      "RC_REBAR_DRAWING_BEFORE_FABRICATION": {"code": "RC_REBAR_DRAWING_BEFORE_FABRICATION", "label": "철근 가공 전 가공도 및 특수부분 현치도 확인·검토"},
+      "RC_REBAR_SHAPE_AND_LENGTH": {"code": "RC_REBAR_SHAPE_AND_LENGTH", "label": "가공형상과 필요길이 확인"},
+      "RC_REBAR_STEEL_FRAME_FIT": {"code": "RC_REBAR_STEEL_FRAME_FIT", "label": "철골기둥·보와 철근의 맞춤 확인"},
+      "RC_REBAR_DRAWING_SPLICE_POSITION_METHOD": {"code": "RC_REBAR_DRAWING_SPLICE_POSITION_METHOD", "label": "이음의 위치와 방법 확인"},
+      "RC_REBAR_CONCRETE_DRAWING_MATCH": {"code": "RC_REBAR_CONCRETE_DRAWING_MATCH", "label": "콘크리트 구조도면과 대조"},
+      "RC_REBAR_DEVELOPMENT_LENGTH": {"code": "RC_REBAR_DEVELOPMENT_LENGTH", "label": "정착길이 확인"},
+      "RC_REBAR_AUXILIARY_REINFORCEMENT_METHOD": {"code": "RC_REBAR_AUXILIARY_REINFORCEMENT_METHOD", "label": "보강근·보조근의 요령 확인"},
+      "RC_REBAR_SHOP_DRAWING_SPLICE_AND_HOOK": {"code": "RC_REBAR_SHOP_DRAWING_SPLICE_AND_HOOK", "label": "이음 위치, 겹침길이, 철근 갈고리 방향 확인"},
+      "RC_REBAR_COLUMN_BEAM_MARK_REVIEW": {"code": "RC_REBAR_COLUMN_BEAM_MARK_REVIEW", "label": "기둥·보근 가공도 및 시공도 확인·검토"},
+      "RC_GAS_PRESSURE_WELDING_METHOD_STATEMENT": {"code": "RC_GAS_PRESSURE_WELDING_METHOD_STATEMENT", "label": "가스압점 시공요령서 작성 후 확인·검토"},
+      "RC_GAS_PRESSURE_WELDING_SAMPLE_AGREEMENT": {"code": "RC_GAS_PRESSURE_WELDING_SAMPLE_AGREEMENT", "label": "압접 형상 샘플 사전협의"},
+      "RC_GAS_PRESSURE_WELDING_TEST_DATA": {"code": "RC_GAS_PRESSURE_WELDING_TEST_DATA", "label": "작업 시작 전 시험자료 및 절단부분 확인·검토"},
+      "RC_GAS_PRESSURE_WELDING_ECCENTRICITY": {"code": "RC_GAS_PRESSURE_WELDING_ECCENTRICITY", "label": "편심량에 따른 절단·재압접 필요여부 확인·검토"},
+      "RC_GAS_PRESSURE_WELDING_DEFECT_SHAPE": {"code": "RC_GAS_PRESSURE_WELDING_DEFECT_SHAPE", "label": "압접부 부풀음, 줄흠, 갈라짐 등 결함 확인"},
+      "RC_GAS_PRESSURE_WELDING_PRE_PLACEMENT_STRENGTH": {"code": "RC_GAS_PRESSURE_WELDING_PRE_PLACEMENT_STRENGTH", "label": "콘크리트 타설 전 강도 확인·검토"},
+      "RC_GAS_PRESSURE_WELDING_TENSILE_TEST": {"code": "RC_GAS_PRESSURE_WELDING_TENSILE_TEST", "label": "인장시험 확인·검토"},
+      "RC_PLACEMENT_PLAN_WEATHER_DELAY": {"code": "RC_PLACEMENT_PLAN_WEATHER_DELAY", "label": "기후조건으로 인한 작업 지연 정도 예상"},
+      "RC_PLACEMENT_PLAN_ZONE_VOLUME": {"code": "RC_PLACEMENT_PLAN_ZONE_VOLUME", "label": "타설구획 및 타설량 확인·검토"},
+      "RC_PLACEMENT_PLAN_METAL_LATH_REINFORCEMENT": {"code": "RC_PLACEMENT_PLAN_METAL_LATH_REINFORCEMENT", "label": "이음타설부분 및 개구부 주위 보강 확인·검토"},
+      "RC_PLACEMENT_PLAN_PUMP_CAPACITY": {"code": "RC_PLACEMENT_PLAN_PUMP_CAPACITY", "label": "압송가동 소요시간과 콘크리트펌프차 압송능력 확인·검토"},
+      "RC_PLACEMENT_PLAN_TRUCK_AND_ROAD": {"code": "RC_PLACEMENT_PLAN_TRUCK_AND_ROAD", "label": "배차대수 및 도로상황 확인·검토"},
+      "RC_PLACEMENT_PLAN_BOOM_RADIUS": {"code": "RC_PLACEMENT_PLAN_BOOM_RADIUS", "label": "펌프차 붐 및 회전 반지름 확인·검토"},
+      "RC_PLACEMENT_PLAN_SEQUENCE_PIPE_SUPPORT": {"code": "RC_PLACEMENT_PLAN_SEQUENCE_PIPE_SUPPORT", "label": "타설 순서, 수송배관계획, 위치, 고정방법, 받침대, 깔판계획 확인·검토"},
+      "RC_PLACEMENT_PLAN_PERSONNEL_EQUIPMENT": {"code": "RC_PLACEMENT_PLAN_PERSONNEL_EQUIPMENT", "label": "인원배치와 타설기구 배치 여부 확인·검토"},
+      "RC_PLACEMENT_RELATED_WORK_INSPECTION": {"code": "RC_PLACEMENT_RELATED_WORK_INSPECTION", "label": "관련공사의 검사 확인"},
+      "RC_PLACEMENT_WEATHER_TEMPERATURE_RECORD": {"code": "RC_PLACEMENT_WEATHER_TEMPERATURE_RECORD", "label": "날씨·기온 측정과 기록 확인"},
+      "RC_PLACEMENT_REBAR_PIPE_EMBED_FIXING": {"code": "RC_PLACEMENT_REBAR_PIPE_EMBED_FIXING", "label": "철근, 배관재, 기타 매설물의 고정여부 확인"},
+      "RC_PLACEMENT_CONSTRUCTION_JOINT_GAP": {"code": "RC_PLACEMENT_CONSTRUCTION_JOINT_GAP", "label": "이음타설면의 막음판 등 틈새 확인"},
+      "RC_PLACEMENT_SLAB_LEVEL_DIFFERENCE": {"code": "RC_PLACEMENT_SLAB_LEVEL_DIFFERENCE", "label": "바닥판 고저단차와 바닥내림부분 확인"},
+      "RC_PLACEMENT_FIRE_COMPARTMENT_OPENING": {"code": "RC_PLACEMENT_FIRE_COMPARTMENT_OPENING", "label": "방화구획 및 바닥판 구멍메우기 확인"},
+      "RC_PLACEMENT_WATERPROOF_ANCHOR_PENETRATION": {"code": "RC_PLACEMENT_WATERPROOF_ANCHOR_PENETRATION", "label": "방수처리, 앵커, 관통관, 물막이판 확인"},
+      "RC_PLACEMENT_EXPANSION_JOINT": {"code": "RC_PLACEMENT_EXPANSION_JOINT", "label": "익스팬션죠인트 위치 및 마감 확인"},
+      "RC_PLACEMENT_FORM_BULGING_CHECK_MATERIAL": {"code": "RC_PLACEMENT_FORM_BULGING_CHECK_MATERIAL", "label": "거푸집 부풀림 체크용 재료 준비 확인"},
+      "RC_PLACEMENT_CURING_SHEET_TEMP_RAIN_PREP": {"code": "RC_PLACEMENT_CURING_SHEET_TEMP_RAIN_PREP", "label": "보양시트 및 보양재 준비 확인"},
+      "RC_PLACEMENT_ACCESS_AND_SUPPORT_PREP": {"code": "RC_PLACEMENT_ACCESS_AND_SUPPORT_PREP", "label": "수송관 받침대, 사다리, 달철물, 작업통로 준비 확인"},
+      "RC_PLACEMENT_FORM_CLEANING_BEFORE_30_60_MIN": {"code": "RC_PLACEMENT_FORM_CLEANING_BEFORE_30_60_MIN", "label": "타설 30분~1시간 전 거푸집 내부 청소상태 확인"},
+      "RC_CONCRETE_PLACEMENT_WORKER_COUNT": {"code": "RC_CONCRETE_PLACEMENT_WORKER_COUNT", "label": "콘크리트 타설 작업원 인원 확인"},
+      "RC_CONCRETE_PLACEMENT_STOP_JOINT_BOARD": {"code": "RC_CONCRETE_PLACEMENT_STOP_JOINT_BOARD", "label": "타설중지, 마감, 막음판, 줄눈막대 등 확인"},
+      "RC_CONCRETE_PLACEMENT_PIPE_HOSE_SUPPORT": {"code": "RC_CONCRETE_PLACEMENT_PIPE_HOSE_SUPPORT", "label": "가로설치배관이나 토출호스 받이틀 상태 확인"},
+      "RC_CONCRETE_PLACEMENT_PIPE_BLOCKAGE_RESPONSE": {"code": "RC_CONCRETE_PLACEMENT_PIPE_BLOCKAGE_RESPONSE", "label": "압송관 폐쇄사고 대응책 확인"},
+      "RC_CONCRETE_PLACEMENT_SLUMP_AIR": {"code": "RC_CONCRETE_PLACEMENT_SLUMP_AIR", "label": "슬럼프와 공기량 확인"},
+      "RC_CONCRETE_PLACEMENT_SURFACE_LEVELING": {"code": "RC_CONCRETE_PLACEMENT_SURFACE_LEVELING", "label": "콘크리트 면고르기 확인"},
+      "RC_CONCRETE_CURING_HEATING_AND_TEMPERATURE": {"code": "RC_CONCRETE_CURING_HEATING_AND_TEMPERATURE", "label": "콘크리트 보온장치 및 적정온도 확인·검토"},
+      "RC_CONCRETE_COMPRESSIVE_TEST_RECORD": {"code": "RC_CONCRETE_COMPRESSIVE_TEST_RECORD", "label": "콘크리트 압축강도 시험기록 확인·검토"},
+      "RC_CONCRETE_SPECIMEN_COLLECTION_METHOD_LOCATION": {"code": "RC_CONCRETE_SPECIMEN_COLLECTION_METHOD_LOCATION", "label": "공시체 채취요령과 장소 확인·검토"},
+      "RC_CONCRETE_QUALITY_GRADE_STRENGTH": {"code": "RC_CONCRETE_QUALITY_GRADE_STRENGTH", "label": "콘크리트 품질등급에 따른 압축강도 확인·검토"},
+      "RC_CONCRETE_FORM_REMOVAL_REPAIR_PART": {"code": "RC_CONCRETE_FORM_REMOVAL_REPAIR_PART", "label": "거푸집 해체 시 보수부분 확인"},
+      "RC_CONCRETE_VOID_AGGREGATE_CRACK": {"code": "RC_CONCRETE_VOID_AGGREGATE_CRACK", "label": "공동, 자갈노출, 균열 여부 확인"},
+      "RC_CONCRETE_EXPOSED_REBAR_FINISH": {"code": "RC_CONCRETE_EXPOSED_REBAR_FINISH", "label": "철근 노출부와 콘크리트 마감면 확인"}
     }
   },
   "documentLayoutPolicy": {

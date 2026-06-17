@@ -101,6 +101,23 @@ export type SupervisionCatalogTrade = {
   sourcePages?: number[];
 };
 
+export type SupervisionWorkModeProcessGroupRef = {
+  code: string;
+  itemRefs?: string[];
+};
+
+export type SupervisionWorkModeWorkCategoryRef = {
+  code: string;
+  name: string;
+  processGroupRefs?: SupervisionWorkModeProcessGroupRef[];
+};
+
+export type SupervisionWorkModeTradeRef = {
+  sourcePages?: number[];
+  tradeCode: string;
+  workCategories?: SupervisionWorkModeWorkCategoryRef[];
+};
+
 export type SupervisionDomainCatalog = {
   catalogCode: string;
   catalogName: string;
@@ -124,6 +141,7 @@ export type SupervisionDomainCatalog = {
     name?: string;
     referencePages?: string;
     status?: string;
+    tradeRefs?: SupervisionWorkModeTradeRef[];
   };
   documentLayoutPolicy?: {
     defaultOfficialLayout?: {
