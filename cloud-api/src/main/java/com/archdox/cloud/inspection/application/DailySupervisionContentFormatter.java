@@ -7,6 +7,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class DailySupervisionContentFormatter {
+    public static final String DOCUMENT_NARRATIVE_TEXT_KEY = "documentNarrativeText";
+
     private DailySupervisionContentFormatter() {
     }
 
@@ -62,6 +64,33 @@ public final class DailySupervisionContentFormatter {
             rows.add(0, title);
         }
         return String.join("\n", rows);
+    }
+
+    public static String formatDocumentEntry(Map<String, Object> entry) {
+        return formatDocumentEntry(entry, true);
+    }
+
+    public static String formatDocumentEntry(Map<String, Object> entry, boolean includeTitle) {
+        var documentText = text(entry == null ? null : entry.get(DOCUMENT_NARRATIVE_TEXT_KEY));
+        if (!documentText.isBlank()) {
+            return documentText;
+        }
+        return formatEntry(entry, includeTitle);
+    }
+
+    public static String formatDocumentEntry(JsonNode entry) {
+        return formatDocumentEntry(entry, true);
+    }
+
+    public static String formatDocumentEntry(JsonNode entry, boolean includeTitle) {
+        if (entry == null || entry.isMissingNode() || entry.isNull()) {
+            return "";
+        }
+        var documentText = text(entry, DOCUMENT_NARRATIVE_TEXT_KEY);
+        if (!documentText.isBlank()) {
+            return documentText;
+        }
+        return formatEntry(entry, includeTitle);
     }
 
     public static boolean hasInspectedRow(Map<String, Object> entry) {

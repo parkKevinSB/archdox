@@ -184,7 +184,7 @@ public class StandardTemplateFieldResolver {
         var entry = readPath(snapshot, "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0]")
                 .map(StandardTemplateFieldResolver::mapValue)
                 .orElse(Map.of());
-        return DailySupervisionContentFormatter.formatEntry(entry);
+        return DailySupervisionContentFormatter.formatDocumentEntry(entry);
     }
 
     @SuppressWarnings("unchecked")

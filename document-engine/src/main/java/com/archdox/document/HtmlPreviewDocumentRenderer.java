@@ -480,6 +480,10 @@ public class HtmlPreviewDocumentRenderer {
     }
 
     private String dailySupervisionContent(Map<String, Object> entry) {
+        var documentText = valueOrBlank(entry.get("documentNarrativeText")).trim();
+        if (!documentText.isBlank()) {
+            return documentText;
+        }
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);

@@ -344,6 +344,12 @@ class DocumentJobIntegrationTest {
                                   "outputFormat": "DOCX",
                                   "renderOverrides": [
                                     {
+                                      "path": "steps.DAILY_LOG.payload.dailyItems.groups[0].entries[0].documentNarrativeText",
+                                      "value": "Polished generated rebar narrative.",
+                                      "label": "Daily supervision content",
+                                      "source": "TEST"
+                                    },
+                                    {
                                       "path": "steps.REMARKS.payload.specialNotes",
                                       "value": "No special notes were identified.",
                                       "label": "Special notes",
@@ -379,6 +385,7 @@ class DocumentJobIntegrationTest {
         var entries = (List<Object>) group.get("entries");
         var entry = (Map<String, Object>) entries.get(0);
         assertTrue(!entry.containsKey("supervisionContent"));
+        assertTrue("Polished generated rebar narrative.".equals(entry.get("documentNarrativeText")));
 
         var templateFields = (Map<String, Object>) snapshot.get("templateFields");
         assertTrue(String.valueOf(templateFields.get("supervisionContent")).contains("Checked rebar spacing"));
@@ -388,7 +395,7 @@ class DocumentJobIntegrationTest {
         assertTrue(String.valueOf(templateFields.get("dailyLogSection"))
                 .contains("Checked rebar spacing"));
         var renderOverrides = (List<Object>) snapshot.get("renderOverrides");
-        assertTrue(renderOverrides.size() == 3);
+        assertTrue(renderOverrides.size() == 4);
     }
 
     private TemplateOverride createTemplateOverride(TestUser user) throws Exception {

@@ -24,6 +24,7 @@ type DailyChecklistRow = {
 
 type DailySupervisionEntry = {
   checklistRows: DailyChecklistRow[];
+  documentNarrativeText?: string;
   id: string;
   inspectionItemCode?: string;
   inspectionItemName: string;
@@ -222,6 +223,7 @@ export function DailySupervisionItemsStep({
           }
           return {
             ...entry,
+            documentNarrativeText: undefined,
             checklistRows: entry.checklistRows.map((row) => (row.id === rowId ? { ...row, ...patch } : row))
           };
         })
@@ -241,13 +243,24 @@ export function DailySupervisionItemsStep({
   function unlinkPhoto(photoId: number) {
     updateGroups((current) => current.map((group) => ({
       ...group,
-      entries: group.entries.map((entry) => ({
-        ...entry,
-        checklistRows: entry.checklistRows.map((row) => ({
-          ...row,
-          photoIds: row.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
-        }))
-      }))
+      entries: group.entries.map((entry) => {
+        let removedFromEntry = false;
+        const checklistRows = entry.checklistRows.map((row) => {
+          if (!row.photoIds.includes(photoId)) {
+            return row;
+          }
+          removedFromEntry = true;
+          return {
+            ...row,
+            photoIds: row.photoIds.filter((currentPhotoId) => currentPhotoId !== photoId)
+          };
+        });
+        return {
+          ...entry,
+          documentNarrativeText: removedFromEntry ? undefined : entry.documentNarrativeText,
+          checklistRows
+        };
+      })
     })));
   }
 
@@ -491,6 +504,7 @@ export function DailySupervisionItemsStep({
                             const catalogItem = itemOptions.find((item) => item.code === event.target.value);
                             updateEntry(group.id, entry.id, {
                               checklistRows: checklistRowsFromCatalogItem(catalogItem),
+                              documentNarrativeText: undefined,
                               inspectionItemCode: catalogItem?.code,
                               inspectionItemName: catalogItem?.name ?? ""
                             });
@@ -524,6 +538,7 @@ export function DailySupervisionItemsStep({
                         onAttachPhotos={(rowId, event) => attachRowPhotos(group.id, entry.id, rowId, event)}
                         onDeletePhoto={deleteLinkedPhoto}
                         onOpenNote={(rowId, field) => setNoteDialog({ entryId: entry.id, field, groupId: group.id, rowId })}
+                        onUpdateEntry={(patch) => updateEntry(group.id, entry.id, patch)}
                         onUpdateRow={(rowId, patch) => updateChecklistRow(group.id, entry.id, rowId, patch)}
                         photosById={photosById}
                         token={token}
@@ -586,6 +601,7 @@ function DailyChecklistRowsEditor({
   onAttachPhotos,
   onDeletePhoto,
   onOpenNote,
+  onUpdateEntry,
   onUpdateRow,
   photosById,
   token
@@ -597,11 +613,14 @@ function DailyChecklistRowsEditor({
   onAttachPhotos: (rowId: string, event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onDeletePhoto: (photoId: number) => Promise<void>;
   onOpenNote: (rowId: string, field: "referenceNote" | "actionNote") => void;
+  onUpdateEntry: (patch: Partial<DailySupervisionEntry>) => void;
   onUpdateRow: (rowId: string, patch: Partial<DailyChecklistRow>) => void;
   photosById: Map<number, PhotoResponse>;
   token: string;
 }) {
-  const generatedContent = buildSupervisionContent(entry);
+  const automaticContent = buildSupervisionContent(entry);
+  const customDocumentText = entry.documentNarrativeText?.trim() ? entry.documentNarrativeText : "";
+  const documentContent = customDocumentText || automaticContent;
   return (
     <div className="daily-checklist-rows">
       <div className="daily-checklist-rows-head">
@@ -698,10 +717,43 @@ function DailyChecklistRowsEditor({
           </div>
         </div>
       ))}
-      {generatedContent ? (
-        <div className="daily-generated-content">
-          <span>문서 반영 감리내용</span>
-          <p>{generatedContent}</p>
+      {documentContent ? (
+        <div className={customDocumentText ? "daily-generated-content custom" : "daily-generated-content"}>
+          <div className="daily-generated-content-head">
+            <span>{customDocumentText ? "문서용 문장" : "자동 생성 문장"}</span>
+            <div>
+              {!customDocumentText && automaticContent ? (
+                <button
+                  className="secondary-button compact"
+                  disabled={!canWriteReports}
+                  onClick={() => onUpdateEntry({ documentNarrativeText: automaticContent })}
+                  type="button"
+                >
+                  문서용 문장 직접 수정
+                </button>
+              ) : null}
+              {customDocumentText ? (
+                <button
+                  className="secondary-button compact"
+                  disabled={!canWriteReports}
+                  onClick={() => onUpdateEntry({ documentNarrativeText: undefined })}
+                  type="button"
+                >
+                  기본 문장으로 되돌리기
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {customDocumentText ? (
+            <textarea
+              disabled={!canWriteReports}
+              onChange={(event) => onUpdateEntry({ documentNarrativeText: event.target.value.trim() ? event.target.value : undefined })}
+              rows={4}
+              value={entry.documentNarrativeText ?? ""}
+            />
+          ) : (
+            <p>{automaticContent}</p>
+          )}
         </div>
       ) : null}
     </div>
@@ -1008,6 +1060,7 @@ function selectDailyPreviewAssetType(photo?: PhotoResponse): Exclude<PhotoAssetT
 function emptyEntry(): DailySupervisionEntry {
   return {
     checklistRows: [],
+    documentNarrativeText: undefined,
     id: newId("entry"),
     inspectionItemName: ""
   };
@@ -1016,6 +1069,7 @@ function emptyEntry(): DailySupervisionEntry {
 function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySupervisionEntry {
   return {
     checklistRows: checklistRowsFromCatalogItem(catalogItem),
+    documentNarrativeText: undefined,
     id: newId("entry"),
     inspectionItemCode: catalogItem?.code,
     inspectionItemName: catalogItem?.name ?? ""
@@ -1055,7 +1109,7 @@ function buildSupervisionContent(entry: DailySupervisionEntry) {
 }
 
 function checklistRowContent(row: DailyChecklistRow) {
-  if (row.result === "NOT_APPLICABLE" && !row.referenceNote.trim() && !row.actionNote.trim()) {
+  if (row.result !== "COMPLIANT" && row.result !== "NON_COMPLIANT") {
     return "";
   }
   const parts = [row.label.trim()];
@@ -1136,6 +1190,7 @@ function normalizeEntry(value: unknown, index: number): DailySupervisionEntry | 
     checklistRows: Array.isArray(raw.checklistRows)
       ? raw.checklistRows.map((row, rowIndex) => normalizeChecklistRow(row, rowIndex)).filter(Boolean) as DailyChecklistRow[]
       : [],
+    documentNarrativeText: optionalText(raw.documentNarrativeText),
     id: text(raw.id) || newId(`entry-${index}`),
     inspectionItemCode: optionalText(raw.inspectionItemCode),
     inspectionItemName: text(raw.inspectionItemName)

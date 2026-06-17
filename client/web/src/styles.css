@@ -3144,6 +3144,25 @@ button {
   background: #eef6f4;
 }
 
+.daily-generated-content.custom {
+  background: #f7fbff;
+  border-color: #cfe0f5;
+}
+
+.daily-generated-content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.daily-generated-content-head div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .daily-generated-content p {
   margin: 0;
   color: #263735;
@@ -3151,6 +3170,20 @@ button {
   font-weight: 700;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.daily-generated-content textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 10px 11px;
+  border: 1px solid #cbdad7;
+  border-radius: 6px;
+  color: #263735;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+  resize: vertical;
 }
 
 .daily-check {

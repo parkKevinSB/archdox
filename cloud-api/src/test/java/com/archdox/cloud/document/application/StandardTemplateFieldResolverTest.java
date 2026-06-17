@@ -42,6 +42,7 @@ class StandardTemplateFieldResolverTest {
                                                 "entries", List.of(Map.of(
                                                         "inspectionItemCode", "RC_REBAR_CONFIRMATION",
                                                         "inspectionItemName", "Rebar confirmation",
+                                                        "documentNarrativeText", "Polished rebar narrative for generated document.",
                                                         "checklistRows", List.of(Map.of(
                                                                 "label", "Checked rebar",
                                                                 "result", "COMPLIANT",
@@ -68,7 +69,7 @@ class StandardTemplateFieldResolverTest {
         assertEquals("Slab", fields.get("detailedProcess"));
         assertEquals("3F", fields.get("floor"));
         assertEquals("Rebar confirmation", fields.get("inspectionItem"));
-        assertTrue(String.valueOf(fields.get("supervisionContent")).contains("Checked rebar"));
+        assertEquals("Polished rebar narrative for generated document.", fields.get("supervisionContent"));
         assertEquals("None", fields.get("issueAndAction"));
         assertEquals("None", fields.get("correctionResults"));
     }

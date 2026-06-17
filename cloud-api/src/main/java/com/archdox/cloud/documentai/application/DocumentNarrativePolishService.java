@@ -48,6 +48,8 @@ public class DocumentNarrativePolishService {
             "^steps\\.DAILY_LOG\\.payload\\.(specialNotes|issueAndAction|issueAndActionResult|nextAction)$");
     private static final Pattern REMARKS_PATH = Pattern.compile(
             "^steps\\.REMARKS\\.payload\\.(specialNotes|remarks|issueAndAction|nextAction)$");
+    private static final Pattern DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH = Pattern.compile(
+            "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.documentNarrativeText$");
 
     private final InspectionReportService reportService;
     private final OfficePermissionService permissionService;
@@ -293,7 +295,8 @@ public class DocumentNarrativePolishService {
 
     private boolean isSupportedPath(String path) {
         return DAILY_LOG_REMARK_PATH.matcher(path).matches()
-                || REMARKS_PATH.matcher(path).matches();
+                || REMARKS_PATH.matcher(path).matches()
+                || DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH.matcher(path).matches();
     }
 
     private void ensureReportEditableForNarrativeApply(InspectionReport report, UserPrincipal principal) {
@@ -338,12 +341,49 @@ public class DocumentNarrativePolishService {
             payload.put(dailyLogMatcher.group(1), value);
             return true;
         }
+        var dailyEntryMatcher = DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH.matcher(path);
+        if (dailyEntryMatcher.matches()) {
+            return applyDailyLogEntryDocumentNarrative(
+                    payload,
+                    Integer.parseInt(dailyEntryMatcher.group(1)),
+                    Integer.parseInt(dailyEntryMatcher.group(2)),
+                    value);
+        }
         var remarksMatcher = REMARKS_PATH.matcher(path);
         if (remarksMatcher.matches()) {
             payload.put(remarksMatcher.group(1), value);
             return true;
         }
         return false;
+    }
+
+    private boolean applyDailyLogEntryDocumentNarrative(
+            Map<String, Object> payload,
+            int groupIndex,
+            int entryIndex,
+            String value
+    ) {
+        var dailyItems = mutableMap(payload.get("dailyItems"));
+        if (dailyItems.isEmpty()) {
+            return false;
+        }
+        payload.put("dailyItems", dailyItems);
+        var groups = mutableList(dailyItems.get("groups"));
+        dailyItems.put("groups", groups);
+        if (groupIndex < 0 || groupIndex >= groups.size()) {
+            return false;
+        }
+        var group = mutableMap(groups.get(groupIndex));
+        groups.set(groupIndex, group);
+        var entries = mutableList(group.get("entries"));
+        group.put("entries", entries);
+        if (entryIndex < 0 || entryIndex >= entries.size()) {
+            return false;
+        }
+        var entry = mutableMap(entries.get(entryIndex));
+        entry.put("documentNarrativeText", value);
+        entries.set(entryIndex, entry);
+        return true;
     }
 
     private Map<String, Object> mutableMap(Map<String, Object> source) {
@@ -375,6 +415,13 @@ public class DocumentNarrativePolishService {
             return new ArrayList<>(list.stream().map(this::mutableValue).toList());
         }
         return value;
+    }
+
+    private List<Object> mutableList(Object value) {
+        if (value instanceof List<?> list) {
+            return new ArrayList<>(list.stream().map(this::mutableValue).toList());
+        }
+        return new ArrayList<>();
     }
 
     private Optional<NarrativePolishResult> result(Optional<ValidationResult<?>> validation) {

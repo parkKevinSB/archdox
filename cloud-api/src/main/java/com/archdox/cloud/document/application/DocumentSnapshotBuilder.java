@@ -35,6 +35,8 @@ public class DocumentSnapshotBuilder {
             "^steps\\.REMARKS\\.payload\\.(specialNotes|remarks|issueAndAction|nextAction)$");
     private static final Pattern DAILY_LOG_TEXT_PATH = Pattern.compile(
             "^steps\\.DAILY_LOG\\.payload\\.(specialNotes|issueAndAction|issueAndActionResult|nextAction)$");
+    private static final Pattern DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH = Pattern.compile(
+            "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.documentNarrativeText$");
 
     private final InspectionReportStepRepository stepRepository;
     private final PhotoRepository photoRepository;
@@ -177,6 +179,14 @@ public class DocumentSnapshotBuilder {
             applyDailyLogTextOverride(snapshot, dailyLogMatcher.group(1), value);
             return true;
         }
+        var dailyEntryMatcher = DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH.matcher(path);
+        if (dailyEntryMatcher.matches()) {
+            return applyDailyLogEntryDocumentNarrativeOverride(
+                    snapshot,
+                    Integer.parseInt(dailyEntryMatcher.group(1)),
+                    Integer.parseInt(dailyEntryMatcher.group(2)),
+                    value);
+        }
         return false;
     }
 
@@ -188,6 +198,30 @@ public class DocumentSnapshotBuilder {
     private void applyDailyLogTextOverride(Map<String, Object> snapshot, String key, String value) {
         var payload = mutableStepPayload(snapshot, "DAILY_LOG", false);
         payload.put(key, value);
+    }
+
+    private boolean applyDailyLogEntryDocumentNarrativeOverride(
+            Map<String, Object> snapshot,
+            int groupIndex,
+            int entryIndex,
+            String value
+    ) {
+        var payload = mutableStepPayload(snapshot, "DAILY_LOG", false);
+        var dailyItems = mutableChildMap(payload, "dailyItems");
+        var groups = mutableChildList(dailyItems, "groups");
+        if (groupIndex < 0 || groupIndex >= groups.size()) {
+            return false;
+        }
+        var group = mutableMap(groups.get(groupIndex));
+        groups.set(groupIndex, group);
+        var entries = mutableChildList(group, "entries");
+        if (entryIndex < 0 || entryIndex >= entries.size()) {
+            return false;
+        }
+        var entry = mutableMap(entries.get(entryIndex));
+        entry.put("documentNarrativeText", value);
+        entries.set(entryIndex, entry);
+        return true;
     }
 
     @SuppressWarnings("unchecked")

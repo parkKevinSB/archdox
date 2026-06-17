@@ -1071,6 +1071,21 @@ function documentNarrativeRenderFields(steps: InspectionStep[]): NarrativeRender
   const fields: NarrativeRenderField[] = [];
   const dailyPayload = recordValue(stepsByCode.get("DAILY_LOG")?.payload);
   const remarksPayload = recordValue(stepsByCode.get("REMARKS")?.payload);
+  const dailyItems = recordValue(dailyPayload.dailyItems);
+  listValue(dailyItems.groups).forEach((rawGroup, groupIndex) => {
+    const group = recordValue(rawGroup);
+    listValue(group.entries).forEach((rawEntry, entryIndex) => {
+      const entry = recordValue(rawEntry);
+      const content = stringValue(entry.documentNarrativeText).trim() || buildDailyEntryDocumentText(entry);
+      const itemName = stringValue(entry.inspectionItemName).trim() || stringValue(entry.inspectionItemCode).trim();
+      addNarrativeField(
+        fields,
+        itemName ? `감리내용 · ${itemName}` : `감리내용 ${groupIndex + 1}-${entryIndex + 1}`,
+        `steps.DAILY_LOG.payload.dailyItems.groups[${groupIndex}].entries[${entryIndex}].documentNarrativeText`,
+        content
+      );
+    });
+  });
   addNarrativeField(fields, "특기사항", "steps.DAILY_LOG.payload.specialNotes", dailyPayload.specialNotes);
   addNarrativeField(fields, "특기사항", "steps.REMARKS.payload.specialNotes", remarksPayload.specialNotes);
   addNarrativeField(fields, "특기사항", "steps.REMARKS.payload.remarks", remarksPayload.remarks);
@@ -1093,6 +1108,48 @@ function addNarrativeField(
     return;
   }
   fields.push({ label, path, value });
+}
+
+function buildDailyEntryDocumentText(entry: Record<string, unknown>) {
+  const rows = listValue(entry.checklistRows)
+    .map((row) => dailyChecklistRowDocumentText(recordValue(row)))
+    .filter(Boolean);
+  if (rows.length === 0) {
+    return "";
+  }
+  const title = stringValue(entry.inspectionItemName).trim();
+  return [title, ...rows.map((row) => `- ${row}`)].filter(Boolean).join("\n");
+}
+
+function dailyChecklistRowDocumentText(row: Record<string, unknown>) {
+  const result = stringValue(row.result).trim().toUpperCase();
+  if (result !== "COMPLIANT" && result !== "NON_COMPLIANT") {
+    return "";
+  }
+  const label = stringValue(row.label).trim() || stringValue(row.code).trim();
+  if (!label) {
+    return "";
+  }
+  const parts = [label, dailyChecklistResultLabel(result)];
+  const referenceNote = stringValue(row.referenceNote).trim();
+  if (referenceNote) {
+    parts.push(`기준·참고: ${referenceNote}`);
+  }
+  const actionNote = stringValue(row.actionNote).trim();
+  if (actionNote) {
+    parts.push(`조치사항: ${actionNote}`);
+  }
+  return parts.filter(Boolean).join(" / ");
+}
+
+function dailyChecklistResultLabel(result: string) {
+  if (result === "COMPLIANT") {
+    return "적합";
+  }
+  if (result === "NON_COMPLIANT") {
+    return "부적합";
+  }
+  return "";
 }
 
 function recordValue(value: unknown): Record<string, unknown> {
