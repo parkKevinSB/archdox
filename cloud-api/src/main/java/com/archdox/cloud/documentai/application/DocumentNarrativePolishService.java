@@ -195,11 +195,12 @@ public class DocumentNarrativePolishService {
                             field.originalText(),
                             polishedText,
                             suggestion.reason(),
+                            "AI_HARNESS",
                             suggestion.confidence().name(),
                             applicable);
                 })
                 .toList();
-        suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, suggestions);
+        suggestions = DocumentNarrativePolishRuleBasedPolishPolicy.supplement(fields, suggestions);
         var status = result.status();
         if (suggestions.stream().anyMatch(DocumentNarrativePolishResponse.SuggestionResponse::applicable)) {
             status = NarrativePolishStatus.DRAFTED;

@@ -632,6 +632,12 @@ function DocumentSignatureDialog({
   const applicableSuggestionCount = polishSuggestions.filter((suggestion) =>
     suggestion.applicable && suggestion.polishedText.trim()
   ).length;
+  const applicableAiSuggestionCount = polishSuggestions.filter((suggestion) =>
+    suggestion.applicable && suggestion.polishedText.trim() && suggestion.source === "AI_HARNESS"
+  ).length;
+  const applicableRuleBasedSuggestionCount = polishSuggestions.filter((suggestion) =>
+    suggestion.applicable && suggestion.polishedText.trim() && suggestion.source === "RULE_BASED"
+  ).length;
   const isHtmlOutput = outputFormat === "HTML";
   const outputLabel = isHtmlOutput ? "HTML 생성" : `${outputFormat} 생성`;
 
@@ -824,7 +830,7 @@ function DocumentSignatureDialog({
         ) : null}
       </div>
       <div className="document-narrative-polish-actions">
-        <p>AI 제안은 아래 생성본 문장에 먼저 반영됩니다. 이 상태로 생성하면 문서에 적용되고, 원본 리포트 저장은 별도 선택입니다.</p>
+        <p>문장 제안은 아래 생성본 문장에 먼저 반영됩니다. AI 제안과 규칙 기반 제안을 구분해 표시하며, 원본 리포트 저장은 별도 선택입니다.</p>
         <button
           className="primary-button compact-button"
           disabled={submitting || polishing || applyingNarrative}
@@ -866,7 +872,7 @@ function DocumentSignatureDialog({
               </div>
               {suggestion ? (
                 <small className="document-narrative-polish-suggestion">
-                  AI 제안 반영됨 · {suggestion.reason || suggestion.confidence}
+                  {narrativePolishSuggestionSourceLabel(suggestion.source)} 반영됨 · {suggestion.reason || suggestion.confidence}
                 </small>
               ) : null}
               {changed ? (
@@ -888,7 +894,7 @@ function DocumentSignatureDialog({
       </div>
       {applicableSuggestionCount > 0 ? (
         <p className="document-narrative-polish-footnote">
-          AI 제안 {applicableSuggestionCount}건이 생성본 문장에 반영되었습니다. 문서 생성 전 최종 문장을 한 번 확인해주세요.
+          {narrativePolishSuggestionCountLabel(applicableAiSuggestionCount, applicableRuleBasedSuggestionCount)}이 생성본 문장에 반영되었습니다. 문서 생성 전 최종 문장을 한 번 확인해주세요.
         </p>
       ) : null}
     </section>
@@ -2463,6 +2469,24 @@ function preflightSourceLabel(finding: ReportPreflightReviewFindingResponse) {
     return "AI 검토";
   }
   return finding.source;
+}
+
+function narrativePolishSuggestionSourceLabel(source: DocumentNarrativePolishSuggestionResponse["source"] | string | null | undefined) {
+  if (source === "RULE_BASED") {
+    return "규칙 기반 제안";
+  }
+  return "AI 제안";
+}
+
+function narrativePolishSuggestionCountLabel(aiCount: number, ruleBasedCount: number) {
+  const parts: string[] = [];
+  if (aiCount > 0) {
+    parts.push(`AI 제안 ${aiCount}건`);
+  }
+  if (ruleBasedCount > 0) {
+    parts.push(`규칙 기반 제안 ${ruleBasedCount}건`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "문장 제안 0건";
 }
 
 function findingSeverityLabel(severity: string) {

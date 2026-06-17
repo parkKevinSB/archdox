@@ -50,6 +50,7 @@ export type DocumentNarrativePolishSuggestionResponse = {
   originalText: string;
   polishedText: string;
   reason: string;
+  source: "AI_HARNESS" | "RULE_BASED";
   confidence: "LOW" | "MEDIUM" | "HIGH";
   applicable: boolean;
 };

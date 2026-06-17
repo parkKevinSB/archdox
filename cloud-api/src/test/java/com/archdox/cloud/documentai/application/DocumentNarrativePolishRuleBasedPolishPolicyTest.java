@@ -7,7 +7,7 @@ import com.archdox.documentai.NarrativePolishField;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class DocumentNarrativePolishFallbackPolicyTest {
+class DocumentNarrativePolishRuleBasedPolishPolicyTest {
     @Test
     void terseNoIssuePhrasesArePolishedForReportGeneration() {
         var fields = List.of(
@@ -15,7 +15,7 @@ class DocumentNarrativePolishFallbackPolicyTest {
                 new NarrativePolishField("steps.REMARKS.payload.nextAction", "다음 조치", "다음 조치 없음"),
                 new NarrativePolishField("steps.REMARKS.payload.issueAndAction", "지적사항 및 처리결과", "특기사항 없이 좋음"));
 
-        var suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, List.of());
+        var suggestions = DocumentNarrativePolishRuleBasedPolishPolicy.supplement(fields, List.of());
 
         assertThat(suggestions)
                 .extracting(DocumentNarrativePolishResponse.SuggestionResponse::polishedText)
@@ -24,6 +24,9 @@ class DocumentNarrativePolishFallbackPolicyTest {
                         "추가 조치 사항이 없습니다.",
                         "특기사항이 없습니다.");
         assertThat(suggestions).allMatch(DocumentNarrativePolishResponse.SuggestionResponse::applicable);
+        assertThat(suggestions)
+                .extracting(DocumentNarrativePolishResponse.SuggestionResponse::source)
+                .containsOnly("RULE_BASED");
     }
 
     @Test
@@ -36,10 +39,11 @@ class DocumentNarrativePolishFallbackPolicyTest {
                 "지적사항 없음",
                 "지적사항은 별도로 확인되지 않았습니다.",
                 "AI",
+                "AI_HARNESS",
                 "HIGH",
                 true);
 
-        var suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, List.of(aiSuggestion));
+        var suggestions = DocumentNarrativePolishRuleBasedPolishPolicy.supplement(fields, List.of(aiSuggestion));
 
         assertThat(suggestions).containsExactly(aiSuggestion);
     }
@@ -48,7 +52,7 @@ class DocumentNarrativePolishFallbackPolicyTest {
     void specialNoteNoIssuePhraseIsShortAndDirect() {
         var fields = List.of(new NarrativePolishField("steps.REMARKS.payload.issueAndAction", "지적사항 및 처리결과", "특기사항 없이 좋음"));
 
-        var suggestions = DocumentNarrativePolishFallbackPolicy.supplement(fields, List.of());
+        var suggestions = DocumentNarrativePolishRuleBasedPolishPolicy.supplement(fields, List.of());
 
         assertThat(suggestions)
                 .extracting(DocumentNarrativePolishResponse.SuggestionResponse::polishedText)

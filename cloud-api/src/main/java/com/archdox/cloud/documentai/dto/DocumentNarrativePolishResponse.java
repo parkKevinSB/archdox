@@ -16,6 +16,7 @@ public record DocumentNarrativePolishResponse(
             String originalText,
             String polishedText,
             String reason,
+            String source,
             String confidence,
             boolean applicable
     ) {

@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-final class DocumentNarrativePolishFallbackPolicy {
-    private DocumentNarrativePolishFallbackPolicy() {
+final class DocumentNarrativePolishRuleBasedPolishPolicy {
+    private DocumentNarrativePolishRuleBasedPolishPolicy() {
     }
 
     static List<DocumentNarrativePolishResponse.SuggestionResponse> supplement(
@@ -20,13 +20,14 @@ final class DocumentNarrativePolishFallbackPolicy {
             if (hasApplicableSuggestion(field.path(), aiSuggestions)) {
                 continue;
             }
-            fallbackText(field).ifPresent(polished ->
+            ruleBasedText(field).ifPresent(polished ->
                     result.add(new DocumentNarrativePolishResponse.SuggestionResponse(
                             field.path(),
                             field.label(),
                             field.originalText(),
                             polished,
-                            "짧은 현장 입력을 보고서 문체로 정리",
+                            "짧은 현장 입력을 규칙 기반 보고서 문체로 정리",
+                            "RULE_BASED",
                             "MEDIUM",
                             true)));
         }
@@ -41,7 +42,7 @@ final class DocumentNarrativePolishFallbackPolicy {
                 .anyMatch(suggestion -> path.equals(suggestion.path()) && suggestion.applicable());
     }
 
-    static Optional<String> fallbackText(NarrativePolishField field) {
+    static Optional<String> ruleBasedText(NarrativePolishField field) {
         var text = normalize(field.originalText());
         if (text.isBlank()) {
             return Optional.empty();
