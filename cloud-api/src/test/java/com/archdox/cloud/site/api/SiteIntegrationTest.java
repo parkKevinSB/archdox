@@ -315,7 +315,9 @@ class SiteIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.selectedSupervisionWorkMode").value("RESIDENT"))
-                .andExpect(jsonPath("$.selectedSupervisionWorkModeCatalogCoverage.status").value("EXTRACTION_PENDING"));
+                .andExpect(jsonPath("$.selectedSupervisionWorkModeCatalog.status").value("DRAFT_COPY_PENDING_TRANSCRIPTION"))
+                .andExpect(jsonPath("$.selectedSupervisionWorkModeCatalogCoverage.status").value("DRAFT_COPY_PENDING_TRANSCRIPTION"))
+                .andExpect(jsonPath("$.selectedSupervisionWorkModeCatalogCoverage.catalogDataSource").value("NON_RESIDENT_COPY_DRAFT"));
     }
 
     private TestUser signup(String email, String name) throws Exception {

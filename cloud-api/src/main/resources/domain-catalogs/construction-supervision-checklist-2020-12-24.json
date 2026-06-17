@@ -21,6 +21,41 @@
     "level": "TRADE_AND_DETAIL_PROCESS_WITH_CORE_ITEMS",
     "note": "Current structured item rows are based on the non-resident supervision checklist pages. Resident and responsible-resident page ranges are identified and should be transcribed as mode-specific catalog data."
   },
+  "supervisionWorkModeCatalogs": {
+    "NON_RESIDENT": {
+      "code": "NON_RESIDENT",
+      "name": "비상주 감리",
+      "status": "READY",
+      "referencePages": "22-73",
+      "catalogDataSource": "MODE_SPECIFIC_TRANSCRIPTION",
+      "dataPolicy": "CANONICAL",
+      "canWriteReports": true,
+      "description": "현재 전사된 기본 공종별 체크리스트입니다.",
+      "message": "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다."
+    },
+    "RESIDENT": {
+      "code": "RESIDENT",
+      "name": "상주 감리",
+      "status": "DRAFT_COPY_PENDING_TRANSCRIPTION",
+      "referencePages": "74-126",
+      "catalogDataSource": "NON_RESIDENT_COPY_DRAFT",
+      "dataPolicy": "SEPARATE_MODE_SLOT",
+      "canWriteReports": true,
+      "description": "상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 상주 기준을 전사하며 교체합니다.",
+      "message": "상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+    },
+    "RESPONSIBLE_RESIDENT": {
+      "code": "RESPONSIBLE_RESIDENT",
+      "name": "책임상주 감리",
+      "status": "DRAFT_COPY_PENDING_TRANSCRIPTION",
+      "referencePages": "127-178",
+      "catalogDataSource": "NON_RESIDENT_COPY_DRAFT",
+      "dataPolicy": "SEPARATE_MODE_SLOT",
+      "canWriteReports": true,
+      "description": "책임상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 책임상주 기준을 전사하며 교체합니다.",
+      "message": "책임상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+    }
+  },
   "documentLayoutPolicy": {
     "canonicalData": "report snapshot + workflow revision + domain catalog version + template/layout revision",
     "defaultOfficialLayout": {

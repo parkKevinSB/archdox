@@ -82,6 +82,10 @@ export function DailySupervisionItemsStep({
     queryFn: () => getSupervisionDomainCatalog(token, officeId, CATALOG_CODE, report.siteId)
   });
   const catalog = catalogQuery.data ?? null;
+  const selectedCatalogCoverage = catalog?.selectedSupervisionWorkModeCatalogCoverage;
+  const shouldShowCatalogCoverageNotice = Boolean(
+    selectedCatalogCoverage?.status && selectedCatalogCoverage.status !== "READY"
+  );
   const trades = catalog?.trades ?? [];
   const floorOptions = catalog?.floorOptions ?? [];
   const processOptions = catalog?.processOptions ?? [];
@@ -345,9 +349,10 @@ export function DailySupervisionItemsStep({
           기준: {catalog.source.documentTitle} {catalog.source.revisionLabel ? `· ${catalog.source.revisionLabel}` : ""}
         </p>
       ) : null}
-      {catalog?.selectedSupervisionWorkModeCatalogCoverage?.status === "EXTRACTION_PENDING" ? (
+      {shouldShowCatalogCoverageNotice ? (
         <p className="daily-supervision-warning">
-          {catalog.selectedSupervisionWorkModeName} 기준은 현장에 저장되었습니다. 상세 체크리스트 전사는 다음 단계에서 확장되며, 현재 표시 항목은 기존 전사 카탈로그를 기준으로 합니다.
+          {selectedCatalogCoverage?.message
+            ?? `${catalog?.selectedSupervisionWorkModeName ?? "선택한 감리업무"} 기준은 현장에 저장되었습니다. 상세 체크리스트 전사는 다음 단계에서 확장됩니다.`}
         </p>
       ) : null}
 

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -118,39 +119,71 @@ public class SupervisionDomainCatalogService {
 
     private void enrichSupervisionWorkMode(ObjectNode catalog, SupervisionWorkMode selectedMode) {
         var mode = selectedMode == null ? SupervisionWorkMode.defaultMode() : selectedMode;
+        var modeCatalog = selectedModeCatalog(catalog.path("supervisionWorkModeCatalogs"), mode);
         catalog.put("selectedSupervisionWorkMode", mode.name());
-        catalog.put("selectedSupervisionWorkModeName", supervisionWorkModeName(mode));
+        catalog.put("selectedSupervisionWorkModeName", text(modeCatalog.path("name")));
         catalog.set("supervisionWorkModes", objectMapper.valueToTree(List.of(
-                mode("NON_RESIDENT", "비상주 감리", "22-73", "현재 전사된 기본 공종별 체크리스트입니다."),
-                mode("RESIDENT", "상주 감리", "74-126", "상주 공사감리 체크리스트 구간입니다. 상세 항목 전사 후 모드별 필터링 대상입니다."),
-                mode("RESPONSIBLE_RESIDENT", "책임상주 감리", "127-178", "책임상주 공사감리 체크리스트 구간입니다. 상세 항목 전사 후 모드별 필터링 대상입니다.")
+                modeSummary(catalog.path("supervisionWorkModeCatalogs"), SupervisionWorkMode.NON_RESIDENT),
+                modeSummary(catalog.path("supervisionWorkModeCatalogs"), SupervisionWorkMode.RESIDENT),
+                modeSummary(catalog.path("supervisionWorkModeCatalogs"), SupervisionWorkMode.RESPONSIBLE_RESIDENT)
         )));
-        catalog.set("selectedSupervisionWorkModeCatalogCoverage", objectMapper.valueToTree(
-                mode == SupervisionWorkMode.NON_RESIDENT
-                        ? Map.of(
-                                "status", "READY",
-                                "referencePages", "22-73",
-                                "message", "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다.")
-                        : Map.of(
-                                "status", "EXTRACTION_PENDING",
-                                "referencePages", mode == SupervisionWorkMode.RESIDENT ? "74-126" : "127-178",
-                                "message", "현장 감리업무 종류는 저장되었지만, 이 모드의 상세 체크리스트 전사는 다음 단계에서 확장됩니다.")));
+        catalog.set("selectedSupervisionWorkModeCatalog", modeCatalog.deepCopy());
+        catalog.set("selectedSupervisionWorkModeCatalogCoverage", objectMapper.valueToTree(modeCoverage(modeCatalog)));
     }
 
-    private Map<String, String> mode(String code, String name, String referencePages, String description) {
-        return Map.of(
-                "code", code,
-                "name", name,
-                "referencePages", referencePages,
-                "description", description);
+    private Map<String, Object> modeSummary(JsonNode modeCatalogs, SupervisionWorkMode mode) {
+        var modeCatalog = selectedModeCatalog(modeCatalogs, mode);
+        var summary = new LinkedHashMap<String, Object>();
+        summary.put("code", text(modeCatalog.path("code")));
+        summary.put("name", text(modeCatalog.path("name")));
+        summary.put("status", text(modeCatalog.path("status")));
+        summary.put("referencePages", text(modeCatalog.path("referencePages")));
+        summary.put("catalogDataSource", text(modeCatalog.path("catalogDataSource")));
+        summary.put("description", text(modeCatalog.path("description")));
+        return summary;
     }
 
-    private String supervisionWorkModeName(SupervisionWorkMode mode) {
-        return switch (mode) {
+    private Map<String, Object> modeCoverage(JsonNode modeCatalog) {
+        var coverage = new LinkedHashMap<String, Object>();
+        coverage.put("status", text(modeCatalog.path("status")));
+        coverage.put("referencePages", text(modeCatalog.path("referencePages")));
+        coverage.put("catalogDataSource", text(modeCatalog.path("catalogDataSource")));
+        coverage.put("dataPolicy", text(modeCatalog.path("dataPolicy")));
+        coverage.put("canWriteReports", modeCatalog.path("canWriteReports").asBoolean(true));
+        coverage.put("message", text(modeCatalog.path("message")));
+        return coverage;
+    }
+
+    private JsonNode selectedModeCatalog(JsonNode modeCatalogs, SupervisionWorkMode mode) {
+        var configured = modeCatalogs.path(mode.name());
+        if (configured.isObject()) {
+            return configured;
+        }
+        return objectMapper.valueToTree(fallbackModeCatalog(mode));
+    }
+
+    private Map<String, Object> fallbackModeCatalog(SupervisionWorkMode mode) {
+        var fallback = new LinkedHashMap<String, Object>();
+        fallback.put("code", mode.name());
+        fallback.put("name", switch (mode) {
             case NON_RESIDENT -> "비상주 감리";
             case RESIDENT -> "상주 감리";
             case RESPONSIBLE_RESIDENT -> "책임상주 감리";
-        };
+        });
+        fallback.put("status", mode == SupervisionWorkMode.NON_RESIDENT ? "READY" : "DRAFT_COPY_PENDING_TRANSCRIPTION");
+        fallback.put("referencePages", switch (mode) {
+            case NON_RESIDENT -> "22-73";
+            case RESIDENT -> "74-126";
+            case RESPONSIBLE_RESIDENT -> "127-178";
+        });
+        fallback.put("catalogDataSource", mode == SupervisionWorkMode.NON_RESIDENT
+                ? "MODE_SPECIFIC_TRANSCRIPTION"
+                : "NON_RESIDENT_COPY_DRAFT");
+        fallback.put("dataPolicy", mode == SupervisionWorkMode.NON_RESIDENT ? "CANONICAL" : "SEPARATE_MODE_SLOT");
+        fallback.put("canWriteReports", true);
+        fallback.put("description", "");
+        fallback.put("message", "");
+        return fallback;
     }
 
     private JsonNode readCatalog(String normalized) {

@@ -107,7 +107,21 @@ export type SupervisionDomainCatalog = {
   selectedSupervisionWorkMode?: string;
   selectedSupervisionWorkModeName?: string;
   selectedSupervisionWorkModeCatalogCoverage?: {
+    canWriteReports?: boolean;
+    catalogDataSource?: string;
+    dataPolicy?: string;
     message?: string;
+    referencePages?: string;
+    status?: string;
+  };
+  selectedSupervisionWorkModeCatalog?: {
+    canWriteReports?: boolean;
+    catalogDataSource?: string;
+    code?: string;
+    dataPolicy?: string;
+    description?: string;
+    message?: string;
+    name?: string;
     referencePages?: string;
     status?: string;
   };
@@ -126,10 +140,12 @@ export type SupervisionDomainCatalog = {
   };
   status: string;
   supervisionWorkModes?: Array<{
+    catalogDataSource?: string;
     code: string;
     description?: string;
     name: string;
     referencePages?: string;
+    status?: string;
   }>;
   trades: SupervisionCatalogTrade[];
   version: number;
