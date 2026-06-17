@@ -315,6 +315,57 @@ class DocumentJobIntegrationTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void documentJobUsesSavedDocumentNarrativeTextWhenTemplateBindsChecklistLabel() throws Exception {
+        var user = signup("document-saved-narrative@example.com");
+        createTemplateOverride(user);
+        registerDocumentAgent(user.officeId());
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createReport(user, projectId, siteId);
+        saveStep(user, reportId);
+        saveDailyLogStep(user, reportId, "Saved custom supervision narrative.");
+        uploadWorkingPhoto(user, projectId, reportId);
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+
+        passPreflight(user, reportId);
+
+        var createResult = mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/document-jobs", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "workerType": "ARCHDOX_AGENT",
+                                  "outputFormat": "DOCX"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var jobId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+        var job = documentJobRepository.findById(jobId).orElseThrow();
+        var snapshot = job.inputSnapshotJson();
+        var steps = (Map<String, Object>) snapshot.get("steps");
+        var dailyLog = (Map<String, Object>) steps.get("DAILY_LOG");
+        var dailyPayload = (Map<String, Object>) dailyLog.get("payload");
+        var dailyItems = (Map<String, Object>) dailyPayload.get("dailyItems");
+        var groups = (List<Object>) dailyItems.get("groups");
+        var group = (Map<String, Object>) groups.get(0);
+        var entries = (List<Object>) group.get("entries");
+        var entry = (Map<String, Object>) entries.get(0);
+        assertTrue("Saved custom supervision narrative.".equals(entry.get("documentNarrativeText")));
+
+        var templateFields = (Map<String, Object>) snapshot.get("templateFields");
+        assertTrue("Saved custom supervision narrative.".equals(templateFields.get("supervisionContent")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void documentJobAppliesRenderOverridesToSnapshotTemplateFieldsAndLayout() throws Exception {
         var user = signup("document-render-overrides@example.com");
         createTemplateOverride(user);
@@ -388,7 +439,7 @@ class DocumentJobIntegrationTest {
         assertTrue("Polished generated rebar narrative.".equals(entry.get("documentNarrativeText")));
 
         var templateFields = (Map<String, Object>) snapshot.get("templateFields");
-        assertTrue(String.valueOf(templateFields.get("supervisionContent")).contains("Checked rebar spacing"));
+        assertTrue("Polished generated rebar narrative.".equals(templateFields.get("supervisionContent")));
         assertTrue("No special notes were identified.".equals(templateFields.get("specialNotes")));
         assertTrue("No corrective action was required.".equals(templateFields.get("issueAndAction")));
         assertTrue("Continue monitoring before the next concrete placement.".equals(templateFields.get("nextAction")));
@@ -861,6 +912,13 @@ class DocumentJobIntegrationTest {
     }
 
     private void saveDailyLogStep(TestUser user, long reportId) throws Exception {
+        saveDailyLogStep(user, reportId, "");
+    }
+
+    private void saveDailyLogStep(TestUser user, long reportId, String documentNarrativeText) throws Exception {
+        var documentNarrativeField = documentNarrativeText == null || documentNarrativeText.isBlank()
+                ? ""
+                : "\"documentNarrativeText\": %s,".formatted(objectMapper.writeValueAsString(documentNarrativeText));
         mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "DAILY_LOG")
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
@@ -880,6 +938,7 @@ class DocumentJobIntegrationTest {
                                             {
                                               "inspectionItemCode": "RC_REBAR_CONFIRMATION",
                                               "inspectionItemName": "Rebar confirmation",
+                                              %s
                                               "checklistRows": [
                                                 {
                                                   "code": "RC_REBAR_COUNT_DIAMETER_PITCH",
@@ -898,7 +957,7 @@ class DocumentJobIntegrationTest {
                                     }
                                   }
                                 }
-                                """))
+                                """.formatted(documentNarrativeField)))
                 .andExpect(status().isOk());
     }
 

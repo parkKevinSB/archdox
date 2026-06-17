@@ -21,9 +21,11 @@ import com.archdox.cloud.project.infra.ProjectRepository;
 import com.archdox.cloud.site.infra.SiteRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +39,6 @@ public class DocumentSnapshotBuilder {
             "^steps\\.DAILY_LOG\\.payload\\.(specialNotes|issueAndAction|issueAndActionResult|nextAction)$");
     private static final Pattern DAILY_LOG_ENTRY_DOCUMENT_NARRATIVE_PATH = Pattern.compile(
             "^steps\\.DAILY_LOG\\.payload\\.dailyItems\\.groups\\[(\\d+)]\\.entries\\[(\\d+)]\\.documentNarrativeText$");
-
     private final InspectionReportStepRepository stepRepository;
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
@@ -107,8 +108,10 @@ public class DocumentSnapshotBuilder {
             snapshot.put("renderOverrides", appliedRenderOverrides);
         }
 
+        var protectedTemplateFields = protectedTemplateFields(snapshot, appliedRenderOverrides);
         var templateFields = new LinkedHashMap<>(standardTemplateFieldResolver.resolve(snapshot));
-        templateFields.putAll(templateBindingResolver.resolve(configuration.template().schema(), snapshot));
+        templateBindingResolver.resolve(configuration.template().schema(), snapshot)
+                .forEach((key, value) -> mergeTemplateField(templateFields, protectedTemplateFields, key, value));
         var layoutBinding = outputLayoutCompiler.compile(configuration.outputLayout().payload(), snapshot);
         if (layoutBinding.sections().isEmpty()) {
             layoutBinding = documentTypeRegistryService.resolveByReportType(report.officeId(), report.reportType())
@@ -166,6 +169,57 @@ public class DocumentSnapshotBuilder {
             applied.add(entry);
         }
         return applied;
+    }
+
+    private Set<String> protectedTemplateFields(
+            Map<String, Object> snapshot,
+            List<Map<String, Object>> appliedRenderOverrides
+    ) {
+        var fields = new LinkedHashSet<String>();
+        if (hasDailyLogDocumentNarrativeText(snapshot)) {
+            fields.add("supervisionContent");
+        }
+        for (Map<String, Object> override : appliedRenderOverrides) {
+            var path = stringValue(override.get("path"));
+            if (path.endsWith(".specialNotes")) {
+                fields.add("specialNotes");
+            } else if (path.endsWith(".issueAndAction") || path.endsWith(".issueAndActionResult")) {
+                fields.add("issueAndAction");
+                fields.add("correctionResults");
+            } else if (path.endsWith(".nextAction")) {
+                fields.add("nextAction");
+            }
+        }
+        return fields;
+    }
+
+    private void mergeTemplateField(
+            Map<String, Object> templateFields,
+            Set<String> protectedTemplateFields,
+            String key,
+            Object value
+    ) {
+        if (protectedTemplateFields.contains(key) && !stringValue(templateFields.get(key)).isBlank()) {
+            return;
+        }
+        templateFields.put(key, value);
+    }
+
+    private boolean hasDailyLogDocumentNarrativeText(Map<String, Object> snapshot) {
+        var steps = mapValue(snapshot.get("steps"));
+        var dailyLog = mapValue(steps.get("DAILY_LOG"));
+        var payload = mapValue(dailyLog.get("payload"));
+        var dailyItems = mapValue(payload.get("dailyItems"));
+        for (Object groupValue : listValue(dailyItems.get("groups"))) {
+            var group = mapValue(groupValue);
+            for (Object entryValue : listValue(group.get("entries"))) {
+                var entry = mapValue(entryValue);
+                if (!stringValue(entry.get("documentNarrativeText")).isBlank()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private boolean applyRenderOverride(Map<String, Object> snapshot, String path, String value) {
