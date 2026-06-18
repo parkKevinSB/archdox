@@ -587,21 +587,56 @@ public class LegalDomainBindingAdminService {
                 }
                 for (var item : groupItems) {
                     var itemCode = text(item.path("code").asText(""));
-                    if (itemCode.isBlank() || !seen.add(itemCode)) {
-                        continue;
-                    }
-                    items.add(new ConstructionCatalogItem(
+                    addConstructionCatalogItem(
+                            items,
+                            seen,
                             tradeCode,
                             tradeName,
                             processCode,
                             processName,
                             itemCode,
                             text(item.path("name").asText("")),
-                            text(item.path("basis").asText(""))));
+                            text(item.path("basis").asText("")));
+                    for (var row : item.path("checklistRows")) {
+                        addConstructionCatalogItem(
+                                items,
+                                seen,
+                                tradeCode,
+                                tradeName,
+                                processCode,
+                                processName,
+                                text(row.path("code").asText("")),
+                                text(row.path("label").asText("")),
+                                text(row.path("basis").asText("")));
+                    }
                 }
             }
         }
         return List.copyOf(items);
+    }
+
+    private void addConstructionCatalogItem(
+            List<ConstructionCatalogItem> items,
+            LinkedHashSet<String> seen,
+            String tradeCode,
+            String tradeName,
+            String processCode,
+            String processName,
+            String itemCode,
+            String itemName,
+            String basis
+    ) {
+        if (itemCode.isBlank() || !seen.add(itemCode)) {
+            return;
+        }
+        items.add(new ConstructionCatalogItem(
+                tradeCode,
+                tradeName,
+                processCode,
+                processName,
+                itemCode,
+                itemName,
+                basis));
     }
 
     private List<SecondaryLegalReferenceSelector> secondaryLegalReferenceSelectors(ConstructionCatalogItem item) {

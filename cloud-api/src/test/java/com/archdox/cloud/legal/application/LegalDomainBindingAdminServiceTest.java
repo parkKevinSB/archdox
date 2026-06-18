@@ -185,8 +185,8 @@ class LegalDomainBindingAdminServiceTest {
         assertThat(response.checklistItemCode()).isEqualTo("RC_REBAR_COUNT_DIAMETER_PITCH");
         assertThat(response.tradeName()).isEqualTo("철근 콘크리트 공사");
         assertThat(response.processName()).isEqualTo("철근 조립·배근");
-        assertThat(response.checklistItemName()).isEqualTo("철근 개수·지름·피치");
-        assertThat(response.bindingDisplayName()).contains("철근 콘크리트 공사", "철근 개수·지름·피치");
+        assertThat(response.checklistItemName()).isEqualTo("개수, 철근지름, 피치 확인");
+        assertThat(response.bindingDisplayName()).contains("철근 콘크리트 공사", "개수, 철근지름, 피치 확인");
         assertThat(response.relevance()).isEqualTo("PRIMARY");
         assertThat(response.notes()).isEqualTo("Use this as the primary preflight legal basis.");
         verify(platformAdminService).requirePlatformAdmin(principal);
@@ -310,10 +310,10 @@ class LegalDomainBindingAdminServiceTest {
                 .orElseThrow();
         assertThat(item.tradeName()).isEqualTo("철근 콘크리트 공사");
         assertThat(item.processName()).isEqualTo("철근 조립·배근");
-        assertThat(item.checklistItemName()).isEqualTo("철근 개수·지름·피치");
+        assertThat(item.checklistItemName()).isEqualTo("개수, 철근지름, 피치 확인");
         assertThat(item.activeBindingCount()).isEqualTo(1);
         assertThat(item.bindings()).hasSize(1);
-        assertThat(item.bindings().get(0).bindingDisplayName()).contains("철근 개수·지름·피치");
+        assertThat(item.bindings().get(0).bindingDisplayName()).contains("개수, 철근지름, 피치 확인");
         verify(platformAdminService).requirePlatformAdmin(principal);
     }
 

@@ -1,0 +1,140 @@
+{
+  "partType": "PHASE_CHECKLIST",
+  "source": {
+    "documentTitle": "[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준)",
+    "revisionLabel": "개정 2020. 12. 24.",
+    "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
+    "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data."
+  },
+  "supervisionWorkModeCatalogs": {
+    "NON_RESIDENT": {
+      "phaseRefs": [
+        {
+          "phaseCode": "PRE_CONSTRUCTION",
+          "sourcePages": [
+            22
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "SUPERVISION_START_PREPARATION",
+                  "itemRefs": [
+                    "PRE_DESIGN_DOCUMENT_RECEIPT",
+                    "PRE_PERMIT_DOCUMENT_CONDITIONS",
+                    "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS",
+                    "PRE_DESIGN_DOCUMENT_REVIEW"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "canonicalAtoms": {
+    "constructionPhases": {
+      "PRE_CONSTRUCTION": {
+        "code": "PRE_CONSTRUCTION",
+        "name": "공사전 단계"
+      },
+      "CONSTRUCTION": {
+        "code": "CONSTRUCTION",
+        "name": "공사단계"
+      },
+      "COMPLETION": {
+        "code": "COMPLETION",
+        "name": "공사완료단계"
+      }
+    },
+    "processGroups": {
+      "SUPERVISION_START_PREPARATION": {
+        "code": "SUPERVISION_START_PREPARATION",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "name": "감리 업무 착수 준비"
+      }
+    },
+    "inspectionItems": {
+      "PRE_DESIGN_DOCUMENT_RECEIPT": {
+        "code": "PRE_DESIGN_DOCUMENT_RECEIPT",
+        "processGroupCode": "SUPERVISION_START_PREPARATION",
+        "name": "당해 공사 관련 설계도서 인수 확인서 작성",
+        "rowRefs": []
+      },
+      "PRE_PERMIT_DOCUMENT_CONDITIONS": {
+        "code": "PRE_PERMIT_DOCUMENT_CONDITIONS",
+        "processGroupCode": "SUPERVISION_START_PREPARATION",
+        "name": "허가도서 및 허가 조건 확인",
+        "rowRefs": []
+      },
+      "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS": {
+        "code": "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS",
+        "processGroupCode": "SUPERVISION_START_PREPARATION",
+        "name": "착공도서 및 각종 조건 확인",
+        "rowRefs": []
+      },
+      "PRE_DESIGN_DOCUMENT_REVIEW": {
+        "code": "PRE_DESIGN_DOCUMENT_REVIEW",
+        "processGroupCode": "SUPERVISION_START_PREPARATION",
+        "name": "설계도서 검토 확인",
+        "rowRefs": [
+          "PRE_DESIGN_DOC_INCONSISTENCY_REPORT",
+          "PRE_STRUCTURAL_DOCUMENT_REVIEW",
+          "PRE_BUILDING_FLOOR_HEIGHT_REVIEW",
+          "PRE_BEAM_LOCATION_SIZE_REVIEW",
+          "PRE_WALL_LOCATION_THICKNESS_REVIEW",
+          "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW",
+          "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH",
+          "PRE_SPECIAL_SPECIFICATION_REVIEW",
+          "PRE_MATERIALS_AND_PRODUCTS_REVIEW",
+          "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW"
+        ]
+      }
+    },
+    "checklistRows": {
+      "PRE_DESIGN_DOC_INCONSISTENCY_REPORT": {
+        "code": "PRE_DESIGN_DOC_INCONSISTENCY_REPORT",
+        "label": "설계도면·시방서 등 설계도서 상호간 불일치 사항의 건축주 보고"
+      },
+      "PRE_STRUCTURAL_DOCUMENT_REVIEW": {
+        "code": "PRE_STRUCTURAL_DOCUMENT_REVIEW",
+        "label": "구조도와 관련된 설계도서 확인"
+      },
+      "PRE_BUILDING_FLOOR_HEIGHT_REVIEW": {
+        "code": "PRE_BUILDING_FLOOR_HEIGHT_REVIEW",
+        "label": "건물 층고의 확인"
+      },
+      "PRE_BEAM_LOCATION_SIZE_REVIEW": {
+        "code": "PRE_BEAM_LOCATION_SIZE_REVIEW",
+        "label": "보의 위치 및 크기의 확인(특히 창호 크기와의 관계)"
+      },
+      "PRE_WALL_LOCATION_THICKNESS_REVIEW": {
+        "code": "PRE_WALL_LOCATION_THICKNESS_REVIEW",
+        "label": "벽체의 위치 및 두께의 확인"
+      },
+      "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW": {
+        "code": "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW",
+        "label": "바닥의 고저와 마감두께 확인"
+      },
+      "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH": {
+        "code": "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH",
+        "label": "구조도와 구조계산서의 대조"
+      },
+      "PRE_SPECIAL_SPECIFICATION_REVIEW": {
+        "code": "PRE_SPECIAL_SPECIFICATION_REVIEW",
+        "label": "특기시방서 확인"
+      },
+      "PRE_MATERIALS_AND_PRODUCTS_REVIEW": {
+        "code": "PRE_MATERIALS_AND_PRODUCTS_REVIEW",
+        "label": "각종 사용 재료 및 자재 확인"
+      },
+      "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW": {
+        "code": "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW",
+        "label": "설계도서에 사용 재료 및 명기 확인"
+      }
+    }
+  }
+}

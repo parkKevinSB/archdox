@@ -7,6 +7,7 @@ import com.archdox.cloud.site.domain.SupervisionWorkMode;
 import com.archdox.cloud.site.infra.SiteRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -195,10 +196,84 @@ public class SupervisionDomainCatalogService {
                     "Supervision domain catalog not found");
         }
         try (var input = new ClassPathResource(resourcePath).getInputStream()) {
-            return objectMapper.readTree(input);
+            var manifest = objectMapper.readTree(input);
+            return mergeCatalogParts(manifest);
         } catch (IOException ex) {
             throw new UncheckedIOException("Failed to read supervision domain catalog: " + normalized, ex);
         }
+    }
+
+    private JsonNode mergeCatalogParts(JsonNode manifest) {
+        if (!manifest.isObject()) {
+            return manifest;
+        }
+        var merged = (ObjectNode) manifest.deepCopy();
+        var partFiles = manifest.path("partFiles");
+        if (!partFiles.isArray() || partFiles.isEmpty()) {
+            return merged;
+        }
+        for (var partFile : partFiles) {
+            var resourcePath = text(partFile);
+            if (resourcePath.isBlank()) {
+                continue;
+            }
+            mergeCatalogPart(merged, readResource(resourcePath));
+        }
+        return merged;
+    }
+
+    private JsonNode readResource(String resourcePath) {
+        try (var input = new ClassPathResource(resourcePath).getInputStream()) {
+            return objectMapper.readTree(input);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Failed to read supervision domain catalog part: " + resourcePath, ex);
+        }
+    }
+
+    private void mergeCatalogPart(ObjectNode target, JsonNode part) {
+        if (!part.isObject()) {
+            return;
+        }
+        mergeObjectField(target, part, "supervisionWorkModeCatalogs");
+        mergeObjectField(target, part, "canonicalAtoms");
+        appendArrayField(target, part, "trades");
+    }
+
+    private void mergeObjectField(ObjectNode target, JsonNode part, String fieldName) {
+        var sourceValue = part.path(fieldName);
+        if (!sourceValue.isObject()) {
+            return;
+        }
+        var targetValue = target.withObject("/" + fieldName);
+        deepMerge(targetValue, (ObjectNode) sourceValue);
+    }
+
+    private void appendArrayField(ObjectNode target, JsonNode part, String fieldName) {
+        var sourceValue = part.path(fieldName);
+        if (!sourceValue.isArray()) {
+            return;
+        }
+        var targetValue = target.withArray("/" + fieldName);
+        for (var item : sourceValue) {
+            targetValue.add(item.deepCopy());
+        }
+    }
+
+    private void deepMerge(ObjectNode target, ObjectNode source) {
+        source.fields().forEachRemaining(entry -> {
+            var fieldName = entry.getKey();
+            var sourceValue = entry.getValue();
+            var targetValue = target.get(fieldName);
+            if (sourceValue.isObject() && targetValue instanceof ObjectNode targetObject) {
+                deepMerge(targetObject, (ObjectNode) sourceValue);
+            } else if (sourceValue.isArray() && targetValue instanceof ArrayNode targetArray) {
+                for (var item : sourceValue) {
+                    targetArray.add(item.deepCopy());
+                }
+            } else {
+                target.set(fieldName, sourceValue.deepCopy());
+            }
+        });
     }
 
     private java.util.Optional<JsonNode> findByCode(JsonNode array, String code) {
