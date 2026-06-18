@@ -1,10 +1,12 @@
 {
   "partType": "PHASE_CHECKLIST",
   "source": {
-    "documentTitle": "[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준)",
+    "documentTitle": "[별표 1] 단계별 감리 체크리스트 대장 (건축공사 감리세부기준)",
     "revisionLabel": "개정 2020. 12. 24.",
     "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
-    "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data."
+    "section": "단계별 감리업무 Check List (PDF p.2~19) + 대장(p.1)",
+    "transcriptionJsonPath": "docs/reference-forms/korean/?????json/??????????.json",
+    "note": "PDF 본문 텍스트가 폰트 인코딩 손상으로 자동추출되지 않아, 각 페이지를 고해상도 이미지로 렌더링하여 사람이 시각 전사한 결과입니다. 세부공정(검토항목 좌측 세로칸) 이름은 약어/세로쓰기라 정규화하여 표기했습니다."
   },
   "supervisionWorkModeCatalogs": {
     "NON_RESIDENT": {
@@ -12,7 +14,8 @@
         {
           "phaseCode": "PRE_CONSTRUCTION",
           "sourcePages": [
-            22
+            2,
+            3
           ],
           "workCategories": [
             {
@@ -20,12 +23,746 @@
               "name": "기본업무",
               "processGroupRefs": [
                 {
-                  "code": "SUPERVISION_START_PREPARATION",
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
                   "itemRefs": [
-                    "PRE_DESIGN_DOCUMENT_RECEIPT",
-                    "PRE_PERMIT_DOCUMENT_CONDITIONS",
-                    "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS",
-                    "PRE_DESIGN_DOCUMENT_REVIEW"
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_DC236E0C0E",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_4AA24D59F7"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_CF6F4BC0D9",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2945088069",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_098891ADC5"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_FC0767BB28",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_BFA175F799"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_548FB572AE",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_33EA2BC7EA",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D544E04F83"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6E92BEF42B",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9C6BBBF3A0",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_366868D9DD",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_345AC28286",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B3AF5AF9E1",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_7707B3494C"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_03AA895171",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D619A614CE",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6B1D9E37FD",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B451890140",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_A489066A42"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_2D41F34648",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9CA2F42D68",
+                    "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_10BC4890F7"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "CONSTRUCTION",
+          "sourcePages": [
+            4,
+            5,
+            6
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_CF80080B02",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E7F4D32671",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_8C28DD7403",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_80334B563F",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_F66C92B110",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E874C74D6E",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_B43C62FFA5",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_3234448B1D",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_A416D3AD88"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_939A5D8C64",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_DA9E630FE7",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_5D76FD0B02"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_1A8C4E2B9A",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_2D8BBC50C3",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_0064EE1146"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_03DE2CAF0E"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C168D321FC",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_710444924E",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_34D0380701",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A261BCBC6A",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_712921B0CD"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_FE9E37628B",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BDFF3CDBF5",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_18E1234354"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_498C7E7457",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2D7E363FCF",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_337401F510",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_E4A4777FE8",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4285BAEAD",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_55AE7448D2",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_5CC0E8DAFD"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_849E9591C6",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4A7E9E700D",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_84BC1D8564",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D679C879F9",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_92698FB337",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_70794378B3"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D93804AC68",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3C9A589FC7",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_723D9DB92E",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3AC7D3DE37",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_1D7B429B0E",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C86003D1DC"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2AE72EF15C",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4138A88A8A",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_786782A132",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_8B78921F57",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BB42E45F8C",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2DC38EF8FD",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9F4D4BC8C6",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_AB9FF54A4F",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A8E58BDCA3",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7B6891BEC1",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A425E1FD66",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A2CBF931D6"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_4692BA4527",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9DCC3F7467",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2BA986D23B"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_1068E1A9F3",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7D25FF1817",
+                    "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_DEF707049C"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "COMPLETION",
+          "sourcePages": [
+            7
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_2F0F0EFA28",
+                    "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_E22AFA55BF",
+                    "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_87E1358E06",
+                    "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_C13DD21B9D"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7D8C7E4E3E",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_18398CF63B"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_A7743D4E58"
+                  ]
+                },
+                {
+                  "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7679BEE7FE",
+                  "itemRefs": [
+                    "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_458ED796F1"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "RESIDENT": {
+      "phaseRefs": [
+        {
+          "phaseCode": "PRE_CONSTRUCTION",
+          "sourcePages": [
+            8,
+            9
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_65FA38B9C2",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5FF837EDF9",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5596BDB0AC",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8B781F7C96"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2C832F2B0D",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8418183284",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_0F9855385F",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_54EE0775E4",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_AB986FBA04",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BF5FEA21F9"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D619A614CE",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_797089B6AC"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_2D41F34648",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9CA2F42D68",
+                    "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_01E2EEFB51"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "CONSTRUCTION",
+          "sourcePages": [
+            10,
+            11,
+            12
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4",
+                    "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F",
+                    "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "COMPLETION",
+          "sourcePages": [
+            13
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA",
+                    "PHASE_RESIDENT_COMPLETION_BASIC_IT_64E509678A",
+                    "PHASE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB",
+                    "PHASE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+                  "itemRefs": [
+                    "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "RESPONSIBLE_RESIDENT": {
+      "phaseRefs": [
+        {
+          "phaseCode": "PRE_CONSTRUCTION",
+          "sourcePages": [
+            14,
+            15
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_83FA101227",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_33EA2BC7EA",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_A24F613F78",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_F02770B3B6",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9B4D22C105"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8F7344FA2F",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_7E9076C28D",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_E854FB5FEB",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_19F959F129",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_21F4D629B4",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_26090DF249"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5A0D34B520",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8AA12AD20D"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C98BEB6266",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D6F3B691B5",
+                    "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_970E1AA53E"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "CONSTRUCTION",
+          "sourcePages": [
+            16,
+            17,
+            18
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F",
+                    "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "phaseCode": "COMPLETION",
+          "sourcePages": [
+            19
+          ],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA",
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_64E509678A",
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB",
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C"
+                  ]
+                }
+              ]
+            },
+            {
+              "code": "ADDITIONAL",
+              "name": "기본외업무",
+              "processGroupRefs": [
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6"
+                  ]
+                },
+                {
+                  "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+                  "itemRefs": [
+                    "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9"
                   ]
                 }
               ]
@@ -51,89 +788,3199 @@
       }
     },
     "processGroups": {
-      "SUPERVISION_START_PREPARATION": {
-        "code": "SUPERVISION_START_PREPARATION",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
         "phaseCode": "PRE_CONSTRUCTION",
-        "name": "감리 업무 착수 준비"
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "감리업무 착수준비"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도서 검토 확인"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_FC0767BB28": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "감리업무 착수준비"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "설계도서 검토 확인"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사계획서의 확인검토"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사 착수 전 현장조사"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_2D41F34648": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "상세시공도면 확인검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사감리자의 시공지도 및 시공확인 검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_939A5D8C64": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_939A5D8C64",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사계획서의 확인검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "품질관리"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 확인검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공정관리"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사감리자의 시공지도 및 시공확인 검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "주요공종 현장 시공관리 및 확인검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "품질관리"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_4692BA4527": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_4692BA4527",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "설계변경 적정여부의 확인검토"
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_1068E1A9F3": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_1068E1A9F3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사비 중간 기성 검사 확인검토"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인의 신청"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7D8C7E4E3E": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인의 신청"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "건축물"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7679BEE7FE": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7679BEE7FE",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시설물 유지관리 협력"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "감리업무 착수준비"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도서 검토 확인"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사계획서 등의 확인검토"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사 착수 전 현장조사"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_2D41F34648": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "상세시공도면 확인검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공정관리"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사감리자의 시공지도 및 시공확인 검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종 현장 시공관리 및 확인검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "품질관리"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계변경 적정여부의 확인·검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사비 중간 기성 검사 확인·검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 확인·검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사감리자의 시공지도 및 시공확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 등의 신청"
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 등의 신청"
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "건축물"
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시운전 및 유지관리 협력"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "감리업무 착수준비"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도서 검토 확인"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "착공 신고서 등의 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사 착수 전 현장조사"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C98BEB6266": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C98BEB6266",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "상세시공도면의 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공정관리"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사감리자의 시공지도 및 시공확인 검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종 현장 시공관리 및 확인검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "품질관리"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계변경 적정여부의 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사비 중간 기성 검사 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사감리자의 시공지도 및 시공확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 등의 신청"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 등의 신청"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "건축물"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시운전 및 유지관리 협력"
       }
     },
     "inspectionItems": {
-      "PRE_DESIGN_DOCUMENT_RECEIPT": {
-        "code": "PRE_DESIGN_DOCUMENT_RECEIPT",
-        "processGroupCode": "SUPERVISION_START_PREPARATION",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
         "name": "당해 공사 관련 설계도서 인수 확인서 작성",
         "rowRefs": []
       },
-      "PRE_PERMIT_DOCUMENT_CONDITIONS": {
-        "code": "PRE_PERMIT_DOCUMENT_CONDITIONS",
-        "processGroupCode": "SUPERVISION_START_PREPARATION",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_DC236E0C0E": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_DC236E0C0E",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
         "name": "허가도서 및 허가 조건 확인",
         "rowRefs": []
       },
-      "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS": {
-        "code": "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS",
-        "processGroupCode": "SUPERVISION_START_PREPARATION",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_4AA24D59F7": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_4AA24D59F7",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
         "name": "착공도서 및 각종 조건 확인",
         "rowRefs": []
       },
-      "PRE_DESIGN_DOCUMENT_REVIEW": {
-        "code": "PRE_DESIGN_DOCUMENT_REVIEW",
-        "processGroupCode": "SUPERVISION_START_PREPARATION",
-        "name": "설계도서 검토 확인",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도면, 시방서 등 설계도서 상호간 불일치 사항의 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_CF6F4BC0D9": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_CF6F4BC0D9",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "구조도와 관련된 설계도서 확인",
         "rowRefs": [
-          "PRE_DESIGN_DOC_INCONSISTENCY_REPORT",
-          "PRE_STRUCTURAL_DOCUMENT_REVIEW",
-          "PRE_BUILDING_FLOOR_HEIGHT_REVIEW",
-          "PRE_BEAM_LOCATION_SIZE_REVIEW",
-          "PRE_WALL_LOCATION_THICKNESS_REVIEW",
-          "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW",
-          "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH",
-          "PRE_SPECIAL_SPECIFICATION_REVIEW",
-          "PRE_MATERIALS_AND_PRODUCTS_REVIEW",
-          "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW"
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A4415F6475",
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8527E80C36",
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_056EC53F49",
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_46DC1F5781"
         ]
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2945088069": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2945088069",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "특기시방서 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_098891ADC5": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_098891ADC5",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 사용 재료 및 자재 확인",
+        "rowRefs": [
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_369C983945"
+        ]
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_BFA175F799": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_BFA175F799",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사추진현황 및 감리업무 수행 내용 등의 감리사무실 비치 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_548FB572AE": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_548FB572AE",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "입지조건(공사여건) 조사 여부확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_33EA2BC7EA": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_33EA2BC7EA",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공법 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D544E04F83": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D544E04F83",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "관련설비 공사의 내용 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6E92BEF42B": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6E92BEF42B",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "건축허가 내용과 부합되는지 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9C6BBBF3A0": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9C6BBBF3A0",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "현장기술자 자격, 경력 및 배치계획 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_366868D9DD": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_366868D9DD",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "건설공사 공정예정표 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_345AC28286": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_345AC28286",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "각종 품질관리계획서 및 품질시험계획서 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B3AF5AF9E1": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B3AF5AF9E1",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리계획서 확인",
+        "rowRefs": [
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_2FCDE38E68",
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_C8BC1314EB",
+          "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_3F3C026EA7"
+        ]
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_7707B3494C": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_7707B3494C",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_939A5D8C64",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "설계계약서 사본, 시공계약서 사본 첨부 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_03AA895171": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_03AA895171",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자작성 현장조사 및 피해방지 대책 등에 대한 확인협의",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D619A614CE": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_D619A614CE",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "현지조사사항의 확인(지반 및 지질상태, 진입도로 현황, 매설물 및 장애물(공사용수 인입 및 배수상태) 등)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6B1D9E37FD": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_6B1D9E37FD",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리대책 수립 사항의 확인(지하매설물, 인근도로, 교통시설물 등의 손괴 등)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B451890140": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_B451890140",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "현지확인 결과 당초 설계 내용의 변경이 필요한 경우 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_A489066A42": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_A489066A42",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "경계명시 측량결과의 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9CA2F42D68": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_9CA2F42D68",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "연면적 합계 5천㎡ 이상인 건축물로서 필요시 상세시공도면 작성 요청",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_10BC4890F7": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_IT_10BC4890F7",
+        "processGroupCode": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "상세시공도면 확인·의견제시",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_CF80080B02": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_CF80080B02",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물 및 대지가 설계도서에 적합하도록 시공되도록 확인, 부적합시 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E7F4D32671": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E7F4D32671",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물의 위치 및 배치, 건폐율, 용적률의 설계도서와 적합 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_8C28DD7403": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_8C28DD7403",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "도로, 인접 대지경계선, 인접대지 건축물과 관련되는 건축물의 높이 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_80334B563F": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_80334B563F",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일 대지안의 건축물 상호간에 띄어야 할 거리와 건축물의 높이 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_F66C92B110": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_F66C92B110",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "기초 및 구조체의 규격 또는 단면적, 철근의 가공 및 배근, 콘크리트의 배합 타설 및 양생 등 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E874C74D6E": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_E874C74D6E",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "피난시설, 내화구조, 방화구조, 방화구획, 방화문 등의 설계도서와의 적합여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_B43C62FFA5": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_B43C62FFA5",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "토지의 굴착부분에 대한 정리 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_3234448B1D": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_3234448B1D",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요 구조부용 재료의 설계도서 일치여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_A416D3AD88": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_A416D3AD88",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "경계명시 측량 결과 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_DA9E630FE7": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_DA9E630FE7",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_939A5D8C64",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종별 설계도서 내용과 일치 여부 검사·확인 후 공정 순서 진행, 불일치시 시정통보 및 재확인 후 공정 착수, 보강 부분 확인(비상주의 경우 재확인은 사진 등의 문서로 확인)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_5D76FD0B02": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_5D76FD0B02",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_939A5D8C64",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공현장 공사감리 체크리스트 작성",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_1A8C4E2B9A": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_1A8C4E2B9A",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시험성적서 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_2D8BBC50C3": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_2D8BBC50C3",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "복합자재의 품질관리 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_0064EE1146": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_0064EE1146",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 철골구조의 품질관리업무를 적정하게 수행하였는지의 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_03DE2CAF0E": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_IT_03DE2CAF0E",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "재해예방 전문지도기관의 기술지도(매주 검사) 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C168D321FC": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C168D321FC",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 여부 확인 및 건축주 보고 여부 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_710444924E": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_710444924E",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급자 자격의 적정성 확인 여부(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_34D0380701": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_34D0380701",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "저가 하도급에 대한 확인 의견서 등 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A261BCBC6A": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A261BCBC6A",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급거래 관련 규정에 대한 지도 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_712921B0CD": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_712921B0CD",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_3D33AA2588",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "위장 하도급 및 무면허 하도급 등에 대한 지도 여부 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_FE9E37628B": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_FE9E37628B",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사시공자가 제출하는 예정공정표상의 주공정선 표시, 주요공종에 대한 착수·종료시점 및 소요기간 등의 명시 등의 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BDFF3CDBF5": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BDFF3CDBF5",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "주요공종 공사착수 전 시공준비상태 및 미흡한 사항에 대하여 공사시공자에게 개선촉구, 이행여부 문서 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_18E1234354": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_18E1234354",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "주요공종에 대한 공사추진 세부계획서(공사추진계획, 자재수급 및 인력동원계획, 필요 공정에 대한 장비투입계획)를 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_498C7E7457": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_498C7E7457",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "바닥구조, 세대간 경계벽구조, 객실간 경계벽구조의 설계도서와의 적합여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2D7E363FCF": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2D7E363FCF",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "환기설비 급배수 소음 저감공법 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_337401F510": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_337401F510",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "침수방지 및 방수를 위한 구조, 해당 시설물의 적정성 여부 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_E4A4777FE8": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_E4A4777FE8",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "실내건축의 적절한 설치 및 시공여부 검사(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4285BAEAD": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4285BAEAD",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "빗물이용시설 및 중수도 설치의 적정성 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_55AE7448D2": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_55AE7448D2",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "피난안전구역, 피난시설 또는 대피공간에 피난용도 사용표시여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_5CC0E8DAFD": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_5CC0E8DAFD",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "에너지절약 이행검토서대로 시공여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_849E9591C6": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_849E9591C6",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4A7E9E700D": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4A7E9E700D",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "공사일지와 금일작업 실적과 일치여부 확인 및 감리일지에 기록",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_84BC1D8564": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_84BC1D8564",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "자재의 견본품 확인 및 적합한 사용자재의 사용 여부와 시공의 적정상태 확인 후 미흡한 부분은 건축주에게 알리고 시공자에게 시정하거나 재시공하도록 요청",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D679C879F9": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D679C879F9",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "구조적 안전성과 집단민원 발생 가능 관련 공종의 검사, 확인검토는 해당공종 공사 종료 즉시 공사시공자로부터 제출받아 문서화 및 기록유지",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_92698FB337": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_92698FB337",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "주요 공종 입회",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_70794378B3": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_70794378B3",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자의 공사 중 사진 및 동영상 촬영 자료 보관여부 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D93804AC68": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_D93804AC68",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "반입된 자재가 견본품과 일치하는지 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3C9A589FC7": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3C9A589FC7",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "현장 품질시험(현장 품질시험 어려운 자재는 생산공장 시험실시 및 시험의 시험결과검토·확인) 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_723D9DB92E": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_723D9DB92E",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "자재의 품질확인에 관한 기록 보관 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3AC7D3DE37": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_3AC7D3DE37",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "자재의 품질관리(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_1D7B429B0E": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_1D7B429B0E",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자가 작성한 품질관리계획 또는 품질관리시험계획에 따라 품질시험·검사가 실시되었는지를 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C86003D1DC": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_C86003D1DC",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자가 품질관리계획 또는 품질관리 업무를 적정하게 수행하였는지의 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2AE72EF15C": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2AE72EF15C",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리계획의 실시 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4138A88A8A": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_4138A88A8A",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리 계획의 실시 및 여건 변동시 계획변경 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_786782A132": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_786782A132",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전점검 계획 수립 및 실시 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_8B78921F57": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_8B78921F57",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "위험장소 및 작업에 대한 안전조치 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BB42E45F8C": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_BB42E45F8C",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전표지 부착, 안전통로, 자재의 적치 및 정리정돈 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2DC38EF8FD": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2DC38EF8FD",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전관리 관련 기록유지(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9F4D4BC8C6": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9F4D4BC8C6",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전업무 일지(일일보고) 작성 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_AB9FF54A4F": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_AB9FF54A4F",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전점검 실시(안전업무일지에 포함 가능) 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A8E58BDCA3": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A8E58BDCA3",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "안전교육(안전업무일지에 포함 가능) 실시 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7B6891BEC1": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7B6891BEC1",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "각종 사고 보고 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A425E1FD66": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A425E1FD66",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "월간 안전 통계(무재해, 사고) 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A2CBF931D6": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_A2CBF931D6",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사고처리 및 건축주 보고 여부 확인(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9DCC3F7467": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9DCC3F7467",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_4692BA4527",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "설계변경이 필요한 경우에는 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2BA986D23B": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2BA986D23B",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_4692BA4527",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자의 설계변경 요청시 적정여부의 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7D25FF1817": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_7D25FF1817",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_1068E1A9F3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "시공자가 제출한 공사비 중간지불 청구서의 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_DEF707049C": {
+        "code": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_DEF707049C",
+        "processGroupCode": "PHASE_NON_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_1068E1A9F3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인서 교부에 의한 최종지불 청구서의 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_2F0F0EFA28": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_2F0F0EFA28",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 신청서 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_E22AFA55BF": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_E22AFA55BF",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인시 검사",
+        "rowRefs": [
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_8595825282",
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_946F83743C",
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4D9F1A0132",
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_B1A3452290"
+        ]
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_87E1358E06": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_87E1358E06",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "임시 사용승인시 검사",
+        "rowRefs": [
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_5FF4C29DCA",
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_290682E232",
+          "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4336660C78"
+        ]
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_C13DD21B9D": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_IT_C13DD21B9D",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_BASIC_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 현장조사·검사 및 확인에 의한 조치결과 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_18398CF63B": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_18398CF63B",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7D8C7E4E3E",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인서 교부에 의한 공사비 최종 지불 청구서의 확인(공사단계에서 확인하지 않은 경우에 한한다)",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_A7743D4E58": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_A7743D4E58",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 신청 이전 공사시공자의 시설장비 시험가동 완료 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_458ED796F1": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_IT_458ED796F1",
+        "processGroupCode": "PHASE_NON_RESIDENT_COMPLETION_ADDITIONAL_PG_7679BEE7FE",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "NON_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 완료 후 공사시공자와 건축물 소유자(관리자)간 인수·인계 여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "당해 공사 관련 설계도서 인수 확인서 작성",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사추진현황 및 감리업무 수행 내용 등의 감리사무실 비치 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "허가도서 및 허가 조건 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "착공도서 및 각종 조건 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도면, 시방서 등 설계도서 상호간 불일치 사항의 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "구조도와 관련된 설계도서 확인·검토",
+        "rowRefs": [
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98",
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E",
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8385A66BC7",
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0"
+        ]
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "특기시방서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_65FA38B9C2": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_65FA38B9C2",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "입지조건(공사여건) 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5FF837EDF9": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5FF837EDF9",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공법 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5596BDB0AC": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5596BDB0AC",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "관련설비 공사의 내용확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8B781F7C96": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8B781F7C96",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도서에 사용 재료 및 자재 명기 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2C832F2B0D": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_2C832F2B0D",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축허가 내용과 부합되는지 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8418183284": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8418183284",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현장기술자 자격, 경력 및 배치계획 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_0F9855385F": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_0F9855385F",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건설공사 공정예정표 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_54EE0775E4": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_54EE0775E4",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 품질관리계획서 및 품질시험계획서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_AB986FBA04": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_AB986FBA04",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리계획서 확인·검토",
+        "rowRefs": [
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_77B9F179CB",
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_4E3546C89C",
+          "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A048279797"
+        ]
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BF5FEA21F9": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BF5FEA21F9",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_833A6BF006",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계계약서 사본, 시공계약서 사본 첨부 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자작성 현장조사 및 피해방지 대책 등에 대한 확인·협의",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D619A614CE": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D619A614CE",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현지조사사항의 확인(지반 및 지질상태, 진입도로 현황, 매설물 및 장애물(공사용수 인입 및 배수상태) 등)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리대책 수립 사항의 확인·검토(지하매설물, 인근도로, 교통시설물 등의 손괴 등)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현지확인 결과 당초 설계 내용의 변경이 필요한 경우 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_797089B6AC": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_797089B6AC",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "경계명시 측량결과의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9CA2F42D68": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9CA2F42D68",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "연면적 합계 5천㎡ 이상인 건축물로서 필요시 상세시공도면 작성 요청",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_01E2EEFB51": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_01E2EEFB51",
+        "processGroupCode": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_2D41F34648",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "상세시공도면 확인·검토·의견제시",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사시공자가 제출하는 예정공정표상의 주공정선 표시, 주요공종에 대한 착수·종료시점 및 소요기간 등의 명시 등의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종 공사착수 전 시공준비상태 및 미흡한 사항에 대하여 공사시공자에게 개선촉구, 이행여부 문서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종에 대한 공사추진 세부계획서(공사추진계획, 자재수급 및 인력동원계획, 필요 공정에 대한 장비투입계획)를 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일 건축물안에서 화재위험이 높은 공정(용접작업과 유증기를 다루는 작업)은 동시작업을 금지한다. 다만, 환기 또는 안전장치(유증기 회수 기계장치 등) 설치로 동시작업에 지장이 없고 공사 감리자가 인정하는 경우에는 제외한다.",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물 및 대지가 설계도서에 적합하도록 시공지도 및 확인·검토, 부적합시 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물의 위치 및 배치, 건폐율, 용적률의 설계도서와 적합 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "도로, 인접 대지경계선, 인접대지 건축물과 관련되는 건축물의 높이 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일 대지안의 건축물 상호간에 띄어야 할 거리와 건축물의 높이 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "기초 및 구조체의 규격 또는 단면적, 철근의 가공 및 배근, 콘크리트의 배합 타설 및 양생 등 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "피난시설, 내화구조, 방화구조, 방화구획, 방화문 등의 설계도서와의 적합여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "토지의 굴착부분에 대한 정리 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요 구조부용 재료의 설계도서 일치여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "경계명시 결과 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종별 설계도서 내용과 일치 여부 검사·확인 후 공정착수 진행, 불일치시 시정통보 및 재확인 후 공정 착수 여부 확인·검토(비상주의 경우 재확인은 사진 등의 문서로 확인)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사일지와 금일작업 실적과 일치여부 확인·검토 이를 감리일지에 기록",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 견본품 확인·검토 및 적합한 사용자재의 사용 여부와 시공의 적정시행 확인·검토 후 미흡한 부분은 건축주에게 알리고 시공자에게 시정하거나 재시공하도록 요청",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "구조적 안전성과 집단민원 발생 가능 관련 공종의 검사, 확인·검토결과는 해당공종 공사 종료 즉시 공사시공자로부터 제출받아 문서화 및 기록유지",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요 공종 입회",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자의 공사 중 사진 및 동영상 촬영 자료 보관여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공현장 공사감리 체크리스트 작성",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "감리자의 사전확인 필요한 작업여건 확인·검토",
+        "rowRefs": [
+          "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683",
+          "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E",
+          "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642",
+          "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751"
+        ]
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "반입된 자재가 견본품과 일치하는지 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시험성적서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현장 품질시험(현장 품질시험 어려운 자재는 생산공장 시험실시 및 시험의뢰 시험결과검토·확인) 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 품질확인에 관한 기록 보관 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 품질관리(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 품질관리계획에 따라 품질관리 업무를 적정하게 수행하였는지의 여부 확인·검토하여 건축주에게 보고(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 작성한 품질관리계획 또는 품질관리시험계획에 따라 품질시험·검사가 실시되었는지를 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "복합자재의 품질관리서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 철골구조의 품질관리업무를 적정하게 수행하였는지의 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "재해예방 전문지도기관의 기술지도(해당 건축물에 한함) 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리자의 공사현장 배치(해당 건축물에 한함) 여부확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리계획의 실시 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리 계획의 실시 및 여건 변동시 계획변경 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전점검 계획 수립 및 실시 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "위험장소 및 작업에 대한 안전조치 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전표지 부착, 안전통로, 자재의 적치 및 정리정돈 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리 관련 기록유지(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전업무 일지(일일보고) 작성 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전점검 실시(안전업무일지에 포함 가능) 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전교육(안전업무일지에 포함 가능) 실시 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 사고 보고 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "월간 안전 통계(무재해, 사고) 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사고처리 및 건축주 보고 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "작업계획서 확인·검토 준수여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일건축물 안에서 화재위험이 높은 공정(용접작업과 유증기를 다루는 작업)의 동시작업 금지 확인·검토[환기 또는 안전장치(유증기 회수 기계장치 등) 설치 시 동시 작업에 지장 유무 검토 포함]",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계변경이 필요한 경우에는 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자의 설계변경 요청시 적정여부의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 제출한 공사비 중간지불 청구서의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인서 교부에 의한 최종지불 청구서의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 여부 확인·검토 및 건축주 보고 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급자 자격의 적정성 확인·검토 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "저가 하도급에 대한 확인·검토 의견서 등 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급거래 관련 규정에 대한 지도·확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "위장 하도급 및 무면허 하도급 등에 대한 지도 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "바닥구조, 세대간 경계벽구조, 객실간 경계벽구조의 설계도서와의 적합여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "환기설비 급배수 소음 저감설계 시공여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "침수방지 및 방수를 위한 구조, 해당 시설설치의 적정성 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "실내건축의 적절한 설치 및 시공여부 검사(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "빗물이용시설 및 중수도 설치의 적정성 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "피난안전구역, 피난시설 또는 대피공간에 피난용도 사용표시여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A",
+        "processGroupCode": "PHASE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "에너지절약 이행검토서대로 시공여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 신청서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_IT_64E509678A": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_IT_64E509678A",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인시 검사",
+        "rowRefs": [
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778",
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF",
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE",
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B"
+        ]
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "임시 사용승인시 검사",
+        "rowRefs": [
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705",
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_190A771666",
+          "PHASE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411"
+        ]
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 현장조사·검사 및 확인에 의한 조치결과 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인서 교부에 의한 공사비 최종 지불 청구서의 확인·검토(공사단계에서 확인하지 않은 경우에 한한다)",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 신청 이전 공사시공자의 시설장비 시험가동 완료 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9": {
+        "code": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9",
+        "processGroupCode": "PHASE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 완료 후 공사시공자와 건축물 소유자(관리자)간 인수·인계 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "당해 공사 관련 설계도서 인수 확인서 작성",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BFA175F799",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사추진현황 및 감리업무 수행 내용 등의 감리사무실 비치 확인(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_91F441256D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "허가도서 및 허가 조건 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_08959B353F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "착공도서 및 각종 조건 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_877EDBEBC3",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도면, 시방서 등 설계도서 상호간 불일치 사항의 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B4C1D82620",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "구조도와 관련된 설계도서 확인·검토",
+        "rowRefs": [
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_D5AEEA1AE2",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_618F02FBA8",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0"
+        ]
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9A86116D07",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "특기시방서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_83FA101227": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_83FA101227",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "입지조건(공사여건) 조사 여부·확인",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_33EA2BC7EA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_33EA2BC7EA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공법 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_A24F613F78": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_A24F613F78",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "관련설비 공사 등의 공정상의 시공 부합여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_F02770B3B6": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_F02770B3B6",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 사용재료 및 자재 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9B4D22C105": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_9B4D22C105",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_116CA4446A",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계도서에 명기 여부 확인·검토 및 필요시 건축주협의",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8F7344FA2F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8F7344FA2F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축허가 내용과 부합되는지 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_7E9076C28D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_7E9076C28D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현장기술자 자격, 경력 및 배치계획 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_E854FB5FEB": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_E854FB5FEB",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건설공사 공정예정표 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_19F959F129": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_19F959F129",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 품질관리계획서 및 품질시험계획서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_21F4D629B4": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_21F4D629B4",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리계획서 확인·검토",
+        "rowRefs": [
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_35FFEDA9A0",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_009C76BCFE",
+          "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_B228709EF5"
+        ]
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_26090DF249": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_26090DF249",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C2862AB107",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계계약서 사본, 시공계약서 사본 첨부 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_BD36A170ED",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자작성 현장조사 및 피해방지 대책 등에 대한 확인·협의",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5A0D34B520": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_5A0D34B520",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현지조사사항의 확인·검토(지반 및 지질상태, 진입도로 현황, 매설물 및 장애물(공사용수 인입 및 배수상태) 등)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_55AC685FC9",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리대책 수립 사항의 확인·검토(지하매설물, 인근도로, 교통시설물 등의 손괴 등)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_B451890140",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현지확인 결과 당초 설계 내용의 변경이 필요한 경우 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8AA12AD20D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_8AA12AD20D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_70DD79A718",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "경계명시 측량 시 입회 및 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D6F3B691B5": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_D6F3B691B5",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C98BEB6266",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "연면적 합계 5천㎡ 이상인 건축물로서 필요시 상세시공도면 작성 요청",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_970E1AA53E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_970E1AA53E",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_C98BEB6266",
+        "phaseCode": "PRE_CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "상세시공도면 확인·검토·의견제시",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_94F90ECACF",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사시공자가 제출하는 예정공정표상의 주공정선 표시, 주요공종에 대한 착수·종료시점 및 소요기간 등의 명시 등의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_889C4AE5B3",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종 공사착수 전 시공준비상태 및 미흡한 사항에 대하여 공사시공자에게 개선촉구, 이행여부 문서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C316193F8F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종에 대한 공사추진 세부계획서(공사추진계획, 자재수급 및 인력동원계획, 필요 공정에 대한 장비투입계획)를 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6BA16ABA9D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_73E08C77E3",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일 건축물안에서 화재위험이 높은 공정(용접작업과 유증기를 다루는 작업)은 동시작업을 금지한다. 다만, 환기 또는 안전장치(유증기 회수 기계장치 등) 설치로 동시작업에 지장이 없고 공사 감리자가 인정하는 경우에는 제외한다.",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_C76D6C7242",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물 및 대지가 설계도서에 적합하도록 시공지도 및 확인·검토, 부적합시 건축주 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2E947979F9",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "건축물의 위치 및 배치, 건폐율, 용적률의 설계도서와 적합 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCD9B046BA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "도로, 인접 대지경계선, 인접대지 건축물과 관련되는 건축물의 높이 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_139C1242F0",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일 대지안의 건축물 상호간에 띄어야 할 거리와 건축물의 높이 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_FBB88678B1",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "기초 및 구조체의 규격 또는 단면적, 철근의 가공 및 배근, 콘크리트의 배합 타설 및 양생 등 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6C154765E",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "피난시설, 내화구조, 방화구조, 방화구획, 방화문 등의 설계도서와의 적합여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EC771840C3",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "토지의 굴착부분에 대한 정리 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2F6B79F776",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_C65BD7F3DB",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요 구조부용 재료의 설계도서 일치여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_849E9591C6",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A9D47793D4",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "경계명시 결과 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_1AFC1DE440",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요공종별 설계도서 내용과 일치 여부 검사·확인 후 공정착수 진행, 불일치시 시정통보 및 재확인 후 공정 착수 여부 확인·검토(비상주의 경우 재확인은 사진 등의 문서로 확인)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F05A6885EA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "공사일지와 금일작업 실적과 일치여부 확인·검토 이를 감리일지에 기록",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D02F3041F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 견본품 확인·검토 및 적합한 사용자재의 사용 여부와 시공의 적정시행 확인·검토 후 미흡한 부분은 건축주에게 알리고 시공자에게 시정하거나 재시공하도록 요청",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F27932DF02",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "구조적 안전성과 집단민원 발생 가능 관련 공종의 검사, 확인·검토결과는 해당공종 공사 종료 즉시 공사시공자로부터 제출받아 문서화 및 기록유지",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_92698FB337",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "주요 공종 입회",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_4B09B2D382",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자의 공사 중 사진 및 동영상 촬영 자료 보관여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_5D1FF98E70",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공현장 공사감리 체크리스트 작성",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_211A5D5D74",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_53B5522EAC",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "감리자의 사전확인 필요한 작업여건 확인·검토",
+        "rowRefs": [
+          "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683",
+          "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E",
+          "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642",
+          "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751"
+        ]
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_04D2FA508A",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "반입된 자재가 견본품과 일치하는지 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_EDD62A3CDA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시험성적서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8B88B66B3E",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "현장 품질시험(현장 품질시험 어려운 자재는 생산공장 시험실시 및 시험의뢰 시험결과검토·확인) 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_7FBB14A27B",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 품질확인에 관한 기록 보관 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3AC7D3DE37",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "자재의 품질관리(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_DCECB67FB6",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 품질관리계획에 따라 품질관리 업무를 적정하게 수행하였는지의 여부 확인·검토하여 건축주에게 보고(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_0D92FB975C",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 작성한 품질관리계획 또는 품질관리시험계획에 따라 품질시험·검사가 실시되었는지를 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28706E7937",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "복합자재의 품질관리서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A19602808E",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_E2B6EBA73B",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 철골구조의 품질관리업무를 적정하게 수행하였는지의 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2984B69B4F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "재해예방 전문지도기관의 기술지도(해당 건축물에 한함) 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_61F1F483AA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리자의 공사현장 배치(해당 건축물에 한함) 여부확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F45FC57653",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리계획의 실시 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_06522E84AF",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리 계획의 실시 및 여건 변동시 계획변경 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_8BDBA97B73",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전점검 계획 수립 및 실시 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_35FE1DFB64",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "위험장소 및 작업에 대한 안전조치 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_F9BD80DC80",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전표지 부착, 안전통로, 자재의 적치 및 정리정돈 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_2DC38EF8FD",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전관리 관련 기록유지(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_6B9DF8DB81",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전업무 일지(일일보고) 작성 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_394324E987",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전점검 실시(안전업무일지에 포함 가능) 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_816C0EB269",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "안전교육(안전업무일지에 포함 가능) 실시 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_E6F8324E8C",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "각종 사고 보고 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_45C00A80FE",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "월간 안전 통계(무재해, 사고) 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_A394313E83",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사고처리 및 건축주 보고 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_B351FEB66A",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "작업계획서 확인·검토 준수여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53A88ED117",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_0B7CE6F855",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "동일건축물 안에서 화재위험이 높은 공정(용접작업과 유증기를 다루는 작업)의 동시작업 금지 확인·검토[환기 또는 안전장치(유증기 회수 기계장치 등) 설치 시 동시 작업에 지장 유무 검토 포함]",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_080D2462FE",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "설계변경이 필요한 경우에는 건축주에게 보고",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_53DDCAF3B7",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_3A3E9BBE01",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자의 설계변경 요청시 적정여부의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_3D5E5CAEA4",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "시공자가 제출한 공사비 중간지불 청구서의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_IT_28B6AC1771",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_PG_1EFE121388",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인서 교부에 의한 최종지불 청구서의 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_07101C5496",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급 적정성 여부 확인·검토 및 건축주 보고 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F4E264AB73",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급자 자격의 적정성 확인·검토 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_38678B6078",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "저가 하도급에 대한 확인·검토 의견서 등 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F8CD8E21AB",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "하도급거래 관련 규정에 대한 지도·확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_44930690F3",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_2AFD16F185",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "위장 하도급 및 무면허 하도급 등에 대한 지도 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_48F424883D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "바닥구조, 세대간 경계벽구조, 객실간 경계벽구조의 설계도서와의 적합여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_449AF5DD72",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "환기설비 급배수 소음 저감설계 시공여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F846A3CD2D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "침수방지 및 방수를 위한 구조, 해당 시설설치의 적정성 여부 확인·검토(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_9C9A21C19D",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "실내건축의 적절한 설치 및 시공여부 검사(해당 건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_F567395160",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "빗물이용시설 및 중수도 설치의 적정성 여부 확인·검토(해당건축물에 한함)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_0DBBCA5D4F",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "피난안전구역, 피난시설 또는 대피공간에 피난용도 사용표시여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_IT_2F7550C23A",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_ADDITIONAL_PG_FD17BAB092",
+        "phaseCode": "CONSTRUCTION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "에너지절약 이행검토서대로 시공여부 확인",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_9A085175EA",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 신청서 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_64E509678A": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_64E509678A",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인시 검사",
+        "rowRefs": [
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778",
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF",
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE",
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B"
+        ]
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_D13CCED1CB",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "임시 사용승인시 검사",
+        "rowRefs": [
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705",
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_190A771666",
+          "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411"
+        ]
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_IT_43A4DFA42C",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "BASIC",
+        "name": "사용승인 현장조사·검사 및 확인에 의한 조치결과 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_1CD03E02BE",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_1C2DFD6517",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인서 교부에 의한 공사비 최종 지불 청구서의 확인·검토(공사단계에서 확인하지 않은 경우에 한한다)",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_0AF042AAB6",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_514A0E528D",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 신청 이전 공사시공자의 시설장비 시험가동 완료 여부 확인·검토",
+        "rowRefs": []
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_IT_E31A4639F9",
+        "processGroupCode": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_ADDITIONAL_PG_3151825A7F",
+        "phaseCode": "COMPLETION",
+        "supervisionWorkMode": "RESPONSIBLE_RESIDENT",
+        "workCategory": "ADDITIONAL",
+        "name": "사용승인 완료 후 공사시공자와 건축물 소유자(관리자)간 인수·인계 여부 확인·검토",
+        "rowRefs": []
       }
     },
     "checklistRows": {
-      "PRE_DESIGN_DOC_INCONSISTENCY_REPORT": {
-        "code": "PRE_DESIGN_DOC_INCONSISTENCY_REPORT",
-        "label": "설계도면·시방서 등 설계도서 상호간 불일치 사항의 건축주 보고"
-      },
-      "PRE_STRUCTURAL_DOCUMENT_REVIEW": {
-        "code": "PRE_STRUCTURAL_DOCUMENT_REVIEW",
-        "label": "구조도와 관련된 설계도서 확인"
-      },
-      "PRE_BUILDING_FLOOR_HEIGHT_REVIEW": {
-        "code": "PRE_BUILDING_FLOOR_HEIGHT_REVIEW",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A4415F6475": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A4415F6475",
         "label": "건물 층고의 확인"
       },
-      "PRE_BEAM_LOCATION_SIZE_REVIEW": {
-        "code": "PRE_BEAM_LOCATION_SIZE_REVIEW",
-        "label": "보의 위치 및 크기의 확인(특히 창호 크기와의 관계)"
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8527E80C36": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8527E80C36",
+        "label": "보의 위치 및 크기의 확인(특히, 창호 크기와의 관계)"
       },
-      "PRE_WALL_LOCATION_THICKNESS_REVIEW": {
-        "code": "PRE_WALL_LOCATION_THICKNESS_REVIEW",
-        "label": "벽체의 위치 및 두께의 확인"
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_056EC53F49": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_056EC53F49",
+        "label": "벽체의 위치 및 두께의 확인, 바닥의 고저와 마감두께 확인"
       },
-      "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW": {
-        "code": "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW",
-        "label": "바닥의 고저와 마감두께 확인"
-      },
-      "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH": {
-        "code": "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_46DC1F5781": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_46DC1F5781",
         "label": "구조도와 구조계산서의 대조"
       },
-      "PRE_SPECIAL_SPECIFICATION_REVIEW": {
-        "code": "PRE_SPECIAL_SPECIFICATION_REVIEW",
-        "label": "특기시방서 확인"
-      },
-      "PRE_MATERIALS_AND_PRODUCTS_REVIEW": {
-        "code": "PRE_MATERIALS_AND_PRODUCTS_REVIEW",
-        "label": "각종 사용 재료 및 자재 확인"
-      },
-      "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW": {
-        "code": "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW",
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_369C983945": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_369C983945",
         "label": "설계도서에 사용 재료 및 명기 확인"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_2FCDE38E68": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_2FCDE38E68",
+        "label": "공사시공자의 안전조직 편성 및 임무 확인"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_C8BC1314EB": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_C8BC1314EB",
+        "label": "시공계획과 연계된 안전계획 확인"
+      },
+      "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_3F3C026EA7": {
+        "code": "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_ADDITIONAL_ROW_3F3C026EA7",
+        "label": "현장 안전관리 규정 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_8595825282": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_8595825282",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_946F83743C": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_946F83743C",
+        "label": "주요자재의 사용 여부 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4D9F1A0132": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4D9F1A0132",
+        "label": "건축공사용 시설, 잉여자재, 폐기물, 가건물의 제거 및 기타 주변의 원상복구 정리사항 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_B1A3452290": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_B1A3452290",
+        "label": "제반 서류 및 각종 검사합격필증 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_5FF4C29DCA": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_5FF4C29DCA",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_290682E232": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_290682E232",
+        "label": "주요자재의 사용 여부 확인"
+      },
+      "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4336660C78": {
+        "code": "PHASE_NON_RESIDENT_COMPLETION_BASIC_ROW_4336660C78",
+        "label": "임시사용 신청부분이 구조, 소방, 피난 및 위생 등에 있어 각종 검사 합격필증 확인"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98",
+        "label": "건물 층고의 확인·검토"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E",
+        "label": "보의 위치 및 크기의 확인·검토(특히, 창호 크기와의 관계)"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8385A66BC7": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_8385A66BC7",
+        "label": "벽체의 위치 및 두께의 확인·검토, 바닥의 고저와 마감두께 확인·검토"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0",
+        "label": "구조도와 구조계산서의 대조"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_77B9F179CB": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_77B9F179CB",
+        "label": "공사시공자의 안전조직 편성 및 임무 확인·검토"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_4E3546C89C": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_4E3546C89C",
+        "label": "시공계획과 연계된 안전계획 확인·검토"
+      },
+      "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A048279797": {
+        "code": "PHASE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_A048279797",
+        "label": "현장 안전관리 규정 확인·검토"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683",
+        "label": "가설공사, 철골공사, 승강기 설치공사 등 추락위험이 있는 공정"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E",
+        "label": "도장공사, 단열공사 등 화재 위험이 있는 공정"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642",
+        "label": "거푸집, 토공사 등 붕괴위험이 있는 공정"
+      },
+      "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751": {
+        "code": "PHASE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751",
+        "label": "공사 시행 안전조치 확보가 필요하다고 감리자가 인정하는 경우"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF",
+        "label": "주요자재의 사용 여부 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE",
+        "label": "건축공사용 시설, 잉여자재, 폐기물, 가건물의 제거 및 기타 주변의 원상복구 정리사항 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B",
+        "label": "제반 서류 및 각종 검사합격필증 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_190A771666": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_190A771666",
+        "label": "주요자재의 사용 여부 확인·검토"
+      },
+      "PHASE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411": {
+        "code": "PHASE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411",
+        "label": "임시사용 신청부분이 구조, 소방, 피난 및 위생 등에 있어 각종 검사 합격필증 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_2E13C73B98",
+        "label": "건물 층고의 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_1653E58B8E",
+        "label": "보의 위치 및 크기의 확인·검토(특히, 창호 크기와의 관계)"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_D5AEEA1AE2": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_D5AEEA1AE2",
+        "label": "벽체의 위치 및 두께의 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_618F02FBA8": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_618F02FBA8",
+        "label": "바닥의 고저와 마감두께 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_7BC5D9C6A0",
+        "label": "구조도와 구조계산서의 대조"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_35FFEDA9A0": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_35FFEDA9A0",
+        "label": "공사시공자의 안전조직 편성 및 임무 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_009C76BCFE": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_009C76BCFE",
+        "label": "시공계획과 연계된 안전계획 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_B228709EF5": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_PRE_CONSTRUCTION_BASIC_ROW_B228709EF5",
+        "label": "현장 안전관리 규정 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_01EF3A3683",
+        "label": "가설공사, 철골공사, 승강기 설치공사 등 추락위험이 있는 공정"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_AA4BB02F3E",
+        "label": "도장공사, 단열공사 등 화재 위험이 있는 공정"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_A4F8DF5642",
+        "label": "거푸집, 토공사 등 붕괴위험이 있는 공정"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_CONSTRUCTION_BASIC_ROW_EE24D96751",
+        "label": "공사 시행 안전조치 확보가 필요하다고 감리자가 인정하는 경우"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_303DEFC778",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_DFCFAAD2AF",
+        "label": "주요자재의 사용 여부 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_D45DA0DCDE",
+        "label": "건축공사용 시설, 잉여자재, 폐기물, 가건물의 제거 및 기타 주변의 원상복구 정리사항 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_510957AA8B",
+        "label": "제반 서류 및 각종 검사합격필증 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_0BCAA24705",
+        "label": "건축공사가 설계도면 및 시방서에 적합한 시공상태 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_190A771666": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_190A771666",
+        "label": "주요자재의 사용 여부 확인·검토"
+      },
+      "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411": {
+        "code": "PHASE_RESPONSIBLE_RESIDENT_COMPLETION_BASIC_ROW_ADE06FB411",
+        "label": "임시사용 신청부분이 구조, 소방, 피난 및 위생 등에 있어 각종 검사 합격필증 확인·검토"
       }
     }
   }

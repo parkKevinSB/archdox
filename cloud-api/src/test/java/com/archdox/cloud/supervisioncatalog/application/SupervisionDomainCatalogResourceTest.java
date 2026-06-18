@@ -29,6 +29,11 @@ class SupervisionDomainCatalogResourceTest {
                 .isEqualTo(132);
         assertThat(modes.path("NON_RESIDENT").path("phaseRefs").path(0).path("phaseCode").asText())
                 .isEqualTo("PRE_CONSTRUCTION");
+        assertThat(modes.path("NON_RESIDENT").path("phaseRefs").size()).isEqualTo(3);
+        assertThat(modes.path("RESIDENT").path("phaseRefs").size()).isEqualTo(3);
+        assertThat(modes.path("RESPONSIBLE_RESIDENT").path("phaseRefs").size()).isEqualTo(3);
+        assertThat(atoms.path("constructionPhases").size()).isEqualTo(3);
+        assertThat(atoms.path("inspectionItems").size()).isGreaterThan(250);
 
         assertModeRefsExist(modes, atoms);
         assertPhaseRefsExist(modes, atoms);
