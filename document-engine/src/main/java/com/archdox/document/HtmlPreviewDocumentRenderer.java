@@ -473,7 +473,7 @@ public class HtmlPreviewDocumentRenderer {
         }
         return """
                 <section>
-                  <h2>공종별 검사항목</h2>
+                  <h2>검사항목</h2>
                   <table>%s</table>
                 </section>
                 """.formatted(rows);

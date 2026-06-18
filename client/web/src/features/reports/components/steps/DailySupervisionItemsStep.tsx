@@ -151,7 +151,7 @@ export function DailySupervisionItemsStep({
     updateGroups((current) => [
       ...current,
       {
-        entries: [emptyEntry()],
+        entries: [],
         floor: "",
         groupType: "TRADE",
         id: newId("group"),
@@ -172,8 +172,8 @@ export function DailySupervisionItemsStep({
     updateGroups((current) => [
       ...current,
       {
-        entries: [emptyEntry()],
-        floor: "",
+        entries: [],
+        floor: "-",
         groupType: "PHASE",
         id: newId("group"),
         phaseCode: defaultPhase?.code,
@@ -414,7 +414,7 @@ export function DailySupervisionItemsStep({
       {groups.length === 0 ? (
         <div className="daily-supervision-empty">
           <strong>아직 입력한 검사항목이 없습니다.</strong>
-          <span>공종을 추가한 뒤 검사항목을 선택하고 세부 감리항목별 결과와 사진을 연결하세요.</span>
+          <span>공종별 또는 단계별 그룹을 추가한 뒤 세부업무와 검사항목을 선택하고 결과와 사진을 연결하세요.</span>
           <button className="primary-button" disabled={!canWriteReports} onClick={addTradeGroup} type="button">
             <Plus size={17} />
             공종 추가
@@ -655,16 +655,18 @@ export function DailySupervisionItemsStep({
         </div>
       )}
 
-      <div className="daily-supervision-add-row">
-        <button className="secondary-button" disabled={!canWriteReports} onClick={addTradeGroup} type="button">
-          <Plus size={17} />
-          공종 그룹 추가
-        </button>
-        <button className="secondary-button" disabled={!canWriteReports || phases.length === 0} onClick={addPhaseGroup} type="button">
-          <Plus size={17} />
-          단계별 그룹 추가
-        </button>
-      </div>
+      {groups.length > 0 ? (
+        <div className="daily-supervision-add-row">
+          <button className="secondary-button" disabled={!canWriteReports} onClick={addTradeGroup} type="button">
+            <Plus size={17} />
+            공종 그룹 추가
+          </button>
+          <button className="secondary-button" disabled={!canWriteReports || phases.length === 0} onClick={addPhaseGroup} type="button">
+            <Plus size={17} />
+            단계별 그룹 추가
+          </button>
+        </div>
+      ) : null}
 
       <PhotoUploadTaskStrip onCancel={workspace.cancelUploadTask} tasks={workspace.uploadTasks} />
 
@@ -1040,6 +1042,7 @@ function DailyItemPicker({
 }) {
   const [selected, setSelected] = useState("");
   const items = suggestedItems(group, trades, phases);
+  const itemsKey = items.map((item) => item.code).join("|");
   const selectedItem = items.find((item) => item.code === selected);
   const emptyLabel = groupRootCode(group) && group.processCode
     ? "세부 감리항목 전사 필요"
@@ -1048,8 +1051,8 @@ function DailyItemPicker({
       : "공종/세부공정 선택 필요";
 
   useEffect(() => {
-    setSelected(items[0]?.code ?? "");
-  }, [group.phaseCode, group.processCode, group.tradeCode, items]);
+    setSelected("");
+  }, [itemsKey]);
 
   return (
     <div className="daily-supervision-item-picker">
@@ -1075,8 +1078,10 @@ function DailyItemPicker({
 function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], phases: SupervisionCatalogPhase[]) {
   const catalogGroup = selectedCatalogGroup(group, trades, phases);
   const processGroup = selectedProcessGroup(group, catalogGroup);
-  const items = processGroup?.items?.length ? processGroup.items : catalogGroup?.items ?? [];
-  return items.filter((item) => item.code && item.name);
+  if (!processGroup?.items?.length) {
+    return [];
+  }
+  return processGroup.items.filter((item) => item.code && item.name);
 }
 
 function workCategoryOptions(catalogGroup: SupervisionCatalogTrade | SupervisionCatalogPhase | null | undefined) {
@@ -1246,15 +1251,6 @@ function selectDailyPreviewAssetType(photo?: PhotoResponse): Exclude<PhotoAssetT
     return "THUMBNAIL";
   }
   return null;
-}
-
-function emptyEntry(): DailySupervisionEntry {
-  return {
-    checklistRows: [],
-    documentNarrativeText: undefined,
-    id: newId("entry"),
-    inspectionItemName: ""
-  };
 }
 
 function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySupervisionEntry {

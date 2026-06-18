@@ -6,7 +6,7 @@ import java.util.Map;
 final class PhotoDisplayTexts {
     private static final Map<String, String> CODE_LABELS = Map.ofEntries(
             Map.entry("BASIC_INFO", "기본 정보"),
-            Map.entry("DAILY_LOG", "공종별 감리 내용"),
+            Map.entry("DAILY_LOG", "검사항목 감리 내용"),
             Map.entry("DEMOLITION_DAILY_LOG", "감리 내용"),
             Map.entry("DEMOLITION_SAFETY_CHECK", "안전점검 결과"),
             Map.entry("REPORT_OPINION", "감리 의견 체크"),

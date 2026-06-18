@@ -133,7 +133,7 @@ public class ReportPreflightDeterministicValidator {
                     "DAILY_LOG_ITEMS_INVALID",
                     "HIGH",
                     "steps.DAILY_LOG.payload.dailyItems",
-                    "공사감리일지의 공종별 검사항목 데이터 형식을 읽을 수 없습니다.",
+                    "공사감리일지의 검사항목 데이터 형식을 읽을 수 없습니다.",
                     "dailyItems is missing or invalid",
                     Map.of("reportType", normalizeReportType(report.reportType()))));
             return;

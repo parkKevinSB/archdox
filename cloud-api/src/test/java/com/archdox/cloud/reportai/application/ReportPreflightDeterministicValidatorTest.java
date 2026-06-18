@@ -202,9 +202,10 @@ class ReportPreflightDeterministicValidatorTest {
                         "entries", List.of(Map.of(
                                 "inspectionItemCode", "STEEL_MEMBER_SYMBOL",
                                 "checklistRows", List.of(Map.of(
-                                        "code", "STEEL_MEMBER_SYMBOL",
-                                        "label", content,
+                                        "code", "STEEL_MEMBER_SYMBOL_DETAIL",
+                                        "label", "기둥·보 부호 확인",
                                         "result", "COMPLIANT",
+                                        "referenceNote", content,
                                         "photoIds", List.of(101L)))
                         ))
                 )))
