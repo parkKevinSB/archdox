@@ -6,7 +6,15 @@ import { usePhotoWorkspace } from "../../../photos/hooks/usePhotoWorkspace";
 import { PhotoUploadTaskStrip } from "../../../photos/components/PhotoPipelinePanel";
 import type { PhotoAssetResponse, PhotoAssetType, PhotoResponse } from "../../../photos/types";
 import { getSupervisionDomainCatalog } from "../../api";
-import type { SupervisionCatalogChecklistRow, SupervisionCatalogItem, SupervisionCatalogTrade } from "../../types";
+import type {
+  SupervisionCatalogCanonicalAtoms,
+  SupervisionCatalogChecklistRow,
+  SupervisionCatalogItem,
+  SupervisionCatalogPhase,
+  SupervisionCatalogProcessGroup,
+  SupervisionCatalogTrade,
+  SupervisionDomainCatalog
+} from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
 type DailyChecklistResult = "" | "NOT_APPLICABLE" | "COMPLIANT" | "NON_COMPLIANT";
@@ -33,7 +41,10 @@ type DailySupervisionEntry = {
 type DailySupervisionGroup = {
   entries: DailySupervisionEntry[];
   floor: string;
+  groupType?: "TRADE" | "PHASE";
   id: string;
+  phaseCode?: string;
+  phaseName?: string;
   processCode?: string;
   processName: string;
   tradeCode?: string;
@@ -87,6 +98,7 @@ export function DailySupervisionItemsStep({
     selectedCatalogCoverage?.status && selectedCatalogCoverage.status !== "READY"
   );
   const trades = catalog?.trades ?? [];
+  const phases = useMemo(() => phaseOptions(catalog), [catalog]);
   const floorOptions = catalog?.floorOptions ?? [];
   const processOptions = catalog?.processOptions ?? [];
 
@@ -133,7 +145,7 @@ export function DailySupervisionItemsStep({
     });
   }
 
-  function addGroup() {
+  function addTradeGroup() {
     const defaultTrade = trades[0] ?? null;
     const defaultCategory = defaultTrade ? workCategoryOptions(defaultTrade)[0] : null;
     updateGroups((current) => [
@@ -141,10 +153,34 @@ export function DailySupervisionItemsStep({
       {
         entries: [emptyEntry()],
         floor: "",
+        groupType: "TRADE",
         id: newId("group"),
         processName: "",
+        phaseCode: undefined,
+        phaseName: undefined,
         tradeCode: defaultTrade?.code,
         tradeName: defaultTrade?.name ?? "",
+        workCategory: defaultCategory?.code,
+        workCategoryName: defaultCategory?.name
+      }
+    ]);
+  }
+
+  function addPhaseGroup() {
+    const defaultPhase = phases[0] ?? null;
+    const defaultCategory = defaultPhase ? workCategoryOptions(defaultPhase)[0] : null;
+    updateGroups((current) => [
+      ...current,
+      {
+        entries: [emptyEntry()],
+        floor: "",
+        groupType: "PHASE",
+        id: newId("group"),
+        phaseCode: defaultPhase?.code,
+        phaseName: defaultPhase?.name,
+        processName: "",
+        tradeCode: undefined,
+        tradeName: "",
         workCategory: defaultCategory?.code,
         workCategoryName: defaultCategory?.name
       }
@@ -178,6 +214,9 @@ export function DailySupervisionItemsStep({
     const selected = trades.find((trade) => trade.code === tradeCode);
     const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
     updateGroup(groupId, {
+      groupType: "TRADE",
+      phaseCode: undefined,
+      phaseName: undefined,
       processCode: undefined,
       processName: "",
       tradeCode: selected?.code,
@@ -187,9 +226,25 @@ export function DailySupervisionItemsStep({
     });
   }
 
+  function selectPhase(groupId: string, phaseCode: string) {
+    const selected = phases.find((phase) => phase.code === phaseCode);
+    const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
+    updateGroup(groupId, {
+      groupType: "PHASE",
+      phaseCode: selected?.code,
+      phaseName: selected?.name ?? "",
+      processCode: undefined,
+      processName: "",
+      tradeCode: undefined,
+      tradeName: "",
+      workCategory: defaultCategory?.code,
+      workCategoryName: defaultCategory?.name
+    });
+  }
+
   function selectWorkCategory(groupId: string, categoryCode: string) {
     const group = groups.find((current) => current.id === groupId);
-    const category = workCategoryOptions(selectedTrade(group, trades)).find((option) => option.code === categoryCode);
+    const category = workCategoryOptions(selectedCatalogGroup(group, trades, phases)).find((option) => option.code === categoryCode);
     updateGroup(groupId, {
       processCode: undefined,
       processName: "",
@@ -296,7 +351,7 @@ export function DailySupervisionItemsStep({
     const entry = group?.entries.find((current) => current.id === entryId);
     const row = entry?.checklistRows.find((current) => current.id === rowId);
     const captionParts = [
-      group?.tradeName || group?.tradeCode,
+      groupDisplayName(group),
       group?.processName || group?.processCode,
       entry?.inspectionItemName || entry?.inspectionItemCode,
       row?.label || row?.code
@@ -331,7 +386,7 @@ export function DailySupervisionItemsStep({
 
       <div className="daily-supervision-summary">
         <span>감리업무 {catalog?.selectedSupervisionWorkModeName ?? supervisionWorkModeLabel(site?.supervisionWorkMode)}</span>
-        <span>공종 그룹 {groups.length}개</span>
+        <span>감리 그룹 {groups.length}개</span>
         <span>검사항목 {totalItems}개</span>
         <span>검사 대상 세부항목 {checkedChecklistRows}/{totalChecklistRows}개</span>
         <span>연결 사진 {totalPhotos}장</span>
@@ -360,9 +415,13 @@ export function DailySupervisionItemsStep({
         <div className="daily-supervision-empty">
           <strong>아직 입력한 검사항목이 없습니다.</strong>
           <span>공종을 추가한 뒤 검사항목을 선택하고 세부 감리항목별 결과와 사진을 연결하세요.</span>
-          <button className="primary-button" disabled={!canWriteReports} onClick={addGroup} type="button">
+          <button className="primary-button" disabled={!canWriteReports} onClick={addTradeGroup} type="button">
             <Plus size={17} />
             공종 추가
+          </button>
+          <button className="secondary-button" disabled={!canWriteReports || phases.length === 0} onClick={addPhaseGroup} type="button">
+            <Plus size={17} />
+            단계별 그룹 추가
           </button>
         </div>
       ) : (
@@ -371,11 +430,11 @@ export function DailySupervisionItemsStep({
             <article className="daily-supervision-group" key={group.id}>
               <header className="daily-supervision-group-head">
                 <div>
-                  <span>공종 그룹 {groupIndex + 1}</span>
-                  <strong>{group.tradeName || "공종 미선택"}</strong>
+                  <span>{isPhaseGroup(group) ? "단계별 그룹" : "공종 그룹"} {groupIndex + 1}</span>
+                  <strong>{groupDisplayName(group) || (isPhaseGroup(group) ? "공사단계 미선택" : "공종 미선택")}</strong>
                 </div>
                 <button
-                  aria-label="공종 그룹 삭제"
+                  aria-label={isPhaseGroup(group) ? "단계별 그룹 삭제" : "공종 그룹 삭제"}
                   className="icon-button danger"
                   disabled={!canWriteReports}
                   onClick={() => removeGroup(group.id)}
@@ -396,36 +455,52 @@ export function DailySupervisionItemsStep({
                     value={group.floor}
                   />
                 </label>
-                <label>
-                  공종
-                  {trades.length > 0 ? (
+                {isPhaseGroup(group) ? (
+                  <label>
+                    공사단계
                     <select
-                      disabled={!canWriteReports}
-                      onChange={(event) => selectTrade(group.id, event.target.value)}
-                      value={group.tradeCode ?? ""}
+                      disabled={!canWriteReports || phases.length === 0}
+                      onChange={(event) => selectPhase(group.id, event.target.value)}
+                      value={group.phaseCode ?? ""}
                     >
-                      <option value="">공종 선택</option>
-                      {trades.map((entry) => (
+                      <option value="">공사단계 선택</option>
+                      {phases.map((entry) => (
                         <option key={entry.code} value={entry.code}>{entry.name}</option>
                       ))}
                     </select>
-                  ) : (
-                    <input
-                      disabled={!canWriteReports}
-                      onChange={(event) => updateGroup(group.id, { tradeCode: undefined, tradeName: event.target.value })}
-                      placeholder="예: 철근 콘크리트 공사"
-                      value={group.tradeName}
-                    />
-                  )}
-                </label>
+                  </label>
+                ) : (
+                  <label>
+                    공종
+                    {trades.length > 0 ? (
+                      <select
+                        disabled={!canWriteReports}
+                        onChange={(event) => selectTrade(group.id, event.target.value)}
+                        value={group.tradeCode ?? ""}
+                      >
+                        <option value="">공종 선택</option>
+                        {trades.map((entry) => (
+                          <option key={entry.code} value={entry.code}>{entry.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        disabled={!canWriteReports}
+                        onChange={(event) => updateGroup(group.id, { tradeCode: undefined, tradeName: event.target.value })}
+                        placeholder="예: 철근 콘크리트 공사"
+                        value={group.tradeName}
+                      />
+                    )}
+                  </label>
+                )}
                 <div className="daily-work-category-field">
                   <span>업무구분</span>
-                  {workCategoryOptions(selectedTrade(group, trades)).length > 0 ? (
+                  {workCategoryOptions(selectedCatalogGroup(group, trades, phases)).length > 0 ? (
                     <div className="daily-work-category-segment" role="group" aria-label="업무구분">
-                      {workCategoryOptions(selectedTrade(group, trades)).map((option) => (
+                      {workCategoryOptions(selectedCatalogGroup(group, trades, phases)).map((option) => (
                         <button
                           className={group.workCategory === option.code ? "selected" : ""}
-                          disabled={!canWriteReports || !group.tradeCode}
+                          disabled={!canWriteReports || !groupRootCode(group)}
                           key={option.code}
                           onClick={() => selectWorkCategory(group.id, option.code)}
                           type="button"
@@ -435,16 +510,16 @@ export function DailySupervisionItemsStep({
                       ))}
                     </div>
                   ) : (
-                    <span className="daily-supervision-muted">공종 선택 필요</span>
+                    <span className="daily-supervision-muted">{isPhaseGroup(group) ? "공사단계 선택 필요" : "공종 선택 필요"}</span>
                   )}
                 </div>
                 <label>
-                  세부공정
-                  {selectedProcessGroups(group, selectedTrade(group, trades)).length ? (
+                  {isPhaseGroup(group) ? "세부업무" : "세부공정"}
+                  {selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).length ? (
                     <select
-                      disabled={!canWriteReports || !group.tradeCode || !group.workCategory}
+                      disabled={!canWriteReports || !groupRootCode(group) || !group.workCategory}
                       onChange={(event) => {
-                        const selectedProcess = selectedProcessGroups(group, selectedTrade(group, trades)).find((processGroup) => processGroup.code === event.target.value);
+                        const selectedProcess = selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).find((processGroup) => processGroup.code === event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
                           processName: selectedProcess?.name ?? "",
@@ -454,8 +529,8 @@ export function DailySupervisionItemsStep({
                       }}
                       value={group.processCode ?? ""}
                     >
-                      <option value="">세부공정 선택</option>
-                      {selectedProcessGroups(group, selectedTrade(group, trades)).map((processGroup) => (
+                      <option value="">{isPhaseGroup(group) ? "세부업무 선택" : "세부공정 선택"}</option>
+                      {selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).map((processGroup) => (
                         <option key={processGroup.code} value={processGroup.code}>
                           {processGroup.name}
                         </option>
@@ -463,10 +538,10 @@ export function DailySupervisionItemsStep({
                     </select>
                   ) : (
                     <input
-                      disabled={!canWriteReports}
+                      disabled={!canWriteReports || isPhaseGroup(group)}
                       list={`daily-process-options-${group.id}`}
                       onChange={(event) => {
-                        const selectedProcess = processGroupByName(group, trades, event.target.value);
+                        const selectedProcess = processGroupByName(group, trades, phases, event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
                           processName: event.target.value,
@@ -474,7 +549,7 @@ export function DailySupervisionItemsStep({
                           workCategoryName: selectedProcess?.workCategoryName ?? group.workCategoryName
                         });
                       }}
-                      placeholder="예: 기초, 지하층 바닥"
+                      placeholder={isPhaseGroup(group) ? "공사단계를 먼저 선택하세요" : "예: 기초, 지하층 바닥"}
                       value={group.processName}
                     />
                   )}
@@ -484,6 +559,7 @@ export function DailySupervisionItemsStep({
               <DailyItemPicker
                 canWriteReports={canWriteReports}
                 group={group}
+                phases={phases}
                 trades={trades}
                 onAdd={(itemName) => addEntry(group.id, itemName)}
               />
@@ -492,7 +568,7 @@ export function DailySupervisionItemsStep({
                 {group.entries.length === 0 ? (
                   <p className="daily-supervision-muted">검사항목을 추가하세요.</p>
                 ) : group.entries.map((entry, entryIndex) => {
-                  const itemOptions = suggestedItems(group, trades);
+                  const itemOptions = suggestedItems(group, trades, phases);
                   return (
                   <div className="daily-supervision-item" key={entry.id}>
                     <div className="daily-supervision-item-head">
@@ -565,12 +641,12 @@ export function DailySupervisionItemsStep({
               </div>
 
               <datalist id={`daily-item-options-${group.id}`}>
-                {suggestedItems(group, trades).map((item) => (
+                {suggestedItems(group, trades, phases).map((item) => (
                   <option key={item.code} value={item.name} />
                 ))}
               </datalist>
               <datalist id={`daily-process-options-${group.id}`}>
-                {suggestedProcesses(group, trades, processOptions).map((option) => (
+                {suggestedProcesses(group, trades, phases, processOptions).map((option) => (
                   <option key={option} value={option} />
                 ))}
               </datalist>
@@ -580,9 +656,13 @@ export function DailySupervisionItemsStep({
       )}
 
       <div className="daily-supervision-add-row">
-        <button className="secondary-button" disabled={!canWriteReports} onClick={addGroup} type="button">
+        <button className="secondary-button" disabled={!canWriteReports} onClick={addTradeGroup} type="button">
           <Plus size={17} />
           공종 그룹 추가
+        </button>
+        <button className="secondary-button" disabled={!canWriteReports || phases.length === 0} onClick={addPhaseGroup} type="button">
+          <Plus size={17} />
+          단계별 그룹 추가
         </button>
       </div>
 
@@ -949,28 +1029,32 @@ function DailyItemPicker({
   canWriteReports,
   group,
   onAdd,
+  phases,
   trades
 }: {
   canWriteReports: boolean;
   group: DailySupervisionGroup;
   onAdd: (item?: SupervisionCatalogItem) => void;
+  phases: SupervisionCatalogPhase[];
   trades: SupervisionCatalogTrade[];
 }) {
   const [selected, setSelected] = useState("");
-  const items = suggestedItems(group, trades);
+  const items = suggestedItems(group, trades, phases);
   const selectedItem = items.find((item) => item.code === selected);
-  const emptyLabel = group.tradeCode && group.processCode
+  const emptyLabel = groupRootCode(group) && group.processCode
     ? "세부 감리항목 전사 필요"
-    : "공종/세부공정 선택 필요";
+    : isPhaseGroup(group)
+      ? "공사단계/세부업무 선택 필요"
+      : "공종/세부공정 선택 필요";
 
   useEffect(() => {
     setSelected(items[0]?.code ?? "");
-  }, [group.tradeCode, group.processCode, items]);
+  }, [group.phaseCode, group.processCode, group.tradeCode, items]);
 
   return (
     <div className="daily-supervision-item-picker">
       <select disabled={!canWriteReports || items.length === 0} onChange={(event) => setSelected(event.target.value)} value={selected}>
-        <option value="">{items.length === 0 ? emptyLabel : "검사항목 선택"}</option>
+        <option value="">{items.length === 0 ? emptyLabel : isPhaseGroup(group) ? "세부검토 사항 선택" : "검사항목 선택"}</option>
         {items.map((item) => (
           <option key={item.code} value={item.code}>{item.name}</option>
         ))}
@@ -982,21 +1066,21 @@ function DailyItemPicker({
         type="button"
       >
         <Plus size={16} />
-        검사항목 추가
+        {isPhaseGroup(group) ? "세부검토 사항 추가" : "검사항목 추가"}
       </button>
     </div>
   );
 }
 
-function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
-  const trade = selectedTrade(group, trades);
-  const processGroup = selectedProcessGroup(group, trade);
-  const items = processGroup?.items?.length ? processGroup.items : trade?.items ?? [];
-  return items.filter((item) => (item.checklistRows?.length ?? 0) > 0);
+function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], phases: SupervisionCatalogPhase[]) {
+  const catalogGroup = selectedCatalogGroup(group, trades, phases);
+  const processGroup = selectedProcessGroup(group, catalogGroup);
+  const items = processGroup?.items?.length ? processGroup.items : catalogGroup?.items ?? [];
+  return items.filter((item) => item.code && item.name);
 }
 
-function workCategoryOptions(trade: SupervisionCatalogTrade | null | undefined) {
-  const processGroups = trade?.processGroups ?? [];
+function workCategoryOptions(catalogGroup: SupervisionCatalogTrade | SupervisionCatalogPhase | null | undefined) {
+  const processGroups = catalogGroup?.processGroups ?? [];
   const options = processGroups
     .map((processGroup) => ({
       code: processGroup.workCategory ?? "GENERAL",
@@ -1012,8 +1096,11 @@ function workCategoryOptions(trade: SupervisionCatalogTrade | null | undefined) 
   return [...byCode.values()];
 }
 
-function selectedProcessGroups(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null | undefined) {
-  const processGroups = trade?.processGroups ?? [];
+function selectedProcessGroups(
+  group: DailySupervisionGroup,
+  catalogGroup: SupervisionCatalogTrade | SupervisionCatalogPhase | null | undefined
+) {
+  const processGroups = catalogGroup?.processGroups ?? [];
   if (!processGroups.length) {
     return [];
   }
@@ -1026,12 +1113,24 @@ function selectedProcessGroups(group: DailySupervisionGroup, trade: SupervisionC
 function suggestedProcesses(
   group: DailySupervisionGroup,
   trades: SupervisionCatalogTrade[],
+  phases: SupervisionCatalogPhase[],
   catalogProcessOptions: string[]
 ) {
-  const trade = selectedTrade(group, trades);
-  const processGroupNames = selectedProcessGroups(group, trade).map((processGroup) => processGroup.name);
-  return uniqueStrings([...processGroupNames, ...(trade?.processes ?? []), ...catalogProcessOptions])
+  const catalogGroup = selectedCatalogGroup(group, trades, phases);
+  const processGroupNames = selectedProcessGroups(group, catalogGroup).map((processGroup) => processGroup.name);
+  const tradeProcesses = !isPhaseGroup(group) && "processes" in (catalogGroup ?? {}) ? (catalogGroup as SupervisionCatalogTrade).processes ?? [] : [];
+  return uniqueStrings([...processGroupNames, ...tradeProcesses, ...catalogProcessOptions])
     .filter((option) => option && option !== "-");
+}
+
+function selectedCatalogGroup(
+  group: DailySupervisionGroup | null | undefined,
+  trades: SupervisionCatalogTrade[],
+  phases: SupervisionCatalogPhase[]
+) {
+  return isPhaseGroup(group)
+    ? selectedPhase(group, phases)
+    : selectedTrade(group, trades);
 }
 
 function selectedTrade(group: DailySupervisionGroup | null | undefined, trades: SupervisionCatalogTrade[]) {
@@ -1040,18 +1139,98 @@ function selectedTrade(group: DailySupervisionGroup | null | undefined, trades: 
     ?? null;
 }
 
-function processGroupByName(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], name: string) {
-  return selectedProcessGroup({ ...group, processName: name }, selectedTrade(group, trades));
+function selectedPhase(group: DailySupervisionGroup | null | undefined, phases: SupervisionCatalogPhase[]) {
+  return phases.find((phase) => phase.code === group?.phaseCode)
+    ?? phases.find((phase) => phase.name === group?.phaseName)
+    ?? null;
 }
 
-function selectedProcessGroup(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null) {
-  if (!trade?.processGroups?.length) {
+function processGroupByName(
+  group: DailySupervisionGroup,
+  trades: SupervisionCatalogTrade[],
+  phases: SupervisionCatalogPhase[],
+  name: string
+) {
+  return selectedProcessGroup({ ...group, processName: name }, selectedCatalogGroup(group, trades, phases));
+}
+
+function selectedProcessGroup(
+  group: DailySupervisionGroup,
+  catalogGroup: SupervisionCatalogTrade | SupervisionCatalogPhase | null
+) {
+  if (!catalogGroup?.processGroups?.length) {
     return null;
   }
-  const processGroups = selectedProcessGroups(group, trade);
+  const processGroups = selectedProcessGroups(group, catalogGroup);
   return processGroups.find((processGroup) => processGroup.code === group.processCode)
     ?? processGroups.find((processGroup) => processGroup.name === group.processName)
     ?? null;
+}
+
+function phaseOptions(catalog: SupervisionDomainCatalog | null): SupervisionCatalogPhase[] {
+  const phaseRefs = catalog?.selectedSupervisionWorkModeCatalog?.phaseRefs ?? [];
+  const atoms = catalog?.canonicalAtoms;
+  if (!atoms || phaseRefs.length === 0) {
+    return [];
+  }
+  return phaseRefs.map((phaseRef) => {
+    const phaseAtom = atoms.constructionPhases?.[phaseRef.phaseCode];
+    const processGroups = (phaseRef.workCategories ?? []).flatMap((category) => (
+      (category.processGroupRefs ?? []).map((processRef): SupervisionCatalogProcessGroup => {
+        const processAtom = atoms.processGroups?.[processRef.code];
+        const items = (processRef.itemRefs ?? [])
+          .map((itemRef) => catalogItemFromAtoms(atoms, itemRef))
+          .filter(Boolean) as SupervisionCatalogItem[];
+        return {
+          code: processRef.code,
+          items,
+          name: processAtom?.name ?? processRef.code,
+          phaseCode: phaseRef.phaseCode,
+          sourcePages: phaseRef.sourcePages,
+          workCategory: category.code,
+          workCategoryName: category.name
+        };
+      })
+    ));
+    return {
+      code: phaseRef.phaseCode,
+      items: processGroups.flatMap((processGroup) => processGroup.items),
+      name: phaseAtom?.name ?? phaseRef.phaseCode,
+      processGroups,
+      sourcePages: phaseRef.sourcePages
+    };
+  });
+}
+
+function catalogItemFromAtoms(
+  atoms: SupervisionCatalogCanonicalAtoms,
+  itemCode: string
+): SupervisionCatalogItem | null {
+  const item = atoms.inspectionItems?.[itemCode];
+  if (!item) {
+    return null;
+  }
+  return {
+    basis: item.basis,
+    checklistRows: (item.rowRefs ?? [])
+      .map((rowRef) => atoms.checklistRows?.[rowRef] ?? { code: rowRef, label: rowRef }),
+    code: item.code,
+    name: item.name
+  };
+}
+
+function isPhaseGroup(group: DailySupervisionGroup | null | undefined) {
+  return group?.groupType === "PHASE";
+}
+
+function groupRootCode(group: DailySupervisionGroup | null | undefined) {
+  return isPhaseGroup(group) ? group?.phaseCode : group?.tradeCode;
+}
+
+function groupDisplayName(group: DailySupervisionGroup | null | undefined) {
+  return isPhaseGroup(group)
+    ? group?.phaseName || group?.phaseCode || ""
+    : group?.tradeName || group?.tradeCode || "";
 }
 
 function selectDailyPreviewAssetType(photo?: PhotoResponse): Exclude<PhotoAssetType, "ORIGINAL"> | null {
@@ -1089,7 +1268,15 @@ function entryFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailySuperv
 }
 
 function checklistRowsFromCatalogItem(catalogItem?: SupervisionCatalogItem): DailyChecklistRow[] {
-  const rows = catalogItem?.checklistRows ?? [];
+  if (!catalogItem) {
+    return [];
+  }
+  const parentRow: SupervisionCatalogChecklistRow = {
+    basis: catalogItem.basis,
+    code: catalogItem.code,
+    label: catalogItem.name
+  };
+  const rows = [parentRow, ...(catalogItem.checklistRows ?? []).filter((row) => row.code !== catalogItem.code)];
   return rows.map((row, index) => checklistRowFromCatalogRow(row, index));
 }
 
@@ -1195,7 +1382,10 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
   return {
     entries: Array.isArray(raw.entries) ? raw.entries.map((entry, entryIndex) => normalizeEntry(entry, entryIndex)).filter(Boolean) as DailySupervisionEntry[] : [],
     floor: text(raw.floor),
+    groupType: raw.groupType === "PHASE" ? "PHASE" : "TRADE",
     id: text(raw.id) || newId(`group-${index}`),
+    phaseCode: optionalText(raw.phaseCode),
+    phaseName: optionalText(raw.phaseName),
     processCode: optionalText(raw.processCode),
     processName: text(raw.processName),
     tradeCode: optionalText(raw.tradeCode),
@@ -1246,7 +1436,7 @@ function normalizeChecklistResult(value: unknown): DailyChecklistResult {
   const normalized = text(value).trim().toUpperCase();
   return normalized === "COMPLIANT" || normalized === "NON_COMPLIANT" || normalized === "NOT_APPLICABLE"
     ? normalized
-    : "";
+    : "NOT_APPLICABLE";
 }
 
 function text(value: unknown) {

@@ -161,8 +161,13 @@ public class ReportPreflightEngineBoundaryService {
                 var entryNo = entryIndex + 1;
                 var selection = new LinkedHashMap<String, Object>();
                 selection.put("tradeCode", text(group.get("tradeCode")));
+                selection.put("tradeName", text(group.get("tradeName")));
+                selection.put("phaseCode", text(group.get("phaseCode")));
+                selection.put("phaseName", text(group.get("phaseName")));
                 selection.put("processCode", text(group.get("processCode")));
+                selection.put("processName", text(group.get("processName")));
                 selection.put("inspectionItemCode", text(entry.get("inspectionItemCode")));
+                selection.put("inspectionItemName", text(entry.get("inspectionItemName")));
                 selection.put("location", "steps.DAILY_LOG.payload.dailyItems.groups[" + groupIndex + "].entries[" + entryIndex + "]");
                 selection.put("sourceRef", "daily-log:g" + groupNo + ":e" + entryNo);
                 selection.put("groupNo", groupNo);

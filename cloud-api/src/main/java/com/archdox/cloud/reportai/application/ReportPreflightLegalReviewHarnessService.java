@@ -851,6 +851,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private boolean requiresTechnicalCriteriaReview(Map<String, Object> group, Map<String, Object> entry) {
         var value = String.join(" ",
                 text(group.get("tradeName")),
+                text(group.get("phaseName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
@@ -865,6 +866,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private boolean hasTechnicalCriteriaEvidence(Map<String, Object> group, Map<String, Object> entry) {
         var value = String.join(" ",
                 text(group.get("tradeName")),
+                text(group.get("phaseName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 DailySupervisionContentFormatter.formatEntry(entry));
@@ -1139,6 +1141,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private boolean requiresDocumentCompletionWording(Map<String, Object> group, Map<String, Object> entry) {
         var value = String.join(" ",
                 text(group.get("tradeName")),
+                text(group.get("phaseName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
@@ -1153,6 +1156,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private boolean hasDocumentCompletionWording(Map<String, Object> group, Map<String, Object> entry) {
         var value = String.join(" ",
                 text(group.get("tradeName")),
+                text(group.get("phaseName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 DailySupervisionContentFormatter.formatEntry(entry));
@@ -1162,6 +1166,7 @@ public class ReportPreflightLegalReviewHarnessService {
     private String documentCompletionReplacement(Map<String, Object> group, Map<String, Object> entry) {
         var value = String.join(" ",
                 text(group.get("tradeName")),
+                text(group.get("phaseName")),
                 text(group.get("processName")),
                 text(entry.get("inspectionItemName")),
                 text(entry.get("inspectionItemCode")),
@@ -1180,7 +1185,7 @@ public class ReportPreflightLegalReviewHarnessService {
         }
         var itemName = firstNonBlank(text(entry.get("inspectionItemName")), text(entry.get("checklistItemCode")));
         if (itemName.isBlank()) {
-            itemName = firstNonBlank(text(group.get("tradeName")), "해당 감리 항목");
+            itemName = firstNonBlank(text(group.get("tradeName")), text(group.get("phaseName")), "해당 감리 항목");
         }
         return itemName + "에 대하여 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서·인증서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
     }
@@ -1191,12 +1196,14 @@ public class ReportPreflightLegalReviewHarnessService {
             Map<String, Object> entry
     ) {
         var tradeCode = text(group.get("tradeCode"));
+        var phaseCode = text(group.get("phaseCode"));
         var processCode = text(group.get("processCode"));
         var itemCode = firstNonBlank(text(entry.get("inspectionItemCode")), text(entry.get("checklistItemCode")));
         var matched = references.stream()
                 .filter(reference -> text(reference.get("checklistItemCode")).equals(itemCode)
                         || text(reference.get("bindingKey")).contains(itemCode)
                         || (!tradeCode.isBlank() && text(reference.get("bindingKey")).contains(tradeCode))
+                        || (!phaseCode.isBlank() && text(reference.get("bindingKey")).contains(phaseCode))
                         || (!processCode.isBlank() && text(reference.get("bindingKey")).contains(processCode)))
                 .map(reference -> text(reference.get("referenceId")))
                 .filter(value -> !value.isBlank())
@@ -1565,11 +1572,13 @@ public class ReportPreflightLegalReviewHarnessService {
         return text(value).toUpperCase(Locale.ROOT);
     }
 
-    private String firstNonBlank(String first, String second) {
-        if (first != null && !first.isBlank()) {
-            return first.trim();
+    private String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
         }
-        return second == null ? "" : second.trim();
+        return "";
     }
 
     private String text(Object value) {

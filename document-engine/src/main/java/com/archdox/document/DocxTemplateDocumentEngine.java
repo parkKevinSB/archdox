@@ -499,6 +499,9 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
 
     private String officialGroupLabel(Map<String, Object> group) {
         var trade = valueOrBlank(group.get("tradeName")).trim();
+        if (trade.isBlank()) {
+            trade = valueOrBlank(group.get("phaseName")).trim();
+        }
         var process = joinedNonBlank(
                 valueOrBlank(group.get("processName")).trim(),
                 valueOrBlank(group.get("floor")).trim());

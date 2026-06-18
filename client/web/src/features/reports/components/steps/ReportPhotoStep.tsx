@@ -52,7 +52,8 @@ function dailyLogPhotoContexts(payload?: Record<string, unknown>): Record<number
   const contexts: Record<number, PhotoDisplayContext> = {};
   for (const rawGroup of groups) {
     const group = mapValue(rawGroup);
-    const groupLabel = [text(group.tradeName), text(group.processName), text(group.floor)]
+    const groupRootLabel = text(group.tradeName) || text(group.phaseName);
+    const groupLabel = [groupRootLabel, text(group.processName), text(group.floor)]
       .filter(Boolean)
       .join(" / ");
     for (const rawEntry of listValue(group.entries)) {

@@ -436,7 +436,7 @@ public class HtmlPreviewDocumentRenderer {
         for (var rawGroup : groups) {
             var group = mapValue(rawGroup);
             var groupLabel = joinNonBlank(
-                    valueOrBlank(group.get("tradeName")),
+                    firstNonBlank(valueOrBlank(group.get("tradeName")), valueOrBlank(group.get("phaseName"))),
                     valueOrBlank(group.get("processName")),
                     valueOrBlank(group.get("floor")));
             var entries = listValue(group.get("entries"));
@@ -726,6 +726,15 @@ public class HtmlPreviewDocumentRenderer {
 
     private String checklistFieldValue(Object answer, String source) {
         return readPath(answer, source).map(this::valueOrBlank).orElse("");
+    }
+
+    private String firstNonBlank(String... values) {
+        for (var value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     @SafeVarargs

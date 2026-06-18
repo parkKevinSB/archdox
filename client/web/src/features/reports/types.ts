@@ -86,9 +86,19 @@ export type SupervisionCatalogProcessGroup = {
   code: string;
   items: SupervisionCatalogItem[];
   name: string;
+  phaseCode?: string;
   sourcePages?: number[];
+  tradeCode?: string;
   workCategory?: string;
   workCategoryName?: string;
+};
+
+export type SupervisionCatalogPhase = {
+  code: string;
+  items: SupervisionCatalogItem[];
+  name: string;
+  processGroups?: SupervisionCatalogProcessGroup[];
+  sourcePages?: number[];
 };
 
 export type SupervisionCatalogTrade = {
@@ -118,9 +128,35 @@ export type SupervisionWorkModeTradeRef = {
   workCategories?: SupervisionWorkModeWorkCategoryRef[];
 };
 
+export type SupervisionWorkModePhaseRef = {
+  phaseCode: string;
+  sourcePages?: number[];
+  workCategories?: SupervisionWorkModeWorkCategoryRef[];
+};
+
+export type SupervisionCatalogAtom = {
+  basis?: string | null;
+  code: string;
+  discipline?: string;
+  name: string;
+  phaseCode?: string;
+  processGroupCode?: string;
+  rowRefs?: string[];
+  tradeCode?: string;
+};
+
+export type SupervisionCatalogCanonicalAtoms = {
+  checklistRows?: Record<string, SupervisionCatalogChecklistRow>;
+  constructionPhases?: Record<string, SupervisionCatalogAtom>;
+  inspectionItems?: Record<string, SupervisionCatalogAtom>;
+  processGroups?: Record<string, SupervisionCatalogAtom>;
+  trades?: Record<string, SupervisionCatalogAtom>;
+};
+
 export type SupervisionDomainCatalog = {
   catalogCode: string;
   catalogName: string;
+  canonicalAtoms?: SupervisionCatalogCanonicalAtoms;
   selectedSupervisionWorkMode?: string;
   selectedSupervisionWorkModeName?: string;
   selectedSupervisionWorkModeCatalogCoverage?: {
@@ -139,6 +175,7 @@ export type SupervisionDomainCatalog = {
     description?: string;
     message?: string;
     name?: string;
+    phaseRefs?: SupervisionWorkModePhaseRef[];
     referencePages?: string;
     status?: string;
     tradeRefs?: SupervisionWorkModeTradeRef[];

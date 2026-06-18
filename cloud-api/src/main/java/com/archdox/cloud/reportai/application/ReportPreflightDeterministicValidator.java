@@ -154,23 +154,34 @@ public class ReportPreflightDeterministicValidator {
         for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
             var group = mapValue(groups.get(groupIndex));
             var groupNo = groupIndex + 1;
+            var phaseGroup = "PHASE".equalsIgnoreCase(stringValue(group.get("groupType")));
             requireText(group, "floor", "DAILY_LOG_GROUP_FLOOR_REQUIRED", "HIGH",
                     "층/구역을 입력해야 공사감리일지의 공종 및 세부공정 칸을 완성할 수 있습니다.",
                     "groups[" + groupIndex + "].floor", groupNo, null, findings);
-            if (isBlank(stringValue(group.get("tradeName"))) && isBlank(stringValue(group.get("tradeCode")))) {
+            var rootNameKey = phaseGroup ? "phaseName" : "tradeName";
+            var rootCodeKey = phaseGroup ? "phaseCode" : "tradeCode";
+            var rootRequiredCode = phaseGroup ? "DAILY_LOG_GROUP_PHASE_REQUIRED" : "DAILY_LOG_GROUP_TRADE_REQUIRED";
+            var rootCodeRequiredCode = phaseGroup ? "DAILY_LOG_GROUP_PHASE_CODE_REQUIRED" : "DAILY_LOG_GROUP_TRADE_CODE_REQUIRED";
+            var rootRequiredMessage = phaseGroup
+                    ? "공사단계를 선택하거나 입력해야 합니다."
+                    : "공종을 선택하거나 입력해야 합니다.";
+            var rootCodeRequiredMessage = phaseGroup
+                    ? "공사단계를 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다."
+                    : "공종을 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다.";
+            if (isBlank(stringValue(group.get(rootNameKey))) && isBlank(stringValue(group.get(rootCodeKey)))) {
                 findings.add(dailyFinding(
-                        "DAILY_LOG_GROUP_TRADE_REQUIRED",
+                        rootRequiredCode,
                         "HIGH",
-                        "공종을 선택하거나 입력해야 합니다.",
-                        "groups[" + groupIndex + "].tradeName",
+                        rootRequiredMessage,
+                        "groups[" + groupIndex + "]." + rootNameKey,
                         groupNo,
                         null));
-            } else if (isBlank(stringValue(group.get("tradeCode")))) {
+            } else if (isBlank(stringValue(group.get(rootCodeKey)))) {
                 findings.add(dailyFinding(
-                        "DAILY_LOG_GROUP_TRADE_CODE_REQUIRED",
+                        rootCodeRequiredCode,
                         "HIGH",
-                        "공종을 카탈로그에서 선택해야 법령 근거를 연결할 수 있습니다.",
-                        "groups[" + groupIndex + "].tradeCode",
+                        rootCodeRequiredMessage,
+                        "groups[" + groupIndex + "]." + rootCodeKey,
                         groupNo,
                         null));
             }

@@ -48,6 +48,29 @@
             }
           ]
         }
+      ],
+      "phaseRefs": [
+        {
+          "phaseCode": "PRE_CONSTRUCTION",
+          "sourcePages": [22],
+          "workCategories": [
+            {
+              "code": "BASIC",
+              "name": "기본업무",
+              "processGroupRefs": [
+                {
+                  "code": "SUPERVISION_START_PREPARATION",
+                  "itemRefs": [
+                    "PRE_DESIGN_DOCUMENT_RECEIPT",
+                    "PRE_PERMIT_DOCUMENT_CONDITIONS",
+                    "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS",
+                    "PRE_DESIGN_DOCUMENT_REVIEW"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
       ]
     },
     "RESIDENT": {
@@ -127,6 +150,11 @@
     "rule": "동일한 세부 감리항목은 새 코드를 만들지 않고 같은 row code를 재사용하고, 모드별 추가 항목만 새 atom으로 추가합니다."
   },
   "canonicalAtoms": {
+    "constructionPhases": {
+      "PRE_CONSTRUCTION": {"code": "PRE_CONSTRUCTION", "name": "공사전 단계"},
+      "CONSTRUCTION": {"code": "CONSTRUCTION", "name": "공사단계"},
+      "COMPLETION": {"code": "COMPLETION", "name": "공사완료단계"}
+    },
     "trades": {
       "REINFORCED_CONCRETE": {
         "code": "REINFORCED_CONCRETE",
@@ -145,7 +173,8 @@
       "GAS_PRESSURE_WELDING": {"code": "GAS_PRESSURE_WELDING", "tradeCode": "REINFORCED_CONCRETE", "name": "가스압점"},
       "CONCRETE_PLACEMENT_PLAN": {"code": "CONCRETE_PLACEMENT_PLAN", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 타설 계획서"},
       "CONCRETE_PLACEMENT": {"code": "CONCRETE_PLACEMENT", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 타설"},
-      "CONCRETE_CURING": {"code": "CONCRETE_CURING", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 양생"}
+      "CONCRETE_CURING": {"code": "CONCRETE_CURING", "tradeCode": "REINFORCED_CONCRETE", "name": "콘크리트 양생"},
+      "SUPERVISION_START_PREPARATION": {"code": "SUPERVISION_START_PREPARATION", "phaseCode": "PRE_CONSTRUCTION", "name": "감리 업무 착수 준비"}
     },
     "inspectionItems": {
       "RC_REBAR_DOCUMENT_REVIEW": {"code": "RC_REBAR_DOCUMENT_REVIEW", "processGroupCode": "REBAR_ASSEMBLY", "name": "철근조립·배근 관련 도서 확인", "rowRefs": ["RC_REBAR_DOCUMENT_REVIEW"]},
@@ -164,7 +193,11 @@
       "RC_CONCRETE_PLACEMENT_CONFIRMATION": {"code": "RC_CONCRETE_PLACEMENT_CONFIRMATION", "processGroupCode": "CONCRETE_PLACEMENT", "name": "콘크리트 타설 확인사항", "rowRefs": ["RC_CONCRETE_PLACEMENT_WORKER_COUNT", "RC_CONCRETE_PLACEMENT_STOP_JOINT_BOARD", "RC_CONCRETE_PLACEMENT_PIPE_HOSE_SUPPORT", "RC_CONCRETE_PLACEMENT_PIPE_BLOCKAGE_RESPONSE", "RC_CONCRETE_PLACEMENT_SLUMP_AIR", "RC_CONCRETE_PLACEMENT_SURFACE_LEVELING"]},
       "RC_CONCRETE_CURING_CONFIRMATION": {"code": "RC_CONCRETE_CURING_CONFIRMATION", "processGroupCode": "CONCRETE_CURING", "name": "콘크리트 양생 확인사항", "rowRefs": ["RC_CONCRETE_CURING_HEATING_AND_TEMPERATURE"]},
       "RC_CONCRETE_STRENGTH_TEST_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_STRENGTH_TEST_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_STRENGTH_TEST", "name": "책임상주 콘크리트 강도 시험 추가 확인사항", "rowRefs": ["RC_CONCRETE_COMPRESSIVE_TEST_RECORD", "RC_CONCRETE_SPECIMEN_COLLECTION_METHOD_LOCATION", "RC_CONCRETE_QUALITY_GRADE_STRENGTH"]},
-      "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_CONDITION_CONFIRMATION", "name": "책임상주 콘크리트 상태 추가 확인사항", "rowRefs": ["RC_CONCRETE_FORM_REMOVAL_REPAIR_PART", "RC_CONCRETE_VOID_AGGREGATE_CRACK", "RC_CONCRETE_EXPOSED_REBAR_FINISH"]}
+      "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA": {"code": "RC_CONCRETE_CONDITION_RESPONSIBLE_EXTRA", "processGroupCode": "CONCRETE_CONDITION_CONFIRMATION", "name": "책임상주 콘크리트 상태 추가 확인사항", "rowRefs": ["RC_CONCRETE_FORM_REMOVAL_REPAIR_PART", "RC_CONCRETE_VOID_AGGREGATE_CRACK", "RC_CONCRETE_EXPOSED_REBAR_FINISH"]},
+      "PRE_DESIGN_DOCUMENT_RECEIPT": {"code": "PRE_DESIGN_DOCUMENT_RECEIPT", "processGroupCode": "SUPERVISION_START_PREPARATION", "name": "당해 공사 관련 설계도서 인수 확인서 작성", "rowRefs": []},
+      "PRE_PERMIT_DOCUMENT_CONDITIONS": {"code": "PRE_PERMIT_DOCUMENT_CONDITIONS", "processGroupCode": "SUPERVISION_START_PREPARATION", "name": "허가도서 및 허가 조건 확인", "rowRefs": []},
+      "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS": {"code": "PRE_CONSTRUCTION_START_DOCUMENT_CONDITIONS", "processGroupCode": "SUPERVISION_START_PREPARATION", "name": "착공도서 및 각종 조건 확인", "rowRefs": []},
+      "PRE_DESIGN_DOCUMENT_REVIEW": {"code": "PRE_DESIGN_DOCUMENT_REVIEW", "processGroupCode": "SUPERVISION_START_PREPARATION", "name": "설계도서 검토 확인", "rowRefs": ["PRE_DESIGN_DOC_INCONSISTENCY_REPORT", "PRE_STRUCTURAL_DOCUMENT_REVIEW", "PRE_BUILDING_FLOOR_HEIGHT_REVIEW", "PRE_BEAM_LOCATION_SIZE_REVIEW", "PRE_WALL_LOCATION_THICKNESS_REVIEW", "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW", "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH", "PRE_SPECIAL_SPECIFICATION_REVIEW", "PRE_MATERIALS_AND_PRODUCTS_REVIEW", "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW"]}
     },
     "checklistRows": {
       "RC_REBAR_DOCUMENT_REVIEW": {"code": "RC_REBAR_DOCUMENT_REVIEW", "label": "철근조립·배근 관련 도서 확인"},
@@ -248,7 +281,17 @@
       "RC_CONCRETE_QUALITY_GRADE_STRENGTH": {"code": "RC_CONCRETE_QUALITY_GRADE_STRENGTH", "label": "콘크리트 품질등급에 따른 압축강도 확인·검토"},
       "RC_CONCRETE_FORM_REMOVAL_REPAIR_PART": {"code": "RC_CONCRETE_FORM_REMOVAL_REPAIR_PART", "label": "거푸집 해체 시 보수부분 확인"},
       "RC_CONCRETE_VOID_AGGREGATE_CRACK": {"code": "RC_CONCRETE_VOID_AGGREGATE_CRACK", "label": "공동, 자갈노출, 균열 여부 확인"},
-      "RC_CONCRETE_EXPOSED_REBAR_FINISH": {"code": "RC_CONCRETE_EXPOSED_REBAR_FINISH", "label": "철근 노출부와 콘크리트 마감면 확인"}
+      "RC_CONCRETE_EXPOSED_REBAR_FINISH": {"code": "RC_CONCRETE_EXPOSED_REBAR_FINISH", "label": "철근 노출부와 콘크리트 마감면 확인"},
+      "PRE_DESIGN_DOC_INCONSISTENCY_REPORT": {"code": "PRE_DESIGN_DOC_INCONSISTENCY_REPORT", "label": "설계도면·시방서 등 설계도서 상호간 불일치 사항의 건축주 보고"},
+      "PRE_STRUCTURAL_DOCUMENT_REVIEW": {"code": "PRE_STRUCTURAL_DOCUMENT_REVIEW", "label": "구조도와 관련된 설계도서 확인"},
+      "PRE_BUILDING_FLOOR_HEIGHT_REVIEW": {"code": "PRE_BUILDING_FLOOR_HEIGHT_REVIEW", "label": "건물 층고의 확인"},
+      "PRE_BEAM_LOCATION_SIZE_REVIEW": {"code": "PRE_BEAM_LOCATION_SIZE_REVIEW", "label": "보의 위치 및 크기의 확인(특히 창호 크기와의 관계)"},
+      "PRE_WALL_LOCATION_THICKNESS_REVIEW": {"code": "PRE_WALL_LOCATION_THICKNESS_REVIEW", "label": "벽체의 위치 및 두께의 확인"},
+      "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW": {"code": "PRE_FLOOR_LEVEL_FINISH_THICKNESS_REVIEW", "label": "바닥의 고저와 마감두께 확인"},
+      "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH": {"code": "PRE_STRUCTURAL_DRAWING_CALCULATION_MATCH", "label": "구조도와 구조계산서의 대조"},
+      "PRE_SPECIAL_SPECIFICATION_REVIEW": {"code": "PRE_SPECIAL_SPECIFICATION_REVIEW", "label": "특기시방서 확인"},
+      "PRE_MATERIALS_AND_PRODUCTS_REVIEW": {"code": "PRE_MATERIALS_AND_PRODUCTS_REVIEW", "label": "각종 사용 재료 및 자재 확인"},
+      "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW": {"code": "PRE_DESIGN_DOCUMENT_MATERIAL_NOTATION_REVIEW", "label": "설계도서에 사용 재료 및 명기 확인"}
     }
   },
   "documentLayoutPolicy": {

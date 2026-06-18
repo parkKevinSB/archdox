@@ -538,9 +538,11 @@ public class DocumentSnapshotBuilder {
         for (Object groupValue : listValue(dailyItems.get("groups"))) {
             var group = mapValue(groupValue);
             var tradeName = stringValue(group.get("tradeName"));
+            var phaseName = stringValue(group.get("phaseName"));
+            var rootName = tradeName.isBlank() ? phaseName : tradeName;
             var processName = stringValue(group.get("processName"));
             var floor = stringValue(group.get("floor"));
-            var groupLabel = joinNonBlank(tradeName, processName, floor);
+            var groupLabel = joinNonBlank(rootName, processName, floor);
             for (Object entryValue : listValue(group.get("entries"))) {
                 var entry = mapValue(entryValue);
                 var itemName = stringValue(entry.get("inspectionItemName"));
@@ -556,6 +558,7 @@ public class DocumentSnapshotBuilder {
                         var context = new LinkedHashMap<String, Object>();
                         context.put("dailyGroupLabel", groupLabel);
                         context.put("tradeName", tradeName);
+                        context.put("phaseName", phaseName);
                         context.put("processName", processName);
                         context.put("floor", floor);
                         context.put("inspectionItemName", itemName);
