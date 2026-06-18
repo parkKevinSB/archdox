@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class EngineCatalogBindingReviewService {
     private static final List<String> CATALOG_FIELDS = List.of(
-            "tradeCode",
+            "tradeCode or phaseCode",
             "processCode",
             "inspectionItemCode");
 
@@ -27,9 +27,10 @@ public class EngineCatalogBindingReviewService {
             return reviewSelections(catalogSelections);
         }
         var tradeCode = contextValue(normalizedContext, "tradeCode");
+        var phaseCode = contextValue(normalizedContext, "phaseCode");
         var processCode = contextValue(normalizedContext, "processCode");
         var inspectionItemCode = contextValue(normalizedContext, "inspectionItemCode");
-        var hasAnyCatalogField = !isBlank(tradeCode) || !isBlank(processCode) || !isBlank(inspectionItemCode);
+        var hasAnyCatalogField = !isBlank(tradeCode) || !isBlank(phaseCode) || !isBlank(processCode) || !isBlank(inspectionItemCode);
         if (!hasAnyCatalogField) {
             return new EngineCatalogBindingReviewResult(List.of(), List.of(), Map.of(
                     "catalogReviewApplied", false,
@@ -37,8 +38,8 @@ public class EngineCatalogBindingReviewService {
         }
 
         var missingFields = new ArrayList<String>();
-        if (isBlank(tradeCode)) {
-            missingFields.add("tradeCode");
+        if (isBlank(tradeCode) && isBlank(phaseCode)) {
+            missingFields.add("tradeCode or phaseCode");
         }
         if (isBlank(processCode)) {
             missingFields.add("processCode");
@@ -48,7 +49,7 @@ public class EngineCatalogBindingReviewService {
         }
         if (!missingFields.isEmpty()) {
             return new EngineCatalogBindingReviewResult(
-                    List.of(incompleteSelectionFinding(missingFields, tradeCode, processCode, inspectionItemCode, "context.catalogSelection")),
+                    List.of(incompleteSelectionFinding(missingFields, tradeCode, phaseCode, processCode, inspectionItemCode, "context.catalogSelection")),
                     List.of(),
                     Map.of(
                             "catalogReviewApplied", true,
@@ -58,7 +59,9 @@ public class EngineCatalogBindingReviewService {
         }
 
         try {
-            var selection = catalogService.requireInspectionItemSelection(tradeCode, processCode, inspectionItemCode);
+            var selection = isBlank(phaseCode)
+                    ? catalogService.requireInspectionItemSelection(tradeCode, processCode, inspectionItemCode)
+                    : catalogService.requirePhaseInspectionItemSelection(phaseCode, processCode, inspectionItemCode, null);
             return new EngineCatalogBindingReviewResult(
                     List.of(),
                     List.of(selectionBinding(selection)),
@@ -69,7 +72,7 @@ public class EngineCatalogBindingReviewService {
                             "catalogBindingStatus", "MATCHED"));
         } catch (BadRequestException ex) {
             return new EngineCatalogBindingReviewResult(
-                    List.of(invalidSelectionFinding(ex, tradeCode, processCode, inspectionItemCode, "context.catalogSelection")),
+                    List.of(invalidSelectionFinding(ex, tradeCode, phaseCode, processCode, inspectionItemCode, "context.catalogSelection")),
                     List.of(),
                     Map.of(
                             "catalogReviewApplied", true,
@@ -88,12 +91,13 @@ public class EngineCatalogBindingReviewService {
         for (int index = 0; index < catalogSelections.size(); index++) {
             var selection = catalogSelections.get(index);
             var tradeCode = text(selection.get("tradeCode"));
+            var phaseCode = text(selection.get("phaseCode"));
             var processCode = text(selection.get("processCode"));
             var inspectionItemCode = text(selection.get("inspectionItemCode"));
             var location = firstNonBlank(text(selection.get("location")), "context.catalogSelections[" + index + "]");
             var missingFields = new ArrayList<String>();
-            if (isBlank(tradeCode)) {
-                missingFields.add("tradeCode");
+            if (isBlank(tradeCode) && isBlank(phaseCode)) {
+                missingFields.add("tradeCode or phaseCode");
             }
             if (isBlank(processCode)) {
                 missingFields.add("processCode");
@@ -102,13 +106,15 @@ public class EngineCatalogBindingReviewService {
                 missingFields.add("inspectionItemCode");
             }
             if (!missingFields.isEmpty()) {
-                findings.add(incompleteSelectionFinding(missingFields, tradeCode, processCode, inspectionItemCode, location));
-                metadataSelections.add(selectionMetadata(index, "INCOMPLETE", location, tradeCode, processCode, inspectionItemCode));
+                findings.add(incompleteSelectionFinding(missingFields, tradeCode, phaseCode, processCode, inspectionItemCode, location));
+                metadataSelections.add(selectionMetadata(index, "INCOMPLETE", location, tradeCode, phaseCode, processCode, inspectionItemCode));
                 continue;
             }
 
             try {
-                var catalogSelection = catalogService.requireInspectionItemSelection(tradeCode, processCode, inspectionItemCode);
+                var catalogSelection = isBlank(phaseCode)
+                        ? catalogService.requireInspectionItemSelection(tradeCode, processCode, inspectionItemCode)
+                        : catalogService.requirePhaseInspectionItemSelection(phaseCode, processCode, inspectionItemCode, null);
                 var binding = new LinkedHashMap<>(selectionBinding(catalogSelection));
                 binding.put("location", location);
                 binding.put("selectionIndex", index);
@@ -116,10 +122,10 @@ public class EngineCatalogBindingReviewService {
                 putIfPresent(binding, "groupNo", text(selection.get("groupNo")));
                 putIfPresent(binding, "entryNo", text(selection.get("entryNo")));
                 bindings.add(Map.copyOf(binding));
-                metadataSelections.add(selectionMetadata(index, "MATCHED", location, tradeCode, processCode, inspectionItemCode));
+                metadataSelections.add(selectionMetadata(index, "MATCHED", location, tradeCode, phaseCode, processCode, inspectionItemCode));
             } catch (BadRequestException ex) {
-                findings.add(invalidSelectionFinding(ex, tradeCode, processCode, inspectionItemCode, location));
-                metadataSelections.add(selectionMetadata(index, "INVALID", location, tradeCode, processCode, inspectionItemCode));
+                findings.add(invalidSelectionFinding(ex, tradeCode, phaseCode, processCode, inspectionItemCode, location));
+                metadataSelections.add(selectionMetadata(index, "INVALID", location, tradeCode, phaseCode, processCode, inspectionItemCode));
             }
         }
 
@@ -139,6 +145,7 @@ public class EngineCatalogBindingReviewService {
     private ArchDoxEngineFinding incompleteSelectionFinding(
             List<String> missingFields,
             String tradeCode,
+            String phaseCode,
             String processCode,
             String inspectionItemCode,
             String location
@@ -154,6 +161,7 @@ public class EngineCatalogBindingReviewService {
                 metadata(
                         "DOMAIN_CATALOG_BINDING",
                         tradeCode,
+                        phaseCode,
                         processCode,
                         inspectionItemCode,
                         Map.of("missingFields", missingFields)));
@@ -162,6 +170,7 @@ public class EngineCatalogBindingReviewService {
     private ArchDoxEngineFinding invalidSelectionFinding(
             BadRequestException ex,
             String tradeCode,
+            String phaseCode,
             String processCode,
             String inspectionItemCode,
             String location
@@ -177,6 +186,7 @@ public class EngineCatalogBindingReviewService {
                 metadata(
                         "DOMAIN_CATALOG_BINDING",
                         tradeCode,
+                        phaseCode,
                         processCode,
                         inspectionItemCode,
                         Map.of(
@@ -186,10 +196,13 @@ public class EngineCatalogBindingReviewService {
 
     private Map<String, Object> selectionBinding(SupervisionDomainCatalogService.SupervisionCatalogSelection selection) {
         var binding = new LinkedHashMap<String, Object>();
+        binding.put("groupType", selection.groupType());
         binding.put("catalogCode", selection.catalogCode());
         binding.put("catalogVersion", selection.catalogVersion());
         binding.put("tradeCode", selection.tradeCode());
         binding.put("tradeName", selection.tradeName());
+        binding.put("phaseCode", selection.phaseCode());
+        binding.put("phaseName", selection.phaseName());
         binding.put("processCode", selection.processCode());
         binding.put("processName", selection.processName());
         binding.put("inspectionItemCode", selection.inspectionItemCode());
@@ -202,6 +215,7 @@ public class EngineCatalogBindingReviewService {
     private Map<String, Object> metadata(
             String engineCheck,
             String tradeCode,
+            String phaseCode,
             String processCode,
             String inspectionItemCode,
             Map<String, Object> extra
@@ -212,6 +226,7 @@ public class EngineCatalogBindingReviewService {
         metadata.put("catalogVersion", catalogService.defaultConstructionCatalogVersion());
         metadata.put("requiredFields", CATALOG_FIELDS);
         metadata.put("tradeCode", blankToEmpty(tradeCode));
+        metadata.put("phaseCode", blankToEmpty(phaseCode));
         metadata.put("processCode", blankToEmpty(processCode));
         metadata.put("inspectionItemCode", blankToEmpty(inspectionItemCode));
         if (extra != null) {
@@ -269,6 +284,7 @@ public class EngineCatalogBindingReviewService {
             String status,
             String location,
             String tradeCode,
+            String phaseCode,
             String processCode,
             String inspectionItemCode
     ) {
@@ -277,6 +293,7 @@ public class EngineCatalogBindingReviewService {
         metadata.put("status", status);
         metadata.put("location", location);
         metadata.put("tradeCode", blankToEmpty(tradeCode));
+        metadata.put("phaseCode", blankToEmpty(phaseCode));
         metadata.put("processCode", blankToEmpty(processCode));
         metadata.put("inspectionItemCode", blankToEmpty(inspectionItemCode));
         return Map.copyOf(metadata);

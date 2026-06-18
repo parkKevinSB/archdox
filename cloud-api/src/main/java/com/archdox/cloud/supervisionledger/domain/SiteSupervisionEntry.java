@@ -36,11 +36,20 @@ public class SiteSupervisionEntry {
     @Column(name = "floor_area")
     private String floorArea;
 
+    @Column(name = "group_type")
+    private String groupType;
+
     @Column(name = "trade_code")
     private String tradeCode;
 
     @Column(name = "trade_name")
     private String tradeName;
+
+    @Column(name = "phase_code")
+    private String phaseCode;
+
+    @Column(name = "phase_name")
+    private String phaseName;
 
     @Column(name = "process_code")
     private String processCode;
@@ -125,8 +134,11 @@ public class SiteSupervisionEntry {
             Long siteId,
             LocalDate entryDate,
             String floorArea,
+            String groupType,
             String tradeCode,
             String tradeName,
+            String phaseCode,
+            String phaseName,
             String processCode,
             String processName,
             String inspectionItemCode,
@@ -155,8 +167,11 @@ public class SiteSupervisionEntry {
         this.siteId = siteId;
         this.entryDate = entryDate;
         this.floorArea = floorArea;
+        this.groupType = groupType;
         this.tradeCode = tradeCode;
         this.tradeName = tradeName;
+        this.phaseCode = phaseCode;
+        this.phaseName = phaseName;
         this.processCode = processCode;
         this.processName = processName;
         this.inspectionItemCode = inspectionItemCode;
@@ -207,12 +222,24 @@ public class SiteSupervisionEntry {
         return floorArea;
     }
 
+    public String groupType() {
+        return groupType;
+    }
+
     public String tradeCode() {
         return tradeCode;
     }
 
     public String tradeName() {
         return tradeName;
+    }
+
+    public String phaseCode() {
+        return phaseCode;
+    }
+
+    public String phaseName() {
+        return phaseName;
     }
 
     public String processCode() {

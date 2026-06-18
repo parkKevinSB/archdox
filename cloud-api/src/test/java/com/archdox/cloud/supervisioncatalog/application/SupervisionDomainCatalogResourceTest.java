@@ -40,6 +40,22 @@ class SupervisionDomainCatalogResourceTest {
         assertItemRowRefsExist(atoms);
     }
 
+    @Test
+    void phaseInspectionItemSelectionResolvesFromSelectedModeCatalog() {
+        var selection = catalogService.requirePhaseInspectionItemSelection(
+                "PRE_CONSTRUCTION",
+                "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+                "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                null);
+
+        assertThat(selection.groupType()).isEqualTo("PHASE");
+        assertThat(selection.phaseCode()).isEqualTo("PRE_CONSTRUCTION");
+        assertThat(selection.phaseName()).isEqualTo("공사전 단계");
+        assertThat(selection.processName()).isEqualTo("감리업무 착수준비");
+        assertThat(selection.inspectionItemName()).isEqualTo("당해 공사 관련 설계도서 인수 확인서 작성");
+        assertThat(selection.tradeCode()).isEmpty();
+    }
+
     private void assertModeRefsExist(JsonNode modes, JsonNode atoms) {
         for (Iterator<Map.Entry<String, JsonNode>> modeIterator = modes.fields(); modeIterator.hasNext(); ) {
             var mode = modeIterator.next();

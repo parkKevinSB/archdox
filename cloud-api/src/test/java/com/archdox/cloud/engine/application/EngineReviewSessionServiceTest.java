@@ -107,7 +107,7 @@ class EngineReviewSessionServiceTest {
                         new EngineContextFactRequest(
                                 "inspectionItemCode",
                                 null,
-                                "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                "RC_REBAR_CONFIRMATION",
                                 "CUSTOMER_SYSTEM",
                                 "customer checklist row",
                                 0.88d))),
@@ -132,7 +132,7 @@ class EngineReviewSessionServiceTest {
         assertThat(validation.validationResult().metadata().toString())
                 .contains(
                         "catalogBindings",
-                        "RC_REBAR_COUNT_DIAMETER_PITCH",
+                        "RC_REBAR_CONFIRMATION",
                         "ARCHDOX_WORKER_SERVICE",
                         "LEGAL_RISK_CONTEXT_REVIEW");
         assertThat(result.resultReady()).isTrue();
@@ -204,9 +204,7 @@ class EngineReviewSessionServiceTest {
                                 null,
                                 """
                                         [
-                                          {"tradeCode":"REINFORCED_CONCRETE","processCode":"REBAR_ASSEMBLY","inspectionItemCode":"RC_REBAR_COUNT_DIAMETER_PITCH","location":"extracted[0]"},
-                                          {"tradeCode":"REINFORCED_CONCRETE","processCode":"REBAR_ASSEMBLY","inspectionItemCode":"RC_REBAR_ANCHORAGE","location":"extracted[1]"},
-                                          {"tradeCode":"REINFORCED_CONCRETE","processCode":"REBAR_ASSEMBLY","inspectionItemCode":"RC_REBAR_SPLICE","location":"extracted[2]"},
+                                          {"tradeCode":"REINFORCED_CONCRETE","processCode":"REBAR_ASSEMBLY","inspectionItemCode":"RC_REBAR_CONFIRMATION","location":"extracted[0]"},
                                           {"tradeCode":"INSULATION","processCode":"GENERAL","inspectionItemCode":"INSULATION_MATERIAL","location":"extracted[3]"}
                                         ]
                                         """,
@@ -224,7 +222,6 @@ class EngineReviewSessionServiceTest {
                 .contains(
                         "DAILY_LOG_SPECIAL_NOTES_EMPTY",
                         "DAILY_LOG_ISSUE_AND_ACTION_EMPTY",
-                        "DAILY_LOG_SUPERVISION_RESULT_WORDING_WEAK",
                         "DAILY_LOG_TECHNICAL_DOCUMENT_TRACE_WEAK",
                         "DAILY_LOG_PHOTO_EVIDENCE_NOT_SUPPLIED");
         assertThat(validation.validationResult().nextActions())

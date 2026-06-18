@@ -90,12 +90,61 @@ public class SupervisionDomainCatalogService {
                         normalizedInspectionItemCode));
 
         return new SupervisionCatalogSelection(
+                "TRADE",
                 text(catalog.path("catalogCode")),
                 version(catalog),
                 normalizedTradeCode,
                 text(trade.path("name")),
+                "",
+                "",
                 normalizedProcessCode,
                 text(processGroup.path("name")),
+                normalizedInspectionItemCode,
+                text(item.path("name")),
+                text(item.path("basis")));
+    }
+
+    public SupervisionCatalogSelection requirePhaseInspectionItemSelection(
+            String phaseCode,
+            String processCode,
+            String inspectionItemCode,
+            Long siteId
+    ) {
+        var catalog = catalog(CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24);
+        var normalizedPhaseCode = requiredCode(phaseCode, "phaseCode");
+        var normalizedProcessCode = requiredCode(processCode, "processCode");
+        var normalizedInspectionItemCode = requiredCode(inspectionItemCode, "inspectionItemCode");
+        var modeCatalog = selectedModeCatalog(catalog.path("supervisionWorkModeCatalogs"), resolveSupervisionWorkMode(siteId));
+        var phase = findPhaseRef(modeCatalog.path("phaseRefs"), normalizedPhaseCode)
+                .orElseThrow(() -> badSelection(
+                        "SUPERVISION_CATALOG_PHASE_NOT_FOUND",
+                        "Construction phase code is not defined in the selected supervision catalog",
+                        normalizedPhaseCode));
+        var processGroupRef = findPhaseProcessRef(phase, normalizedProcessCode)
+                .orElseThrow(() -> badSelection(
+                        "SUPERVISION_CATALOG_PHASE_PROCESS_NOT_FOUND",
+                        "Process code is not defined under the selected phase in the supervision catalog",
+                        normalizedProcessCode));
+        if (!containsText(processGroupRef.path("itemRefs"), normalizedInspectionItemCode)) {
+            throw badSelection(
+                    "SUPERVISION_CATALOG_PHASE_INSPECTION_ITEM_NOT_FOUND",
+                    "Inspection item code is not defined under the selected phase/process in the supervision catalog",
+                    normalizedInspectionItemCode);
+        }
+        var atoms = catalog.path("canonicalAtoms");
+        var phaseAtom = atoms.path("constructionPhases").path(normalizedPhaseCode);
+        var processAtom = atoms.path("processGroups").path(normalizedProcessCode);
+        var item = atoms.path("inspectionItems").path(normalizedInspectionItemCode);
+        return new SupervisionCatalogSelection(
+                "PHASE",
+                text(catalog.path("catalogCode")),
+                version(catalog),
+                "",
+                "",
+                normalizedPhaseCode,
+                text(phaseAtom.path("name")),
+                normalizedProcessCode,
+                text(processAtom.path("name")),
                 normalizedInspectionItemCode,
                 text(item.path("name")),
                 text(item.path("basis")));
@@ -288,6 +337,41 @@ public class SupervisionDomainCatalogService {
         return java.util.Optional.empty();
     }
 
+    private java.util.Optional<JsonNode> findPhaseRef(JsonNode phaseRefs, String phaseCode) {
+        if (!phaseRefs.isArray()) {
+            return java.util.Optional.empty();
+        }
+        for (var phaseRef : phaseRefs) {
+            if (phaseCode.equals(normalize(phaseRef.path("phaseCode").asText("")))) {
+                return java.util.Optional.of(phaseRef);
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    private java.util.Optional<JsonNode> findPhaseProcessRef(JsonNode phaseRef, String processCode) {
+        for (var workCategory : phaseRef.path("workCategories")) {
+            for (var processGroupRef : workCategory.path("processGroupRefs")) {
+                if (processCode.equals(normalize(processGroupRef.path("code").asText("")))) {
+                    return java.util.Optional.of(processGroupRef);
+                }
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    private boolean containsText(JsonNode values, String expected) {
+        if (!values.isArray()) {
+            return false;
+        }
+        for (var value : values) {
+            if (expected.equals(normalize(value.asText("")))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private BadRequestException badSelection(String code, String message, String value) {
         return new BadRequestException(
                 code,
@@ -331,10 +415,13 @@ public class SupervisionDomainCatalogService {
     }
 
     public record SupervisionCatalogSelection(
+            String groupType,
             String catalogCode,
             int catalogVersion,
             String tradeCode,
             String tradeName,
+            String phaseCode,
+            String phaseName,
             String processCode,
             String processName,
             String inspectionItemCode,

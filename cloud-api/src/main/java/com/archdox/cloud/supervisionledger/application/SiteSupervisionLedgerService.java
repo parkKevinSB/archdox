@@ -123,16 +123,14 @@ public class SiteSupervisionLedgerService {
                 var supervisionContent = DailySupervisionContentFormatter.formatEntry(item);
                 var photos = photoIds(item);
                 if (isBlank(text(group, "tradeCode"))
+                        && isBlank(text(group, "phaseCode"))
                         && isBlank(text(group, "processCode"))
                         && isBlank(text(item, "inspectionItemCode"))
                         && isBlank(supervisionContent)
                         && photos.isEmpty()) {
                     continue;
                 }
-                var catalogSelection = catalogService.requireInspectionItemSelection(
-                        text(group, "tradeCode"),
-                        text(group, "processCode"),
-                        text(item, "inspectionItemCode"));
+                var catalogSelection = resolveCatalogSelection(group, item, report.siteId());
                 var sourceGroupKey = firstNonBlank(text(group, "id"), "group-" + groupIndex);
                 var sourceItemKey = firstNonBlank(text(item, "id"), "entry-" + itemIndex);
                 entries.add(new SiteSupervisionEntry(
@@ -141,8 +139,11 @@ public class SiteSupervisionLedgerService {
                         report.siteId(),
                         entryDate,
                         trimToNull(text(group, "floor")),
-                        catalogSelection.tradeCode(),
+                        catalogSelection.groupType(),
+                        trimToNull(catalogSelection.tradeCode()),
                         trimToNull(catalogSelection.tradeName()),
+                        trimToNull(catalogSelection.phaseCode()),
+                        trimToNull(catalogSelection.phaseName()),
                         catalogSelection.processCode(),
                         trimToNull(catalogSelection.processName()),
                         catalogSelection.inspectionItemCode(),
@@ -168,6 +169,25 @@ public class SiteSupervisionLedgerService {
             }
         }
         return entries;
+    }
+
+    private com.archdox.cloud.supervisioncatalog.application.SupervisionDomainCatalogService.SupervisionCatalogSelection resolveCatalogSelection(
+            JsonNode group,
+            JsonNode item,
+            Long siteId
+    ) {
+        var groupType = text(group, "groupType");
+        if ("PHASE".equalsIgnoreCase(groupType) || (!isBlank(text(group, "phaseCode")) && isBlank(text(group, "tradeCode")))) {
+            return catalogService.requirePhaseInspectionItemSelection(
+                    text(group, "phaseCode"),
+                    text(group, "processCode"),
+                    text(item, "inspectionItemCode"),
+                    siteId);
+        }
+        return catalogService.requireInspectionItemSelection(
+                text(group, "tradeCode"),
+                text(group, "processCode"),
+                text(item, "inspectionItemCode"));
     }
 
     private List<JsonNode> dailyGroups(Map<String, Object> payload) {
@@ -265,8 +285,11 @@ public class SiteSupervisionLedgerService {
                 entry.siteId(),
                 entry.entryDate(),
                 entry.floorArea(),
+                entry.groupType(),
                 entry.tradeCode(),
                 entry.tradeName(),
+                entry.phaseCode(),
+                entry.phaseName(),
                 entry.processCode(),
                 entry.processName(),
                 entry.inspectionItemCode(),

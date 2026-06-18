@@ -69,6 +69,26 @@ class ReportPreflightEngineBoundaryServiceTest {
     }
 
     @Test
+    void validatesPhaseDailyLogCatalogSelectionsThroughEngineBoundary() {
+        var report = report();
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG"))
+                .thenReturn(Optional.of(step(report, "DAILY_LOG", phaseDailyLogPayload())));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS"))
+                .thenReturn(Optional.of(step(report, "REMARKS", Map.of(
+                        "specialNotes", "특기사항 없음.",
+                        "issueAndAction", "지적사항 및 처리결과 없음."))));
+        when(photoRepository.findByOfficeIdAndReportIdAndStatusNotOrderByIdDesc(10L, 100L, PhotoStatus.DELETED))
+                .thenReturn(List.of());
+
+        var result = service.validate(report, 50L);
+
+        assertThat(result.status()).isEqualTo(ArchDoxEngineResultStatus.PASS);
+        assertThat(result.findings()).isEmpty();
+        assertThat(result.metadata().get("catalogBindings").toString())
+                .contains("PHASE", "PRE_CONSTRUCTION", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A");
+    }
+
+    @Test
     void returnsEngineFindingWhenDailyLogCatalogSelectionIsInvalid() {
         var report = report();
         when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG"))
@@ -146,7 +166,28 @@ class ReportPreflightEngineBoundaryServiceTest {
                         "groups", List.of(Map.of(
                                 "floor", "1F",
                                 "tradeCode", "REINFORCED_CONCRETE",
-                                "processCode", "REBAR_ASSEMBLY",
+                        "processCode", "REBAR_ASSEMBLY",
+                        "entries", List.of(entry)))));
+    }
+
+    private Map<String, Object> phaseDailyLogPayload() {
+        var entry = Map.of(
+                "inspectionItemCode", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                "inspectionItemName", "당해 공사 관련 설계도서 인수 확인서 작성",
+                "checklistRows", List.of(Map.of(
+                        "code", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A",
+                        "label", "당해 공사 관련 설계도서 인수 확인서 작성",
+                        "result", "COMPLIANT",
+                        "photoIds", List.of(1L))));
+        return Map.of(
+                "dailyItems", Map.of(
+                        "groups", List.of(Map.of(
+                                "groupType", "PHASE",
+                                "floor", "-",
+                                "phaseCode", "PRE_CONSTRUCTION",
+                                "phaseName", "공사전 단계",
+                                "processCode", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28",
+                                "processName", "감리업무 착수준비",
                                 "entries", List.of(entry)))));
     }
 }
