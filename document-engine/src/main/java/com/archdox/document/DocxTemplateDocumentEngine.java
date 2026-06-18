@@ -449,22 +449,67 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         if (!documentText.isBlank()) {
             return documentText;
         }
+        var title = valueOrBlank(entry.get("inspectionItemName")).trim();
+        var parentRow = parentChecklistRow(entry, title);
+        var parentInspected = !dailyChecklistResultLabel(valueOrBlank(parentRow.get("result"))).isBlank();
+        var titleLine = dailyChecklistTitleContent(title, parentRow);
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
+            if (row == parentRow) {
+                continue;
+            }
             var rowContent = dailyChecklistRowContent(row);
             if (!rowContent.isBlank()) {
                 rows.add("- " + rowContent);
             }
         }
-        if (rows.isEmpty()) {
+        if (rows.isEmpty() && !parentInspected) {
             return "";
         }
-        var title = valueOrBlank(entry.get("inspectionItemName")).trim();
-        if (!title.isBlank()) {
-            rows.add(0, title);
+        if (titleLine.isBlank() && rows.isEmpty()) {
+            return "";
+        }
+        if (!titleLine.isBlank()) {
+            rows.add(0, titleLine);
         }
         return String.join("\n", rows);
+    }
+
+    private String dailyChecklistTitleContent(String title, Map<String, Object> parentRow) {
+        if (title.isBlank()) {
+            return "";
+        }
+        var result = dailyChecklistResultLabel(valueOrBlank(parentRow.get("result")));
+        if (result.isBlank()) {
+            return title;
+        }
+        var referenceNote = valueOrBlank(parentRow.get("referenceNote")).trim();
+        var actionNote = valueOrBlank(parentRow.get("actionNote")).trim();
+        var parts = new ArrayList<String>();
+        parts.add(title);
+        parts.add(result);
+        if (!referenceNote.isBlank()) {
+            parts.add("기준·참고: " + referenceNote);
+        }
+        if (!actionNote.isBlank()) {
+            parts.add("조치사항: " + actionNote);
+        }
+        return String.join(" / ", parts);
+    }
+
+    private Map<String, Object> parentChecklistRow(Map<String, Object> entry, String title) {
+        var itemCode = valueOrBlank(entry.get("inspectionItemCode")).trim();
+        for (Object rowValue : listValue(entry.get("checklistRows"))) {
+            var row = mapValue(rowValue);
+            var rowCode = valueOrBlank(row.get("code")).trim();
+            var rowLabel = valueOrBlank(row.get("label")).trim();
+            if ((!itemCode.isBlank() && itemCode.equals(rowCode))
+                    || (!title.isBlank() && title.equals(rowLabel))) {
+                return row;
+            }
+        }
+        return Map.of();
     }
 
     private String dailyChecklistRowContent(Map<String, Object> row) {

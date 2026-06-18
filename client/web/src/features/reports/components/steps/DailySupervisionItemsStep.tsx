@@ -1297,14 +1297,46 @@ function buildSupervisionContent(entry: DailySupervisionEntry) {
   if (entry.checklistRows.length === 0) {
     return "";
   }
+  const title = entry.inspectionItemName ? `${entry.inspectionItemName}` : "";
+  const parentRow = entry.checklistRows.find((row) => isParentChecklistRow(entry, row));
+  const parentInspected = parentRow?.result === "COMPLIANT" || parentRow?.result === "NON_COMPLIANT";
+  const titleLine = title ? checklistTitleContent(title, parentRow) : "";
   const rows = entry.checklistRows
+    .filter((row) => row !== parentRow)
     .map((row) => checklistRowContent(row))
     .filter(Boolean);
-  if (rows.length === 0) {
+  if (rows.length === 0 && !parentInspected) {
     return "";
   }
-  const title = entry.inspectionItemName ? `${entry.inspectionItemName}` : "";
-  return [title, ...rows.map((row) => `- ${row}`)].filter(Boolean).join("\n");
+  if (!titleLine && rows.length === 0) {
+    return "";
+  }
+  return [titleLine, ...rows.map((row) => `- ${row}`)].filter(Boolean).join("\n");
+}
+
+function checklistTitleContent(title: string, parentRow?: DailyChecklistRow) {
+  if (!parentRow || (parentRow.result !== "COMPLIANT" && parentRow.result !== "NON_COMPLIANT")) {
+    return title;
+  }
+  const parts = [title];
+  const result = resultLabel(parentRow.result);
+  if (result) {
+    parts.push(result);
+  }
+  if (parentRow.referenceNote.trim()) {
+    parts.push(`기준·참고: ${parentRow.referenceNote.trim()}`);
+  }
+  if (parentRow.actionNote.trim()) {
+    parts.push(`조치사항: ${parentRow.actionNote.trim()}`);
+  }
+  return parts.join(" / ");
+}
+
+function isParentChecklistRow(entry: DailySupervisionEntry, row: DailyChecklistRow) {
+  return Boolean(
+    (entry.inspectionItemCode && row.code === entry.inspectionItemCode)
+      || (entry.inspectionItemName && row.label === entry.inspectionItemName)
+  );
 }
 
 function checklistRowContent(row: DailyChecklistRow) {
