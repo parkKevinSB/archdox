@@ -11,7 +11,13 @@ export type ReportFormValues = {
 
 export type ReportStepCode = string;
 
-export type ReportStepType = "FORM" | "CHECKLIST" | "PHOTO" | "DAILY_SUPERVISION_ITEMS" | (string & {});
+export type ReportStepType =
+  | "FORM"
+  | "CHECKLIST"
+  | "CHECKLIST_SOURCE"
+  | "PHOTO"
+  | "DAILY_SUPERVISION_ITEMS"
+  | (string & {});
 
 export type ReportStepSavePolicy = "ON_NAVIGATE";
 

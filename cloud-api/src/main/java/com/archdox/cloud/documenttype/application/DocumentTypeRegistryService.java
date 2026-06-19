@@ -20,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class DocumentTypeRegistryService {
     private static final List<String> CURRENT_CONSTRUCTION_SUPERVISION_TYPES = List.of(
             "CONSTRUCTION_DAILY_SUPERVISION_LOG",
-            "CONSTRUCTION_SUPERVISION_REPORT");
+            "CONSTRUCTION_SUPERVISION_REPORT",
+            "CONSTRUCTION_SUPERVISION_CHECKLIST");
 
     private final DocumentTypeDefinitionRepository repository;
 
@@ -169,7 +170,8 @@ public class DocumentTypeRegistryService {
         var normalized = normalizeCode(value);
         if ("CHECKLIST".equals(normalized)
                 || "PHOTO".equals(normalized)
-                || "DAILY_SUPERVISION_ITEMS".equals(normalized)) {
+                || "DAILY_SUPERVISION_ITEMS".equals(normalized)
+                || "CHECKLIST_SOURCE".equals(normalized)) {
             return normalized;
         }
         return "FORM";

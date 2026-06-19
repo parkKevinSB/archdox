@@ -12,6 +12,8 @@ import com.archdox.document.OutputFormat;
 import org.junit.jupiter.api.Test;
 
 class DocumentGenerationRoutingServiceTest {
+    private static final String CHECKLIST_REPORT_TYPE = "CONSTRUCTION_SUPERVISION_CHECKLIST";
+
     @Test
     void routesToArchDoxAgentWhenCompatibleAgentIsAvailable() {
         var service = service(true);
@@ -43,6 +45,35 @@ class DocumentGenerationRoutingServiceTest {
 
         var error = assertThrows(BadRequestException.class, () ->
                 service.route(10L, OutputFormat.PDF, DocumentWorkerType.ARCHDOX_AGENT));
+
+        assertEquals("DOCUMENT_WORKER_UNSUPPORTED", error.code());
+    }
+
+    @Test
+    void routesChecklistDocxToCloudApiWithoutAgent() {
+        var service = service(false);
+
+        assertEquals(
+                DocumentWorkerType.CLOUD_API,
+                service.route(10L, CHECKLIST_REPORT_TYPE, OutputFormat.DOCX, null));
+    }
+
+    @Test
+    void rejectsChecklistPdfForCloudApiRoute() {
+        var service = service(false);
+
+        var error = assertThrows(BadRequestException.class, () ->
+                service.route(10L, CHECKLIST_REPORT_TYPE, OutputFormat.PDF, null));
+
+        assertEquals("DOCUMENT_WORKER_UNSUPPORTED", error.code());
+    }
+
+    @Test
+    void rejectsExplicitCloudApiRouteForNonChecklistReport() {
+        var service = service(false);
+
+        var error = assertThrows(BadRequestException.class, () ->
+                service.route(10L, "CONSTRUCTION_DAILY_SUPERVISION_LOG", OutputFormat.DOCX, DocumentWorkerType.CLOUD_API));
 
         assertEquals("DOCUMENT_WORKER_UNSUPPORTED", error.code());
     }

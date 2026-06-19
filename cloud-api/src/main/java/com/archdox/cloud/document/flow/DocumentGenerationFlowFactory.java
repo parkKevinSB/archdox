@@ -5,6 +5,7 @@ import com.archdox.cloud.document.application.DocumentGenerationProperties;
 import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.document.event.DocumentGenerationRequested;
 import com.archdox.cloud.document.flow.step.ArchDoxAgentDocumentRenderStep;
+import com.archdox.cloud.document.flow.step.GenerateChecklistDocumentStep;
 import com.archdox.cloud.document.flow.step.ValidateDocumentJobStep;
 import io.github.parkkevinsb.flower.core.flow.Flow;
 import java.util.concurrent.Executor;
@@ -35,6 +36,8 @@ public class DocumentGenerationFlowFactory {
     public Flow create(DocumentGenerationRequested event) {
         return Flow.builder(FLOW_TYPE, "job:" + event.documentJobId())
                 .step("validate-job", new ValidateDocumentJobStep(
+                        documentJobService, event, documentGenerationExecutor, properties))
+                .step("generate-checklist-document", new GenerateChecklistDocumentStep(
                         documentJobService, event, documentGenerationExecutor, properties))
                 .step("render-archdox-agent-document", new ArchDoxAgentDocumentRenderStep(
                         documentJobService, archDoxAgentCommandService, event, properties))

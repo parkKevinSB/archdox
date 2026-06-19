@@ -166,6 +166,9 @@ export function statusLabel(status: string) {
 }
 
 export function reportTypeLabel(reportType: string) {
+  if (reportType === "CONSTRUCTION_SUPERVISION_CHECKLIST") {
+    return "감리 체크리스트";
+  }
   const labels: Record<string, string> = {
     CONSTRUCTION_DAILY_LOG: "공사감리일지",
     CONSTRUCTION_DAILY_SUPERVISION_LOG: "공사감리일지",

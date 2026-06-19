@@ -1,5 +1,7 @@
 import { request } from "../../api/http";
 import type {
+  ChecklistPrintResponse,
+  ChecklistPrintType,
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
   DocumentJobResponse,
@@ -164,6 +166,39 @@ export function applyReportPreflightReviewFindingFix(
   );
 }
 
+export function fetchChecklistPrintPreview(
+  token: string,
+  officeId: number,
+  reportId: number,
+  type: ChecklistPrintType
+) {
+  return request<ChecklistPrintResponse>(`/api/v1/inspection-reports/${reportId}/checklist-print-preview?type=${type}`, {
+    token,
+    officeId
+  });
+}
+
+export async function downloadChecklistPrintDocx(
+  token: string,
+  officeId: number,
+  reportId: number,
+  type: ChecklistPrintType
+) {
+  const downloadUrl = `/api/v1/inspection-reports/${reportId}/checklist-print-docx?type=${type}`;
+  const response = await fetch(new URL(`${API_BASE}${downloadUrl}`, window.location.origin), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Office-Id": String(officeId)
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`체크리스트 DOCX 다운로드에 실패했습니다. (${response.status})`);
+  }
+  const fileName = contentDispositionFileName(response.headers.get("Content-Disposition"))
+    ?? `archdox-checklist-${reportId}-${type.toLowerCase()}.docx`;
+  await saveDownloadBlob(await response.blob(), fileName);
+}
+
 export async function downloadDocumentUrl(
   token: string,
   officeId: number,
@@ -179,7 +214,10 @@ export async function downloadDocumentUrl(
   if (!response.ok) {
     throw new Error(`다운로드 요청에 실패했습니다. (${response.status})`);
   }
-  const blob = await response.blob();
+  await saveDownloadBlob(await response.blob(), fileName);
+}
+
+async function saveDownloadBlob(blob: Blob, fileName: string) {
   const objectUrl = window.URL.createObjectURL(blob);
   try {
     const link = document.createElement("a");
@@ -191,6 +229,26 @@ export async function downloadDocumentUrl(
   } finally {
     window.URL.revokeObjectURL(objectUrl);
   }
+}
+
+function contentDispositionFileName(value: string | null) {
+  if (!value) {
+    return null;
+  }
+  const encodedMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1].trim());
+    } catch {
+      return encodedMatch[1].trim();
+    }
+  }
+  const quotedMatch = value.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1].trim();
+  }
+  const plainMatch = value.match(/filename=([^;]+)/i);
+  return plainMatch?.[1]?.trim() ?? null;
 }
 
 export async function fetchDocumentTextUrl(

@@ -1,5 +1,6 @@
 package com.archdox.cloud.document.application;
 
+import com.archdox.cloud.checklistprint.application.ChecklistDocxExportService;
 import com.archdox.cloud.assignment.domain.AssignmentStatus;
 import com.archdox.cloud.assignment.domain.ProjectAssignmentRole;
 import com.archdox.cloud.assignment.domain.ReportAssignmentRole;
@@ -49,9 +50,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.bloom.EventBus;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,6 +70,9 @@ import com.archdox.shared.OfficeType;
 
 @Service
 public class DocumentJobService {
+    private static final String REPORT_TYPE_CHECKLIST = "CONSTRUCTION_SUPERVISION_CHECKLIST";
+    private static final String DOCX_MIME_TYPE =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final int MAX_SIGNATURE_DATA_URL_LENGTH = 1_000_000;
     private static final int MAX_SIGNATURE_IMAGE_BYTES = 750_000;
     private static final Set<String> SUPPORTED_SIGNATURE_MIME_TYPES = Set.of(
@@ -91,6 +98,7 @@ public class DocumentJobService {
     private final DocumentSnapshotBuilder snapshotBuilder;
     private final DocumentGenerationRoutingService routingService;
     private final DocumentPreflightGateService preflightGateService;
+    private final ChecklistDocxExportService checklistDocxExportService;
     private final ObjectMapper objectMapper;
 
     public DocumentJobService(
@@ -112,6 +120,7 @@ public class DocumentJobService {
             DocumentSnapshotBuilder snapshotBuilder,
             DocumentGenerationRoutingService routingService,
             DocumentPreflightGateService preflightGateService,
+            ChecklistDocxExportService checklistDocxExportService,
             ObjectMapper objectMapper
     ) {
         this.inspectionReportService = inspectionReportService;
@@ -132,6 +141,7 @@ public class DocumentJobService {
         this.snapshotBuilder = snapshotBuilder;
         this.routingService = routingService;
         this.preflightGateService = preflightGateService;
+        this.checklistDocxExportService = checklistDocxExportService;
         this.objectMapper = objectMapper;
     }
 
@@ -145,7 +155,7 @@ public class DocumentJobService {
         requirePhotoAssetsReadyForGeneration(report);
         var outputFormat = createRequest.normalizedOutputFormat();
         var officeId = OfficeContext.requireCurrentOfficeId();
-        var workerType = routingService.route(officeId, outputFormat, createRequest.workerType());
+        var workerType = routingService.route(officeId, report.reportType(), outputFormat, createRequest.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
         var renderOverrides = renderOverrides(createRequest);
@@ -622,6 +632,86 @@ public class DocumentJobService {
                 completedAt));
     }
 
+    @Transactional(readOnly = true)
+    public boolean isCloudApiChecklistDocument(Long officeId, Long jobId) {
+        var job = requireFlowJob(officeId, jobId);
+        var report = requireFlowReport(officeId, job.reportId());
+        return job.workerType() == DocumentWorkerType.CLOUD_API
+                && REPORT_TYPE_CHECKLIST.equals(report.reportType());
+    }
+
+    @Transactional
+    public void completeCloudApiChecklistDocument(Long officeId, Long jobId) {
+        var job = requireFlowJob(officeId, jobId);
+        var report = requireFlowReport(officeId, job.reportId());
+        if (job.status() == DocumentJobStatus.GENERATED) {
+            return;
+        }
+        if (job.workerType() != DocumentWorkerType.CLOUD_API) {
+            throw new DocumentGenerationException(
+                    "UNSUPPORTED_WORKER_TYPE",
+                    "Document job is not routed to CLOUD_API");
+        }
+        if (!REPORT_TYPE_CHECKLIST.equals(report.reportType())) {
+            throw new DocumentGenerationException(
+                    "UNSUPPORTED_REPORT_TYPE",
+                    "CLOUD_API document generation only supports construction supervision checklist reports");
+        }
+        if (job.outputFormat() != OutputFormat.DOCX) {
+            throw new DocumentGenerationException(
+                    "UNSUPPORTED_OUTPUT_FORMAT",
+                    "Construction supervision checklist generation currently supports DOCX only");
+        }
+
+        var now = OffsetDateTime.now();
+        job.markGenerating(now);
+        report.markGenerating(now);
+        job.updateProgress(
+                DocumentJobProgressStep.RENDERING,
+                70,
+                "선택한 감리일지를 기준으로 체크리스트 DOCX를 생성하는 중입니다.",
+                now);
+        var export = checklistDocxExportService.exportSystem(officeId, report.id(), null);
+        var storageRef = checklistStorageRef(job, export.fileName());
+        try {
+            objectStore.write(storageRef, export.content());
+        } catch (IOException ex) {
+            throw new DocumentGenerationException(
+                    "DOCUMENT_ARTIFACT_WRITE_FAILED",
+                    "Failed to save checklist DOCX artifact",
+                    ex);
+        }
+
+        job.updateProgress(
+                DocumentJobProgressStep.STORING_ARTIFACTS,
+                90,
+                "체크리스트 DOCX 파일 정보를 저장하는 중입니다.",
+                OffsetDateTime.now());
+        documentArtifactRepository.deleteByDocumentJobId(job.id());
+        var artifact = documentArtifactRepository.save(new DocumentArtifact(
+                job.officeId(),
+                job.id(),
+                job.reportId(),
+                DocumentArtifactType.DOCX,
+                DocumentArtifactStorageKind.API_LOCAL,
+                storageRef,
+                export.fileName(),
+                DOCX_MIME_TYPE,
+                export.content().length,
+                sha256(export.content()),
+                OffsetDateTime.now()));
+        var completedAt = OffsetDateTime.now();
+        job.markGenerated(completedAt);
+        report.markGenerated(job.reportRevision(), completedAt);
+        recordGenerated(job, "체크리스트 DOCX 생성이 완료되었습니다.", 1);
+        publishAfterCommit(new DocumentGeneratedEvent(
+                job.officeId(),
+                job.reportId(),
+                job.id(),
+                List.of(artifact.id()),
+                completedAt));
+    }
+
     @Transactional
     public void markGenerationFailed(Long officeId, Long jobId, String errorCode, String errorMessage) {
         var job = requireFlowJob(officeId, jobId);
@@ -695,6 +785,27 @@ public class DocumentJobService {
             return normalized.substring(index + 1);
         }
         return "template.docx";
+    }
+
+    private String checklistStorageRef(DocumentJob job, String fileName) {
+        return "documents/offices/%d/reports/%d/jobs/%d/%s".formatted(
+                job.officeId(),
+                job.reportId(),
+                job.id(),
+                safeFileName(fileName));
+    }
+
+    private String safeFileName(String fileName) {
+        var normalized = fileName == null || fileName.isBlank() ? "checklist.docx" : fileName.trim();
+        return normalized.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private String sha256(byte[] content) {
+        try {
+            return "sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is not available", ex);
+        }
     }
 
     private boolean shouldPreferBundledTemplate(String storageRef) {

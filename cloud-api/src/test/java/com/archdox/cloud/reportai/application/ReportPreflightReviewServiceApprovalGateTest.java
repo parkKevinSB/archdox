@@ -185,6 +185,50 @@ class ReportPreflightReviewServiceApprovalGateTest {
     }
 
     @Test
+    void applyingSafeSpecialNotesFixUpdatesRemarksPayload() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");
+        var report = report(now);
+        report.submit(now);
+        var run = run(now);
+        var finding = aiWordFixFinding(
+                300L,
+                "REMARKS.payload.specialNotes",
+                "LOW",
+                Map.of(
+                        "category", "WORDING",
+                        "replacement", "특기사항 없이 이상 없습니다."),
+                now);
+        var step = new InspectionReportStep(
+                report,
+                "REMARKS",
+                PayloadStorageMode.CLOUD_ENCRYPTED,
+                Map.of(
+                        "specialNotes", "특기사항 없이 완벽함",
+                        "nextAction", "기존 다음 조치"),
+                7L,
+                now);
+        arrange(report, run, finding);
+        when(findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(10L, 200L)).thenReturn(List.of(finding));
+        when(stepRepository.findByReportIdAndStepCode(100L, "REMARKS")).thenReturn(Optional.of(step));
+        when(inspectionReportService.applyPreflightFixStep(eq(100L), eq("REMARKS"), any(SaveInspectionStepRequest.class), any()))
+                .thenReturn(new InspectionStepResponse("REMARKS", PayloadStorageMode.CLOUD_ENCRYPTED, Map.of(), 2, now));
+
+        service.applyFindingFix(
+                100L,
+                200L,
+                300L,
+                new UserPrincipal(7L, "writer@test.co.kr"));
+
+        var requestCaptor = ArgumentCaptor.forClass(SaveInspectionStepRequest.class);
+        verify(inspectionReportService).applyPreflightFixStep(eq(100L), eq("REMARKS"), requestCaptor.capture(), any());
+        assertThat(requestCaptor.getValue().payload())
+                .containsEntry("specialNotes", "특기사항 없이 이상 없습니다.")
+                .containsEntry("nextAction", "기존 다음 조치");
+        assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
+    }
+
+    @Test
     void applyingSafeAiFixToGeneratedReportUsesApprovedCorrectionPathWithoutReopen() {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-10T01:00:00+09:00");

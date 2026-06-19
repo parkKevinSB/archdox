@@ -72,6 +72,29 @@ class DocumentGenerationFlowFactoryTest {
     }
 
     @Test
+    void cloudApiChecklistDocumentCompletesWithoutAgentDispatch() {
+        var service = mock(DocumentJobService.class);
+        var commands = mock(ArchDoxAgentCommandService.class);
+        when(service.isCloudApiChecklistDocument(10L, 700L)).thenReturn(true);
+        var bloom = LocalEventBus.create();
+        var worker = workerWith(bloom);
+        worker.submit(new DocumentGenerationFlowFactory(service, commands, Runnable::run, properties())
+                .create(event(DocumentWorkerType.CLOUD_API)));
+
+        tick(worker, 8);
+
+        verify(service).validateJobReady(10L, 700L);
+        verify(service).completeCloudApiChecklistDocument(10L, 700L);
+        verify(service, never()).buildArchDoxAgentRenderCommandPayload(10L, 700L);
+        verify(commands, never()).enqueueDocumentRender(
+                org.mockito.Mockito.anyLong(),
+                org.mockito.Mockito.anyLong(),
+                org.mockito.Mockito.anyMap(),
+                org.mockito.Mockito.anyInt(),
+                org.mockito.Mockito.anyInt());
+    }
+
+    @Test
     void archDoxAgentRenderPublishesFailureWhenAgentReportsFailure() {
         var service = mock(DocumentJobService.class);
         var commands = mock(ArchDoxAgentCommandService.class);

@@ -338,6 +338,11 @@ public class ReportPreflightReviewService {
         var location = !relatedFieldPath.isBlank()
                 ? relatedFieldPath
                 : finding.location() == null ? "" : finding.location().trim();
+        if (location.endsWith("REMARKS.specialNotes")
+                || location.endsWith("REMARKS.payload.specialNotes")
+                || "REMARKS.specialNotes".equals(location)) {
+            return FindingFixTarget.remarks("specialNotes");
+        }
         if (location.endsWith("REMARKS.issueAndAction")
                 || location.endsWith("REMARKS.payload.issueAndAction")
                 || "REMARKS.issueAndAction".equals(location)) {

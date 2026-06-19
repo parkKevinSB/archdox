@@ -1,5 +1,6 @@
 package com.archdox.cloud.document.domain;
 
 public enum DocumentWorkerType {
-    ARCHDOX_AGENT
+    ARCHDOX_AGENT,
+    CLOUD_API
 }

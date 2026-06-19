@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class DocumentGenerationRoutingService {
+    private static final String REPORT_TYPE_CHECKLIST = "CONSTRUCTION_SUPERVISION_CHECKLIST";
+
     private final ArchDoxAgentCommandService agentCommandService;
 
     public DocumentGenerationRoutingService(ArchDoxAgentCommandService agentCommandService) {
@@ -17,12 +19,23 @@ public class DocumentGenerationRoutingService {
 
     public DocumentWorkerType route(
             Long officeId,
+            String reportType,
             OutputFormat outputFormat,
             DocumentWorkerType requestedWorkerType
     ) {
         var normalizedOutputFormat = outputFormat == null ? OutputFormat.DOCX : outputFormat;
+        if (isChecklistReport(reportType)) {
+            if (requestedWorkerType != null) {
+                validateExplicitRoute(officeId, normalizedOutputFormat, requestedWorkerType, true);
+                return requestedWorkerType;
+            }
+            if (normalizedOutputFormat == OutputFormat.DOCX) {
+                return DocumentWorkerType.CLOUD_API;
+            }
+            throw unsupported(DocumentWorkerType.CLOUD_API, normalizedOutputFormat);
+        }
         if (requestedWorkerType != null) {
-            validateExplicitRoute(officeId, normalizedOutputFormat, requestedWorkerType);
+            validateExplicitRoute(officeId, normalizedOutputFormat, requestedWorkerType, false);
             return requestedWorkerType;
         }
         if (agentCommandService.hasDocumentRenderTarget(officeId, normalizedOutputFormat)) {
@@ -31,16 +44,32 @@ public class DocumentGenerationRoutingService {
         throw unavailable(normalizedOutputFormat);
     }
 
+    public DocumentWorkerType route(
+            Long officeId,
+            OutputFormat outputFormat,
+            DocumentWorkerType requestedWorkerType
+    ) {
+        return route(officeId, null, outputFormat, requestedWorkerType);
+    }
+
     private void validateExplicitRoute(
             Long officeId,
             OutputFormat outputFormat,
-            DocumentWorkerType workerType
+            DocumentWorkerType workerType,
+            boolean allowCloudApi
     ) {
         if (workerType == DocumentWorkerType.ARCHDOX_AGENT
                 && agentCommandService.hasDocumentRenderTarget(officeId, outputFormat)) {
             return;
         }
+        if (allowCloudApi && workerType == DocumentWorkerType.CLOUD_API && outputFormat == OutputFormat.DOCX) {
+            return;
+        }
         throw unsupported(workerType, outputFormat);
+    }
+
+    private boolean isChecklistReport(String reportType) {
+        return REPORT_TYPE_CHECKLIST.equals(reportType);
     }
 
     private BadRequestException unavailable(OutputFormat outputFormat) {

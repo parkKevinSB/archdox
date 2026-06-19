@@ -1666,6 +1666,17 @@ button {
   text-overflow: ellipsis;
 }
 
+.document-checklist-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.document-checklist-actions .secondary-button {
+  justify-content: center;
+}
+
 .document-preview-backdrop {
   position: fixed;
   z-index: 60;
@@ -2861,6 +2872,150 @@ button {
   color: #60746f;
   font-size: 12px;
   font-weight: 750;
+}
+
+.checklist-source-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.checklist-source-section,
+.checklist-source-summary,
+.checklist-source-list {
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.checklist-source-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.checklist-source-section-head,
+.checklist-source-summary,
+.checklist-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checklist-source-section-head svg,
+.checklist-source-summary svg {
+  flex: 0 0 auto;
+  color: #1f6f63;
+}
+
+.checklist-source-section-head strong {
+  display: block;
+  color: #162321;
+  font-size: 14px;
+}
+
+.checklist-source-section-head span,
+.checklist-source-row small,
+.checklist-source-empty {
+  color: #60746f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.checklist-source-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #cfd9d8;
+  border-radius: 8px;
+  background: #eef4f2;
+}
+
+.checklist-source-segmented button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #40514e;
+  font-weight: 900;
+}
+
+.checklist-source-segmented button.active {
+  background: #ffffff;
+  color: #0c4f47;
+  box-shadow: 0 6px 16px rgb(31 111 99 / 0.12);
+}
+
+.checklist-source-date-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.checklist-source-date-range label {
+  display: grid;
+  gap: 7px;
+  color: #40514e;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.checklist-source-date-range input {
+  min-height: 40px;
+  border: 1px solid #cfd9d8;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+
+.checklist-source-summary {
+  min-height: 44px;
+  padding: 10px 12px;
+  color: #40514e;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.checklist-source-summary strong {
+  color: #0c4f47;
+}
+
+.checklist-source-list {
+  display: grid;
+  overflow: hidden;
+}
+
+.checklist-source-row {
+  min-height: 58px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e4ecea;
+}
+
+.checklist-source-row:last-child {
+  border-bottom: 0;
+}
+
+.checklist-source-row.active {
+  background: #f4fbf8;
+}
+
+.checklist-source-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.checklist-source-row span {
+  display: grid;
+  gap: 3px;
+}
+
+.checklist-source-row strong {
+  color: #162321;
+  font-size: 13px;
+}
+
+.checklist-source-empty {
+  margin: 0;
+  padding: 16px;
 }
 
 .daily-supervision-groups {

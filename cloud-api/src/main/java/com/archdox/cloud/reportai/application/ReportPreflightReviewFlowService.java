@@ -30,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReportPreflightReviewFlowService {
+    private static final String REPORT_TYPE_CHECKLIST = "CONSTRUCTION_SUPERVISION_CHECKLIST";
+
     private final InspectionReportRepository reportRepository;
     private final ReportPreflightReviewRunRepository runRepository;
     private final ReportPreflightReviewFindingRepository findingRepository;
@@ -86,7 +88,8 @@ public class ReportPreflightReviewFlowService {
         var workerActionSubmission = workerActionSubmissionService.submitAfterCommit(
                 engineResult,
                 workerActionSubmissionRequest(request, report));
-        var aiReviewPlanned = aiHarnessFlowService.canCreate(report, request.requestedBy());
+        var aiReviewPlanned = !REPORT_TYPE_CHECKLIST.equals(report.reportType())
+                && aiHarnessFlowService.canCreate(report, request.requestedBy());
         var result = withCarriedOpenFindings(
                 request,
                 run,
@@ -143,6 +146,9 @@ public class ReportPreflightReviewFlowService {
         }
         var report = reportRepository.findByIdAndOfficeId(request.reportId(), request.officeId())
                 .orElseThrow(() -> new NotFoundException("Inspection report not found"));
+        if (REPORT_TYPE_CHECKLIST.equals(report.reportType())) {
+            return false;
+        }
         return aiHarnessFlowService.canCreate(report, request.requestedBy());
     }
 
@@ -236,6 +242,11 @@ public class ReportPreflightReviewFlowService {
             return false;
         }
         if ("DETERMINISTIC_PREFLIGHT_BLOCKED".equals(run.terminalReason())) {
+            return false;
+        }
+        var report = reportRepository.findByIdAndOfficeId(request.reportId(), request.officeId())
+                .orElseThrow(() -> new NotFoundException("Inspection report not found"));
+        if (REPORT_TYPE_CHECKLIST.equals(report.reportType())) {
             return false;
         }
         return true;

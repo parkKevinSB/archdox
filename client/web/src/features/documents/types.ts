@@ -14,7 +14,7 @@ export type DocumentJobProgressStep =
   | "GENERATED"
   | "FAILED";
 
-export type DocumentWorkerType = "ARCHDOX_AGENT";
+export type DocumentWorkerType = "ARCHDOX_AGENT" | "CLOUD_API";
 export type DocumentOutputFormat = "DOCX" | "HTML" | "HTML_AND_PDF" | "PDF" | "DOCX_AND_PDF" | "HWP" | "HWPX";
 export type DocumentArtifactType = "DOCX" | "HTML" | "PDF" | "HWP" | "HWPX";
 export type DocumentArtifactStorageKind = "API_LOCAL" | "ARCHDOX_AGENT" | "S3_COMPATIBLE";
@@ -174,3 +174,55 @@ export type ReportPreflightLegalReferenceResponse = {
 
 export type ReportPreflightRunsByReport = Record<number, ReportPreflightReviewRunResponse[]>;
 export type ReportPreflightFindingsByRun = Record<number, ReportPreflightReviewFindingResponse[]>;
+
+export type ChecklistPrintType = "TRADE" | "PHASE" | "ALL";
+
+export type ChecklistPrintRowResponse = {
+  workCategoryCode: string;
+  workCategoryName: string;
+  processCode: string;
+  processName: string;
+  inspectionItemCode: string;
+  inspectionItemName: string;
+  rowCode: string;
+  rowLabel: string;
+  basis: string;
+  referenceNote: string;
+  result: "" | "COMPLIANT" | "NON_COMPLIANT" | string;
+  actionNote: string;
+  checked: boolean;
+};
+
+export type ChecklistPrintDocumentResponse = {
+  checklistType: ChecklistPrintType;
+  title: string;
+  documentNo: string;
+  supervisionWorkMode: string;
+  supervisionWorkModeName: string;
+  tradeGroupCode: string;
+  tradeGroupName: string;
+  tradeCode: string;
+  tradeName: string;
+  subTradeCode: string;
+  subTradeName: string;
+  constructionPhaseCode: string;
+  constructionPhaseName: string;
+  floorArea: string;
+  location: string;
+  totalRowCount: number;
+  checkedRowCount: number;
+  rows: ChecklistPrintRowResponse[];
+};
+
+export type ChecklistPrintResponse = {
+  reportId: number;
+  reportNo: string;
+  reportTitle: string;
+  reportType: string;
+  checklistType: ChecklistPrintType;
+  checklistTypeName: string;
+  documentCount: number;
+  checkedRowCount: number;
+  documents: ChecklistPrintDocumentResponse[];
+  html: string;
+};

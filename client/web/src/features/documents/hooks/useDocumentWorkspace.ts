@@ -9,7 +9,9 @@ import {
   createDocumentJob,
   defaultDownloadFileName,
   directArtifactDownloadUrl,
+  downloadChecklistPrintDocx,
   downloadDocumentUrl,
+  fetchChecklistPrintPreview,
   fetchDocumentTextUrl,
   listDocumentDeliveryRequestsByJob,
   listDocumentJobsByReport,
@@ -19,6 +21,8 @@ import {
   resolveReportPreflightReviewFinding
 } from "../api";
 import type {
+  ChecklistPrintResponse,
+  ChecklistPrintType,
   DocumentArtifactResponse,
   DocumentNarrativeApplyResponse,
   DocumentDeliveriesByJob,
@@ -82,7 +86,17 @@ export type DocumentPreviewState = {
   job: DocumentJobResponse;
 };
 
+export type ChecklistPrintPreviewState = {
+  html: string;
+  response: ChecklistPrintResponse;
+};
+
 type InspectionStepsByReport = Record<number, InspectionStep[]>;
+
+type ChecklistPrintPreviewInput = {
+  reportId: number;
+  type: ChecklistPrintType;
+};
 
 const documentReportStatuses = new Set([
   "STEP_SAVED",
@@ -96,6 +110,7 @@ const documentReportStatuses = new Set([
 export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, token }: UseDocumentWorkspaceOptions) {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<DocumentPreviewState | null>(null);
+  const [checklistPreview, setChecklistPreview] = useState<ChecklistPrintPreviewState | null>(null);
   const [autoPreviewHtmlJobId, setAutoPreviewHtmlJobId] = useState<number | null>(null);
   const documentReports = reports.filter((report) =>
     documentReportStatuses.has(report.status) && (report.status !== "STEP_SAVED" || report.contentRevision > (report.submittedRevision ?? 0))
@@ -317,6 +332,30 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     }
   });
 
+  const checklistPreviewMutation = useMutation({
+    mutationFn: async ({ reportId, type }: ChecklistPrintPreviewInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return fetchChecklistPrintPreview(token, officeId, reportId, type);
+    },
+    onSuccess: (response) => {
+      setChecklistPreview({
+        html: response.html,
+        response
+      });
+    }
+  });
+
+  const checklistDocxDownloadMutation = useMutation({
+    mutationFn: async ({ reportId, type }: ChecklistPrintPreviewInput) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return downloadChecklistPrintDocx(token, officeId, reportId, type);
+    }
+  });
+
   const requestDeliveryMutation = useMutation({
     mutationFn: async ({ artifact, job }: { artifact: DocumentArtifactResponse; job: DocumentJobResponse }) => {
       if (!officeId) {
@@ -449,6 +488,8 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
   }, [autoPreviewHtmlJobId, jobsQuery.data, jobsQuery.dataUpdatedAt, previewArtifactMutation.isPending]);
 
   return {
+    checklistPreview,
+    closeChecklistPreview: () => setChecklistPreview(null),
     closePreview: () => setPreview(null),
     createDocumentJob: createJobMutation.mutateAsync,
     creatingOutputFormat: createJobMutation.isPending ? createJobMutation.variables?.outputFormat ?? null : null,
@@ -457,11 +498,15 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
     downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? polishNarrativeMutation.error ?? applyNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? checklistPreviewMutation.error ?? checklistDocxDownloadMutation.error ?? polishNarrativeMutation.error ?? applyNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
     loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading || stepsQuery.isLoading,
     preview,
     previewArtifact: previewArtifactMutation.mutateAsync,
+    previewChecklistPrint: checklistPreviewMutation.mutateAsync,
+    downloadChecklistPrintDocx: checklistDocxDownloadMutation.mutateAsync,
+    downloadingChecklist: checklistDocxDownloadMutation.isPending ? checklistDocxDownloadMutation.variables ?? null : null,
+    previewingChecklist: checklistPreviewMutation.isPending ? checklistPreviewMutation.variables ?? null : null,
     previewingArtifactId: previewArtifactMutation.isPending ? previewArtifactMutation.variables?.artifact.id ?? null : null,
     applyDocumentNarrativeToReport: applyNarrativeMutation.mutateAsync as (input: ApplyNarrativeInput) => Promise<DocumentNarrativeApplyResponse>,
     applyingNarrativeReportId: applyNarrativeMutation.isPending ? applyNarrativeMutation.variables?.reportId ?? null : null,

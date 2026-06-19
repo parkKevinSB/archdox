@@ -301,7 +301,8 @@ public class ReportWorkflowDefinitionService {
         var normalized = normalizeCode(value);
         if ("CHECKLIST".equals(normalized)
                 || "PHOTO".equals(normalized)
-                || "DAILY_SUPERVISION_ITEMS".equals(normalized)) {
+                || "DAILY_SUPERVISION_ITEMS".equals(normalized)
+                || "CHECKLIST_SOURCE".equals(normalized)) {
             return normalized;
         }
         return "FORM";
