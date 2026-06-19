@@ -59,13 +59,42 @@
   "catalogModel": {
     "version": 1,
     "pattern": "ATOMIC_CHECKLIST_ITEMS_WITH_MODE_REFS",
-    "canonicalAtoms": "공종, 세부공정, 검사항목, 세부 감리항목은 canonicalAtoms에 한 번만 정의합니다.",
-    "modeRefs": "비상주, 상주, 책임상주 카탈로그는 supervisionWorkModeCatalogs.*.tradeRefs에서 원자 항목을 참조합니다.",
-    "runtimeProjection": "기존 UI 호환을 위한 trades 투영은 trade part에서 병합합니다. phaseRefs는 selectedSupervisionWorkModeCatalog.phaseRefs로 사용합니다.",
+    "canonicalAtoms": "공종그룹, 공종, 세부공정, 검사항목, 세부 감리항목은 canonicalAtoms에 한 번만 정의합니다.",
+    "modeRefs": "비상주, 상주, 책임상주 카탈로그는 supervisionWorkModeCatalogs.*.tradeRefs와 phaseRefs에서 원자 항목을 참조합니다.",
+    "runtimeProjection": "기존 UI 호환을 위한 flat tradeRefs/phaseRefs는 유지하고, 공종그룹/단계별 내부그룹 UI를 위한 tradeGroupRefs/phaseChecklistGroupRefs를 런타임에서 투영합니다.",
     "rule": "동일한 세부 감리항목은 새 코드를 만들지 않고 같은 row code를 재사용하고, 모드별 추가 항목만 새 atom으로 추가합니다.",
     "partFiles": "공종별 체크리스트와 단계별 감리업무 체크리스트는 별도 part 파일로 보관하고 런타임에 하나의 논리 카탈로그로 병합합니다."
   },
-  "canonicalAtoms": {},
+  "canonicalAtoms": {
+    "tradeGroups": {
+      "ARCHITECTURE": {
+        "code": "ARCHITECTURE",
+        "name": "건축"
+      },
+      "MECHANICAL": {
+        "code": "MECHANICAL",
+        "name": "기계설비"
+      },
+      "ELECTRICAL": {
+        "code": "ELECTRICAL",
+        "name": "전기설비"
+      },
+      "COMMUNICATION": {
+        "code": "COMMUNICATION",
+        "name": "통신 및 약전설비"
+      },
+      "FIRE_FIGHTING": {
+        "code": "FIRE_FIGHTING",
+        "name": "소화·소방 설비"
+      }
+    },
+    "phaseChecklistGroups": {
+      "PHASE_SUPERVISION": {
+        "code": "PHASE_SUPERVISION",
+        "name": "단계별 감리업무"
+      }
+    }
+  },
   "documentLayoutPolicy": {
     "canonicalData": "report snapshot + workflow revision + domain catalog version + template/layout revision",
     "defaultOfficialLayout": {

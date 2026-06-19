@@ -199,8 +199,12 @@ public class EngineCatalogBindingReviewService {
         binding.put("groupType", selection.groupType());
         binding.put("catalogCode", selection.catalogCode());
         binding.put("catalogVersion", selection.catalogVersion());
+        binding.put("tradeGroupCode", selection.tradeGroupCode());
+        binding.put("tradeGroupName", selection.tradeGroupName());
         binding.put("tradeCode", selection.tradeCode());
         binding.put("tradeName", selection.tradeName());
+        binding.put("phaseChecklistGroupCode", selection.phaseChecklistGroupCode());
+        binding.put("phaseChecklistGroupName", selection.phaseChecklistGroupName());
         binding.put("phaseCode", selection.phaseCode());
         binding.put("phaseName", selection.phaseName());
         binding.put("processCode", selection.processCode());

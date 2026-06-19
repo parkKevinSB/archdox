@@ -39,6 +39,12 @@ public class SiteSupervisionEntry {
     @Column(name = "group_type")
     private String groupType;
 
+    @Column(name = "trade_group_code")
+    private String tradeGroupCode;
+
+    @Column(name = "trade_group_name")
+    private String tradeGroupName;
+
     @Column(name = "trade_code")
     private String tradeCode;
 
@@ -50,6 +56,12 @@ public class SiteSupervisionEntry {
 
     @Column(name = "phase_name")
     private String phaseName;
+
+    @Column(name = "phase_checklist_group_code")
+    private String phaseChecklistGroupCode;
+
+    @Column(name = "phase_checklist_group_name")
+    private String phaseChecklistGroupName;
 
     @Column(name = "process_code")
     private String processCode;
@@ -135,8 +147,12 @@ public class SiteSupervisionEntry {
             LocalDate entryDate,
             String floorArea,
             String groupType,
+            String tradeGroupCode,
+            String tradeGroupName,
             String tradeCode,
             String tradeName,
+            String phaseChecklistGroupCode,
+            String phaseChecklistGroupName,
             String phaseCode,
             String phaseName,
             String processCode,
@@ -168,8 +184,12 @@ public class SiteSupervisionEntry {
         this.entryDate = entryDate;
         this.floorArea = floorArea;
         this.groupType = groupType;
+        this.tradeGroupCode = tradeGroupCode;
+        this.tradeGroupName = tradeGroupName;
         this.tradeCode = tradeCode;
         this.tradeName = tradeName;
+        this.phaseChecklistGroupCode = phaseChecklistGroupCode;
+        this.phaseChecklistGroupName = phaseChecklistGroupName;
         this.phaseCode = phaseCode;
         this.phaseName = phaseName;
         this.processCode = processCode;
@@ -226,6 +246,14 @@ public class SiteSupervisionEntry {
         return groupType;
     }
 
+    public String tradeGroupCode() {
+        return tradeGroupCode;
+    }
+
+    public String tradeGroupName() {
+        return tradeGroupName;
+    }
+
     public String tradeCode() {
         return tradeCode;
     }
@@ -240,6 +268,14 @@ public class SiteSupervisionEntry {
 
     public String phaseName() {
         return phaseName;
+    }
+
+    public String phaseChecklistGroupCode() {
+        return phaseChecklistGroupCode;
+    }
+
+    public String phaseChecklistGroupName() {
+        return phaseChecklistGroupName;
     }
 
     public String processCode() {

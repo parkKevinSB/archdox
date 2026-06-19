@@ -91,6 +91,7 @@ class SiteSupervisionLedgerServiceTest {
         var entry = saved.getFirst();
         assertThat(entry.groupType()).isEqualTo("PHASE");
         assertThat(entry.tradeCode()).isNull();
+        assertThat(entry.phaseChecklistGroupCode()).isEqualTo("PHASE_SUPERVISION");
         assertThat(entry.phaseCode()).isEqualTo("PRE_CONSTRUCTION");
         assertThat(entry.processCode()).isEqualTo("PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_PG_FC0767BB28");
         assertThat(entry.inspectionItemCode()).isEqualTo("PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A");

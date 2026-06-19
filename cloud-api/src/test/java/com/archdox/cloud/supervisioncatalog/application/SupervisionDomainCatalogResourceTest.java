@@ -21,13 +21,25 @@ class SupervisionDomainCatalogResourceTest {
                 .isEqualTo("철근 콘크리트 공사");
 
         var modes = catalog.path("supervisionWorkModeCatalogs");
+        assertThat(atoms.path("tradeGroups").path("ARCHITECTURE").path("code").asText())
+                .isEqualTo("ARCHITECTURE");
+        assertThat(atoms.path("phaseChecklistGroups").path("PHASE_SUPERVISION").path("code").asText())
+                .isEqualTo("PHASE_SUPERVISION");
         assertThat(modes.path("NON_RESIDENT").path("tradeRefs").path(0).path("tradeCode").asText())
+                .isEqualTo("REINFORCED_CONCRETE");
+        assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeGroupCode").asText())
+                .isEqualTo("ARCHITECTURE");
+        assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeRefs").path(0).path("tradeCode").asText())
                 .isEqualTo("REINFORCED_CONCRETE");
         assertThat(modes.path("RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
                 .isEqualTo(79);
         assertThat(modes.path("RESPONSIBLE_RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
                 .isEqualTo(132);
         assertThat(modes.path("NON_RESIDENT").path("phaseRefs").path(0).path("phaseCode").asText())
+                .isEqualTo("PRE_CONSTRUCTION");
+        assertThat(modes.path("NON_RESIDENT").path("phaseChecklistGroupRefs").path(0).path("phaseChecklistGroupCode").asText())
+                .isEqualTo("PHASE_SUPERVISION");
+        assertThat(modes.path("NON_RESIDENT").path("phaseChecklistGroupRefs").path(0).path("phaseRefs").path(0).path("phaseCode").asText())
                 .isEqualTo("PRE_CONSTRUCTION");
         assertThat(modes.path("NON_RESIDENT").path("phaseRefs").size()).isEqualTo(3);
         assertThat(modes.path("RESIDENT").path("phaseRefs").size()).isEqualTo(3);
@@ -49,11 +61,27 @@ class SupervisionDomainCatalogResourceTest {
                 null);
 
         assertThat(selection.groupType()).isEqualTo("PHASE");
+        assertThat(selection.phaseChecklistGroupCode()).isEqualTo("PHASE_SUPERVISION");
         assertThat(selection.phaseCode()).isEqualTo("PRE_CONSTRUCTION");
         assertThat(selection.phaseName()).isEqualTo("공사전 단계");
         assertThat(selection.processName()).isEqualTo("감리업무 착수준비");
         assertThat(selection.inspectionItemName()).isEqualTo("당해 공사 관련 설계도서 인수 확인서 작성");
         assertThat(selection.tradeCode()).isEmpty();
+    }
+
+    @Test
+    void tradeInspectionItemSelectionIncludesTradeGroup() {
+        var selection = catalogService.requireInspectionItemSelection(
+                "REINFORCED_CONCRETE",
+                "REBAR_ASSEMBLY",
+                "RC_REBAR_CONFIRMATION");
+
+        assertThat(selection.groupType()).isEqualTo("TRADE");
+        assertThat(selection.tradeGroupCode()).isEqualTo("ARCHITECTURE");
+        assertThat(selection.tradeCode()).isEqualTo("REINFORCED_CONCRETE");
+        assertThat(selection.processCode()).isEqualTo("REBAR_ASSEMBLY");
+        assertThat(selection.inspectionItemCode()).isEqualTo("RC_REBAR_CONFIRMATION");
+        assertThat(selection.phaseChecklistGroupCode()).isEmpty();
     }
 
     private void assertModeRefsExist(JsonNode modes, JsonNode atoms) {

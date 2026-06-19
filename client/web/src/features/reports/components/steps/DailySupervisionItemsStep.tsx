@@ -11,8 +11,10 @@ import type {
   SupervisionCatalogChecklistRow,
   SupervisionCatalogItem,
   SupervisionCatalogPhase,
+  SupervisionCatalogPhaseChecklistGroup,
   SupervisionCatalogProcessGroup,
   SupervisionCatalogTrade,
+  SupervisionCatalogTradeGroup,
   SupervisionDomainCatalog
 } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
@@ -43,10 +45,14 @@ type DailySupervisionGroup = {
   floor: string;
   groupType?: "TRADE" | "PHASE";
   id: string;
+  phaseChecklistGroupCode?: string;
+  phaseChecklistGroupName?: string;
   phaseCode?: string;
   phaseName?: string;
   processCode?: string;
   processName: string;
+  tradeGroupCode?: string;
+  tradeGroupName?: string;
   tradeCode?: string;
   tradeName: string;
   workCategory?: string;
@@ -97,8 +103,10 @@ export function DailySupervisionItemsStep({
   const shouldShowCatalogCoverageNotice = Boolean(
     selectedCatalogCoverage?.status && selectedCatalogCoverage.status !== "READY"
   );
-  const trades = catalog?.trades ?? [];
+  const trades = useMemo(() => tradeOptions(catalog), [catalog]);
+  const tradeGroups = useMemo(() => tradeGroupOptions(catalog, trades), [catalog, trades]);
   const phases = useMemo(() => phaseOptions(catalog), [catalog]);
+  const phaseChecklistGroups = useMemo(() => phaseChecklistGroupOptions(catalog), [catalog]);
   const floorOptions = catalog?.floorOptions ?? [];
   const processOptions = catalog?.processOptions ?? [];
 
@@ -146,8 +154,7 @@ export function DailySupervisionItemsStep({
   }
 
   function addTradeGroup() {
-    const defaultTrade = trades[0] ?? null;
-    const defaultCategory = defaultTrade ? workCategoryOptions(defaultTrade)[0] : null;
+    const defaultTradeGroup = tradeGroups[0] ?? null;
     updateGroups((current) => [
       ...current,
       {
@@ -156,18 +163,23 @@ export function DailySupervisionItemsStep({
         groupType: "TRADE",
         id: newId("group"),
         processName: "",
+        tradeGroupCode: defaultTradeGroup?.code,
+        tradeGroupName: defaultTradeGroup?.name ?? "",
         phaseCode: undefined,
         phaseName: undefined,
-        tradeCode: defaultTrade?.code,
-        tradeName: defaultTrade?.name ?? "",
-        workCategory: defaultCategory?.code,
-        workCategoryName: defaultCategory?.name
+        phaseChecklistGroupCode: undefined,
+        phaseChecklistGroupName: undefined,
+        tradeCode: undefined,
+        tradeName: "",
+        workCategory: undefined,
+        workCategoryName: undefined
       }
     ]);
   }
 
   function addPhaseGroup() {
     const defaultPhase = phases[0] ?? null;
+    const defaultPhaseChecklistGroup = phaseChecklistGroups[0] ?? null;
     const defaultCategory = defaultPhase ? workCategoryOptions(defaultPhase)[0] : null;
     updateGroups((current) => [
       ...current,
@@ -176,9 +188,13 @@ export function DailySupervisionItemsStep({
         floor: "-",
         groupType: "PHASE",
         id: newId("group"),
+        phaseChecklistGroupCode: defaultPhaseChecklistGroup?.code,
+        phaseChecklistGroupName: defaultPhaseChecklistGroup?.name ?? "",
         phaseCode: defaultPhase?.code,
         phaseName: defaultPhase?.name,
         processName: "",
+        tradeGroupCode: undefined,
+        tradeGroupName: undefined,
         tradeCode: undefined,
         tradeName: "",
         workCategory: defaultCategory?.code,
@@ -210,16 +226,39 @@ export function DailySupervisionItemsStep({
       }));
   }
 
+  function selectTradeGroup(groupId: string, tradeGroupCode: string) {
+    const selected = tradeGroups.find((group) => group.code === tradeGroupCode);
+    updateGroup(groupId, {
+      groupType: "TRADE",
+      phaseChecklistGroupCode: undefined,
+      phaseChecklistGroupName: undefined,
+      phaseCode: undefined,
+      phaseName: undefined,
+      processCode: undefined,
+      processName: "",
+      tradeCode: undefined,
+      tradeGroupCode: selected?.code,
+      tradeGroupName: selected?.name ?? "",
+      tradeName: "",
+      workCategory: undefined,
+      workCategoryName: undefined
+    });
+  }
+
   function selectTrade(groupId: string, tradeCode: string) {
     const selected = trades.find((trade) => trade.code === tradeCode);
     const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
     updateGroup(groupId, {
       groupType: "TRADE",
+      phaseChecklistGroupCode: undefined,
+      phaseChecklistGroupName: undefined,
       phaseCode: undefined,
       phaseName: undefined,
       processCode: undefined,
       processName: "",
       tradeCode: selected?.code,
+      tradeGroupCode: selected?.tradeGroupCode,
+      tradeGroupName: selected?.tradeGroupName ?? "",
       tradeName: selected?.name ?? "",
       workCategory: defaultCategory?.code,
       workCategoryName: defaultCategory?.name
@@ -231,10 +270,14 @@ export function DailySupervisionItemsStep({
     const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
     updateGroup(groupId, {
       groupType: "PHASE",
+      phaseChecklistGroupCode: phaseChecklistGroups[0]?.code,
+      phaseChecklistGroupName: phaseChecklistGroups[0]?.name ?? "",
       phaseCode: selected?.code,
       phaseName: selected?.name ?? "",
       processCode: undefined,
       processName: "",
+      tradeGroupCode: undefined,
+      tradeGroupName: undefined,
       tradeCode: undefined,
       tradeName: "",
       workCategory: defaultCategory?.code,
@@ -470,16 +513,32 @@ export function DailySupervisionItemsStep({
                     </select>
                   </label>
                 ) : (
+                  <>
+                  {tradeGroups.length > 0 ? (
+                    <label>
+                      공종그룹
+                      <select
+                        disabled={!canWriteReports}
+                        onChange={(event) => selectTradeGroup(group.id, event.target.value)}
+                        value={group.tradeGroupCode ?? ""}
+                      >
+                        <option value="">공종그룹 선택</option>
+                        {tradeGroups.map((entry) => (
+                          <option key={entry.code} value={entry.code}>{entry.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   <label>
                     공종
                     {trades.length > 0 ? (
                       <select
-                        disabled={!canWriteReports}
+                        disabled={!canWriteReports || (tradeGroups.length > 0 && !group.tradeGroupCode)}
                         onChange={(event) => selectTrade(group.id, event.target.value)}
                         value={group.tradeCode ?? ""}
                       >
                         <option value="">공종 선택</option>
-                        {trades.map((entry) => (
+                        {tradesForGroup(group, trades).map((entry) => (
                           <option key={entry.code} value={entry.code}>{entry.name}</option>
                         ))}
                       </select>
@@ -492,6 +551,7 @@ export function DailySupervisionItemsStep({
                       />
                     )}
                   </label>
+                  </>
                 )}
                 <div className="daily-work-category-field">
                   <span>업무구분</span>
@@ -1172,6 +1232,86 @@ function selectedProcessGroup(
     ?? null;
 }
 
+function tradeOptions(catalog: SupervisionDomainCatalog | null): SupervisionCatalogTrade[] {
+  const modeTradeRefs = catalog?.selectedSupervisionWorkModeCatalog?.tradeRefs;
+  const trades = catalog?.trades ?? [];
+  if (!modeTradeRefs?.length) {
+    return trades;
+  }
+  const byCode = new Map(trades.map((trade) => [trade.code, trade]));
+  return modeTradeRefs
+    .map((tradeRef) => byCode.get(tradeRef.tradeCode))
+    .filter(Boolean) as SupervisionCatalogTrade[];
+}
+
+function tradeGroupOptions(
+  catalog: SupervisionDomainCatalog | null,
+  trades: SupervisionCatalogTrade[]
+): SupervisionCatalogTradeGroup[] {
+  const modeGroupRefs = catalog?.selectedSupervisionWorkModeCatalog?.tradeGroupRefs;
+  if (modeGroupRefs?.length) {
+    return modeGroupRefs
+      .map((groupRef) => ({
+        code: groupRef.tradeGroupCode,
+        name: groupRef.tradeGroupName
+          ?? catalog?.canonicalAtoms?.tradeGroups?.[groupRef.tradeGroupCode]?.name
+          ?? groupRef.tradeGroupCode,
+        tradeRefs: groupRef.tradeRefs ?? []
+      }))
+      .filter((group) => group.code && group.name);
+  }
+  const byCode = new Map<string, SupervisionCatalogTradeGroup>();
+  trades.forEach((trade) => {
+    const code = trade.tradeGroupCode ?? trade.discipline ?? "";
+    if (!code || byCode.has(code)) {
+      return;
+    }
+    byCode.set(code, {
+      code,
+      name: trade.tradeGroupName
+        ?? catalog?.canonicalAtoms?.tradeGroups?.[code]?.name
+        ?? code,
+      tradeRefs: trades
+        .filter((candidate) => (candidate.tradeGroupCode ?? candidate.discipline) === code)
+        .map((candidate) => ({ tradeCode: candidate.code }))
+    });
+  });
+  return [...byCode.values()];
+}
+
+function tradesForGroup(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[]) {
+  if (!group.tradeGroupCode) {
+    return trades;
+  }
+  return trades.filter((trade) => (trade.tradeGroupCode ?? trade.discipline) === group.tradeGroupCode);
+}
+
+function phaseChecklistGroupOptions(catalog: SupervisionDomainCatalog | null): SupervisionCatalogPhaseChecklistGroup[] {
+  const modeGroupRefs = catalog?.selectedSupervisionWorkModeCatalog?.phaseChecklistGroupRefs;
+  if (modeGroupRefs?.length) {
+    return modeGroupRefs
+      .map((groupRef) => ({
+        code: groupRef.phaseChecklistGroupCode,
+        name: groupRef.phaseChecklistGroupName
+          ?? catalog?.canonicalAtoms?.phaseChecklistGroups?.[groupRef.phaseChecklistGroupCode]?.name
+          ?? groupRef.phaseChecklistGroupCode,
+        phaseRefs: groupRef.phaseRefs ?? []
+      }))
+      .filter((group) => group.code && group.name);
+  }
+  const atoms = catalog?.canonicalAtoms?.phaseChecklistGroups;
+  if (!atoms) {
+    return [];
+  }
+  return Object.values(atoms)
+    .map((atom) => ({
+      code: atom.code,
+      name: atom.name,
+      phaseRefs: catalog?.selectedSupervisionWorkModeCatalog?.phaseRefs ?? []
+    }))
+    .filter((group) => group.code && group.name);
+}
+
 function phaseOptions(catalog: SupervisionDomainCatalog | null): SupervisionCatalogPhase[] {
   const phaseRefs = catalog?.selectedSupervisionWorkModeCatalog?.phaseRefs ?? [];
   const atoms = catalog?.canonicalAtoms;
@@ -1412,10 +1552,14 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
     floor: text(raw.floor),
     groupType: raw.groupType === "PHASE" ? "PHASE" : "TRADE",
     id: text(raw.id) || newId(`group-${index}`),
+    phaseChecklistGroupCode: optionalText(raw.phaseChecklistGroupCode),
+    phaseChecklistGroupName: optionalText(raw.phaseChecklistGroupName),
     phaseCode: optionalText(raw.phaseCode),
     phaseName: optionalText(raw.phaseName),
     processCode: optionalText(raw.processCode),
     processName: text(raw.processName),
+    tradeGroupCode: optionalText(raw.tradeGroupCode),
+    tradeGroupName: optionalText(raw.tradeGroupName),
     tradeCode: optionalText(raw.tradeCode),
     tradeName: text(raw.tradeName),
     workCategory: optionalText(raw.workCategory),

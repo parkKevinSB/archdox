@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 public class SupervisionDomainCatalogService {
     public static final String CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24 =
             "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
+    private static final String PHASE_CHECKLIST_GROUP_CODE = "PHASE_SUPERVISION";
+    private static final String PHASE_CHECKLIST_GROUP_NAME = "단계별 감리업무";
 
     private static final Map<String, String> RESOURCE_BY_CODE = Map.of(
             CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24,
@@ -93,6 +95,10 @@ public class SupervisionDomainCatalogService {
                 "TRADE",
                 text(catalog.path("catalogCode")),
                 version(catalog),
+                text(trade.path("tradeGroupCode")),
+                text(trade.path("tradeGroupName")),
+                "",
+                "",
                 normalizedTradeCode,
                 text(trade.path("name")),
                 "",
@@ -139,6 +145,10 @@ public class SupervisionDomainCatalogService {
                 "PHASE",
                 text(catalog.path("catalogCode")),
                 version(catalog),
+                "",
+                "",
+                PHASE_CHECKLIST_GROUP_CODE,
+                PHASE_CHECKLIST_GROUP_NAME,
                 "",
                 "",
                 normalizedPhaseCode,
@@ -246,7 +256,9 @@ public class SupervisionDomainCatalogService {
         }
         try (var input = new ClassPathResource(resourcePath).getInputStream()) {
             var manifest = objectMapper.readTree(input);
-            return mergeCatalogParts(manifest);
+            var merged = mergeCatalogParts(manifest);
+            applyChecklistGroupProjections((ObjectNode) merged);
+            return merged;
         } catch (IOException ex) {
             throw new UncheckedIOException("Failed to read supervision domain catalog: " + normalized, ex);
         }
@@ -323,6 +335,113 @@ public class SupervisionDomainCatalogService {
                 target.set(fieldName, sourceValue.deepCopy());
             }
         });
+    }
+
+    private void applyChecklistGroupProjections(ObjectNode catalog) {
+        applyTradeGroupMetadata(catalog);
+        applyModeTradeGroupRefs(catalog);
+        applyModePhaseChecklistGroupRefs(catalog);
+    }
+
+    private void applyTradeGroupMetadata(ObjectNode catalog) {
+        var tradeGroups = catalog.path("canonicalAtoms").path("tradeGroups");
+        for (var trade : catalog.withArray("/trades")) {
+            if (trade instanceof ObjectNode tradeObject) {
+                applyTradeGroupMetadata(tradeObject, tradeGroups);
+            }
+        }
+        var tradeAtoms = catalog.path("canonicalAtoms").path("trades");
+        if (tradeAtoms instanceof ObjectNode tradeAtomObjects) {
+            tradeAtomObjects.fields().forEachRemaining(entry -> {
+                if (entry.getValue() instanceof ObjectNode tradeObject) {
+                    applyTradeGroupMetadata(tradeObject, tradeGroups);
+                }
+            });
+        }
+    }
+
+    private void applyTradeGroupMetadata(ObjectNode trade, JsonNode tradeGroups) {
+        var groupCode = firstNonBlank(text(trade.path("tradeGroupCode")), text(trade.path("discipline")));
+        if (groupCode.isBlank()) {
+            return;
+        }
+        trade.put("tradeGroupCode", groupCode);
+        trade.put("tradeGroupName", text(tradeGroups.path(groupCode).path("name")));
+    }
+
+    private void applyModeTradeGroupRefs(ObjectNode catalog) {
+        var modes = catalog.path("supervisionWorkModeCatalogs");
+        if (!(modes instanceof ObjectNode modeObjects)) {
+            return;
+        }
+        var tradesByCode = tradesByCode(catalog);
+        modeObjects.fields().forEachRemaining(entry -> {
+            if (!(entry.getValue() instanceof ObjectNode modeCatalog)) {
+                return;
+            }
+            var tradeRefs = modeCatalog.path("tradeRefs");
+            if (!tradeRefs.isArray() || tradeRefs.isEmpty()) {
+                return;
+            }
+            var grouped = new LinkedHashMap<String, ArrayNode>();
+            var groupNames = new LinkedHashMap<String, String>();
+            for (var tradeRef : tradeRefs) {
+                var tradeCode = text(tradeRef.path("tradeCode"));
+                var trade = tradesByCode.get(tradeCode);
+                var groupCode = trade == null ? "" : text(trade.path("tradeGroupCode"));
+                if (groupCode.isBlank()) {
+                    groupCode = "ARCHITECTURE";
+                }
+                grouped.computeIfAbsent(groupCode, ignored -> objectMapper.createArrayNode()).add(tradeRef.deepCopy());
+                var groupName = trade == null ? "" : text(trade.path("tradeGroupName"));
+                groupNames.putIfAbsent(groupCode, groupName);
+            }
+            var groupRefs = objectMapper.createArrayNode();
+            grouped.forEach((groupCode, refs) -> {
+                var groupRef = objectMapper.createObjectNode();
+                groupRef.put("tradeGroupCode", groupCode);
+                groupRef.put("tradeGroupName", groupNames.getOrDefault(groupCode, ""));
+                groupRef.set("tradeRefs", refs);
+                groupRefs.add(groupRef);
+            });
+            modeCatalog.set("tradeGroupRefs", groupRefs);
+        });
+    }
+
+    private void applyModePhaseChecklistGroupRefs(ObjectNode catalog) {
+        var modes = catalog.path("supervisionWorkModeCatalogs");
+        if (!(modes instanceof ObjectNode modeObjects)) {
+            return;
+        }
+        var configuredGroup = catalog.path("canonicalAtoms").path("phaseChecklistGroups").path(PHASE_CHECKLIST_GROUP_CODE);
+        var groupName = firstNonBlank(text(configuredGroup.path("name")), PHASE_CHECKLIST_GROUP_NAME);
+        modeObjects.fields().forEachRemaining(entry -> {
+            if (!(entry.getValue() instanceof ObjectNode modeCatalog)) {
+                return;
+            }
+            var phaseRefs = modeCatalog.path("phaseRefs");
+            if (!phaseRefs.isArray() || phaseRefs.isEmpty()) {
+                return;
+            }
+            var groupRef = objectMapper.createObjectNode();
+            groupRef.put("phaseChecklistGroupCode", PHASE_CHECKLIST_GROUP_CODE);
+            groupRef.put("phaseChecklistGroupName", groupName);
+            groupRef.set("phaseRefs", phaseRefs.deepCopy());
+            var groupRefs = objectMapper.createArrayNode();
+            groupRefs.add(groupRef);
+            modeCatalog.set("phaseChecklistGroupRefs", groupRefs);
+        });
+    }
+
+    private Map<String, JsonNode> tradesByCode(JsonNode catalog) {
+        var result = new LinkedHashMap<String, JsonNode>();
+        for (var trade : catalog.path("trades")) {
+            var code = text(trade.path("code"));
+            if (!code.isBlank()) {
+                result.put(code, trade);
+            }
+        }
+        return result;
     }
 
     private java.util.Optional<JsonNode> findByCode(JsonNode array, String code) {
@@ -414,10 +533,18 @@ public class SupervisionDomainCatalogService {
         return catalogCode == null ? "" : catalogCode.trim().toUpperCase();
     }
 
+    private String firstNonBlank(String first, String second) {
+        return first == null || first.isBlank() ? (second == null ? "" : second.trim()) : first.trim();
+    }
+
     public record SupervisionCatalogSelection(
             String groupType,
             String catalogCode,
             int catalogVersion,
+            String tradeGroupCode,
+            String tradeGroupName,
+            String phaseChecklistGroupCode,
+            String phaseChecklistGroupName,
             String tradeCode,
             String tradeName,
             String phaseCode,

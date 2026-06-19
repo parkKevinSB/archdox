@@ -57,7 +57,7 @@ class ReportPreflightEngineBoundaryServiceTest {
         assertThat(result.status()).isEqualTo(ArchDoxEngineResultStatus.PASS);
         assertThat(result.findings()).isEmpty();
         assertThat(result.metadata().get("catalogBindings").toString())
-                .contains("REINFORCED_CONCRETE", "REBAR_ASSEMBLY", "RC_REBAR_CONFIRMATION");
+                .contains("ARCHITECTURE", "REINFORCED_CONCRETE", "REBAR_ASSEMBLY", "RC_REBAR_CONFIRMATION");
         assertThat(result.metadata().get("governanceBoundary")).isEqualTo("ARCHDOX_WORKER_SERVICE");
         assertThat(result.executedActions())
                 .containsExactly(
@@ -85,7 +85,7 @@ class ReportPreflightEngineBoundaryServiceTest {
         assertThat(result.status()).isEqualTo(ArchDoxEngineResultStatus.PASS);
         assertThat(result.findings()).isEmpty();
         assertThat(result.metadata().get("catalogBindings").toString())
-                .contains("PHASE", "PRE_CONSTRUCTION", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A");
+                .contains("PHASE", "PHASE_SUPERVISION", "PRE_CONSTRUCTION", "PHASE_NON_RESIDENT_PRE_CONSTRUCTION_BASIC_IT_3C8CC2930A");
     }
 
     @Test
