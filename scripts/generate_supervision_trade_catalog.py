@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TRANSCRIPTION_DIR = ROOT / "docs" / "reference-forms" / "korean" / "체크리스트json"
+TRANSCRIPTION_DIR = ROOT / "docs" / "reference-forms" / "korean" / "construction-supervision-checklist-2020-12-24"
 MANIFEST_PATH = ROOT / "cloud-api" / "src" / "main" / "resources" / "domain-catalogs" / "construction-supervision-checklist-2020-12-24.json"
 PART_PATH = ROOT / "cloud-api" / "src" / "main" / "resources" / "domain-catalogs" / "construction-supervision-checklist-2020-12-24" / "trade-checklist.json"
 
@@ -141,7 +141,7 @@ def write_json(path, data):
 
 def find_transcriptions():
     result = {}
-    for path in TRANSCRIPTION_DIR.glob("공종별체크리스트_*.json"):
+    for path in TRANSCRIPTION_DIR.glob("trade-checklist-*.json"):
         data = load_json(path)
         mode = clean(data.get(K_MODE))
         if mode in MODE_ORDER:

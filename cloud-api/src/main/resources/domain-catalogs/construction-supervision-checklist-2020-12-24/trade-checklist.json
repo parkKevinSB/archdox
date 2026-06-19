@@ -6,9 +6,9 @@
     "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
     "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data.",
     "transcriptionJsonPaths": {
-      "NON_RESIDENT": "docs/reference-forms/korean/체크리스트json/공종별체크리스트_비상주.json",
-      "RESIDENT": "docs/reference-forms/korean/체크리스트json/공종별체크리스트_상주.json",
-      "RESPONSIBLE_RESIDENT": "docs/reference-forms/korean/체크리스트json/공종별체크리스트_책임상주.json"
+      "NON_RESIDENT": "docs/reference-forms/korean/construction-supervision-checklist-2020-12-24/trade-checklist-non-resident.json",
+      "RESIDENT": "docs/reference-forms/korean/construction-supervision-checklist-2020-12-24/trade-checklist-resident.json",
+      "RESPONSIBLE_RESIDENT": "docs/reference-forms/korean/construction-supervision-checklist-2020-12-24/trade-checklist-responsible-resident.json"
     }
   },
   "supervisionWorkModeCatalogs": {

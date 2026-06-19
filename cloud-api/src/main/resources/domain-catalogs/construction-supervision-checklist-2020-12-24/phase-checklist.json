@@ -5,7 +5,7 @@
     "revisionLabel": "개정 2020. 12. 24.",
     "localReferencePath": "docs/reference-forms/korean/[별표 1] 단계별 감리 체크리스트 대장(건축공사 감리세부기준).pdf",
     "section": "단계별 감리업무 Check List (PDF p.2~19) + 대장(p.1)",
-    "transcriptionJsonPath": "docs/reference-forms/korean/?????json/??????????.json",
+    "transcriptionJsonPath": "docs/reference-forms/korean/construction-supervision-checklist-2020-12-24/phase-checklist.json",
     "note": "PDF 본문 텍스트가 폰트 인코딩 손상으로 자동추출되지 않아, 각 페이지를 고해상도 이미지로 렌더링하여 사람이 시각 전사한 결과입니다. 세부공정(검토항목 좌측 세로칸) 이름은 약어/세로쓰기라 정규화하여 표기했습니다."
   },
   "supervisionWorkModeCatalogs": {
