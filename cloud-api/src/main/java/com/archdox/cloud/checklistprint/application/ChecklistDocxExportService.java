@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.springframework.stereotype.Service;
@@ -153,10 +154,13 @@ public class ChecklistDocxExportService {
                 headerCell("부적합", 550),
                 headerCell("조치사항", 1500)
         ));
-        for (var row : document.rows()) {
+        for (var index = 0; index < document.rows().size(); index++) {
+            var row = document.rows().get(index);
+            var categoryStart = isFirstWorkCategory(document.rows(), index);
+            var processStart = isFirstProcess(document.rows(), index);
             rows.add(List.of(
-                    centerCell(row.workCategoryName(), 750),
-                    cell(row.processName(), 1000),
+                    verticalCenterCell(categoryStart ? row.workCategoryName() : "", 750, categoryStart),
+                    verticalCell(processStart ? row.processName() : "", 1000, processStart),
                     cell(row.rowLabel(), 2700),
                     cell(joinNonBlank(row.basis(), row.referenceNote()), 1900),
                     resultCell(row, "COMPLIANT", 550),
@@ -176,9 +180,11 @@ public class ChecklistDocxExportService {
                 headerCell("부적합", 600),
                 headerCell("조치사항", 1700)
         ));
-        for (var row : document.rows()) {
+        for (var index = 0; index < document.rows().size(); index++) {
+            var row = document.rows().get(index);
+            var processStart = isFirstProcess(document.rows(), index);
             rows.add(List.of(
-                    centerCell(row.processName(), 1400),
+                    verticalCenterCell(processStart ? row.processName() : "", 1400, processStart),
                     cell(joinNonBlank(row.rowLabel(), row.referenceNote()), 5200),
                     resultCell(row, "COMPLIANT", 600),
                     resultCell(row, "NON_COMPLIANT", 600),
@@ -228,6 +234,13 @@ public class ChecklistDocxExportService {
         if (cell.header()) {
             xml.append("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"E5E7EB\"/>");
         }
+        if (!cell.verticalMerge().isBlank()) {
+            if ("restart".equals(cell.verticalMerge())) {
+                xml.append("<w:vMerge w:val=\"restart\"/>");
+            } else {
+                xml.append("<w:vMerge/>");
+            }
+        }
         xml.append("<w:vAlign w:val=\"center\"/></w:tcPr>");
         var lines = cell.text().isBlank() ? List.of("") : List.of(cell.text().split("\\R", -1));
         for (var line : lines) {
@@ -276,15 +289,23 @@ public class ChecklistDocxExportService {
     }
 
     private Cell headerCell(String text, int width) {
-        return new Cell(nullToBlank(text), width, true, "center");
+        return new Cell(nullToBlank(text), width, true, "center", "");
     }
 
     private Cell cell(String text, int width) {
-        return new Cell(nullToBlank(text), width, false, "left");
+        return new Cell(nullToBlank(text), width, false, "left", "");
     }
 
     private Cell centerCell(String text, int width) {
-        return new Cell(nullToBlank(text), width, false, "center");
+        return new Cell(nullToBlank(text), width, false, "center", "");
+    }
+
+    private Cell verticalCell(String text, int width, boolean restart) {
+        return new Cell(nullToBlank(text), width, false, "left", restart ? "restart" : "continue");
+    }
+
+    private Cell verticalCenterCell(String text, int width, boolean restart) {
+        return new Cell(nullToBlank(text), width, false, "center", restart ? "restart" : "continue");
     }
 
     private Cell resultCell(ChecklistPrintRowResponse row, String expected, int width) {
@@ -333,11 +354,24 @@ public class ChecklistDocxExportService {
                 .replace("'", "&apos;");
     }
 
+    private boolean isFirstWorkCategory(List<ChecklistPrintRowResponse> rows, int index) {
+        return index == 0 || !Objects.equals(
+                rows.get(index - 1).workCategoryCode(),
+                rows.get(index).workCategoryCode());
+    }
+
+    private boolean isFirstProcess(List<ChecklistPrintRowResponse> rows, int index) {
+        return index == 0
+                || !Objects.equals(rows.get(index - 1).workCategoryCode(), rows.get(index).workCategoryCode())
+                || !Objects.equals(rows.get(index - 1).processCode(), rows.get(index).processCode());
+    }
+
     private record Cell(
             String text,
             int width,
             boolean header,
-            String justification
+            String justification,
+            String verticalMerge
     ) {
     }
 }

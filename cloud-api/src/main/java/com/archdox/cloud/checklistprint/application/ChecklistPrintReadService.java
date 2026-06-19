@@ -444,10 +444,18 @@ public class ChecklistPrintReadService {
         html.append("<th style=\"width:72px\">구분</th><th style=\"width:88px\">세부공정</th><th>검사항목</th><th style=\"width:150px\">기준,참고사항</th>");
         html.append("<th style=\"width:54px\">적합</th><th style=\"width:54px\">부적합</th><th style=\"width:130px\">조치사항</th>");
         html.append("</tr></thead><tbody>");
-        for (var row : document.rows()) {
+        var rows = document.rows();
+        for (var index = 0; index < rows.size(); index++) {
+            var row = rows.get(index);
             html.append("<tr>");
-            html.append("<td class=\"center\">").append(escape(row.workCategoryName())).append("</td>");
-            html.append("<td>").append(escape(row.processName())).append("</td>");
+            if (isFirstWorkCategory(rows, index)) {
+                html.append("<td class=\"center\" rowspan=\"").append(workCategorySpan(rows, index)).append("\">")
+                        .append(escape(row.workCategoryName())).append("</td>");
+            }
+            if (isFirstProcess(rows, index)) {
+                html.append("<td rowspan=\"").append(processSpan(rows, index)).append("\">")
+                        .append(escape(row.processName())).append("</td>");
+            }
             html.append("<td>").append(escape(row.rowLabel()));
             html.append("</td>");
             html.append("<td class=\"note\">").append(escape(row.basis()));
@@ -474,9 +482,14 @@ public class ChecklistPrintReadService {
         html.append("<th style=\"width:118px\">검토항목</th><th>세부검토사항</th>");
         html.append("<th style=\"width:54px\">적합</th><th style=\"width:54px\">부적합</th><th style=\"width:130px\">조치사항</th>");
         html.append("</tr></thead><tbody>");
-        for (var row : document.rows()) {
+        var rows = document.rows();
+        for (var index = 0; index < rows.size(); index++) {
+            var row = rows.get(index);
             html.append("<tr>");
-            html.append("<td class=\"center\">").append(escape(row.processName())).append("</td>");
+            if (isFirstProcess(rows, index)) {
+                html.append("<td class=\"center\" rowspan=\"").append(processSpan(rows, index)).append("\">")
+                        .append(escape(row.processName())).append("</td>");
+            }
             html.append("<td>").append(escape(row.rowLabel()));
             if (!row.referenceNote().isBlank()) {
                 html.append("<div class=\"small muted note\">").append(escape(row.referenceNote())).append("</div>");
@@ -595,6 +608,45 @@ public class ChecklistPrintReadService {
             return normalized;
         }
         return "";
+    }
+
+    private boolean isFirstWorkCategory(List<ChecklistPrintRowResponse> rows, int index) {
+        return index == 0 || !Objects.equals(
+                rows.get(index - 1).workCategoryCode(),
+                rows.get(index).workCategoryCode());
+    }
+
+    private int workCategorySpan(List<ChecklistPrintRowResponse> rows, int startIndex) {
+        var current = rows.get(startIndex);
+        var span = 0;
+        for (var index = startIndex; index < rows.size(); index++) {
+            var candidate = rows.get(index);
+            if (!Objects.equals(current.workCategoryCode(), candidate.workCategoryCode())) {
+                break;
+            }
+            span++;
+        }
+        return Math.max(span, 1);
+    }
+
+    private boolean isFirstProcess(List<ChecklistPrintRowResponse> rows, int index) {
+        return index == 0
+                || !Objects.equals(rows.get(index - 1).workCategoryCode(), rows.get(index).workCategoryCode())
+                || !Objects.equals(rows.get(index - 1).processCode(), rows.get(index).processCode());
+    }
+
+    private int processSpan(List<ChecklistPrintRowResponse> rows, int startIndex) {
+        var current = rows.get(startIndex);
+        var span = 0;
+        for (var index = startIndex; index < rows.size(); index++) {
+            var candidate = rows.get(index);
+            if (!Objects.equals(current.workCategoryCode(), candidate.workCategoryCode())
+                    || !Objects.equals(current.processCode(), candidate.processCode())) {
+                break;
+            }
+            span++;
+        }
+        return Math.max(span, 1);
     }
 
     private JsonNode readNode(Object value) {

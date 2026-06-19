@@ -97,6 +97,7 @@ class ChecklistPrintReadServiceTest {
             });
         });
         assertThat(response.html()).contains("공종별 감리 체크리스트").contains("○");
+        assertThat(response.html()).contains("rowspan=\"");
     }
 
     @Test
@@ -188,6 +189,8 @@ class ChecklistPrintReadServiceTest {
         var documentXml = zipEntry(export.content(), "word/document.xml");
         assertThat(documentXml).contains(escapeXml(itemName));
         assertThat(documentXml).contains("○");
+        assertThat(documentXml).contains("<w:vMerge w:val=\"restart\"/>");
+        assertThat(documentXml).contains("<w:vMerge/>");
     }
 
     @Test
