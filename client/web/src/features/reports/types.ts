@@ -88,6 +88,7 @@ export type SupervisionCatalogProcessGroup = {
   name: string;
   phaseCode?: string;
   sourcePages?: number[];
+  subTradeName?: string;
   tradeCode?: string;
   workCategory?: string;
   workCategoryName?: string;
@@ -170,6 +171,7 @@ export type SupervisionCatalogAtom = {
   phaseCode?: string;
   processGroupCode?: string;
   rowRefs?: string[];
+  subTradeName?: string;
   tradeCode?: string;
 };
 

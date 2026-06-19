@@ -17,9 +17,11 @@
       "RESPONSIBLE_RESIDENT": "127-178"
     },
     "tradeCount": 46,
-    "detailGroupCount": 51,
-    "level": "TRADE_AND_DETAIL_PROCESS_WITH_CORE_ITEMS",
-    "note": "Current structured item rows are based on the non-resident supervision checklist pages. Resident and responsible-resident page ranges are identified and should be transcribed as mode-specific catalog data."
+    "detailGroupCount": 218,
+    "level": "FULL_NON_RESIDENT_TRADE_CHECKLIST_WITH_MODE_REFS",
+    "note": "NON_RESIDENT tradeRefs are generated from the checked JSON transcription. Existing manually curated RC atoms are reused where names match. Resident and responsible-resident mode refs remain separate transcription targets.",
+    "inspectionItemCount": 779,
+    "checklistRowCount": 144
   },
   "supervisionWorkModeCatalogs": {
     "NON_RESIDENT": {

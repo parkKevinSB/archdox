@@ -25,12 +25,16 @@ class SupervisionDomainCatalogResourceTest {
                 .isEqualTo("ARCHITECTURE");
         assertThat(atoms.path("phaseChecklistGroups").path("PHASE_SUPERVISION").path("code").asText())
                 .isEqualTo("PHASE_SUPERVISION");
-        assertThat(modes.path("NON_RESIDENT").path("tradeRefs").path(0).path("tradeCode").asText())
+        var nonResidentTradeRefs = modes.path("NON_RESIDENT").path("tradeRefs");
+        assertThat(nonResidentTradeRefs.size()).isEqualTo(46);
+        assertThat(nonResidentTradeRefs.path(0).path("tradeCode").asText())
+                .isEqualTo("TEMPORARY_WORKS");
+        assertThat(findTradeRef(nonResidentTradeRefs, "REINFORCED_CONCRETE").path("tradeCode").asText())
                 .isEqualTo("REINFORCED_CONCRETE");
         assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeGroupCode").asText())
                 .isEqualTo("ARCHITECTURE");
-        assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeRefs").path(0).path("tradeCode").asText())
-                .isEqualTo("REINFORCED_CONCRETE");
+        assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeRefs").size())
+                .isGreaterThan(1);
         assertThat(modes.path("RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
                 .isEqualTo(79);
         assertThat(modes.path("RESPONSIBLE_RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
@@ -109,6 +113,15 @@ class SupervisionDomainCatalogResourceTest {
                 }
             }
         }
+    }
+
+    private JsonNode findTradeRef(JsonNode tradeRefs, String tradeCode) {
+        for (var tradeRef : tradeRefs) {
+            if (tradeCode.equals(tradeRef.path("tradeCode").asText())) {
+                return tradeRef;
+            }
+        }
+        throw new AssertionError("tradeRef not found: " + tradeCode);
     }
 
     private void assertPhaseRefsExist(JsonNode modes, JsonNode atoms) {

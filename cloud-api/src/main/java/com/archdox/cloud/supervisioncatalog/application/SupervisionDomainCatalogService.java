@@ -75,21 +75,26 @@ public class SupervisionDomainCatalogService {
         var normalizedProcessCode = requiredCode(processCode, "processCode");
         var normalizedInspectionItemCode = requiredCode(inspectionItemCode, "inspectionItemCode");
 
+        var atoms = catalog.path("canonicalAtoms");
         var trade = findByCode(catalog.path("trades"), normalizedTradeCode)
                 .orElseThrow(() -> badSelection(
                         "SUPERVISION_CATALOG_TRADE_NOT_FOUND",
                         "Trade code is not defined in the supervision catalog",
                         normalizedTradeCode));
-        var processGroup = findByCode(trade.path("processGroups"), normalizedProcessCode)
-                .orElseThrow(() -> badSelection(
+        var processGroup = atoms.path("processGroups").path(normalizedProcessCode);
+        if (!processGroup.isObject() || !normalizedTradeCode.equals(normalize(processGroup.path("tradeCode").asText("")))) {
+            throw badSelection(
                         "SUPERVISION_CATALOG_PROCESS_NOT_FOUND",
                         "Process code is not defined under the selected trade in the supervision catalog",
-                        normalizedProcessCode));
-        var item = findByCode(processGroup.path("items"), normalizedInspectionItemCode)
-                .orElseThrow(() -> badSelection(
+                        normalizedProcessCode);
+        }
+        var item = atoms.path("inspectionItems").path(normalizedInspectionItemCode);
+        if (!item.isObject() || !normalizedProcessCode.equals(normalize(item.path("processGroupCode").asText("")))) {
+            throw badSelection(
                         "SUPERVISION_CATALOG_INSPECTION_ITEM_NOT_FOUND",
                         "Inspection item code is not defined under the selected trade/process in the supervision catalog",
-                        normalizedInspectionItemCode));
+                        normalizedInspectionItemCode);
+        }
 
         return new SupervisionCatalogSelection(
                 "TRADE",

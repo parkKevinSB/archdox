@@ -1234,13 +1234,53 @@ function selectedProcessGroup(
 
 function tradeOptions(catalog: SupervisionDomainCatalog | null): SupervisionCatalogTrade[] {
   const modeTradeRefs = catalog?.selectedSupervisionWorkModeCatalog?.tradeRefs;
-  const trades = catalog?.trades ?? [];
-  if (!modeTradeRefs?.length) {
-    return trades;
+  const atoms = catalog?.canonicalAtoms;
+  const baseTrades = catalog?.trades ?? [];
+  if (!modeTradeRefs?.length || !atoms) {
+    return baseTrades;
   }
-  const byCode = new Map(trades.map((trade) => [trade.code, trade]));
+  const baseByCode = new Map(baseTrades.map((trade) => [trade.code, trade]));
   return modeTradeRefs
-    .map((tradeRef) => byCode.get(tradeRef.tradeCode))
+    .map((tradeRef): SupervisionCatalogTrade | null => {
+      const baseTrade = baseByCode.get(tradeRef.tradeCode);
+      const tradeAtom = atoms.trades?.[tradeRef.tradeCode];
+      if (!baseTrade && !tradeAtom) {
+        return null;
+      }
+      const processGroups = (tradeRef.workCategories ?? []).flatMap((category) => (
+        (category.processGroupRefs ?? []).map((processRef): SupervisionCatalogProcessGroup | null => {
+          const processAtom = atoms.processGroups?.[processRef.code];
+          if (!processAtom) {
+            return null;
+          }
+          const items = (processRef.itemRefs ?? [])
+            .map((itemRef) => catalogItemFromAtoms(atoms, itemRef))
+            .filter(Boolean) as SupervisionCatalogItem[];
+          return {
+            code: processRef.code,
+            items,
+            name: processAtom.name,
+            sourcePages: tradeRef.sourcePages,
+            subTradeName: processAtom.subTradeName,
+            tradeCode: tradeRef.tradeCode,
+            workCategory: category.code,
+            workCategoryName: category.name
+          };
+        }).filter(Boolean) as SupervisionCatalogProcessGroup[]
+      ));
+      return {
+        ...(baseTrade ?? {}),
+        code: tradeRef.tradeCode,
+        discipline: tradeAtom?.discipline ?? baseTrade?.discipline,
+        items: processGroups.flatMap((processGroup) => processGroup.items),
+        name: tradeAtom?.name ?? baseTrade?.name ?? tradeRef.tradeCode,
+        processGroups,
+        processes: processGroups.map((processGroup) => processGroup.name),
+        sourcePages: tradeRef.sourcePages,
+        tradeGroupCode: tradeAtom?.tradeGroupCode ?? baseTrade?.tradeGroupCode,
+        tradeGroupName: tradeAtom?.tradeGroupName ?? baseTrade?.tradeGroupName
+      };
+    })
     .filter(Boolean) as SupervisionCatalogTrade[];
 }
 
