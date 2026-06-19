@@ -146,6 +146,45 @@ class ChecklistPrintReadServiceTest {
     }
 
     @Test
+    void tradePreviewPrefixesChildChecklistRowsWithDash() {
+        OfficeContext.set(10L);
+        var now = OffsetDateTime.parse("2026-06-19T10:00:00+09:00");
+        var report = report(now);
+        var itemCode = "REINFORCED_CONCRETE_IT_794FCB67F5";
+        var itemName = "콘크리트 압축강도 시험의 확인";
+        var dailyPayload = Map.<String, Object>of(
+                "dailyItems", Map.of(
+                        "groups", List.of(Map.of(
+                                "groupType", "TRADE",
+                                "tradeCode", "REINFORCED_CONCRETE",
+                                "tradeName", "철근 콘크리트 공사",
+                                "subTradeCode", "NONE",
+                                "subTradeName", "없음",
+                                "processCode", "CONCRETE_STRENGTH_TEST",
+                                "floor", "3층",
+                                "entries", List.of(Map.of(
+                                        "inspectionItemCode", itemCode,
+                                        "inspectionItemName", itemName,
+                                        "checklistRows", List.of(Map.of(
+                                                "code", itemCode,
+                                                "label", itemName,
+                                                "result", "COMPLIANT"))))))));
+        arrange(report, dailyPayload, now);
+
+        var response = service.preview(100L, "TRADE", new UserPrincipal(7L, "writer@test.co.kr"));
+
+        assertThat(response.documents()).singleElement().satisfies(document -> {
+            assertThat(document.rows()).anySatisfy(row ->
+                    assertThat(row.rowLabel()).isEqualTo("콘크리트 압축강도 시험의 확인"));
+            assertThat(document.rows()).anySatisfy(row ->
+                    assertThat(row.rowLabel()).isEqualTo("- 시험채취의 시기 확인"));
+            assertThat(document.rows()).anySatisfy(row ->
+                    assertThat(row.rowLabel()).isEqualTo("- 시험채취량 확인"));
+        });
+        assertThat(response.html()).contains("- 시험채취의 시기 확인");
+    }
+
+    @Test
     void docxExportCreatesWordPackageFromChecklistRows() throws IOException {
         OfficeContext.set(10L);
         var now = OffsetDateTime.parse("2026-06-19T10:00:00+09:00");

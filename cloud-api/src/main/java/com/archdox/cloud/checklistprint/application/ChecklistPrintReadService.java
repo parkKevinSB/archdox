@@ -365,7 +365,7 @@ public class ChecklistPrintReadService {
                             continue;
                         }
                         rows.add(row(categoryCode, categoryName, processCode, processName, itemCode, itemName,
-                                rowCode, text(row, "label"), text(row, "basis"), overlays.get(rowKey(itemCode, rowCode))));
+                                rowCode, childRowLabel(text(row, "label")), text(row, "basis"), overlays.get(rowKey(itemCode, rowCode))));
                     }
                 }
             }
@@ -608,6 +608,14 @@ public class ChecklistPrintReadService {
             return normalized;
         }
         return "";
+    }
+
+    private String childRowLabel(String label) {
+        var value = nullToBlank(label).trim();
+        if (value.isBlank() || value.startsWith("-") || value.startsWith("·")) {
+            return value;
+        }
+        return "- " + value;
     }
 
     private boolean isFirstWorkCategory(List<ChecklistPrintRowResponse> rows, int index) {
