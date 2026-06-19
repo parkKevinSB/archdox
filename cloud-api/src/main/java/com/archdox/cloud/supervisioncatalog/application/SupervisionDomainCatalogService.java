@@ -51,9 +51,13 @@ public class SupervisionDomainCatalogService {
     }
 
     public JsonNode get(String catalogCode, Long siteId) {
+        return get(catalogCode, siteId, siteId == null ? null : OfficeContext.requireCurrentOfficeId());
+    }
+
+    public JsonNode get(String catalogCode, Long siteId, Long officeId) {
         var normalized = normalize(catalogCode);
         var result = (ObjectNode) catalog(normalized).deepCopy();
-        enrichSupervisionWorkMode(result, resolveSupervisionWorkMode(siteId));
+        enrichSupervisionWorkMode(result, resolveSupervisionWorkMode(siteId, officeId));
         return result;
     }
 
@@ -127,7 +131,7 @@ public class SupervisionDomainCatalogService {
         var normalizedPhaseCode = requiredCode(phaseCode, "phaseCode");
         var normalizedProcessCode = requiredCode(processCode, "processCode");
         var normalizedInspectionItemCode = requiredCode(inspectionItemCode, "inspectionItemCode");
-        var modeCatalog = selectedModeCatalog(catalog.path("supervisionWorkModeCatalogs"), resolveSupervisionWorkMode(siteId));
+        var modeCatalog = selectedModeCatalog(catalog.path("supervisionWorkModeCatalogs"), resolveSupervisionWorkMode(siteId, null));
         var phase = findPhaseRef(modeCatalog.path("phaseRefs"), normalizedPhaseCode)
                 .orElseThrow(() -> badSelection(
                         "SUPERVISION_CATALOG_PHASE_NOT_FOUND",
@@ -173,15 +177,15 @@ public class SupervisionDomainCatalogService {
         return catalogCache.computeIfAbsent(normalized, this::readCatalog);
     }
 
-    private SupervisionWorkMode resolveSupervisionWorkMode(Long siteId) {
+    private SupervisionWorkMode resolveSupervisionWorkMode(Long siteId, Long officeId) {
         if (siteId == null) {
             return SupervisionWorkMode.defaultMode();
         }
         if (siteRepository == null) {
             return SupervisionWorkMode.defaultMode();
         }
-        var officeId = OfficeContext.requireCurrentOfficeId();
-        return siteRepository.findByIdAndOfficeId(siteId, officeId)
+        var resolvedOfficeId = officeId == null ? OfficeContext.requireCurrentOfficeId() : officeId;
+        return siteRepository.findByIdAndOfficeId(siteId, resolvedOfficeId)
                 .map(site -> site.supervisionWorkMode())
                 .orElse(SupervisionWorkMode.defaultMode());
     }

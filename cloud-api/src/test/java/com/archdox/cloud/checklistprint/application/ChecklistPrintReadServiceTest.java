@@ -3,6 +3,7 @@ package com.archdox.cloud.checklistprint.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.global.security.UserPrincipal;
@@ -13,6 +14,7 @@ import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
 import com.archdox.cloud.office.application.OfficeContext;
 import com.archdox.cloud.office.application.OfficePermissionService;
+import com.archdox.cloud.site.infra.SiteRepository;
 import com.archdox.cloud.supervisioncatalog.application.SupervisionDomainCatalogService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -280,6 +282,29 @@ class ChecklistPrintReadServiceTest {
         assertThat(response.documents()).singleElement().satisfies(document ->
                 assertThat(document.rows()).anySatisfy(row ->
                         assertThat(row.referenceNote()).isEqualTo("included report")));
+    }
+
+    @Test
+    void systemPreviewResolvesSiteModeWithExplicitOfficeIdWithoutThreadLocalOfficeContext() {
+        OfficeContext.clear();
+        var now = OffsetDateTime.parse("2026-06-19T10:00:00+09:00");
+        var siteRepository = mock(SiteRepository.class);
+        var catalogService = new SupervisionDomainCatalogService(objectMapper, siteRepository);
+        var localService = new ChecklistPrintReadService(
+                reportRepository,
+                stepRepository,
+                permissionService,
+                catalogService,
+                objectMapper);
+        var report = report(now);
+        when(reportRepository.findByIdAndOfficeId(100L, 10L)).thenReturn(Optional.of(report));
+        when(stepRepository.findByReportIdAndStepCode(100L, "DAILY_LOG")).thenReturn(Optional.empty());
+        when(siteRepository.findByIdAndOfficeId(30L, 10L)).thenReturn(Optional.empty());
+
+        var response = localService.previewSystem(10L, 100L, "TRADE");
+
+        assertThat(response.reportId()).isEqualTo(100L);
+        verify(siteRepository).findByIdAndOfficeId(30L, 10L);
     }
 
     private void arrange(InspectionReport report, Map<String, Object> dailyPayload, OffsetDateTime now) {

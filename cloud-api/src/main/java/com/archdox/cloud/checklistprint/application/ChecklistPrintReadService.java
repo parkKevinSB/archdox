@@ -86,7 +86,7 @@ public class ChecklistPrintReadService {
         }
         var selection = checklistSelection(report);
         var type = normalizeType(firstNonBlank(checklistType, selection.outputType()));
-        var catalog = catalogService.get(catalogService.defaultConstructionCatalogCode(), report.siteId());
+        var catalog = catalogService.get(catalogService.defaultConstructionCatalogCode(), report.siteId(), officeId);
         var dailyItems = REPORT_TYPE_CHECKLIST.equals(report.reportType())
                 ? dailyItemsFromSelection(officeId, report, selection)
                 : dailyItems(report);
