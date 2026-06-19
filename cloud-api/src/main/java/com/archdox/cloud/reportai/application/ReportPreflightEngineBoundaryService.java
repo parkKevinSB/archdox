@@ -162,6 +162,8 @@ public class ReportPreflightEngineBoundaryService {
                 var selection = new LinkedHashMap<String, Object>();
                 selection.put("tradeCode", text(group.get("tradeCode")));
                 selection.put("tradeName", text(group.get("tradeName")));
+                selection.put("subTradeCode", text(group.get("subTradeCode")));
+                selection.put("subTradeName", text(group.get("subTradeName")));
                 selection.put("phaseCode", text(group.get("phaseCode")));
                 selection.put("phaseName", text(group.get("phaseName")));
                 selection.put("processCode", text(group.get("processCode")));

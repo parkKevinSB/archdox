@@ -88,6 +88,7 @@ export type SupervisionCatalogProcessGroup = {
   name: string;
   phaseCode?: string;
   sourcePages?: number[];
+  subTradeCode?: string;
   subTradeName?: string;
   tradeCode?: string;
   workCategory?: string;
@@ -112,6 +113,12 @@ export type SupervisionCatalogTrade = {
   processGroups?: SupervisionCatalogProcessGroup[];
   processes?: string[];
   sourcePages?: number[];
+  subTrades?: SupervisionCatalogSubTrade[];
+};
+
+export type SupervisionCatalogSubTrade = {
+  code: string;
+  name: string;
 };
 
 export type SupervisionCatalogTradeGroup = {
@@ -137,10 +144,17 @@ export type SupervisionWorkModeWorkCategoryRef = {
   processGroupRefs?: SupervisionWorkModeProcessGroupRef[];
 };
 
+export type SupervisionWorkModeSubTradeRef = {
+  sourcePages?: number[];
+  subTradeCode: string;
+  subTradeName?: string;
+  workCategories?: SupervisionWorkModeWorkCategoryRef[];
+};
+
 export type SupervisionWorkModeTradeRef = {
   sourcePages?: number[];
+  subTradeRefs: SupervisionWorkModeSubTradeRef[];
   tradeCode: string;
-  workCategories?: SupervisionWorkModeWorkCategoryRef[];
 };
 
 export type SupervisionWorkModeTradeGroupRef = {
@@ -171,6 +185,7 @@ export type SupervisionCatalogAtom = {
   phaseCode?: string;
   processGroupCode?: string;
   rowRefs?: string[];
+  subTradeCode?: string;
   subTradeName?: string;
   tradeCode?: string;
 };
@@ -181,6 +196,7 @@ export type SupervisionCatalogCanonicalAtoms = {
   inspectionItems?: Record<string, SupervisionCatalogAtom>;
   phaseChecklistGroups?: Record<string, SupervisionCatalogAtom>;
   processGroups?: Record<string, SupervisionCatalogAtom>;
+  subTrades?: Record<string, SupervisionCatalogAtom>;
   tradeGroups?: Record<string, SupervisionCatalogAtom>;
   trades?: Record<string, SupervisionCatalogAtom>;
 };

@@ -25,6 +25,8 @@ class SupervisionDomainCatalogResourceTest {
                 .isEqualTo("ARCHITECTURE");
         assertThat(atoms.path("phaseChecklistGroups").path("PHASE_SUPERVISION").path("code").asText())
                 .isEqualTo("PHASE_SUPERVISION");
+        assertThat(atoms.path("subTrades").path("NONE").path("name").asText())
+                .isEqualTo("없음");
         var nonResidentTradeRefs = modes.path("NON_RESIDENT").path("tradeRefs");
         assertThat(nonResidentTradeRefs.size()).isEqualTo(46);
         assertThat(nonResidentTradeRefs.path(0).path("tradeCode").asText())
@@ -35,10 +37,12 @@ class SupervisionDomainCatalogResourceTest {
                 .isEqualTo("ARCHITECTURE");
         assertThat(modes.path("NON_RESIDENT").path("tradeGroupRefs").path(0).path("tradeRefs").size())
                 .isGreaterThan(1);
+        assertThat(modes.path("RESIDENT").path("tradeRefs").size()).isEqualTo(46);
         assertThat(modes.path("RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
-                .isEqualTo(79);
+                .isEqualTo(74);
+        assertThat(modes.path("RESPONSIBLE_RESIDENT").path("tradeRefs").size()).isEqualTo(46);
         assertThat(modes.path("RESPONSIBLE_RESIDENT").path("tradeRefs").path(0).path("sourcePages").path(0).asInt())
-                .isEqualTo(132);
+                .isEqualTo(127);
         assertThat(modes.path("NON_RESIDENT").path("phaseRefs").path(0).path("phaseCode").asText())
                 .isEqualTo("PRE_CONSTRUCTION");
         assertThat(modes.path("NON_RESIDENT").path("phaseChecklistGroupRefs").path(0).path("phaseChecklistGroupCode").asText())
@@ -50,6 +54,18 @@ class SupervisionDomainCatalogResourceTest {
         assertThat(modes.path("RESPONSIBLE_RESIDENT").path("phaseRefs").size()).isEqualTo(3);
         assertThat(atoms.path("constructionPhases").size()).isEqualTo(3);
         assertThat(atoms.path("inspectionItems").size()).isGreaterThan(250);
+        var masonryProcess = atoms.path("processGroups").path("MASONRY_ALC_PANEL_PG_4E081FF9EA");
+        assertThat(masonryProcess.path("subTradeName").asText()).isEqualTo("벽돌공사");
+        assertThat(masonryProcess.path("name").asText()).isEqualTo("자재");
+        var residentMasonryTradeRef = findTradeRef(modes.path("RESIDENT").path("tradeRefs"), "MASONRY_ALC_PANEL");
+        assertThat(residentMasonryTradeRef.path("subTradeRefs").path(0).path("subTradeName").asText())
+                .isEqualTo("벽돌공사");
+        assertThat(residentMasonryTradeRef.path("subTradeRefs").path(0).path("workCategories").path(0).path("name").asText())
+                .isEqualTo("기본 업무");
+        assertThat(residentMasonryTradeRef.path("subTradeRefs").path(0).path("workCategories").path(1).path("name").asText())
+                .isEqualTo("기본 외 업무");
+        assertThat(residentMasonryTradeRef.path("subTradeRefs").path(1).path("subTradeName").asText())
+                .isEqualTo("블록공사");
 
         assertModeRefsExist(modes, atoms);
         assertPhaseRefsExist(modes, atoms);
@@ -83,6 +99,8 @@ class SupervisionDomainCatalogResourceTest {
         assertThat(selection.groupType()).isEqualTo("TRADE");
         assertThat(selection.tradeGroupCode()).isEqualTo("ARCHITECTURE");
         assertThat(selection.tradeCode()).isEqualTo("REINFORCED_CONCRETE");
+        assertThat(selection.subTradeCode()).isEqualTo("NONE");
+        assertThat(selection.subTradeName()).isEqualTo("없음");
         assertThat(selection.processCode()).isEqualTo("REBAR_ASSEMBLY");
         assertThat(selection.inspectionItemCode()).isEqualTo("RC_REBAR_CONFIRMATION");
         assertThat(selection.phaseChecklistGroupCode()).isEmpty();
@@ -97,17 +115,26 @@ class SupervisionDomainCatalogResourceTest {
                         .as(mode.getKey() + " tradeRef " + tradeCode)
                         .isTrue();
 
-                for (var workCategory : tradeRef.path("workCategories")) {
-                    for (var processGroupRef : workCategory.path("processGroupRefs")) {
-                        var processGroupCode = processGroupRef.path("code").asText();
-                        assertThat(atoms.path("processGroups").path(processGroupCode).isObject())
-                                .as(mode.getKey() + " processGroupRef " + processGroupCode)
-                                .isTrue();
-                        for (var itemRef : processGroupRef.path("itemRefs")) {
-                            var itemCode = itemRef.asText();
-                            assertThat(atoms.path("inspectionItems").path(itemCode).isObject())
-                                    .as(mode.getKey() + " itemRef " + itemCode)
+                assertThat(tradeRef.has("workCategories"))
+                        .as(mode.getKey() + " tradeRef " + tradeCode + " must use subTradeRefs, not flat workCategories")
+                        .isFalse();
+                for (var subTradeRef : tradeRef.path("subTradeRefs")) {
+                    var subTradeCode = subTradeRef.path("subTradeCode").asText();
+                    assertThat(atoms.path("subTrades").path(subTradeCode).isObject())
+                            .as(mode.getKey() + " subTradeRef " + subTradeCode)
+                            .isTrue();
+                    for (var workCategory : subTradeRef.path("workCategories")) {
+                        for (var processGroupRef : workCategory.path("processGroupRefs")) {
+                            var processGroupCode = processGroupRef.path("code").asText();
+                            assertThat(atoms.path("processGroups").path(processGroupCode).isObject())
+                                    .as(mode.getKey() + " subTrade processGroupRef " + processGroupCode)
                                     .isTrue();
+                            for (var itemRef : processGroupRef.path("itemRefs")) {
+                                var itemCode = itemRef.asText();
+                                assertThat(atoms.path("inspectionItems").path(itemCode).isObject())
+                                        .as(mode.getKey() + " subTrade itemRef " + itemCode)
+                                        .isTrue();
+                            }
                         }
                     }
                 }

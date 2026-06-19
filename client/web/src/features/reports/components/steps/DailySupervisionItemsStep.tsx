@@ -13,9 +13,12 @@ import type {
   SupervisionCatalogPhase,
   SupervisionCatalogPhaseChecklistGroup,
   SupervisionCatalogProcessGroup,
+  SupervisionCatalogSubTrade,
   SupervisionCatalogTrade,
   SupervisionCatalogTradeGroup,
-  SupervisionDomainCatalog
+  SupervisionDomainCatalog,
+  SupervisionWorkModeTradeRef,
+  SupervisionWorkModeWorkCategoryRef
 } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
 
@@ -51,6 +54,8 @@ type DailySupervisionGroup = {
   phaseName?: string;
   processCode?: string;
   processName: string;
+  subTradeCode?: string;
+  subTradeName?: string;
   tradeGroupCode?: string;
   tradeGroupName?: string;
   tradeCode?: string;
@@ -72,6 +77,8 @@ type ChecklistNoteDialogState = {
 
 const DAILY_ITEMS_FIELD = "dailyItems";
 const CATALOG_CODE = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
+const SUB_TRADE_NONE_CODE = "NONE";
+const SUB_TRADE_NONE_NAME = "없음";
 
 export function DailySupervisionItemsStep({
   canWriteReports,
@@ -169,6 +176,8 @@ export function DailySupervisionItemsStep({
         phaseName: undefined,
         phaseChecklistGroupCode: undefined,
         phaseChecklistGroupName: undefined,
+        subTradeCode: undefined,
+        subTradeName: undefined,
         tradeCode: undefined,
         tradeName: "",
         workCategory: undefined,
@@ -193,6 +202,8 @@ export function DailySupervisionItemsStep({
         phaseCode: defaultPhase?.code,
         phaseName: defaultPhase?.name,
         processName: "",
+        subTradeCode: SUB_TRADE_NONE_CODE,
+        subTradeName: SUB_TRADE_NONE_NAME,
         tradeGroupCode: undefined,
         tradeGroupName: undefined,
         tradeCode: undefined,
@@ -240,6 +251,8 @@ export function DailySupervisionItemsStep({
       tradeGroupCode: selected?.code,
       tradeGroupName: selected?.name ?? "",
       tradeName: "",
+      subTradeCode: undefined,
+      subTradeName: undefined,
       workCategory: undefined,
       workCategoryName: undefined
     });
@@ -247,6 +260,8 @@ export function DailySupervisionItemsStep({
 
   function selectTrade(groupId: string, tradeCode: string) {
     const selected = trades.find((trade) => trade.code === tradeCode);
+    const subTradeOptions = selected ? subTradeOptionsForTrade(selected) : [];
+    const defaultSubTrade = subTradeOptions.length === 1 ? subTradeOptions[0] : null;
     const defaultCategory = selected ? workCategoryOptions(selected)[0] : null;
     updateGroup(groupId, {
       groupType: "TRADE",
@@ -256,12 +271,26 @@ export function DailySupervisionItemsStep({
       phaseName: undefined,
       processCode: undefined,
       processName: "",
+      subTradeCode: defaultSubTrade?.code,
+      subTradeName: defaultSubTrade?.name,
       tradeCode: selected?.code,
       tradeGroupCode: selected?.tradeGroupCode,
       tradeGroupName: selected?.tradeGroupName ?? "",
       tradeName: selected?.name ?? "",
       workCategory: defaultCategory?.code,
       workCategoryName: defaultCategory?.name
+    });
+  }
+
+  function selectSubTrade(groupId: string, subTradeCode: string) {
+    const group = groups.find((current) => current.id === groupId);
+    const trade = selectedTrade(group, trades);
+    const selected = subTradeOptionsForTrade(trade).find((option) => option.code === subTradeCode);
+    updateGroup(groupId, {
+      processCode: undefined,
+      processName: "",
+      subTradeCode: selected?.code,
+      subTradeName: selected?.name
     });
   }
 
@@ -276,6 +305,8 @@ export function DailySupervisionItemsStep({
       phaseName: selected?.name ?? "",
       processCode: undefined,
       processName: "",
+      subTradeCode: SUB_TRADE_NONE_CODE,
+      subTradeName: SUB_TRADE_NONE_NAME,
       tradeGroupCode: undefined,
       tradeGroupName: undefined,
       tradeCode: undefined,
@@ -551,6 +582,23 @@ export function DailySupervisionItemsStep({
                       />
                     )}
                   </label>
+                  {shouldShowSubTradeSelector(selectedTrade(group, trades)) ? (
+                    <label>
+                      세부공종
+                      <select
+                        disabled={!canWriteReports || !group.tradeCode}
+                        onChange={(event) => selectSubTrade(group.id, event.target.value)}
+                        value={group.subTradeCode ?? ""}
+                      >
+                        <option value="">세부공종 선택</option>
+                        {subTradeOptionsForTrade(selectedTrade(group, trades))
+                          .filter((entry) => entry.code !== SUB_TRADE_NONE_CODE)
+                          .map((entry) => (
+                            <option key={entry.code} value={entry.code}>{entry.name}</option>
+                          ))}
+                      </select>
+                    </label>
+                  ) : null}
                   </>
                 )}
                 <div className="daily-work-category-field">
@@ -577,19 +625,21 @@ export function DailySupervisionItemsStep({
                   {isPhaseGroup(group) ? "세부업무" : "세부공정"}
                   {selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).length ? (
                     <select
-                      disabled={!canWriteReports || !groupRootCode(group) || !group.workCategory}
+                        disabled={!canWriteReports || !groupRootCode(group) || !group.workCategory || requiresSubTradeSelection(group, selectedTrade(group, trades))}
                       onChange={(event) => {
                         const selectedProcess = selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).find((processGroup) => processGroup.code === event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
                           processName: selectedProcess?.name ?? "",
+                          subTradeCode: selectedProcess?.subTradeCode ?? group.subTradeCode,
+                          subTradeName: selectedProcess?.subTradeName ?? group.subTradeName,
                           workCategory: selectedProcess?.workCategory ?? group.workCategory,
                           workCategoryName: selectedProcess?.workCategoryName ?? group.workCategoryName
                         });
                       }}
                       value={group.processCode ?? ""}
                     >
-                      <option value="">{isPhaseGroup(group) ? "세부업무 선택" : "세부공정 선택"}</option>
+                      <option value="">{requiresSubTradeSelection(group, selectedTrade(group, trades)) ? "세부공종을 먼저 선택" : isPhaseGroup(group) ? "세부업무 선택" : "세부공정 선택"}</option>
                       {selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).map((processGroup) => (
                         <option key={processGroup.code} value={processGroup.code}>
                           {processGroup.name}
@@ -598,13 +648,15 @@ export function DailySupervisionItemsStep({
                     </select>
                   ) : (
                     <input
-                      disabled={!canWriteReports || isPhaseGroup(group)}
+                      disabled={!canWriteReports || isPhaseGroup(group) || requiresSubTradeSelection(group, selectedTrade(group, trades))}
                       list={`daily-process-options-${group.id}`}
                       onChange={(event) => {
                         const selectedProcess = processGroupByName(group, trades, phases, event.target.value);
                         updateGroup(group.id, {
                           processCode: selectedProcess?.code,
                           processName: event.target.value,
+                          subTradeCode: selectedProcess?.subTradeCode ?? group.subTradeCode,
+                          subTradeName: selectedProcess?.subTradeName ?? group.subTradeName,
                           workCategory: selectedProcess?.workCategory ?? group.workCategory,
                           workCategoryName: selectedProcess?.workCategoryName ?? group.workCategoryName
                         });
@@ -1165,14 +1217,50 @@ function selectedProcessGroups(
   group: DailySupervisionGroup,
   catalogGroup: SupervisionCatalogTrade | SupervisionCatalogPhase | null | undefined
 ) {
-  const processGroups = catalogGroup?.processGroups ?? [];
+  let processGroups = catalogGroup?.processGroups ?? [];
   if (!processGroups.length) {
     return [];
+  }
+  if (!isPhaseGroup(group) && "subTrades" in (catalogGroup ?? {}) && shouldShowSubTradeSelector(catalogGroup as SupervisionCatalogTrade)) {
+    if (!group.subTradeCode) {
+      return [];
+    }
+    processGroups = processGroups.filter((processGroup) => (processGroup.subTradeCode ?? SUB_TRADE_NONE_CODE) === group.subTradeCode);
   }
   if (!group.workCategory) {
     return processGroups;
   }
   return processGroups.filter((processGroup) => (processGroup.workCategory ?? "GENERAL") === group.workCategory);
+}
+
+function uniqueSubTrades(processGroups: SupervisionCatalogProcessGroup[]): SupervisionCatalogSubTrade[] {
+  const byCode = new Map<string, SupervisionCatalogSubTrade>();
+  processGroups.forEach((processGroup) => {
+    const code = processGroup.subTradeCode ?? SUB_TRADE_NONE_CODE;
+    const name = processGroup.subTradeName ?? SUB_TRADE_NONE_NAME;
+    if (!byCode.has(code)) {
+      byCode.set(code, { code, name });
+    }
+  });
+  return [...byCode.values()];
+}
+
+function subTradeOptionsForTrade(trade: SupervisionCatalogTrade | null | undefined): SupervisionCatalogSubTrade[] {
+  if (!trade) {
+    return [];
+  }
+  if (trade.subTrades?.length) {
+    return trade.subTrades;
+  }
+  return uniqueSubTrades(trade.processGroups ?? []);
+}
+
+function shouldShowSubTradeSelector(trade: SupervisionCatalogTrade | null | undefined) {
+  return subTradeOptionsForTrade(trade).some((option) => option.code !== SUB_TRADE_NONE_CODE);
+}
+
+function requiresSubTradeSelection(group: DailySupervisionGroup, trade: SupervisionCatalogTrade | null | undefined) {
+  return shouldShowSubTradeSelector(trade) && !group.subTradeCode;
 }
 
 function suggestedProcesses(
@@ -1247,8 +1335,8 @@ function tradeOptions(catalog: SupervisionDomainCatalog | null): SupervisionCata
       if (!baseTrade && !tradeAtom) {
         return null;
       }
-      const processGroups = (tradeRef.workCategories ?? []).flatMap((category) => (
-        (category.processGroupRefs ?? []).map((processRef): SupervisionCatalogProcessGroup | null => {
+      const processGroups = tradeProcessCategorySources(tradeRef).flatMap((source) => (
+        (source.category.processGroupRefs ?? []).map((processRef): SupervisionCatalogProcessGroup | null => {
           const processAtom = atoms.processGroups?.[processRef.code];
           if (!processAtom) {
             return null;
@@ -1260,14 +1348,16 @@ function tradeOptions(catalog: SupervisionDomainCatalog | null): SupervisionCata
             code: processRef.code,
             items,
             name: processAtom.name,
-            sourcePages: tradeRef.sourcePages,
-            subTradeName: processAtom.subTradeName,
+            sourcePages: source.sourcePages ?? tradeRef.sourcePages,
+            subTradeCode: source.subTradeCode ?? processAtom.subTradeCode ?? SUB_TRADE_NONE_CODE,
+            subTradeName: source.subTradeName ?? processAtom.subTradeName,
             tradeCode: tradeRef.tradeCode,
-            workCategory: category.code,
-            workCategoryName: category.name
+            workCategory: source.category.code,
+            workCategoryName: source.category.name
           };
         }).filter(Boolean) as SupervisionCatalogProcessGroup[]
       ));
+      const subTrades = uniqueSubTrades(processGroups);
       return {
         ...(baseTrade ?? {}),
         code: tradeRef.tradeCode,
@@ -1277,11 +1367,28 @@ function tradeOptions(catalog: SupervisionDomainCatalog | null): SupervisionCata
         processGroups,
         processes: processGroups.map((processGroup) => processGroup.name),
         sourcePages: tradeRef.sourcePages,
+        subTrades,
         tradeGroupCode: tradeAtom?.tradeGroupCode ?? baseTrade?.tradeGroupCode,
         tradeGroupName: tradeAtom?.tradeGroupName ?? baseTrade?.tradeGroupName
       };
     })
     .filter(Boolean) as SupervisionCatalogTrade[];
+}
+
+function tradeProcessCategorySources(tradeRef: SupervisionWorkModeTradeRef): Array<{
+  category: SupervisionWorkModeWorkCategoryRef;
+  sourcePages?: number[];
+  subTradeCode?: string;
+  subTradeName?: string;
+}> {
+  return tradeRef.subTradeRefs.flatMap((subTradeRef) => (
+    (subTradeRef.workCategories ?? []).map((category) => ({
+      category,
+      sourcePages: subTradeRef.sourcePages ?? tradeRef.sourcePages,
+      subTradeCode: subTradeRef.subTradeCode,
+      subTradeName: subTradeRef.subTradeName
+    }))
+  ));
 }
 
 function tradeGroupOptions(
@@ -1372,6 +1479,8 @@ function phaseOptions(catalog: SupervisionDomainCatalog | null): SupervisionCata
           name: processAtom?.name ?? processRef.code,
           phaseCode: phaseRef.phaseCode,
           sourcePages: phaseRef.sourcePages,
+          subTradeCode: processAtom?.subTradeCode ?? SUB_TRADE_NONE_CODE,
+          subTradeName: processAtom?.subTradeName ?? SUB_TRADE_NONE_NAME,
           workCategory: category.code,
           workCategoryName: category.name
         };
@@ -1598,6 +1707,8 @@ function normalizeGroup(value: unknown, index: number): DailySupervisionGroup | 
     phaseName: optionalText(raw.phaseName),
     processCode: optionalText(raw.processCode),
     processName: text(raw.processName),
+    subTradeCode: optionalText(raw.subTradeCode),
+    subTradeName: optionalText(raw.subTradeName),
     tradeGroupCode: optionalText(raw.tradeGroupCode),
     tradeGroupName: optionalText(raw.tradeGroupName),
     tradeCode: optionalText(raw.tradeCode),

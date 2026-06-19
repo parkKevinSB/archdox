@@ -10,18 +10,19 @@
     "note": "This catalog is a code-managed ArchDox domain catalog. The PDF is a reference source, not runtime data."
   },
   "coverage": {
-    "referencePages": "22-73",
+    "referencePages": "22-178",
     "referencePagesBySupervisionWorkMode": {
       "NON_RESIDENT": "22-73",
       "RESIDENT": "74-126",
       "RESPONSIBLE_RESIDENT": "127-178"
     },
     "tradeCount": 46,
-    "detailGroupCount": 218,
-    "level": "FULL_NON_RESIDENT_TRADE_CHECKLIST_WITH_MODE_REFS",
-    "note": "NON_RESIDENT tradeRefs are generated from the checked JSON transcription. Existing manually curated RC atoms are reused where names match. Resident and responsible-resident mode refs remain separate transcription targets.",
-    "inspectionItemCount": 779,
-    "checklistRowCount": 144
+    "detailGroupCount": 217,
+    "level": "FULL_TRADE_CHECKLIST_BY_WORK_MODE",
+    "note": "NON_RESIDENT, RESIDENT, and RESPONSIBLE_RESIDENT tradeRefs are generated from checked JSON transcriptions. Shared canonical atoms are reused only when process, item, and row structure match.",
+    "inspectionItemCount": 1131,
+    "checklistRowCount": 93,
+    "subTradeCount": 6
   },
   "supervisionWorkModeCatalogs": {
     "NON_RESIDENT": {
@@ -30,39 +31,39 @@
       "status": "READY",
       "referencePages": "22-73",
       "catalogDataSource": "MODE_SPECIFIC_TRANSCRIPTION",
-      "dataPolicy": "CANONICAL",
+      "dataPolicy": "CANONICAL_ATOMS_WITH_MODE_REFS",
       "canWriteReports": true,
-      "description": "현재 전사된 기본 공종별 체크리스트입니다.",
+      "description": "비상주 공사감리 체크리스트 전사본입니다.",
       "message": "비상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다."
     },
     "RESIDENT": {
       "code": "RESIDENT",
       "name": "상주 감리",
-      "status": "DRAFT_COPY_PENDING_TRANSCRIPTION",
+      "status": "READY",
       "referencePages": "74-126",
-      "catalogDataSource": "NON_RESIDENT_COPY_DRAFT",
-      "dataPolicy": "SEPARATE_MODE_SLOT",
+      "catalogDataSource": "MODE_SPECIFIC_TRANSCRIPTION",
+      "dataPolicy": "CANONICAL_ATOMS_WITH_MODE_REFS",
       "canWriteReports": true,
-      "description": "상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 상주 기준을 전사하며 교체합니다.",
-      "message": "상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+      "description": "상주 공사감리 체크리스트 전사본입니다.",
+      "message": "상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다."
     },
     "RESPONSIBLE_RESIDENT": {
       "code": "RESPONSIBLE_RESIDENT",
       "name": "책임상주 감리",
-      "status": "DRAFT_COPY_PENDING_TRANSCRIPTION",
+      "status": "READY",
       "referencePages": "127-178",
-      "catalogDataSource": "NON_RESIDENT_COPY_DRAFT",
-      "dataPolicy": "SEPARATE_MODE_SLOT",
+      "catalogDataSource": "MODE_SPECIFIC_TRANSCRIPTION",
+      "dataPolicy": "CANONICAL_ATOMS_WITH_MODE_REFS",
       "canWriteReports": true,
-      "description": "책임상주 공사감리 체크리스트 구간입니다. 현재는 비상주 전사본을 복제한 초안 슬롯이며, 공종별로 실제 책임상주 기준을 전사하며 교체합니다.",
-      "message": "책임상주 감리 모드 슬롯은 분리되었지만 아직 상세 항목 전사가 끝나지 않았습니다. 현재 표시 항목은 비상주 감리 카탈로그를 복제한 초안입니다."
+      "description": "책임상주 공사감리 체크리스트 전사본입니다.",
+      "message": "책임상주 공사감리 체크리스트 기준으로 전사된 카탈로그입니다."
     }
   },
   "catalogModel": {
     "version": 1,
     "pattern": "ATOMIC_CHECKLIST_ITEMS_WITH_MODE_REFS",
-    "canonicalAtoms": "공종그룹, 공종, 세부공정, 검사항목, 세부 감리항목은 canonicalAtoms에 한 번만 정의합니다.",
-    "modeRefs": "비상주, 상주, 책임상주 카탈로그는 supervisionWorkModeCatalogs.*.tradeRefs와 phaseRefs에서 원자 항목을 참조합니다.",
+    "canonicalAtoms": "공종그룹, 공종, 세부공종, 세부공정, 검사항목, 세부 감리항목은 canonicalAtoms에 한 번만 정의합니다.",
+    "modeRefs": "비상주, 상주, 책임상주 카탈로그는 supervisionWorkModeCatalogs.*.tradeRefs와 phaseRefs에서 원자 항목을 참조합니다. 공종별 체크리스트의 권장 계층은 tradeRefs → subTradeRefs → workCategories → processGroupRefs입니다.",
     "runtimeProjection": "기존 UI 호환을 위한 flat tradeRefs/phaseRefs는 유지하고, 공종그룹/단계별 내부그룹 UI를 위한 tradeGroupRefs/phaseChecklistGroupRefs를 런타임에서 투영합니다.",
     "rule": "동일한 세부 감리항목은 새 코드를 만들지 않고 같은 row code를 재사용하고, 모드별 추가 항목만 새 atom으로 추가합니다.",
     "partFiles": "공종별 체크리스트와 단계별 감리업무 체크리스트는 별도 part 파일로 보관하고 런타임에 하나의 논리 카탈로그로 병합합니다."

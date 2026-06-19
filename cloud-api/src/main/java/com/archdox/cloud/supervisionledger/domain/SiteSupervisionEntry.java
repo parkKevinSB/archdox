@@ -51,6 +51,12 @@ public class SiteSupervisionEntry {
     @Column(name = "trade_name")
     private String tradeName;
 
+    @Column(name = "sub_trade_code")
+    private String subTradeCode;
+
+    @Column(name = "sub_trade_name")
+    private String subTradeName;
+
     @Column(name = "phase_code")
     private String phaseCode;
 
@@ -151,6 +157,8 @@ public class SiteSupervisionEntry {
             String tradeGroupName,
             String tradeCode,
             String tradeName,
+            String subTradeCode,
+            String subTradeName,
             String phaseChecklistGroupCode,
             String phaseChecklistGroupName,
             String phaseCode,
@@ -188,6 +196,8 @@ public class SiteSupervisionEntry {
         this.tradeGroupName = tradeGroupName;
         this.tradeCode = tradeCode;
         this.tradeName = tradeName;
+        this.subTradeCode = subTradeCode;
+        this.subTradeName = subTradeName;
         this.phaseChecklistGroupCode = phaseChecklistGroupCode;
         this.phaseChecklistGroupName = phaseChecklistGroupName;
         this.phaseCode = phaseCode;
@@ -260,6 +270,14 @@ public class SiteSupervisionEntry {
 
     public String tradeName() {
         return tradeName;
+    }
+
+    public String subTradeCode() {
+        return subTradeCode;
+    }
+
+    public String subTradeName() {
+        return subTradeName;
     }
 
     public String phaseCode() {

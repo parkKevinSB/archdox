@@ -106,6 +106,8 @@ public class SupervisionDomainCatalogService {
                 "",
                 normalizedTradeCode,
                 text(trade.path("name")),
+                firstNonBlank(text(processGroup.path("subTradeCode")), "NONE"),
+                firstNonBlank(text(processGroup.path("subTradeName")), "없음"),
                 "",
                 "",
                 normalizedProcessCode,
@@ -156,6 +158,8 @@ public class SupervisionDomainCatalogService {
                 PHASE_CHECKLIST_GROUP_NAME,
                 "",
                 "",
+                "NONE",
+                "없음",
                 normalizedPhaseCode,
                 text(phaseAtom.path("name")),
                 normalizedProcessCode,
@@ -224,31 +228,7 @@ public class SupervisionDomainCatalogService {
         if (configured.isObject()) {
             return configured;
         }
-        return objectMapper.valueToTree(fallbackModeCatalog(mode));
-    }
-
-    private Map<String, Object> fallbackModeCatalog(SupervisionWorkMode mode) {
-        var fallback = new LinkedHashMap<String, Object>();
-        fallback.put("code", mode.name());
-        fallback.put("name", switch (mode) {
-            case NON_RESIDENT -> "비상주 감리";
-            case RESIDENT -> "상주 감리";
-            case RESPONSIBLE_RESIDENT -> "책임상주 감리";
-        });
-        fallback.put("status", mode == SupervisionWorkMode.NON_RESIDENT ? "READY" : "DRAFT_COPY_PENDING_TRANSCRIPTION");
-        fallback.put("referencePages", switch (mode) {
-            case NON_RESIDENT -> "22-73";
-            case RESIDENT -> "74-126";
-            case RESPONSIBLE_RESIDENT -> "127-178";
-        });
-        fallback.put("catalogDataSource", mode == SupervisionWorkMode.NON_RESIDENT
-                ? "MODE_SPECIFIC_TRANSCRIPTION"
-                : "NON_RESIDENT_COPY_DRAFT");
-        fallback.put("dataPolicy", mode == SupervisionWorkMode.NON_RESIDENT ? "CANONICAL" : "SEPARATE_MODE_SLOT");
-        fallback.put("canWriteReports", true);
-        fallback.put("description", "");
-        fallback.put("message", "");
-        return fallback;
+        throw new IllegalStateException("Supervision work mode catalog is missing: " + mode.name());
     }
 
     private JsonNode readCatalog(String normalized) {
@@ -552,6 +532,8 @@ public class SupervisionDomainCatalogService {
             String phaseChecklistGroupName,
             String tradeCode,
             String tradeName,
+            String subTradeCode,
+            String subTradeName,
             String phaseCode,
             String phaseName,
             String processCode,

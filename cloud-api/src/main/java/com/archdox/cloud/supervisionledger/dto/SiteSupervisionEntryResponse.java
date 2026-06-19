@@ -17,6 +17,8 @@ public record SiteSupervisionEntryResponse(
         String tradeGroupName,
         String tradeCode,
         String tradeName,
+        String subTradeCode,
+        String subTradeName,
         String phaseChecklistGroupCode,
         String phaseChecklistGroupName,
         String phaseCode,
