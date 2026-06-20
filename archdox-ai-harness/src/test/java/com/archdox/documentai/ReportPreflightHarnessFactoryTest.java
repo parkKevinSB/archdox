@@ -93,7 +93,7 @@ class ReportPreflightHarnessFactoryTest {
         var prompt = new ReportPreflightPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("1.2.1");
+        assertThat(prompt.version().version()).isEqualTo("1.2.2");
         assertThat(system)
                 .contains("Write summary, message, evidence, and suggestion in Korean")
                 .contains("top-level photos array as the source of truth")

@@ -101,7 +101,12 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                   that should be saved into that field.
                 - Direct text fields include DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote,
                   DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote,
-                  REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                  REMARKS.payload.specialNotes, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.
+                - Do not use REMARKS.payload as a WORDING issue location. It is an aggregate object,
+                  not an editable field. When multiple remarks fields need improvement, create one
+                  separate issue per affected direct field.
+                - For vague remarks fields, replacement must be the final text for that one field.
+                  Example: location=REMARKS.payload.specialNotes, replacement="특기사항 없이 이상 없습니다."
                 - Do not target generated daily supervision summary text for automatic replacement.
                 - The replacement value must be final report prose, not an instruction.
                 - Do not write values like "수정하십시오", "명확히 기재하십시오", "문장을 다듬으십시오",
