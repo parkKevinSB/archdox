@@ -2895,6 +2895,12 @@ button {
   font-weight: 850;
 }
 
+.daily-supervision-summary .catalog {
+  border-color: #cfddd9;
+  color: #1f5f55;
+  background: #e7f3ef;
+}
+
 .daily-supervision-empty {
   display: grid;
   gap: 8px;
@@ -6210,16 +6216,32 @@ button.list-row {
     gap: 10px;
   }
 
-  .wizard-form-head {
-    gap: 5px;
-  }
-
-  .wizard-form-head h3 {
-    font-size: 17px;
-  }
-
-  .wizard-form-head p,
+  .wizard-form-head,
   .wizard-save-hint {
+    display: none;
+  }
+
+  .daily-supervision-summary {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-right: -12px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .daily-supervision-summary::-webkit-scrollbar {
+    display: none;
+  }
+
+  .daily-supervision-summary span {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  .daily-catalog-source {
     display: none;
   }
 

@@ -460,12 +460,11 @@ export function DailySupervisionItemsStep({
       <input type="hidden" {...register(DAILY_ITEMS_FIELD)} />
 
       <div className="daily-supervision-summary">
-        <span>감리업무 {catalog?.selectedSupervisionWorkModeName ?? supervisionWorkModeLabel(site?.supervisionWorkMode)}</span>
-        <span>감리 그룹 {groups.length}개</span>
+        {catalog ? <span className="catalog">카탈로그 v{catalog.version}</span> : null}
+        <span>그룹 {groups.length}개</span>
         <span>검사항목 {totalItems}개</span>
-        <span>검사 대상 세부항목 {checkedChecklistRows}/{totalChecklistRows}개</span>
-        <span>연결 사진 {totalPhotos}장</span>
-        {catalog ? <span>카탈로그 v{catalog.version}</span> : null}
+        <span>세부항목 {checkedChecklistRows}/{totalChecklistRows}개</span>
+        <span>사진 {totalPhotos}장</span>
       </div>
 
       {catalogQuery.isLoading ? (
@@ -475,7 +474,7 @@ export function DailySupervisionItemsStep({
         <p className="daily-supervision-muted">감리 도메인 카탈로그를 불러오지 못했습니다. 법령 근거 연결을 위해 카탈로그가 필요합니다.</p>
       ) : null}
       {catalog?.source ? (
-        <p className="daily-supervision-muted">
+        <p className="daily-supervision-muted daily-catalog-source">
           기준: {catalog.source.documentTitle} {catalog.source.revisionLabel ? `· ${catalog.source.revisionLabel}` : ""}
         </p>
       ) : null}
