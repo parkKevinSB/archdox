@@ -170,9 +170,10 @@ export function fetchChecklistPrintPreview(
   token: string,
   officeId: number,
   reportId: number,
-  type: ChecklistPrintType
+  type?: ChecklistPrintType
 ) {
-  return request<ChecklistPrintResponse>(`/api/v1/inspection-reports/${reportId}/checklist-print-preview?type=${type}`, {
+  const query = type ? `?type=${type}` : "";
+  return request<ChecklistPrintResponse>(`/api/v1/inspection-reports/${reportId}/checklist-print-preview${query}`, {
     token,
     officeId
   });
@@ -182,9 +183,10 @@ export async function downloadChecklistPrintDocx(
   token: string,
   officeId: number,
   reportId: number,
-  type: ChecklistPrintType
+  type?: ChecklistPrintType
 ) {
-  const downloadUrl = `/api/v1/inspection-reports/${reportId}/checklist-print-docx?type=${type}`;
+  const query = type ? `?type=${type}` : "";
+  const downloadUrl = `/api/v1/inspection-reports/${reportId}/checklist-print-docx${query}`;
   const response = await fetch(new URL(`${API_BASE}${downloadUrl}`, window.location.origin), {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -195,7 +197,7 @@ export async function downloadChecklistPrintDocx(
     throw new Error(`체크리스트 DOCX 다운로드에 실패했습니다. (${response.status})`);
   }
   const fileName = contentDispositionFileName(response.headers.get("Content-Disposition"))
-    ?? `archdox-checklist-${reportId}-${type.toLowerCase()}.docx`;
+    ?? `archdox-checklist-${reportId}-${(type ?? "saved").toLowerCase()}.docx`;
   await saveDownloadBlob(await response.blob(), fileName);
 }
 

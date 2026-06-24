@@ -30,7 +30,7 @@ public class ChecklistPrintController {
     @GetMapping("/{reportId}/checklist-print-preview")
     public ChecklistPrintResponse preview(
             @PathVariable Long reportId,
-            @RequestParam(defaultValue = "ALL") String type,
+            @RequestParam(required = false) String type,
             Authentication authentication
     ) {
         return service.preview(reportId, type, (UserPrincipal) authentication.getPrincipal());
@@ -39,7 +39,7 @@ public class ChecklistPrintController {
     @GetMapping("/{reportId}/checklist-print-docx")
     public ResponseEntity<byte[]> downloadDocx(
             @PathVariable Long reportId,
-            @RequestParam(defaultValue = "ALL") String type,
+            @RequestParam(required = false) String type,
             Authentication authentication
     ) {
         var export = docxExportService.export(reportId, type, (UserPrincipal) authentication.getPrincipal());

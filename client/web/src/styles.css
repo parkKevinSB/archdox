@@ -1710,10 +1710,19 @@ button {
   background: #f7fbfa;
 }
 
-.document-preview-header > div {
+.document-preview-header > div,
+.document-preview-header-main {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+.document-preview-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: max-content;
 }
 
 .document-preview-header span {
