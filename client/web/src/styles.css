@@ -5830,48 +5830,66 @@ button.list-row {
   }
 
   .workspace-shell {
-    padding: 14px;
+    padding: 10px 12px 14px;
   }
 
   .product-bar {
     position: sticky;
     top: 0;
     z-index: 10;
-    margin: -14px -14px 0;
-    padding: 12px 14px;
+    min-height: 58px;
+    margin: -10px -12px 0;
+    padding: 8px 12px;
     border-bottom: 1px solid #d8e1df;
     background: #ffffff;
   }
 
   .topbar-title {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
   }
 
   .mobile-brand {
     display: block;
   }
 
+  .mobile-brand .brand-logo {
+    gap: 8px;
+  }
+
   .mobile-brand .brand-logo strong {
     color: #14201f;
+    font-size: 20px;
   }
 
   .mobile-brand .logo-mark {
-    width: 32px;
-    height: 32px;
-    flex-basis: 32px;
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
     color: #dffaf1;
     background: #21413b;
   }
 
+  .mobile-brand .brand-logo > div > span {
+    display: none;
+  }
+
   .topbar-title h1 {
-    font-size: 21px;
+    min-width: 0;
+    padding-left: 10px;
+    border-left: 1px solid #d8e1df;
+    font-size: 18px;
+    white-space: nowrap;
   }
 
   .global-search,
   .product-actions .icon-button {
     display: none;
+  }
+
+  .product-actions {
+    gap: 6px;
   }
 
   .topbar-chat-control {
@@ -5981,7 +5999,7 @@ button.list-row {
   }
 
   .client-main {
-    padding-top: 14px;
+    padding-top: 10px;
   }
 
   .workspace-hero,
@@ -5990,6 +6008,27 @@ button.list-row {
     flex-direction: column;
     min-height: 0;
     padding: 16px;
+  }
+
+  .view-stack {
+    gap: 10px;
+  }
+
+  .view-stack > .view-header {
+    display: none;
+  }
+
+  .view-stack > .workspace-hero {
+    padding: 12px;
+  }
+
+  .workspace-hero .eyebrow,
+  .workspace-hero p {
+    display: none;
+  }
+
+  .workspace-hero h1 {
+    font-size: 20px;
   }
 
   .hero-actions {
