@@ -47,7 +47,8 @@ export function payloadFieldValue(payload: Record<string, unknown>, key: string)
 
 export function payloadFromForm(definition: ReportStepDefinition, values: Record<string, string>) {
   return definition.fields.reduce<Record<string, unknown>>((payload, field) => {
-    const rawValue = values[field.key]?.trim() ?? defaultFieldValue(definition, field.key);
+    const formValue = values[field.key]?.trim() ?? "";
+    const rawValue = formValue.length > 0 ? formValue : defaultFieldValue(definition, field.key);
     if (rawValue.length === 0) {
       return payload;
     }
