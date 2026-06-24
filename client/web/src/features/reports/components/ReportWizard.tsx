@@ -86,12 +86,27 @@ export function ReportWizard({
           </span>
         </div>
 
-        <div className="context-strip">
-          <span>프로젝트: {project?.name ?? `project #${report.projectId}`}</span>
-          <span>현장: {site?.name ?? (report.siteId ? `site #${report.siteId}` : "미지정")}</span>
-          <span>감리업무: {supervisionWorkModeLabel(site?.supervisionWorkMode ?? workflowDefinition?.supervisionWorkMode)}</span>
-          <span>유형: {reportTypeLabel(report.reportType)}</span>
-          <span>흐름: {workflowDefinition?.title ?? "기본 작성 흐름"}</span>
+        <div className="context-strip" aria-label="리포트 작성 정보">
+          <span>
+            <b>프로젝트</b>
+            <em>{project?.name ?? `project #${report.projectId}`}</em>
+          </span>
+          <span>
+            <b>현장</b>
+            <em>{site?.name ?? (report.siteId ? `site #${report.siteId}` : "미지정")}</em>
+          </span>
+          <span>
+            <b>감리업무</b>
+            <em>{supervisionWorkModeLabel(site?.supervisionWorkMode ?? workflowDefinition?.supervisionWorkMode)}</em>
+          </span>
+          <span>
+            <b>유형</b>
+            <em>{reportTypeLabel(report.reportType)}</em>
+          </span>
+          <span>
+            <b>흐름</b>
+            <em>{workflowDefinition?.title ?? "기본 작성 흐름"}</em>
+          </span>
         </div>
 
         {loadingSteps ? <InlineNotice message="작성 단계를 불러오는 중입니다." /> : null}
