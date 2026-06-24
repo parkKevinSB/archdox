@@ -5844,10 +5844,6 @@ function PlatformView({
       ) : null}
 
       {showOverview || showIncidents ? (
-        <PlatformOpsControlSignalPanel reports={data.opsDailyReports} />
-      ) : null}
-
-      {showOverview || showIncidents ? (
         <PlatformOpsDiagnosisDetailPanel
           incident={selectedDiagnosisIncident}
           run={selectedDiagnosisRun}
