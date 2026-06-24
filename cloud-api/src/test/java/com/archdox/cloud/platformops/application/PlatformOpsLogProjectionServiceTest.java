@@ -26,6 +26,8 @@ class PlatformOpsLogProjectionServiceTest {
         var logFile = tempDir.resolve("archdox-cloud-api.log");
         Files.writeString(logFile, """
                 2026-06-25T01:00:00.000+09:00 INFO  [main] [no-corr] [ ] com.archdox.Startup - started
+                2026-06-25T01:00:30.000+09:00 WARN  [main] [no-corr] [ ] org.springframework.boot.Security - 
+                Using generated security password: should-not-be-projected
                 2026-06-25T01:01:00.000+09:00 WARN  [http-nio-8080-exec-1] [corr-1] [GET /api/v1/test] com.archdox.TestService - Slow request token=should-not-leak
                 2026-06-25T01:02:00.000+09:00 ERROR [flower-worker-1] [corr-2] [POST /api/v1/documents] com.archdox.DocumentService - Failed with Bearer abc.def.ghi password=hidden
                 java.lang.IllegalStateException: stack trace should not be stored
@@ -40,6 +42,8 @@ class PlatformOpsLogProjectionServiceTest {
                 PageRequest.of(0, 10));
 
         assertThat(findings).hasSize(2);
+        assertThat(findings).extracting(PlatformOpsDetectionFinding::message)
+                .doesNotContain("", "Using generated security password: should-not-be-projected");
         assertThat(findings).extracting(PlatformOpsDetectionFinding::code)
                 .containsExactly("APPLICATION_LOG_WARN_DETECTED", "APPLICATION_LOG_ERROR_DETECTED");
         assertThat(findings.get(0).message()).doesNotContain("should-not-leak");

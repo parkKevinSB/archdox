@@ -140,6 +140,9 @@ public class PlatformOpsLogProjectionService {
         var level = matcher.group("level");
         var logger = matcher.group("logger");
         var message = trimTo(sanitize(matcher.group("message")), properties.safeMaxMessageLength());
+        if (message.isBlank()) {
+            return Optional.empty();
+        }
         var occurredAt = matcher.group("timestamp");
         var correlationId = blankToNull(matcher.group("correlationId"));
         var request = blankToNull(matcher.group("request"));
