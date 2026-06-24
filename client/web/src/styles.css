@@ -2694,20 +2694,23 @@ button {
 }
 
 .context-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
 .context-strip span {
   display: flex;
-  align-items: start;
+  align-items: center;
+  flex: 0 1 auto;
   gap: 7px;
   min-width: 0;
+  max-width: 100%;
   min-height: 34px;
   padding: 8px 10px;
   border: 1px solid #dce7e4;
-  border-radius: 8px;
+  border-radius: 999px;
   color: #40514e;
   background: #f7fbfa;
   font-size: 12px;
@@ -2734,8 +2737,9 @@ button {
   min-width: 0;
   color: #263936;
   font-style: normal;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wizard-grid {
