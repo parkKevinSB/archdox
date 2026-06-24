@@ -456,7 +456,7 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         var rows = new ArrayList<String>();
         for (Object rowValue : listValue(entry.get("checklistRows"))) {
             var row = mapValue(rowValue);
-            if (row == parentRow) {
+            if (isSameChecklistRow(row, parentRow)) {
                 continue;
             }
             var rowContent = dailyChecklistRowContent(row);
@@ -510,6 +510,20 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
             }
         }
         return Map.of();
+    }
+
+    private boolean isSameChecklistRow(Map<String, Object> row, Map<String, Object> target) {
+        if (row.isEmpty() || target.isEmpty()) {
+            return false;
+        }
+        var rowCode = valueOrBlank(row.get("code")).trim();
+        var targetCode = valueOrBlank(target.get("code")).trim();
+        if (!rowCode.isBlank() && rowCode.equals(targetCode)) {
+            return true;
+        }
+        var rowLabel = valueOrBlank(row.get("label")).trim();
+        var targetLabel = valueOrBlank(target.get("label")).trim();
+        return !rowLabel.isBlank() && rowLabel.equals(targetLabel);
     }
 
     private String dailyChecklistRowContent(Map<String, Object> row) {
