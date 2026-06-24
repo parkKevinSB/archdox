@@ -78,6 +78,7 @@ type ChecklistNoteDialogState = {
 const DAILY_ITEMS_FIELD = "dailyItems";
 const CATALOG_CODE = "CONSTRUCTION_SUPERVISION_CHECKLIST_2020_12_24";
 const SUB_TRADE_NONE_CODE = "NONE";
+const koreanCollator = new Intl.Collator("ko-KR", { numeric: true, sensitivity: "base" });
 const SUB_TRADE_NONE_NAME = "없음";
 
 export function DailySupervisionItemsStep({
@@ -538,7 +539,7 @@ export function DailySupervisionItemsStep({
                       value={group.phaseCode ?? ""}
                     >
                       <option value="">공사단계 선택</option>
-                      {phases.map((entry) => (
+                      {sortByKoreanName(phases).map((entry) => (
                         <option key={entry.code} value={entry.code}>{entry.name}</option>
                       ))}
                     </select>
@@ -554,7 +555,7 @@ export function DailySupervisionItemsStep({
                         value={group.tradeGroupCode ?? ""}
                       >
                         <option value="">공종그룹 선택</option>
-                        {tradeGroups.map((entry) => (
+                        {sortByKoreanName(tradeGroups).map((entry) => (
                           <option key={entry.code} value={entry.code}>{entry.name}</option>
                         ))}
                       </select>
@@ -569,7 +570,7 @@ export function DailySupervisionItemsStep({
                         value={group.tradeCode ?? ""}
                       >
                         <option value="">공종 선택</option>
-                        {tradesForGroup(group, trades).map((entry) => (
+                        {sortByKoreanName(tradesForGroup(group, trades)).map((entry) => (
                           <option key={entry.code} value={entry.code}>{entry.name}</option>
                         ))}
                       </select>
@@ -593,6 +594,7 @@ export function DailySupervisionItemsStep({
                         <option value="">세부공종 선택</option>
                         {subTradeOptionsForTrade(selectedTrade(group, trades))
                           .filter((entry) => entry.code !== SUB_TRADE_NONE_CODE)
+                          .sort(compareByKoreanName)
                           .map((entry) => (
                             <option key={entry.code} value={entry.code}>{entry.name}</option>
                           ))}
@@ -640,7 +642,7 @@ export function DailySupervisionItemsStep({
                       value={group.processCode ?? ""}
                     >
                       <option value="">{requiresSubTradeSelection(group, selectedTrade(group, trades)) ? "세부공종을 먼저 선택" : isPhaseGroup(group) ? "세부업무 선택" : "세부공정 선택"}</option>
-                      {selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases)).map((processGroup) => (
+                      {sortByKoreanName(selectedProcessGroups(group, selectedCatalogGroup(group, trades, phases))).map((processGroup) => (
                         <option key={processGroup.code} value={processGroup.code}>
                           {processGroup.name}
                         </option>
@@ -680,7 +682,7 @@ export function DailySupervisionItemsStep({
                 {group.entries.length === 0 ? (
                   <p className="daily-supervision-muted">검사항목을 추가하세요.</p>
                 ) : group.entries.map((entry, entryIndex) => {
-                  const itemOptions = suggestedItems(group, trades, phases);
+                  const itemOptions = sortByKoreanName(suggestedItems(group, trades, phases));
                   return (
                   <div className="daily-supervision-item" key={entry.id}>
                     <div className="daily-supervision-item-head">
@@ -724,11 +726,9 @@ export function DailySupervisionItemsStep({
                         />
                       )}
                     </label>
-                    {entry.inspectionItemCode ? (
-                      <span className="daily-supervision-muted">검사항목 코드: {entry.inspectionItemCode}</span>
-                    ) : (
+                    {!entry.inspectionItemCode ? (
                       <span className="daily-supervision-warning">카탈로그 검사항목을 선택해야 법령 근거가 연결됩니다.</span>
-                    )}
+                    ) : null}
                     {entry.checklistRows.length > 0 ? (
                       <DailyChecklistRowsEditor
                         canWriteReports={canWriteReports}
@@ -753,12 +753,12 @@ export function DailySupervisionItemsStep({
               </div>
 
               <datalist id={`daily-item-options-${group.id}`}>
-                {suggestedItems(group, trades, phases).map((item) => (
+                {sortByKoreanName(suggestedItems(group, trades, phases)).map((item) => (
                   <option key={item.code} value={item.name} />
                 ))}
               </datalist>
               <datalist id={`daily-process-options-${group.id}`}>
-                {suggestedProcesses(group, trades, phases, processOptions).map((option) => (
+                {sortKoreanStrings(suggestedProcesses(group, trades, phases, processOptions)).map((option) => (
                   <option key={option} value={option} />
                 ))}
               </datalist>
@@ -839,7 +839,6 @@ function DailyChecklistRowsEditor({
             <span className="daily-checklist-row-index">{index + 1}</span>
             <div>
               <strong>{row.label}</strong>
-              {row.code ? <span>코드: {row.code}</span> : null}
               {row.basis ? <span>기본 기준: {row.basis}</span> : null}
             </div>
           </div>
@@ -1083,7 +1082,7 @@ function DailyPhotoThumb({
     photoId,
     token
   });
-  const label = photo?.caption || photo?.inspectionItemCode || `Photo #${photoId}`;
+  const label = photo?.caption || `Photo #${photoId}`;
   const disabled = !preview.url || deleting;
 
   return (
@@ -1153,7 +1152,7 @@ function DailyItemPicker({
   trades: SupervisionCatalogTrade[];
 }) {
   const [selected, setSelected] = useState("");
-  const items = suggestedItems(group, trades, phases);
+  const items = sortByKoreanName(suggestedItems(group, trades, phases));
   const itemsKey = items.map((item) => item.code).join("|");
   const selectedItem = items.find((item) => item.code === selected);
   const emptyLabel = groupRootCode(group) && group.processCode
@@ -1185,6 +1184,18 @@ function DailyItemPicker({
       </button>
     </div>
   );
+}
+
+function sortByKoreanName<T extends { code?: string; name?: string | null }>(items: T[]) {
+  return [...items].sort(compareByKoreanName);
+}
+
+function compareByKoreanName<T extends { code?: string; name?: string | null }>(left: T, right: T) {
+  return koreanCollator.compare(left.name || left.code || "", right.name || right.code || "");
+}
+
+function sortKoreanStrings(items: string[]) {
+  return [...items].sort((left, right) => koreanCollator.compare(left, right));
 }
 
 function suggestedItems(group: DailySupervisionGroup, trades: SupervisionCatalogTrade[], phases: SupervisionCatalogPhase[]) {
