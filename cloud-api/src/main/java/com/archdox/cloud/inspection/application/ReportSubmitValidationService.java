@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReportSubmitValidationService {
+    private static final String CHECKLIST_SOURCE_STEP = "CHECKLIST_SOURCE";
+    private static final String CHECKLIST_SELECTION_FIELD = "checklistSelection";
+
     private final InspectionReportStepRepository stepRepository;
     private final InspectionChecklistAnswerRepository checklistAnswerRepository;
     private final PhotoAssetRepository photoAssetRepository;
@@ -122,6 +125,9 @@ public class ReportSubmitValidationService {
         }
         var savedStep = stepsByCode.get(step.code());
         if (savedStep == null) {
+            if (isDefaultChecklistSourceStep(step)) {
+                return;
+            }
             blockingIssues.add(new ReportSubmitValidationIssueResponse(
                     "MISSING_STEP_" + step.code(),
                     step.title() + " step must be saved before submit.",
@@ -132,6 +138,9 @@ public class ReportSubmitValidationService {
         for (var field : requiredFields) {
             var value = savedStep.payloadJson() == null ? null : savedStep.payloadJson().get(field.key());
             if (isEmptyValue(value)) {
+                if (isDefaultChecklistSourceField(step, field)) {
+                    continue;
+                }
                 blockingIssues.add(new ReportSubmitValidationIssueResponse(
                         "MISSING_REQUIRED_FIELD_" + step.code() + "_" + field.key().toUpperCase(Locale.ROOT),
                         field.label() + " is required before submit.",
@@ -171,6 +180,9 @@ public class ReportSubmitValidationService {
             String message,
             ArrayList<ReportSubmitValidationIssueResponse> blockingIssues
     ) {
+        if (isChecklistSourceStep(stepCode)) {
+            return;
+        }
         if (!stepsByCode.containsKey(stepCode)) {
             blockingIssues.add(new ReportSubmitValidationIssueResponse(
                     "MISSING_STEP_" + stepCode,
@@ -254,6 +266,18 @@ public class ReportSubmitValidationService {
             return map.isEmpty();
         }
         return false;
+    }
+
+    private boolean isDefaultChecklistSourceStep(ReportWorkflowStepResponse step) {
+        return isChecklistSourceStep(step.code());
+    }
+
+    private boolean isDefaultChecklistSourceField(ReportWorkflowStepResponse step, ReportWorkflowFieldResponse field) {
+        return isChecklistSourceStep(step.code()) && CHECKLIST_SELECTION_FIELD.equals(field.key());
+    }
+
+    private boolean isChecklistSourceStep(String stepCode) {
+        return CHECKLIST_SOURCE_STEP.equals(normalizeCode(stepCode));
     }
 
     private String normalizeCode(Object value) {

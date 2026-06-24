@@ -142,6 +142,59 @@ class ReportSubmitValidationIntegrationTest {
     }
 
     @Test
+    void checklistReportDefaultSelectionIsSubmitReadyBeforeExplicitStepSave() throws Exception {
+        var user = signup("checklist-submit-default@example.com", "Checklist Submit");
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createChecklistReport(user, projectId, siteId, "Checklist default source");
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.blockingIssues", hasSize(0)));
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+    }
+
+    @Test
+    void checklistReportBlankSavedSelectionUsesDomainDefaultBeforeSubmit() throws Exception {
+        var user = signup("checklist-submit-blank@example.com", "Checklist Submit Blank");
+        var projectId = createProject(user);
+        var siteId = createSite(user, projectId);
+        var reportId = createChecklistReport(user, projectId, siteId, "Checklist blank source");
+
+        mockMvc.perform(put("/api/v1/inspection-reports/{reportId}/steps/{stepCode}", reportId, "CHECKLIST_SOURCE")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "payload": {}
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/inspection-reports/{reportId}/submit-validation", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.blockingIssues", hasSize(0)));
+
+        mockMvc.perform(post("/api/v1/inspection-reports/{reportId}/submit", reportId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_GENERATE"));
+    }
+
+    @Test
     void resolvesWorkflowDefinitionForReportWritingUi() throws Exception {
         var user = signup("workflow-definition@example.com", "Workflow Definition");
         var projectId = createProject(user);
@@ -282,6 +335,24 @@ class ReportSubmitValidationIntegrationTest {
                                   "title": "Validation report"
                                 }
                                 """.formatted(projectId, siteId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return readId(result.getResponse().getContentAsString());
+    }
+
+    private long createChecklistReport(TestUser user, long projectId, long siteId, String title) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/inspection-reports")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "projectId": %d,
+                                  "siteId": %d,
+                                  "reportType": "CONSTRUCTION_SUPERVISION_CHECKLIST",
+                                  "title": "%s"
+                                }
+                                """.formatted(projectId, siteId, title)))
                 .andExpect(status().isCreated())
                 .andReturn();
         return readId(result.getResponse().getContentAsString());

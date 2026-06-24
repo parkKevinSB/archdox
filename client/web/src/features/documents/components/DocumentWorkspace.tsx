@@ -722,7 +722,7 @@ function DocumentSignatureDialog({
     suggestion.applicable && suggestion.polishedText.trim() && suggestion.source === "RULE_BASED"
   ).length;
   const isHtmlOutput = outputFormat === "HTML";
-  const outputLabel = isHtmlOutput ? "HTML 생성" : `${outputFormat} 생성`;
+  const outputLabel = isHtmlOutput ? "미리보기" : `${outputFormat} 생성`;
 
   const polishNarrative = async () => {
     const fields = narrativePolishFields();
@@ -924,7 +924,7 @@ function DocumentSignatureDialog({
         {outputFormat === "HTML" ? (
           <span>
             <strong>자동 미리보기</strong>
-            <small>생성 완료 후 HTML 열기</small>
+            <small>문장 확인 후 미리보기 열기</small>
           </span>
         ) : null}
       </div>
@@ -1028,7 +1028,7 @@ function DocumentSignatureDialog({
             {outputFormat === "HTML" ? (
               <button className="primary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
                 {submitting ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-                HTML 생성
+                미리보기 열기
               </button>
             ) : (
               <button className="primary-button" disabled={submitting || applyingNarrative} onClick={() => {
@@ -1053,7 +1053,7 @@ function DocumentSignatureDialog({
             <strong>{report.title || report.reportNo}</strong>
             <small>
               {isHtmlOutput
-                ? "서명 없이 HTML을 생성하고 완료 후 미리보기를 엽니다. 다듬은 문장은 다른 출력에도 다시 사용할 수 있습니다."
+                ? "서명 없이 현재 작성본 미리보기를 엽니다. 다듬은 문장은 다른 출력에도 다시 사용할 수 있습니다."
                 : `${outputFormat} 생성 전에 서명과 다듬은 문장을 확인합니다.`}
             </small>
           </div>
@@ -1071,7 +1071,7 @@ function DocumentSignatureDialog({
                 </span>
                 <p>
                   {appliedNarrativeCount > 0
-                    ? `${appliedNarrativeCount}개 문장이 이번 생성 문서에 반영됩니다. 원본 리포트에 저장하지 않아도 DOCX/PDF/HTML 생성에는 같은 문장을 사용합니다.`
+                    ? `${appliedNarrativeCount}개 문장이 이번 생성 문서에 반영됩니다. 원본 리포트에 저장하지 않아도 DOCX/PDF/미리보기에는 같은 문장을 사용합니다.`
                     : `확인 대상 ${narrativeFields.length}개가 있습니다. 원본 문장 그대로 생성하거나 별도 화면에서 다듬을 수 있습니다.`}
                 </p>
               </div>
@@ -1085,8 +1085,8 @@ function DocumentSignatureDialog({
           ) : null}
           {isHtmlOutput ? (
             <div className="signature-skipped-note">
-              <strong>HTML 생성에는 서명을 요구하지 않습니다.</strong>
-              <p>HTML은 화면 확인용 산출물이므로 현재 생성본 문장만 반영해 만들고, 생성 완료 후 미리보기를 엽니다.</p>
+              <strong>미리보기에는 서명을 요구하지 않습니다.</strong>
+              <p>화면 확인용 미리보기이므로 현재 생성본 문장만 반영해 바로 엽니다.</p>
             </div>
           ) : (
             <>
@@ -1129,7 +1129,7 @@ function DocumentSignatureDialog({
           {isHtmlOutput ? (
             <button className="primary-button" disabled={submitting} onClick={submitWithoutSignature} type="button">
               {submitting ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-              HTML 생성
+              미리보기 열기
             </button>
           ) : (
             <>
