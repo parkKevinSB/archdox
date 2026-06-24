@@ -232,6 +232,26 @@ class ReportPreflightLegalReviewHarnessServiceTest {
     }
 
     @Test
+    void legalReferencesFilterCatalogItemAnchorsToSelectedChecklistCodes() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+
+        @SuppressWarnings("unchecked")
+        var references = (List<Map<String, Object>>) ReflectionTestUtils.invokeMethod(
+                service,
+                "legalReferences",
+                List.of(mixedCatalogItemLegalContextFinding(now)),
+                Set.of("WINDOW_CERT"));
+
+        assertThat(references)
+                .extracting(reference -> String.valueOf(reference.get("referenceId")))
+                .containsExactly(
+                        "WINDOW_STANDARD:BODY@v1",
+                        "BUILDING_ACT:0025001@v1");
+        assertThat(references)
+                .noneMatch(reference -> "INSULATION_STANDARD:BODY@v1".equals(reference.get("referenceId")));
+    }
+
+    @Test
     void candidateOnlyCoverageIsNotPassEligible() {
         var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
 
@@ -429,10 +449,10 @@ class ReportPreflightLegalReviewHarnessServiceTest {
         assertThat(windowReplacement)
                 .contains("창호 자재의 단열·기밀·수밀·내풍압")
                 .contains("시방서·시험성적서·자재승인서")
-                .contains("확인하고 첨부하였음을 기록합니다");
+                .contains("확인하고 첨부하였습니다");
         assertThat(insulationReplacement)
                 .contains("단열재의 규격, 두께 및 성능 항목")
-                .contains("확인하고 첨부하였음을 기록합니다");
+                .contains("확인하고 첨부하였습니다");
     }
 
     @Test
@@ -565,6 +585,26 @@ class ReportPreflightLegalReviewHarnessServiceTest {
                         "legalReferences", "BUILDING_ACT:0025001@0018232025082621035",
                         "legalReferenceDetails",
                         "BUILDING_ACT:0025001@0018232025082621035\t건축법 25 건축물의 공사감리\tLEGAL_DOMAIN_BINDING\tCATALOG_ITEM\tSTEEL_MEMBER_SYMBOL\tPRIMARY\tCONSTRUCTION_SUPERVISION_CHECKLIST\tv1\tSTEEL_MEMBER_SYMBOL"),
+                now);
+    }
+
+    private ReportPreflightReviewFinding mixedCatalogItemLegalContextFinding(OffsetDateTime now) {
+        return new ReportPreflightReviewFinding(
+                10L,
+                200L,
+                100L,
+                "DETERMINISTIC",
+                "LEGAL_EVIDENCE_CONTEXT_USED",
+                "INFO",
+                "LEGAL_CONTEXT",
+                "Legal references were resolved.",
+                "legalReferences=WINDOW_STANDARD:BODY@v1,INSULATION_STANDARD:BODY@v1,BUILDING_ACT:0025001@v1",
+                Map.of(
+                        "legalReferences", "WINDOW_STANDARD:BODY@v1,INSULATION_STANDARD:BODY@v1,BUILDING_ACT:0025001@v1",
+                        "legalReferenceDetails",
+                        "WINDOW_STANDARD:BODY@v1\tWindow performance standard\tLEGAL_DOMAIN_BINDING\tCATALOG_ITEM\tCATALOG:v2:WINDOW_CERT\tSUPPORTING\tCATALOG\t2\tWINDOW_CERT\n"
+                                + "INSULATION_STANDARD:BODY@v1\tInsulation standard\tLEGAL_DOMAIN_BINDING\tCATALOG_ITEM\tCATALOG:v2:INSULATION_MATERIAL\tSUPPORTING\tCATALOG\t2\tINSULATION_MATERIAL\n"
+                                + "BUILDING_ACT:0025001@v1\tBuilding Act article 25\tLEGAL_DOMAIN_BINDING\tREPORT_TYPE\tCONSTRUCTION_DAILY_SUPERVISION_LOG:BUILDING_ACT_SUPERVISION\tPRIMARY\t\t\t"),
                 now);
     }
 

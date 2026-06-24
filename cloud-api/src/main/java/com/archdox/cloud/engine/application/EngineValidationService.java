@@ -178,7 +178,7 @@ public class EngineValidationService {
                     "context.supervisionContent",
                     "자재성능 관련 서류 확인 표현이 감리일지 문장으로 충분히 구체화되지 않았습니다. 필요한 서류 확인·첨부 문구가 드러나도록 감리내용을 보완하세요.",
                     Map.of(
-                            "recommendedText", "KS 등 자재성능 관련 서류를 확인하였으며, 시험성적서 및 자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.",
+                            "recommendedText", "KS 등 자재성능 관련 서류를 확인하였으며, 시험성적서 및 자재승인서 등 관련 서류를 확인하고 첨부하였습니다.",
                             "qualityCheck", "DAILY_LOG_TECHNICAL_TRACE")));
         }
         if (isExternalDocumentReview(normalizedContext)

@@ -283,7 +283,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 Map.of(
                         "category", "COMPLIANCE",
                         "relatedFieldPath", "DAILY_LOG.groups[0].entries[0].checklistRows",
-                        "replacement", "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."),
+                        "replacement", "단열재 자재성능을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다."),
                 now);
         ReflectionTestUtils.setField(finding, "id", 300L);
         arrange(report, run, finding);
@@ -319,7 +319,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
                 Map.of(
                         "category", "COMPLIANCE",
                         "relatedFieldPath", "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
-                        "replacement", "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."),
+                        "replacement", "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다."),
                 now);
         ReflectionTestUtils.setField(finding, "id", 300L);
         var dailyPayload = Map.<String, Object>of(
@@ -359,7 +359,7 @@ class ReportPreflightReviewServiceApprovalGateTest {
         var row = asMap(asList(asMap(entries.get(0)).get("checklistRows")).get(0));
         assertThat(row).containsEntry(
                 "referenceNote",
-                "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.");
+                "관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다.");
         assertThat(asMap(entries.get(0))).doesNotContainKey("supervisionContent");
         assertThat(run.status()).isEqualTo(ReportPreflightReviewStatus.PASSED);
     }

@@ -94,7 +94,7 @@ public final class ReportPreflightPromptBuilder implements PromptBuilder<ReportP
                 - Examples include "창호 자재 성능 확인시 이상 없음", "전기안전검사필증 확인", or "자재 성능 양호" without checked item, standard, or evidence context.
                 - Do not decide whether supporting documents really exist or were actually attached. The supervising professional is responsible for preparing and attaching them after reviewing the draft.
                 - Replacement prose should complete the daily-log sentence by naming the relevant standard/design-document scope and the supporting documents that should be checked and attached.
-                - Safe replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
+                - Safe replacement example: "창호 자재의 단열·기밀·수밀 등 성능 항목을 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다."
                 - If the report already states the evidence document was verified or attached, the replacement may preserve that fact.
                 Auto-fix replacement guidance:
                 - For WORDING issues on direct text fields, set replacement to the exact full Korean text

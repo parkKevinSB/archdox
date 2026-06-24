@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class SourceBackedLegalReviewHarnessFactory {
     public static final String HARNESS_ID = "archdox.source-backed-legal-review";
     public static final ModelId DEFAULT_MODEL_ID = ModelId.parse("archdox:source-backed-legal-review");
-    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-source-backed-legal-review", "0.2.4");
+    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-source-backed-legal-review", "0.2.6");
 
     private final ObjectMapper objectMapper;
 
@@ -44,7 +44,8 @@ public final class SourceBackedLegalReviewHarnessFactory {
                 .defaultTimeout(Duration.ofSeconds(90))
                 .promptVersion(PROMPT_VERSION)
                 .promptBuilder(new SourceBackedLegalReviewPromptBuilder(objectMapper))
-                .validator(new JacksonPojoSchemaValidator<>(SourceBackedLegalReviewResult.class, objectMapper))
+                .validator(new SourceBackedLegalReviewOutputValidator(
+                        new JacksonPojoSchemaValidator<>(SourceBackedLegalReviewResult.class, objectMapper)))
                 .refinePolicy(refinePolicy)
                 .runStore(runStore)
                 .findingExtractor(new SourceBackedLegalReviewFindingExtractor())

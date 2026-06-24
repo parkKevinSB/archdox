@@ -6,6 +6,7 @@ import com.archdox.cloud.aipolicy.domain.AiHarnessPolicyKey;
 import com.archdox.cloud.global.api.BadRequestException;
 import com.archdox.cloud.global.api.NotFoundException;
 import com.archdox.cloud.inspection.domain.InspectionReport;
+import com.archdox.cloud.inspection.domain.InspectionReportStep;
 import com.archdox.cloud.inspection.application.DailySupervisionContentFormatter;
 import com.archdox.cloud.inspection.infra.InspectionReportRepository;
 import com.archdox.cloud.inspection.infra.InspectionReportStepRepository;
@@ -99,7 +100,7 @@ public class ReportPreflightLegalReviewHarnessService {
 
     public LegalReviewSubmission submit(ReportPreflightReviewRequest request) {
         var context = context(request);
-        var references = legalReferences(context.findings());
+        var references = legalReferences(context);
         if (references.isEmpty()) {
             saveSingleFinding(context, insufficientContextFinding(context, List.of()));
             recordEvent(context, OperationEventSeverity.WARN, "REPORT_PREFLIGHT_LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
@@ -174,7 +175,7 @@ public class ReportPreflightLegalReviewHarnessService {
             flow.flow().cancel();
         }
         var context = context(request);
-        var references = legalReferences(context.findings());
+        var references = legalReferences(context);
         saveSingleFinding(context, skippedFinding(context, references, "법령검토 AI 응답 시간이 초과되어 이번 법령검토를 생략했습니다. 다시 실행하면 재시도됩니다."));
         recordEvent(context, OperationEventSeverity.ERROR, "REPORT_PREFLIGHT_LEGAL_REVIEW_TIMEOUT",
                 "Source-backed legal review AI timed out.",
@@ -183,7 +184,7 @@ public class ReportPreflightLegalReviewHarnessService {
 
     public void complete(ReportPreflightReviewRequest request, AiHarnessFlow flow) {
         var context = context(request);
-        var references = legalReferences(context.findings());
+        var references = legalReferences(context);
         var coverage = legalReferenceCoverage(references, context);
         if (references.isEmpty()) {
             saveSingleFinding(context, insufficientContextFinding(context, List.of()));
@@ -239,6 +240,7 @@ public class ReportPreflightLegalReviewHarnessService {
                 .orElseThrow(() -> new NotFoundException("Report preflight review run not found"));
         var findings = findingRepository.findByOfficeIdAndReviewRunIdOrderByIdAsc(request.officeId(), request.reviewRunId()).stream()
                 .filter(finding -> !SOURCE.equals(finding.source()))
+                .filter(finding -> !"AI".equals(finding.source()))
                 .toList();
         return new LegalReviewContext(request, report, run, findings);
     }
@@ -259,9 +261,9 @@ public class ReportPreflightLegalReviewHarnessService {
                 context.report().contentRevision(),
                 reportSnapshot,
                 steps,
-                findingSummaries(context.findings()),
+                findingSummaries(legalContextFindings(context.findings())),
                 references,
-                legalReviewContext(context.findings(), references, coverage, evidenceChecklist));
+                legalReviewContext(legalContextFindings(context.findings()), references, coverage, evidenceChecklist));
     }
 
     private Map<String, Object> reportSnapshot(InspectionReport report) {
@@ -348,13 +350,28 @@ public class ReportPreflightLegalReviewHarnessService {
         return Map.copyOf(context);
     }
 
+    private List<Map<String, Object>> legalReferences(LegalReviewContext context) {
+        return legalReferences(context.findings(), selectedChecklistItemCodes(context.report()));
+    }
+
     private List<Map<String, Object>> legalReferences(List<ReportPreflightReviewFinding> findings) {
+        return legalReferences(findings, Set.of());
+    }
+
+    private List<Map<String, Object>> legalReferences(
+            List<ReportPreflightReviewFinding> findings,
+            Set<String> selectedChecklistItemCodes
+    ) {
         var byId = new LinkedHashMap<String, Map<String, Object>>();
         for (var finding : findings) {
-            parseLegalReferenceDetails(finding.attributesJson().get("legalReferenceDetails"))
+            var detailedReferences = parseLegalReferenceDetails(finding.attributesJson().get("legalReferenceDetails"));
+            detailedReferences.stream()
+                    .filter(reference -> referenceMatchesCurrentReport(reference, selectedChecklistItemCodes))
                     .forEach(reference -> mergeReference(byId, enrichReference(reference, finding)));
-            csvList(finding.attributesJson().get("legalReferences"))
-                    .forEach(referenceId -> mergeReference(byId, enrichReference(Map.of("referenceId", referenceId), finding)));
+            if (detailedReferences.isEmpty()) {
+                csvList(finding.attributesJson().get("legalReferences"))
+                        .forEach(referenceId -> mergeReference(byId, enrichReference(Map.of("referenceId", referenceId), finding)));
+            }
         }
         return byId.values().stream()
                 .sorted(Comparator
@@ -364,6 +381,69 @@ public class ReportPreflightLegalReviewHarnessService {
                 .limit(LEGAL_REFERENCE_REVIEW_LIMIT)
                 .map(Map::copyOf)
                 .toList();
+    }
+
+    private boolean referenceMatchesCurrentReport(
+            Map<String, Object> reference,
+            Set<String> selectedChecklistItemCodes
+    ) {
+        var checklistItemCode = text(reference.get("checklistItemCode"));
+        if (checklistItemCode.isBlank()) {
+            return true;
+        }
+        return selectedChecklistItemCodes == null
+                || selectedChecklistItemCodes.isEmpty()
+                || selectedChecklistItemCodes.contains(checklistItemCode);
+    }
+
+    private Set<String> selectedChecklistItemCodes(InspectionReport report) {
+        var dailyLog = stepRepository.findByReportIdAndStepCode(report.id(), "DAILY_LOG")
+                .map(InspectionReportStep::payloadJson)
+                .map(payload -> objectMap(payload.get("dailyItems")))
+                .orElse(Map.of());
+        if (dailyLog.isEmpty()) {
+            return Set.of();
+        }
+        var codes = new java.util.LinkedHashSet<String>();
+        for (var rawGroup : listValue(dailyLog.get("groups"))) {
+            var group = objectMap(rawGroup);
+            for (var rawEntry : listValue(group.get("entries"))) {
+                var entry = objectMap(rawEntry);
+                addCode(codes, entry.get("inspectionItemCode"));
+                for (var rawRow : listValue(entry.get("checklistRows"))) {
+                    var row = objectMap(rawRow);
+                    addCode(codes, row.get("code"));
+                    addCode(codes, row.get("checklistItemCode"));
+                }
+            }
+        }
+        return Set.copyOf(codes);
+    }
+
+    private void addCode(Set<String> codes, Object value) {
+        var code = text(value);
+        if (!code.isBlank()) {
+            codes.add(code);
+        }
+    }
+
+    private List<ReportPreflightReviewFinding> legalContextFindings(List<ReportPreflightReviewFinding> findings) {
+        return findings.stream()
+                .filter(this::isLegalContextFinding)
+                .toList();
+    }
+
+    private boolean isLegalContextFinding(ReportPreflightReviewFinding finding) {
+        if (finding == null) {
+            return false;
+        }
+        var code = upper(finding.code());
+        if (code.startsWith("LEGAL_") || "LEGAL_CONTEXT".equalsIgnoreCase(text(finding.location()))) {
+            return true;
+        }
+        var attributes = finding.attributesJson();
+        return !text(attributes.get("legalReferences")).isBlank()
+                || !text(attributes.get("legalReferenceDetails")).isBlank();
     }
 
     private void mergeReference(
@@ -1172,22 +1252,22 @@ public class ReportPreflightLegalReviewHarnessService {
                 text(entry.get("inspectionItemCode")),
                 DailySupervisionContentFormatter.formatEntry(entry));
         if (containsAny(value, "창호", "창 및 문", "창및문")) {
-            return "창호 자재의 단열·기밀·수밀·내풍압 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+            return "창호 자재의 단열·기밀·수밀·내풍압 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다.";
         }
         if (containsAny(value, "단열", "단열재")) {
-            return "단열재의 규격, 두께 및 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+            return "단열재의 규격, 두께 및 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서·시험성적서·자재승인서 등 관련 서류를 확인하고 첨부하였습니다.";
         }
         if (containsAny(value, "전기안전검사필증", "검사필증", "필증")) {
-            return "전기안전검사필증의 발급기관, 발급일, 대상 설비 및 현장 위치를 확인하였으며, 관련 필증을 확인하고 첨부하였음을 기록합니다.";
+            return "전기안전검사필증의 발급기관, 발급일, 대상 설비 및 현장 위치를 확인하였으며, 관련 필증을 확인하고 첨부하였습니다.";
         }
         if (containsAny(value, "철근", "규격 증명서", "규격증명서", "제조업체", "재료시험")) {
-            return "철근 규격 증명서, 제조업체, 재료시험 필요 여부 및 KS 등 자재성능 관련 서류를 확인하고, 관련 증빙 서류를 첨부하였음을 기록합니다.";
+            return "철근 규격 증명서, 제조업체, 재료시험 필요 여부 및 KS 등 자재성능 관련 서류를 확인하고, 관련 증빙 서류를 첨부하였습니다.";
         }
         var itemName = firstNonBlank(text(entry.get("inspectionItemName")), text(entry.get("checklistItemCode")));
         if (itemName.isBlank()) {
             itemName = firstNonBlank(text(group.get("tradeName")), text(group.get("phaseName")), "해당 감리 항목");
         }
-        return itemName + "에 대하여 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서·인증서 등 관련 서류를 확인하고 첨부하였음을 기록합니다.";
+        return itemName + "에 대하여 관련 기준 및 설계도서 기준에 따라 확인하였으며, 시방서·시험성적서·자재승인서·인증서 등 관련 서류를 확인하고 첨부하였습니다.";
     }
 
     private List<String> matchingReferenceIds(

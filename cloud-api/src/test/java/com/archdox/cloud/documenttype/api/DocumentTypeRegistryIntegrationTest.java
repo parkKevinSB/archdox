@@ -58,14 +58,15 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         var documentTypeList = objectMapper.readTree(documentTypes.getResponse().getContentAsString());
-        assertEquals(2, documentTypeList.size());
+        assertEquals(3, documentTypeList.size());
         assertTrue(hasCode(documentTypeList, "CONSTRUCTION_DAILY_SUPERVISION_LOG"));
         assertTrue(hasCode(documentTypeList, "CONSTRUCTION_SUPERVISION_REPORT"));
+        assertTrue(hasCode(documentTypeList, "CONSTRUCTION_SUPERVISION_CHECKLIST"));
         assertFalse(hasCode(documentTypeList, "DEMOLITION_SAFETY_CHECKLIST"));
         assertFalse(hasCode(documentTypeList, "DAILY_SUPERVISION"));
         assertFalse(hasCode(documentTypeList, "PERIODIC_SAFETY"));
         assertFalse(hasCode(documentTypeList, "FACILITY_CHECK"));
-        assertEquals(2L, tableCount("document_type_definitions"));
+        assertEquals(3L, tableCount("document_type_definitions"));
         assertEquals(2L, tableCount("checklist_schemas"));
         assertEquals(0L, deferredDocumentTypeCount());
 
@@ -98,7 +99,7 @@ class DocumentTypeRegistryIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         var afterOfficeLegacyList = objectMapper.readTree(afterOfficeLegacyInsert.getResponse().getContentAsString());
-        assertEquals(2, afterOfficeLegacyList.size());
+        assertEquals(3, afterOfficeLegacyList.size());
         assertFalse(hasCode(afterOfficeLegacyList, "DAILY_SUPERVISION"));
         assertFalse(hasName(afterOfficeLegacyList, "감리일지 legacy"));
 
@@ -116,6 +117,14 @@ class DocumentTypeRegistryIntegrationTest {
                         .header("X-Office-Id", user.officeId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("공사감리일지"));
+
+        mockMvc.perform(get("/api/v1/document-types/{code}", "CONSTRUCTION_SUPERVISION_CHECKLIST")
+                        .header("Authorization", bearer(user.accessToken()))
+                        .header("X-Office-Id", user.officeId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].code").value("CHECKLIST_SOURCE"))
+                .andExpect(jsonPath("$.steps[0].fields[0].key").value("checklistSelection"))
+                .andExpect(jsonPath("$.steps[0].fields[0].type").value("json"));
 
         mockMvc.perform(get("/api/v1/document-types/{code}", "DAILY_SUPERVISION")
                         .header("Authorization", bearer(user.accessToken()))
@@ -237,8 +246,16 @@ class DocumentTypeRegistryIntegrationTest {
         return jdbcTemplate.queryForObject("""
                 select count(*)
                 from document_type_definitions
-                where code not in ('CONSTRUCTION_DAILY_SUPERVISION_LOG', 'CONSTRUCTION_SUPERVISION_REPORT')
-                   or report_type not in ('CONSTRUCTION_DAILY_SUPERVISION_LOG', 'CONSTRUCTION_SUPERVISION_REPORT')
+                where code not in (
+                    'CONSTRUCTION_DAILY_SUPERVISION_LOG',
+                    'CONSTRUCTION_SUPERVISION_REPORT',
+                    'CONSTRUCTION_SUPERVISION_CHECKLIST'
+                )
+                   or report_type not in (
+                    'CONSTRUCTION_DAILY_SUPERVISION_LOG',
+                    'CONSTRUCTION_SUPERVISION_REPORT',
+                    'CONSTRUCTION_SUPERVISION_CHECKLIST'
+                )
                    or category <> 'CONSTRUCTION_SUPERVISION'
                 """, Long.class);
     }

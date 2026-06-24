@@ -217,6 +217,115 @@ Responsibility split:
 | Domain Services | Business invariants and persistence. | Yes. |
 | ArchDox Agent | Render/store artifacts after Cloud command. | Only agent command side effects, not SaaS business policy. |
 
+## AI Machine Control Concept
+
+ArchDox treats an AI model as an uncontrolled probabilistic machine. The
+platform does not make the model trusted by giving it more authority. Instead,
+ArchDox wraps the model in explicit control layers so the complete system can be
+observed, interrupted, authorized, audited, and improved.
+
+```text
+AI is a controlled plant, not the final controller.
+```
+
+This is the ArchDox interpretation of the future `flower-agent-runtime`
+direction. The common runtime may later extract generic action registry,
+policy, approval, run-control, executor, trace, and async execution contracts.
+ArchDox remains the host application that owns office permissions, report
+state, legal corpus, supervision catalogs, document jobs, and UI approval
+states.
+
+```mermaid
+flowchart TD
+    User["User / External Agent / MCP Client"]
+    Adapter["Input Adapter<br/>UI / Chat / MCP / REST"]
+    Flower["Flower Flow Controller<br/>state / stepNo / event / retry / wait"]
+
+    Harness["AI Harness Layer<br/>prompt / schema / validator / refine"]
+    Gateway["AI Model Gateway<br/>provider policy / token budget / timeout"]
+    Model["Uncontrolled AI Machine<br/>LLM / stochastic output"]
+    Sensors["Sensor & Feedback Layer<br/>JSON parse / validation errors / findings / traces / token usage"]
+
+    Runtime["Worker / Agent Runtime Control Layer<br/>action registry / policy gate / scope / quota"]
+    Approval["Human Approval Gate<br/>approve / reject / risk accept"]
+    Cancel["Run Control Gate<br/>cancel before execution / stale check"]
+    Executor["Action Executor Layer<br/>document generation / submit report / send mail / DB mutation"]
+
+    Domain["Host Domain Services<br/>report / legal corpus / document job / office policy"]
+    Agent["ArchDox Agent<br/>rendering / file handling / storage runtime"]
+    Audit["Audit & Observability<br/>operation events / worker trace / AI trace / usage"]
+
+    User --> Adapter
+    Adapter --> Flower
+
+    Flower --> Harness
+    Harness --> Gateway
+    Gateway --> Model
+    Model --> Sensors
+    Sensors --> Harness
+    Sensors --> Flower
+
+    Flower --> Runtime
+    Runtime --> Approval
+    Approval --> Runtime
+    Runtime --> Cancel
+    Cancel --> Runtime
+    Runtime --> Executor
+
+    Executor --> Domain
+    Executor --> Agent
+    Domain --> Audit
+    Agent --> Audit
+    Runtime --> Audit
+    Harness --> Audit
+    Audit --> Flower
+```
+
+Layer mapping:
+
+| Control Concept | ArchDox Layer | Responsibility |
+| --- | --- | --- |
+| Uncontrolled plant | LLM / AI provider model | Produces probabilistic text or JSON. It owns no authority. |
+| Drive/interface | AI Harness | Builds prompt, enforces schema, validates output, refines invalid responses, extracts findings or drafts. |
+| State controller | Flower Flow | Orchestrates steps, waits by `stepNo`/event/state, handles retry/timeout/recovery. |
+| Safety controller | Worker / future Agent Runtime | Resolves action definitions, checks policy, approval, cancel/stale state, and audit requirements. |
+| Actuator | Executor / Domain Service / ArchDox Agent | Performs the actual side effect after runtime control gates pass. |
+| Sensors | Findings, validation errors, trace events, usage logs | Feed back into UI, admin observation, evaluation, and future tuning. |
+
+Important rule:
+
+```text
+AI Harnesses may produce draft findings, wording suggestions, summaries, or
+action proposals.
+
+They must not directly execute controlled actions.
+
+Execution begins only when a Flower flow, service, UI confirmation, or external
+Engine/MCP request submits a registered action to the Worker/Agent Runtime
+control boundary.
+```
+
+Human approval is runtime state, not AI output. An AI response may recommend
+approval, but only a durable approval record created by an authorized human can
+open the approval gate.
+
+Typical controlled action path:
+
+```text
+AI/user/system suggests or requests action
+-> Flower flow decides whether to submit an action request
+-> Worker/Agent Runtime resolves the registered action
+-> policy/scope/quota/context checks
+-> approval gate if required
+-> run-control cancel/stale check
+-> executor dispatch
+-> domain/agent side effect
+-> trace/audit/result feedback
+```
+
+Do not collapse this into "AI agent executes a task". In ArchDox, AI suggests,
+Flower orchestrates, Worker/Agent Runtime controls, and executors mutate.
+
 ## External Engine And MCP Direction
 
 The current implementation keeps the Engine inside `cloud-api`. External

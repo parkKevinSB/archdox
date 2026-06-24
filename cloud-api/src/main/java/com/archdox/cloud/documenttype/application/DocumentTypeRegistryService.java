@@ -179,7 +179,11 @@ public class DocumentTypeRegistryService {
 
     private String sanitizeFieldType(Object value) {
         var normalized = normalizeCode(value);
-        if ("DATE".equals(normalized) || "NUMBER".equals(normalized) || "TEXTAREA".equals(normalized)) {
+        if ("DATE".equals(normalized)
+                || "NUMBER".equals(normalized)
+                || "TEXTAREA".equals(normalized)
+                || "JSON".equals(normalized)
+                || "HIDDEN".equals(normalized)) {
             return normalized.toLowerCase(Locale.ROOT);
         }
         return "text";

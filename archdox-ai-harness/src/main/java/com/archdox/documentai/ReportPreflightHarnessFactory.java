@@ -16,7 +16,7 @@ import java.util.Objects;
 public final class ReportPreflightHarnessFactory {
     public static final String HARNESS_ID = "archdox.report-preflight";
     public static final ModelId DEFAULT_MODEL_ID = ModelId.parse("archdox:report-preflight");
-    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-report-preflight", "1.2.2");
+    public static final PromptVersion PROMPT_VERSION = new PromptVersion("archdox-report-preflight", "1.2.4");
 
     private final ObjectMapper objectMapper;
 
@@ -44,7 +44,8 @@ public final class ReportPreflightHarnessFactory {
                 .defaultTimeout(Duration.ofSeconds(90))
                 .promptVersion(PROMPT_VERSION)
                 .promptBuilder(new ReportPreflightPromptBuilder(objectMapper))
-                .validator(new JacksonPojoSchemaValidator<>(ReportPreflightResult.class, objectMapper))
+                .validator(new ReportPreflightOutputValidator(
+                        new JacksonPojoSchemaValidator<>(ReportPreflightResult.class, objectMapper)))
                 .refinePolicy(refinePolicy)
                 .runStore(runStore)
                 .findingExtractor(new ReportPreflightFindingExtractor())

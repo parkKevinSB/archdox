@@ -1,5 +1,7 @@
 package com.archdox.cloud.monitoring.flow;
 
+import com.archdox.cloud.aiharness.application.AiObservabilityRetentionProperties;
+import com.archdox.cloud.aiharness.flow.AiObservabilityRetentionMonitorFlowFactory;
 import com.archdox.cloud.legal.application.LegalSyncProperties;
 import com.archdox.cloud.legal.flow.LegalSyncMonitorFlowFactory;
 import com.archdox.cloud.monitoring.application.ServerRuntimeHealthProperties;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OperationalMonitorFlowBootstrap {
+    private final AiObservabilityRetentionProperties aiObservabilityRetentionProperties;
+    private final AiObservabilityRetentionMonitorFlowFactory aiObservabilityRetentionMonitorFlowFactory;
     private final LegalSyncProperties legalSyncProperties;
     private final LegalSyncMonitorFlowFactory legalSyncMonitorFlowFactory;
     private final ServerRuntimeHealthProperties serverRuntimeHealthProperties;
@@ -20,6 +24,8 @@ public class OperationalMonitorFlowBootstrap {
     private final MonitoringWorker monitoringWorker;
 
     public OperationalMonitorFlowBootstrap(
+            AiObservabilityRetentionProperties aiObservabilityRetentionProperties,
+            AiObservabilityRetentionMonitorFlowFactory aiObservabilityRetentionMonitorFlowFactory,
             LegalSyncProperties legalSyncProperties,
             LegalSyncMonitorFlowFactory legalSyncMonitorFlowFactory,
             ServerRuntimeHealthProperties serverRuntimeHealthProperties,
@@ -28,6 +34,8 @@ public class OperationalMonitorFlowBootstrap {
             PlatformOpsDailyReportMonitorFlowFactory dailyReportMonitorFlowFactory,
             MonitoringWorker monitoringWorker
     ) {
+        this.aiObservabilityRetentionProperties = aiObservabilityRetentionProperties;
+        this.aiObservabilityRetentionMonitorFlowFactory = aiObservabilityRetentionMonitorFlowFactory;
         this.legalSyncProperties = legalSyncProperties;
         this.legalSyncMonitorFlowFactory = legalSyncMonitorFlowFactory;
         this.serverRuntimeHealthProperties = serverRuntimeHealthProperties;
@@ -39,6 +47,9 @@ public class OperationalMonitorFlowBootstrap {
 
     @EventListener(ApplicationReadyEvent.class)
     public void submitOperationalMonitorFlows() {
+        if (aiObservabilityRetentionProperties.isEnabled()) {
+            monitoringWorker.submit(aiObservabilityRetentionMonitorFlowFactory.create());
+        }
         if (legalSyncProperties.getMonitor().isEnabled()) {
             monitoringWorker.submit(legalSyncMonitorFlowFactory.create());
         }

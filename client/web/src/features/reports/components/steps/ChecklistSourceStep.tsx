@@ -40,6 +40,7 @@ export function ChecklistSourceStep({
   officeId,
   register,
   report,
+  savedStep,
   token
 }: ReportStepComponentProps) {
   const rawSelection = form.watch(FIELD_KEY);
@@ -47,9 +48,9 @@ export function ChecklistSourceStep({
 
   useEffect(() => {
     if (!form.getValues(FIELD_KEY)) {
-      form.setValue(FIELD_KEY, JSON.stringify(DEFAULT_SELECTION), { shouldDirty: false });
+      form.setValue(FIELD_KEY, JSON.stringify(DEFAULT_SELECTION), { shouldDirty: Boolean(savedStep) });
     }
-  }, [form, report.id]);
+  }, [form, report.id, savedStep]);
 
   const sourceReportsQuery = useQuery({
     queryKey: ["checklistSourceReports", officeId, report.projectId, report.siteId],

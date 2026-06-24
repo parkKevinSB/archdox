@@ -80,7 +80,7 @@ public final class SourceBackedLegalReviewPromptBuilder implements PromptBuilder
                 - Do not decide whether those documents really exist or were actually attached. That is the supervising professional's responsibility after reviewing the draft.
                 - Your job is to propose report prose that tells the supervising professional which checks and attachments should be reflected in the daily log.
                 - For vague material/performance notes such as "창호 자재 성능 확인시 이상 없음", propose final daily-log prose that includes confirmation and attachment wording for the relevant evidence classes.
-                - Good replacement example: "창호 자재의 단열, 기밀, 수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서, 시험성적서, 자재승인서 등 관련 서류를 확인하고 첨부하였음을 기록합니다."
+                - Good replacement example: "창호 자재의 단열, 기밀, 수밀 등 성능 항목을 관련 기준 및 설계도서에 따라 확인하였으며, 시방서, 시험성적서, 자재승인서 등 관련 서류를 확인하고 첨부하였습니다."
                 - If the report already states the evidence document was verified or attached, preserve and refine that fact.
                 - For issues on direct report text fields, set relatedFieldPath and replacement when you can produce safe final report prose.
                 - Direct report text fields include DAILY_LOG.groups[n].entries[m].checklistRows[k].referenceNote, DAILY_LOG.groups[n].entries[m].checklistRows[k].actionNote, REMARKS.payload.specialNotes, REMARKS.payload.issueAndAction, and REMARKS.payload.nextAction.

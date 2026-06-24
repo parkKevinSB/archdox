@@ -75,8 +75,8 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                       "evidence": "The supplied legal anchor is linked to the checklist item, but field evidence text is generic.",
                       "suggestion": "Add the inspected member, location, and photo evidence context.",
                       "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
-                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].checklistRows",
-                      "replacement": "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도 보관 대상으로 기록합니다."
+                      "relatedFieldPath": "DAILY_LOG.groups[0].entries[0].checklistRows[0].referenceNote",
+                      "replacement": "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도로 보관합니다."
                     }
                   ]
                 }
@@ -96,8 +96,139 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                     assertThat(finding.attributes()).containsEntry("approvalRequired", "true");
                     assertThat(finding.attributes()).containsEntry(
                             "replacement",
-                            "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도 보관 대상으로 기록합니다.");
+                            "철근 배근 상태를 관련 기준 및 설계도서 기준에 따라 확인하였으며, 사진 증빙은 별도로 보관합니다.");
                 });
+    }
+
+    @Test
+    void aggregateRemarksRelatedFieldIsRefinedBeforeSuccess() {
+        var sink = new RecordingFindingSink();
+        harness.gateway().respondToAny(new FakeResponseProgram.Sequence(List.of(
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "WARN",
+                          "summary": "One source-backed legal review item needs human review.",
+                          "confidence": "MEDIUM",
+                          "legalReviewScope": "Remarks were reviewed against supplied anchors.",
+                          "passReason": "",
+                          "limitations": "Dry-run review only.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": [
+                            {
+                              "code": "VAGUE_REMARKS",
+                              "category": "LEGAL_RISK",
+                              "severity": "LOW",
+                              "location": "REMARKS.payload",
+                              "message": "특기사항과 다음 조치가 구체적이지 않습니다.",
+                              "evidence": "The supplied anchor was reviewed, but the remarks payload is terse.",
+                              "suggestion": "특기사항과 다음 조치를 구체적으로 작성하십시오.",
+                              "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                              "relatedFieldPath": "REMARKS.payload",
+                              "replacement": ""
+                            }
+                          ]
+                        }
+                        """),
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "WARN",
+                          "summary": "One source-backed legal review item needs human review.",
+                          "confidence": "MEDIUM",
+                          "legalReviewScope": "Remarks were reviewed against supplied anchors.",
+                          "passReason": "",
+                          "limitations": "Dry-run review only.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": [
+                            {
+                              "code": "VAGUE_ISSUE_AND_ACTION",
+                              "category": "LEGAL_RISK",
+                              "severity": "LOW",
+                              "location": "REMARKS.payload.issueAndAction",
+                              "message": "지적사항 및 처리결과 문장이 구체적이지 않습니다.",
+                              "evidence": "The supplied anchor was reviewed, but issueAndAction is terse.",
+                              "suggestion": "지적사항 및 처리결과를 공식 문체로 정리합니다.",
+                              "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                              "relatedFieldPath": "REMARKS.payload.issueAndAction",
+                              "replacement": "현장 점검 결과 이상 사항은 발견되지 않았으며, 전반적으로 양호한 상태임을 확인하였습니다."
+                            }
+                          ]
+                        }
+                        """))));
+
+        var spec = new SourceBackedLegalReviewHarnessFactory(new ObjectMapper()).spec(sink);
+        var flow = harness.runHarness(spec, input());
+
+        assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
+        assertThat(flow.context().attempt()).isEqualTo(2);
+        assertThat(sink.findings)
+                .hasSize(1)
+                .first()
+                .satisfies(finding -> {
+                    assertThat(finding.location()).isEqualTo("REMARKS.payload.issueAndAction");
+                    assertThat(finding.attributes()).containsEntry("relatedFieldPath", "REMARKS.payload.issueAndAction");
+                });
+    }
+
+    @Test
+    void ordinaryDocumentQaIssuesAreRefinedOutOfLegalReview() {
+        var sink = new RecordingFindingSink();
+        harness.gateway().respondToAny(new FakeResponseProgram.Sequence(List.of(
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "WARN",
+                          "summary": "검사일자와 특기사항 문구 확인이 필요합니다.",
+                          "confidence": "HIGH",
+                          "legalReviewScope": "Daily supervision report was reviewed against supplied anchors.",
+                          "passReason": "",
+                          "limitations": "Dry-run review only.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": [
+                            {
+                              "code": "DATE_INCONSISTENCY",
+                              "category": "CONSISTENCY",
+                              "severity": "MEDIUM",
+                              "location": "BASIC_INFO.payload.inspectionDate",
+                              "message": "검사일자가 저장일시보다 하루 이후입니다.",
+                              "evidence": "inspectionDate is after savedAt.",
+                              "suggestion": "검사일자를 확인하십시오.",
+                              "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                              "relatedFieldPath": "BASIC_INFO.payload.inspectionDate",
+                              "replacement": ""
+                            },
+                            {
+                              "code": "VAGUE_REMARKS_SPECIAL_NOTES",
+                              "category": "CONSISTENCY",
+                              "severity": "LOW",
+                              "location": "REMARKS.payload.specialNotes",
+                              "message": "특기사항 문구가 구체적이지 않습니다.",
+                              "evidence": "specialNotes is terse.",
+                              "suggestion": "특기사항을 다듬으십시오.",
+                              "legalReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                              "relatedFieldPath": "REMARKS.payload.specialNotes",
+                              "replacement": "특이사항 없이 양호함"
+                            }
+                          ]
+                        }
+                        """),
+                new FakeResponseProgram.ImmediateText("""
+                        {
+                          "status": "PASS",
+                          "summary": "Supplied anchors were reviewed and no additional legal-risk issue was found.",
+                          "confidence": "HIGH",
+                          "legalReviewScope": "Checklist evidence linkage was reviewed against supplied anchors.",
+                          "passReason": "No additional legal-risk issue was detected within the supplied anchors.",
+                          "limitations": "Dry-run review only. Ordinary wording issues are handled by general report QA.",
+                          "reviewedReferenceIds": ["BUILDING_ACT:0025001@v1"],
+                          "issues": []
+                        }
+                        """))));
+
+        var spec = new SourceBackedLegalReviewHarnessFactory(new ObjectMapper()).spec(sink);
+        var flow = harness.runHarness(spec, input());
+
+        assertThat(flow.flow().state()).isEqualTo(FlowState.FINISHED);
+        assertThat(flow.context().attempt()).isEqualTo(2);
+        assertThat(sink.findings).isEmpty();
     }
 
     @Test
@@ -111,7 +242,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
         var prompt = new SourceBackedLegalReviewPromptBuilder(new ObjectMapper()).build(input(), ctx);
         var system = prompt.messages().get(0).content();
 
-        assertThat(prompt.version().version()).isEqualTo("0.2.4");
+        assertThat(prompt.version().version()).isEqualTo("0.2.6");
         assertThat(system)
                 .contains("Use only sourceBackedLegalReferences")
                 .contains("Never invent law names")
@@ -124,7 +255,7 @@ class SourceBackedLegalReviewHarnessFactoryTest {
                 .contains("actual technical criteria were not verified")
                 .contains("For vague material/performance notes")
                 .contains("Do not decide whether those documents really exist")
-                .contains("확인하고 첨부하였음을 기록합니다")
+                .contains("확인하고 첨부하였습니다")
                 .contains("\"replacement\"")
                 .contains("replacement must be final report prose")
                 .contains("REPORT_TYPE_ANCHOR alone is broad report-type context")

@@ -28,7 +28,6 @@ import io.github.parkkevinsb.flower.ai.harness.spec.AiHarnessSpec;
 import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,8 +129,8 @@ public class ReportPreflightAiHarnessFlowService {
     }
 
     private ReportPreflightInput input(InspectionReport report, List<ReportPreflightReviewFinding> findings) {
-        var legalReferences = legalReferences(findings);
         var photoEvidenceStatus = photoEvidenceStatusService.evaluate(report);
+        var documentQaFindings = documentQaFindings(findings);
         return new ReportPreflightInput(
                 String.valueOf(report.officeId()),
                 String.valueOf(report.id()),
@@ -142,10 +141,16 @@ public class ReportPreflightAiHarnessFlowService {
                 reportSnapshot(report, photoEvidenceStatus),
                 stepSnapshot(report),
                 photoSnapshot(report),
-                findingSummaries(findings),
-                legalReferences,
-                legalReviewContext(findings, legalReferences),
+                findingSummaries(documentQaFindings),
+                List.of(),
+                documentQaContext(),
                 REVIEW_MODE_SOURCE_BACKED_LEGAL_DRY_RUN);
+    }
+
+    private List<ReportPreflightReviewFinding> documentQaFindings(List<ReportPreflightReviewFinding> findings) {
+        return nullToEmpty(findings).stream()
+                .filter(finding -> !isLegalContextFinding(finding))
+                .toList();
     }
 
     private List<ReportPreflightFindingSummary> findingSummaries(List<ReportPreflightReviewFinding> findings) {
@@ -161,73 +166,31 @@ public class ReportPreflightAiHarnessFlowService {
                 .toList();
     }
 
-    private List<Map<String, Object>> legalReferences(List<ReportPreflightReviewFinding> findings) {
-        return nullToEmpty(findings).stream()
-                .flatMap(finding -> parseLegalReferenceDetails(finding.attributesJson().get("legalReferenceDetails")).stream())
-                .collect(Collectors.toMap(
-                        reference -> text(reference.get("referenceId")),
-                        Function.identity(),
-                        (left, right) -> left,
-                        LinkedHashMap::new))
-                .values()
-                .stream()
-                .toList();
-    }
-
-    private Map<String, Object> legalReviewContext(
-            List<ReportPreflightReviewFinding> findings,
-            List<Map<String, Object>> legalReferences
-    ) {
+    private Map<String, Object> documentQaContext() {
         var context = new LinkedHashMap<String, Object>();
-        context.put("purpose", "SOURCE_BACKED_LEGAL_RISK_REVIEW_DRY_RUN");
+        context.put("purpose", "GENERAL_REPORT_PREFLIGHT_QA");
         context.put("mode", REVIEW_MODE_SOURCE_BACKED_LEGAL_DRY_RUN);
-        context.put("sourceBackedOnly", true);
-        context.put("legalReferenceCount", legalReferences.size());
-        context.put("legalFindings", nullToEmpty(findings).stream()
-                .filter(finding -> finding.code().contains("LEGAL")
-                        || !text(finding.attributesJson().get("legalReferences")).isBlank()
-                        || !text(finding.attributesJson().get("legalReferenceDetails")).isBlank())
-                .map(finding -> Map.of(
-                        "source", finding.source(),
-                        "code", finding.code(),
-                        "severity", finding.severity(),
-                        "location", finding.location() == null ? "" : finding.location(),
-                        "message", finding.message(),
-                        "evidence", finding.evidence() == null ? "" : finding.evidence(),
-                        "nextActions", csvList(finding.attributesJson().get("engine.nextActions"))))
-                .toList());
+        context.put("sourceBackedOnly", false);
+        context.put("legalReferenceCount", 0);
+        context.put("legalFindings", List.of());
         context.put("instructions", List.of(
-                "Use only sourceBackedLegalReferences as legal anchors.",
-                "Treat output as draft review findings for human approval.",
-                "Do not modify legal corpus, report data, or generation state."));
+                "Run only general report QA.",
+                "Do not perform source-backed legal review in this harness.",
+                "Legal references are handled by the separate source-backed legal review harness."));
         return Map.copyOf(context);
     }
 
-    private List<Map<String, Object>> parseLegalReferenceDetails(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
+    private boolean isLegalContextFinding(ReportPreflightReviewFinding finding) {
+        if (finding == null) {
+            return false;
         }
-        return Arrays.stream(value.split("\\R"))
-                .map(String::trim)
-                .filter(line -> !line.isBlank())
-                .map(this::legalReferenceDetail)
-                .filter(reference -> !text(reference.get("referenceId")).isBlank())
-                .toList();
-    }
-
-    private Map<String, Object> legalReferenceDetail(String line) {
-        var parts = line.split("\\t", -1);
-        var reference = new LinkedHashMap<String, Object>();
-        reference.put("referenceId", part(parts, 0));
-        reference.put("label", part(parts, 1));
-        reference.put("resolutionSource", part(parts, 2));
-        reference.put("bindingScope", part(parts, 3));
-        reference.put("bindingKey", part(parts, 4));
-        reference.put("relevance", part(parts, 5));
-        reference.put("catalogCode", part(parts, 6));
-        reference.put("catalogVersion", part(parts, 7));
-        reference.put("checklistItemCode", part(parts, 8));
-        return Map.copyOf(reference);
+        var code = text(finding.code()).toUpperCase(java.util.Locale.ROOT);
+        if (code.startsWith("LEGAL_") || "LEGAL_CONTEXT".equalsIgnoreCase(text(finding.location()))) {
+            return true;
+        }
+        var attributes = finding.attributesJson();
+        return !text(attributes.get("legalReferences")).isBlank()
+                || !text(attributes.get("legalReferenceDetails")).isBlank();
     }
 
     private Map<String, Object> reportSnapshot(
@@ -306,20 +269,6 @@ public class ReportPreflightAiHarnessFlowService {
 
     private List<ReportPreflightReviewFinding> nullToEmpty(List<ReportPreflightReviewFinding> findings) {
         return findings == null ? List.of() : findings;
-    }
-
-    private List<String> csvList(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(item -> !item.isBlank())
-                .toList();
-    }
-
-    private String part(String[] parts, int index) {
-        return index >= 0 && index < parts.length ? parts[index].trim() : "";
     }
 
     private String text(Object value) {

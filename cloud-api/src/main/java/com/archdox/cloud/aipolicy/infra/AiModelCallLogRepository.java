@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,13 @@ public interface AiModelCallLogRepository extends JpaRepository<AiModelCallLog, 
     List<AiModelCallLog> findAllByOrderByCompletedAtDesc(Pageable pageable);
 
     List<AiModelCallLog> findByStatusOrderByCompletedAtDesc(AiModelCallLogStatus status, Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from AiModelCallLog log
+            where log.completedAt < :cutoff
+            """)
+    int deleteCompletedBefore(@Param("cutoff") OffsetDateTime cutoff);
 
     long countByOfficeIdAndCompletedAtGreaterThanEqualAndCompletedAtLessThan(
             Long officeId,
