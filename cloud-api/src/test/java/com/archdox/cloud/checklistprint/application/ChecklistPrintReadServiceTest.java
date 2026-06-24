@@ -228,6 +228,10 @@ class ChecklistPrintReadServiceTest {
         var documentXml = zipEntry(export.content(), "word/document.xml");
         assertThat(documentXml).contains(escapeXml(itemName));
         assertThat(documentXml).contains("○");
+        assertThat(documentXml).contains("<w:tblLayout w:type=\"fixed\"/>");
+        assertThat(documentXml).contains("<w:tblGrid>");
+        assertThat(documentXml).contains("<w:tblCellMar>");
+        assertThat(documentXml).contains("<w:tblHeader/>");
         assertThat(documentXml).contains("<w:vMerge w:val=\"restart\"/>");
         assertThat(documentXml).contains("<w:vMerge/>");
     }
