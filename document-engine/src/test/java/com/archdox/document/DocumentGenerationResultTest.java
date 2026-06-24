@@ -376,6 +376,57 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void htmlPreviewUsesOfficialConstructionDailyLogForm() {
+        var renderer = new HtmlPreviewDocumentRenderer();
+
+        var artifact = renderer.render(new DocumentGenerationRequest(
+                "job-official-preview-1",
+                "office-1",
+                "report-official-preview-1",
+                new TemplateSpec("KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2", 1, "templates/daily.docx", "{}", "{}"),
+                Map.of(
+                        "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                        "templateFields", Map.of(
+                                "constructionName", "초읍동 커뮤니티케어 안심주택 신축공사",
+                                "inspectionDate", "2026-06-24",
+                                "weather", "맑음",
+                                "chiefSupervisorName", "이헌재",
+                                "architectAssistantName", "이헌재",
+                                "specialNotes", "특기사항 없이 양호함",
+                                "issueAndAction", "지적사항 없음"),
+                        "steps", Map.of(
+                                "DAILY_LOG", Map.of("payload", Map.of(
+                                        "dailyItems", Map.of("groups", List.of(Map.of(
+                                                "tradeName", "철근 콘크리트 공사",
+                                                "processName", "철근 조립·배근",
+                                                "floor", "6층 바닥",
+                                                "entries", List.of(Map.of(
+                                                        "inspectionItemCode", "RC_REBAR_CONFIRMATION",
+                                                        "inspectionItemName", "철근배근의 확인사항",
+                                                        "checklistRows", List.of(
+                                                                Map.of(
+                                                                        "code", "RC_REBAR_CONFIRMATION",
+                                                                        "label", "철근배근의 확인사항",
+                                                                        "result", "COMPLIANT"),
+                                                                Map.of(
+                                                                        "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
+                                                                        "label", "개수, 철근지름, 피치 확인",
+                                                                        "result", "COMPLIANT"))))))))))),
+                List.of(),
+                OutputFormat.HTML));
+
+        var html = new String(artifact.content(), StandardCharsets.UTF_8);
+        assertTrue(html.contains("건축공사 감리세부기준 [별지 제2호서식]"));
+        assertTrue(html.contains("공사감리일지"));
+        assertTrue(html.contains("초읍동 커뮤니티케어 안심주택 신축공사"));
+        assertTrue(html.contains("철근 콘크리트 공사"));
+        assertTrue(html.contains("철근배근의 확인사항"));
+        assertTrue(html.contains("개수, 철근지름, 피치 확인 / 적합"));
+        assertTrue(html.contains("특기사항"));
+        assertTrue(!html.contains("ArchDox Preview"));
+    }
+
+    @Test
     void docxTemplateEngineDoesNotAppendSignatureForGenericDocumentWithoutPlaceholder() throws Exception {
         var template = docx("Project: ${projectName}");
         var engine = new DocxTemplateDocumentEngine(

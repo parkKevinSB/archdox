@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
@@ -40,6 +42,9 @@ public class HtmlPreviewDocumentRenderer {
     }
 
     private String html(DocumentGenerationRequest request) {
+        if (shouldRenderOfficialDailyLogPreview(request)) {
+            return officialDailyLogHtml(request);
+        }
         var title = firstText(
                 readTextPath(request.payload(), "templateFields.documentTitle"),
                 readTextPath(request.payload(), "templateFields.reportTitle"),
@@ -246,6 +251,504 @@ public class HtmlPreviewDocumentRenderer {
                 """
                 .replace("__TITLE__", escapeHtml(title))
                 .replace("__BODY__", body.toString());
+    }
+
+    private boolean shouldRenderOfficialDailyLogPreview(DocumentGenerationRequest request) {
+        var report = mapValue(request.payload().get("report"));
+        var documentType = mapValue(request.payload().get("documentType"));
+        return isDailySupervisionType(stringValue(report.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("reportType")))
+                || isDailySupervisionType(stringValue(documentType.get("code")))
+                || isDailySupervisionType(request.template().templateCode());
+    }
+
+    private String officialDailyLogHtml(DocumentGenerationRequest request) {
+        var fields = mapValue(request.payload().get("templateFields"));
+        var title = "공사감리일지";
+        var reportTitle = firstNonBlank(
+                valueOrBlank(fields.get("constructionName")),
+                valueOrBlank(fields.get("constructionProjectName")),
+                valueOrBlank(fields.get("projectName")),
+                valueOrBlank(fields.get("reportTitle")),
+                title);
+        var rows = officialDailyLogRows(request);
+        var workRows = new StringBuilder();
+        if (rows.isEmpty()) {
+            workRows.append("""
+                    <tr>
+                      <td class="blank-cell"></td>
+                      <td class="blank-cell"></td>
+                      <td class="blank-cell tall"></td>
+                    </tr>
+                    """);
+        } else {
+            for (var row : rows) {
+                workRows.append("""
+                        <tr>
+                          <td>%s</td>
+                          <td>%s</td>
+                          <td class="preserve">%s</td>
+                        </tr>
+                        """.formatted(
+                        escapeHtml(row.trade()),
+                        escapeHtml(row.focus()),
+                        escapeHtml(row.content())));
+            }
+        }
+        var date = officialInspectionDateParts(request);
+        var weather = firstNonBlank(valueOrBlank(fields.get("weather")), "");
+        var specialNotes = firstNonBlank(
+                valueOrBlank(fields.get("specialNotes")),
+                readTextPath(request.payload(), "steps.REMARKS.payload.specialNotes").orElse(""),
+                readTextPath(request.payload(), "steps.REMARKS.payload.remarks").orElse(""));
+        var issueAndAction = firstNonBlank(
+                valueOrBlank(fields.get("issueAndAction")),
+                valueOrBlank(fields.get("correctionResults")),
+                readTextPath(request.payload(), "steps.REMARKS.payload.issueAndAction").orElse(""));
+        var nextAction = firstNonBlank(
+                valueOrBlank(fields.get("nextAction")),
+                readTextPath(request.payload(), "steps.REMARKS.payload.nextAction").orElse(""));
+        var photos = officialDailyLogPhotos(request);
+        var signatureMark = officialSignatureMarkHtml(request);
+        var photoSection = photos.isBlank() ? "" : """
+                <section class="official-section page-break">
+                  <h2>사진 및 설명</h2>
+                  <div class="official-photo-grid">%s</div>
+                </section>
+                """.formatted(photos);
+        var nextActionSection = nextAction.isBlank() ? "" : officialLinedHtml("다음 조치", nextAction);
+        return """
+                <!doctype html>
+                <html lang="ko">
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>%s</title>
+                  <style>
+                    :root {
+                      color-scheme: light;
+                      --bg: #eef1f5;
+                      --paper: #ffffff;
+                      --ink: #101828;
+                      --muted: #667085;
+                      --line: #111827;
+                      --soft-line: #667085;
+                      --header: #f2f4f7;
+                    }
+                    * { box-sizing: border-box; }
+                    body {
+                      margin: 0;
+                      background: var(--bg);
+                      color: var(--ink);
+                      font-family: "Malgun Gothic", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+                      font-size: 13px;
+                      line-height: 1.45;
+                    }
+                    main {
+                      width: min(100%%, 900px);
+                      margin: 0 auto;
+                      padding: 24px;
+                    }
+                    .official-page {
+                      width: 794px;
+                      min-height: 1123px;
+                      margin: 0 auto;
+                      padding: 44px 52px;
+                      background: var(--paper);
+                      border: 1px solid #d0d5dd;
+                      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
+                    }
+                    .appendix-note {
+                      margin: 0 0 4px;
+                      color: #1d4ed8;
+                      font-size: 11px;
+                    }
+                    .official-title {
+                      margin: 0 0 10px;
+                      padding-bottom: 8px;
+                      border-bottom: 3px solid var(--line);
+                      text-align: center;
+                      font-size: 28px;
+                      line-height: 1.2;
+                      font-weight: 800;
+                      letter-spacing: 0;
+                    }
+                    table {
+                      width: 100%%;
+                      border-collapse: collapse;
+                      table-layout: fixed;
+                    }
+                    th, td {
+                      border: 1px solid var(--line);
+                      padding: 6px 7px;
+                      vertical-align: middle;
+                      word-break: keep-all;
+                      overflow-wrap: anywhere;
+                    }
+                    th {
+                      background: var(--header);
+                      text-align: center;
+                      font-weight: 800;
+                    }
+                    .official-meta td {
+                      height: 36px;
+                    }
+                    .official-meta .label {
+                      width: 16%%;
+                      text-align: center;
+                      font-weight: 800;
+                      background: var(--header);
+                    }
+                    .official-meta .value {
+                      width: 34%%;
+                    }
+                    .signature-line {
+                      display: inline-block;
+                      min-width: 92px;
+                      border-bottom: 1px solid var(--soft-line);
+                      height: 1.2em;
+                      vertical-align: bottom;
+                    }
+                    .signature-image-inline {
+                      display: inline-flex;
+                      min-width: 92px;
+                      min-height: 28px;
+                      align-items: center;
+                      justify-content: center;
+                      vertical-align: middle;
+                      border-bottom: 1px solid var(--soft-line);
+                    }
+                    .signature-image-inline img {
+                      max-width: 92px;
+                      max-height: 34px;
+                      object-fit: contain;
+                    }
+                    .work-table {
+                      margin-top: 10px;
+                    }
+                    .work-table th {
+                      height: 38px;
+                    }
+                    .work-table td {
+                      vertical-align: top;
+                      min-height: 36px;
+                    }
+                    .work-trade { width: 30%%; }
+                    .work-focus { width: 25%%; }
+                    .work-content { width: 45%%; }
+                    .preserve {
+                      white-space: pre-wrap;
+                    }
+                    .blank-cell.tall {
+                      height: 260px;
+                    }
+                    .official-section {
+                      margin-top: 12px;
+                    }
+                    .lined-box {
+                      border: 1px solid var(--line);
+                      min-height: 86px;
+                      padding: 8px 9px;
+                      white-space: pre-wrap;
+                    }
+                    .lined-box strong {
+                      display: block;
+                      margin-bottom: 6px;
+                    }
+                    .official-guide {
+                      margin-top: 14px;
+                      border: 1px solid var(--line);
+                    }
+                    .official-guide h2 {
+                      margin: 0;
+                      padding: 7px;
+                      border-bottom: 1px solid var(--line);
+                      background: var(--header);
+                      text-align: center;
+                      font-size: 13px;
+                    }
+                    .official-guide ol {
+                      margin: 8px 18px 10px 28px;
+                      padding: 0;
+                    }
+                    .official-photo-grid {
+                      display: grid;
+                      grid-template-columns: repeat(2, minmax(0, 1fr));
+                      gap: 10px;
+                    }
+                    .official-photo {
+                      border: 1px solid var(--line);
+                      padding: 8px;
+                      min-height: 220px;
+                    }
+                    .official-photo img {
+                      display: block;
+                      width: 100%%;
+                      aspect-ratio: 4 / 3;
+                      object-fit: cover;
+                      border: 1px solid #d0d5dd;
+                      background: #f2f4f7;
+                    }
+                    .official-photo figcaption {
+                      margin-top: 6px;
+                      text-align: center;
+                      font-size: 12px;
+                    }
+                    .footer-signature {
+                      margin-top: 14px;
+                      display: grid;
+                      grid-template-columns: 1fr 1fr;
+                      gap: 10px;
+                    }
+                    .footer-signature div {
+                      border-top: 1px solid var(--line);
+                      padding-top: 8px;
+                      text-align: right;
+                    }
+                    .muted { color: var(--muted); }
+                    @media (max-width: 840px) {
+                      main { padding: 0; }
+                      .official-page {
+                        width: 100%%;
+                        min-height: auto;
+                        padding: 18px 12px;
+                        border-radius: 0;
+                        border-left: 0;
+                        border-right: 0;
+                      }
+                      .official-title { font-size: 23px; }
+                      th, td { padding: 5px; font-size: 12px; }
+                      .official-photo-grid { grid-template-columns: 1fr; }
+                    }
+                    @media print {
+                      body { background: #fff; }
+                      main { width: auto; padding: 0; }
+                      .official-page {
+                        width: auto;
+                        min-height: auto;
+                        box-shadow: none;
+                        border: 0;
+                        padding: 0;
+                      }
+                      .page-break { break-before: page; }
+                    }
+                  </style>
+                </head>
+                <body>
+                  <main>
+                    <article class="official-page">
+                      <p class="appendix-note">건축공사 감리세부기준 [별지 제2호서식] &lt;개정 2017. 2. 4.&gt;</p>
+                      <h1 class="official-title">공사감리일지</h1>
+                      <table class="official-meta">
+                        <tbody>
+                          <tr>
+                            <td colspan="4">일련번호&nbsp;&nbsp;%s</td>
+                          </tr>
+                          <tr>
+                            <td colspan="2">총괄감리책임자&nbsp;&nbsp;%s&nbsp;&nbsp;%s (서명 또는 인)</td>
+                            <td colspan="2">건축사보&nbsp;&nbsp;%s&nbsp;&nbsp;%s (서명 또는 인)</td>
+                          </tr>
+                          <tr>
+                            <td class="label">공사명</td>
+                            <td colspan="3" class="value">
+                              <strong>%s</strong><br>
+                              공사&nbsp;&nbsp;%s 년&nbsp;&nbsp;%s 월&nbsp;&nbsp;%s 일&nbsp;&nbsp;%s요일&nbsp;&nbsp;날씨 : %s
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <table class="work-table">
+                        <thead>
+                          <tr>
+                            <th class="work-trade">공종 및 세부공정<br>(층)</th>
+                            <th class="work-focus">감리 항목</th>
+                            <th class="work-content">감리내용</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          %s
+                        </tbody>
+                      </table>
+                      %s
+                      %s
+                      %s
+                      <section class="footer-signature">
+                        <div>총괄감리책임자 : %s (인)</div>
+                        <div>건축사보 : %s (인)</div>
+                      </section>
+                      %s
+                      <section class="official-guide">
+                        <h2>작성방법</h2>
+                        <ol>
+                          <li>공종에는 주요 공종 및 단위 공정을 기재합니다.</li>
+                          <li>감리 항목에는 그날 확인한 검사항목을 기재합니다.</li>
+                          <li>감리내용에는 적합·부적합 결과, 기준·참고사항, 조치사항을 구체적으로 기재합니다.</li>
+                          <li>지적사항 및 처리결과는 현장 지시와 조치 결과를 함께 기재합니다.</li>
+                        </ol>
+                      </section>
+                    </article>
+                  </main>
+                </body>
+                </html>
+                """.formatted(
+                escapeHtml(title),
+                escapeHtml(valueOrBlank(fields.get("serialNo")).isBlank() ? request.reportId() : valueOrBlank(fields.get("serialNo"))),
+                escapeHtml(firstNonBlank(
+                        valueOrBlank(fields.get("chiefSupervisorName")),
+                        valueOrBlank(fields.get("supervisorName")),
+                        valueOrBlank(fields.get("inspectorName")),
+                        officialSignedByName(request))),
+                signatureMark,
+                escapeHtml(firstNonBlank(
+                        valueOrBlank(fields.get("architectAssistantName")),
+                        valueOrBlank(fields.get("assistantArchitectName")),
+                        valueOrBlank(fields.get("assistantSupervisorName")))),
+                signatureMark,
+                escapeHtml(reportTitle),
+                escapeHtml(date.year()),
+                escapeHtml(date.month()),
+                escapeHtml(date.day()),
+                escapeHtml(date.dayOfWeek()),
+                escapeHtml(weather),
+                workRows,
+                officialLinedHtml("특기사항", specialNotes),
+                officialLinedHtml("지적사항 및 처리결과", issueAndAction),
+                nextActionSection,
+                signatureMark,
+                signatureMark,
+                photoSection);
+    }
+
+    private String officialSignatureMarkHtml(DocumentGenerationRequest request) {
+        var signature = mapValue(request.payload().get("signature"));
+        if (Boolean.TRUE.equals(signature.get("signed"))) {
+            var imageDataUrl = signatureImageDataUrl(signature);
+            if (!imageDataUrl.isBlank()) {
+                return "<span class=\"signature-image-inline\"><img alt=\"서명\" src=\"%s\"></span>"
+                        .formatted(escapeHtml(imageDataUrl));
+            }
+        }
+        return "<span class=\"signature-line\"></span>";
+    }
+
+    private String officialSignedByName(DocumentGenerationRequest request) {
+        return valueOrBlank(mapValue(request.payload().get("signature")).get("signedByName")).trim();
+    }
+
+    private List<OfficialDailyLogRow> officialDailyLogRows(DocumentGenerationRequest request) {
+        var dailyItems = mapValue(readPath(request.payload(), "steps.DAILY_LOG.payload.dailyItems").orElse(null));
+        var groups = listValue(dailyItems.get("groups"));
+        var rows = new ArrayList<OfficialDailyLogRow>();
+        for (var rawGroup : groups) {
+            var group = mapValue(rawGroup);
+            var groupLabel = officialGroupLabel(group);
+            var entries = listValue(group.get("entries"));
+            if (entries.isEmpty()) {
+                if (!groupLabel.isBlank()) {
+                    rows.add(new OfficialDailyLogRow(groupLabel, "", ""));
+                }
+                continue;
+            }
+            var firstInGroup = true;
+            for (var rawEntry : entries) {
+                var entry = mapValue(rawEntry);
+                var focus = valueOrBlank(entry.get("inspectionItemName")).trim();
+                var content = dailySupervisionContent(entry).trim();
+                if (groupLabel.isBlank() && focus.isBlank() && content.isBlank()) {
+                    continue;
+                }
+                rows.add(new OfficialDailyLogRow(firstInGroup ? groupLabel : "", focus, content));
+                firstInGroup = false;
+            }
+        }
+        return rows;
+    }
+
+    private String officialGroupLabel(Map<String, Object> group) {
+        var primary = firstNonBlank(
+                valueOrBlank(group.get("tradeName")),
+                valueOrBlank(group.get("phaseName"))).trim();
+        var process = joinNonBlank(
+                valueOrBlank(group.get("processName")),
+                valueOrBlank(group.get("floor")));
+        if (primary.isBlank()) {
+            return process.isBlank() ? "" : "(" + process + ")";
+        }
+        return process.isBlank() ? primary : primary + "\n(" + process + ")";
+    }
+
+    private String officialLinedHtml(String title, String value) {
+        return """
+                <section class="official-section">
+                  <div class="lined-box"><strong>%s</strong>%s</div>
+                </section>
+                """.formatted(escapeHtml(title), escapeHtml(valueOrBlank(value)));
+    }
+
+    private String officialDailyLogPhotos(DocumentGenerationRequest request) {
+        var photos = request.photos() == null ? List.<PhotoAsset>of() : request.photos();
+        if (photos.isEmpty()) {
+            return "";
+        }
+        var rendered = new StringBuilder();
+        for (var photo : photos) {
+            rendered.append("""
+                    <figure class="official-photo">
+                      %s
+                      <figcaption>%s</figcaption>
+                    </figure>
+                    """.formatted(
+                    photoImage(photo),
+                    escapeHtml(firstNonBlank(photo.caption(), PhotoDisplayTexts.value(photo, "checklistItemKey"), "사진 " + valueOrBlank(photo.photoId())))));
+        }
+        return rendered.toString();
+    }
+
+    private OfficialInspectionDate officialInspectionDateParts(DocumentGenerationRequest request) {
+        var fields = mapValue(request.payload().get("templateFields"));
+        var year = valueOrBlank(fields.get("inspectionYear")).trim();
+        var month = valueOrBlank(fields.get("inspectionMonth")).trim();
+        var day = valueOrBlank(fields.get("inspectionDay")).trim();
+        var dayOfWeek = stripYoil(firstNonBlank(
+                valueOrBlank(fields.get("inspectionDayOfWeek")),
+                valueOrBlank(fields.get("dayOfWeek"))));
+        if (!year.isBlank() || !month.isBlank() || !day.isBlank()) {
+            return new OfficialInspectionDate(year, month, day, dayOfWeek);
+        }
+        var dateText = firstNonBlank(
+                valueOrBlank(fields.get("inspectionDate")),
+                valueOrBlank(fields.get("safetyInspectionDate")),
+                valueOrBlank(fields.get("reportDate")));
+        if (!dateText.isBlank()) {
+            try {
+                var date = LocalDate.parse(dateText.trim());
+                return new OfficialInspectionDate(
+                        String.valueOf(date.getYear()),
+                        String.valueOf(date.getMonthValue()),
+                        String.valueOf(date.getDayOfMonth()),
+                        koreanDayOfWeek(date));
+            } catch (DateTimeParseException ignored) {
+                return new OfficialInspectionDate("", "", "", dayOfWeek);
+            }
+        }
+        return new OfficialInspectionDate("", "", "", dayOfWeek);
+    }
+
+    private String koreanDayOfWeek(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case MONDAY -> "월";
+            case TUESDAY -> "화";
+            case WEDNESDAY -> "수";
+            case THURSDAY -> "목";
+            case FRIDAY -> "금";
+            case SATURDAY -> "토";
+            case SUNDAY -> "일";
+        };
+    }
+
+    private String stripYoil(String value) {
+        var text = valueOrBlank(value).trim();
+        return text.endsWith("요일") ? text.substring(0, text.length() - 2) : text;
     }
 
     private String signatureSection(DocumentGenerationRequest request) {
@@ -941,5 +1444,20 @@ public class HtmlPreviewDocumentRenderer {
 
     private String valueOrBlank(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private record OfficialDailyLogRow(
+            String trade,
+            String focus,
+            String content
+    ) {
+    }
+
+    private record OfficialInspectionDate(
+            String year,
+            String month,
+            String day,
+            String dayOfWeek
+    ) {
     }
 }
