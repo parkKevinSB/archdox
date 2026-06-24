@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.platformops.domain.PlatformOpsRunStatus;
 import com.archdox.cloud.platformops.infra.PlatformOpsDailyReportRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsFindingRepository;
@@ -21,6 +22,7 @@ class PlatformOpsRetentionServiceTest {
     private final PlatformOpsFindingRepository findingRepository = mock(PlatformOpsFindingRepository.class);
     private final PlatformOpsIncidentRepository incidentRepository = mock(PlatformOpsIncidentRepository.class);
     private final PlatformOpsRunRepository runRepository = mock(PlatformOpsRunRepository.class);
+    private final OperationEventRepository operationEventRepository = mock(OperationEventRepository.class);
 
     @Test
     void purgesPlatformOpsDataOlderThanRetentionDaysInReferenceSafeOrder() {
@@ -32,6 +34,7 @@ class PlatformOpsRetentionServiceTest {
         when(runRepository.deleteUnreferencedTerminalRunsBefore(
                 cutoff,
                 List.of(PlatformOpsRunStatus.COMPLETED, PlatformOpsRunStatus.FAILED))).thenReturn(6);
+        when(operationEventRepository.deleteLogProjectionEventsCreatedBefore(cutoff)).thenReturn(8);
 
         var result = service().purgeExpired(now);
 
@@ -42,18 +45,21 @@ class PlatformOpsRetentionServiceTest {
         assertThat(result.deletedFindings()).isEqualTo(20);
         assertThat(result.deletedIncidents()).isEqualTo(4);
         assertThat(result.deletedRuns()).isEqualTo(6);
-        assertThat(result.totalDeleted()).isEqualTo(33);
+        assertThat(result.deletedLogProjectionEvents()).isEqualTo(8);
+        assertThat(result.totalDeleted()).isEqualTo(41);
         var inOrder = org.mockito.Mockito.inOrder(
                 dailyReportRepository,
                 findingRepository,
                 incidentRepository,
-                runRepository);
+                runRepository,
+                operationEventRepository);
         inOrder.verify(dailyReportRepository).deleteCreatedBefore(cutoff);
         inOrder.verify(findingRepository).deleteCreatedBefore(cutoff);
         inOrder.verify(incidentRepository).deleteStaleUnreferencedBefore(cutoff);
         inOrder.verify(runRepository).deleteUnreferencedTerminalRunsBefore(
                 cutoff,
                 List.of(PlatformOpsRunStatus.COMPLETED, PlatformOpsRunStatus.FAILED));
+        inOrder.verify(operationEventRepository).deleteLogProjectionEventsCreatedBefore(cutoff);
     }
 
     @Test
@@ -73,6 +79,7 @@ class PlatformOpsRetentionServiceTest {
         verify(runRepository, never()).deleteUnreferencedTerminalRunsBefore(
                 result.cutoff(),
                 List.of(PlatformOpsRunStatus.COMPLETED, PlatformOpsRunStatus.FAILED));
+        verify(operationEventRepository, never()).deleteLogProjectionEventsCreatedBefore(result.cutoff());
     }
 
     @Test
@@ -94,6 +101,7 @@ class PlatformOpsRetentionServiceTest {
                 dailyReportRepository,
                 findingRepository,
                 incidentRepository,
-                runRepository);
+                runRepository,
+                operationEventRepository);
     }
 }

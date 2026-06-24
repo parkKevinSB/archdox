@@ -9,13 +9,14 @@ public record PlatformOpsRetentionResult(
         long deletedDailyReports,
         long deletedFindings,
         long deletedIncidents,
-        long deletedRuns
+        long deletedRuns,
+        long deletedLogProjectionEvents
 ) {
     public static PlatformOpsRetentionResult disabled(int retentionDays, OffsetDateTime cutoff) {
-        return new PlatformOpsRetentionResult(false, retentionDays, cutoff, 0, 0, 0, 0);
+        return new PlatformOpsRetentionResult(false, retentionDays, cutoff, 0, 0, 0, 0, 0);
     }
 
     public long totalDeleted() {
-        return deletedDailyReports + deletedFindings + deletedIncidents + deletedRuns;
+        return deletedDailyReports + deletedFindings + deletedIncidents + deletedRuns + deletedLogProjectionEvents;
     }
 }

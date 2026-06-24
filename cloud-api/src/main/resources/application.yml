@@ -166,6 +166,14 @@ archdox:
       auto-diagnosis-enabled: ${PLATFORM_OPS_DAILY_REPORT_AUTO_DIAGNOSIS_ENABLED:true}
       auto-diagnosis-incident-limit: ${PLATFORM_OPS_DAILY_REPORT_AUTO_DIAGNOSIS_LIMIT:5}
       auto-diagnosis-min-severity: ${PLATFORM_OPS_DAILY_REPORT_AUTO_DIAGNOSIS_MIN_SEVERITY:WARN}
+    log-projection:
+      enabled: ${PLATFORM_OPS_LOG_PROJECTION_ENABLED:true}
+      source-code: ${PLATFORM_OPS_LOG_PROJECTION_SOURCE_CODE:cloud-api}
+      log-file-path: "${PLATFORM_OPS_LOG_PROJECTION_LOG_FILE_PATH:${LOG_PATH:logs}/archdox-cloud-api/archdox-cloud-api.log}"
+      max-bytes-per-scan: ${PLATFORM_OPS_LOG_PROJECTION_MAX_BYTES_PER_SCAN:262144}
+      max-events-per-scan: ${PLATFORM_OPS_LOG_PROJECTION_MAX_EVENTS_PER_SCAN:25}
+      max-message-length: ${PLATFORM_OPS_LOG_PROJECTION_MAX_MESSAGE_LENGTH:700}
+      tail-on-first-scan: ${PLATFORM_OPS_LOG_PROJECTION_TAIL_ON_FIRST_SCAN:true}
   legal:
     sync:
       worker-interval-ms: ${LEGAL_SYNC_WORKER_INTERVAL_MS:250}

@@ -775,6 +775,25 @@ operation_events / DB read models / summarized logs
 -> optional approved recovery action
 ```
 
+Raw application logs must not be passed directly to an AI harness. The host
+application should first project logs into structured operational signals:
+
+```text
+rolling app log
+-> bounded WARN/ERROR line reader
+-> secret/token/JWT redaction
+-> fingerprint + short sample message
+-> PlatformOpsFinding / operation_events
+-> diagnosis snapshot / daily report
+```
+
+The ArchDox Cloud API implementation uses `platform-log-projection` operation
+events for this purpose. It stores the log cursor in
+`platform_ops_log_projection_cursors`, records no raw stack trace, and lets
+platform ops retention purge only those log projection events. This keeps audit
+events and raw logs separate while still giving the ops harness enough
+structured evidence to summarize recurring failures.
+
 ### Module Boundary
 
 Keep this inside the ArchDox repository first. Do not create a separate git

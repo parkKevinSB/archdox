@@ -392,6 +392,14 @@ These are development-only credentials.
 - The platform admin UI can trigger incident diagnosis and show the latest
   diagnosis snapshot as operational summary, redaction policy, recent findings,
   and related operation events.
+- Platform operations now include a safe application-log projection sensor.
+  The sensor tails the Cloud API rolling log cursor, reads only bounded
+  `WARN`/`ERROR` event-start lines, redacts token/password/secret/API key/JWT
+  patterns, stores no raw stack trace, and projects a fingerprinted summary into
+  `PlatformOpsFinding` plus `operation_events` with
+  `workflow_type = 'platform-log-projection'`. Retention deletes only these log
+  projection operation events under the platform ops retention window; generic
+  audit events are not purged by this rule.
 - `archdox-worker` module foundation exists for ArchDox Worker Service:
   `ArchDoxWorkerRequest`, `ArchDoxWorkerAction`, action registry, policy gate, trace events,
   and a Flower-backed `ArchDoxWorkerExecutionFlow`. `cloud-api` wires the module with a safe

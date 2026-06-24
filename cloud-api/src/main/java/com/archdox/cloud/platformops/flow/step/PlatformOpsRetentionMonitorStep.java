@@ -37,11 +37,12 @@ public class PlatformOpsRetentionMonitorStep extends Step {
                     OffsetDateTime.ofInstant(Instant.ofEpochMilli(ctx.clock().currentTimeMillis()), ZoneOffset.UTC));
             if (result.totalDeleted() > 0) {
                 log.info(
-                        "Platform ops retention purged {} daily reports, {} findings, {} incidents, and {} runs before {}",
+                        "Platform ops retention purged {} daily reports, {} findings, {} incidents, {} runs, and {} log projection events before {}",
                         result.deletedDailyReports(),
                         result.deletedFindings(),
                         result.deletedIncidents(),
                         result.deletedRuns(),
+                        result.deletedLogProjectionEvents(),
                         result.cutoff());
             }
         } catch (Exception ex) {

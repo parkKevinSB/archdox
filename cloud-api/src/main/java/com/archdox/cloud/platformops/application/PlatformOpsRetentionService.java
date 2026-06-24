@@ -1,5 +1,6 @@
 package com.archdox.cloud.platformops.application;
 
+import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.platformops.domain.PlatformOpsRunStatus;
 import com.archdox.cloud.platformops.infra.PlatformOpsDailyReportRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsFindingRepository;
@@ -17,19 +18,22 @@ public class PlatformOpsRetentionService {
     private final PlatformOpsFindingRepository findingRepository;
     private final PlatformOpsIncidentRepository incidentRepository;
     private final PlatformOpsRunRepository runRepository;
+    private final OperationEventRepository operationEventRepository;
 
     public PlatformOpsRetentionService(
             PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsDailyReportRepository dailyReportRepository,
             PlatformOpsFindingRepository findingRepository,
             PlatformOpsIncidentRepository incidentRepository,
-            PlatformOpsRunRepository runRepository
+            PlatformOpsRunRepository runRepository,
+            OperationEventRepository operationEventRepository
     ) {
         this.automationSettingsService = automationSettingsService;
         this.dailyReportRepository = dailyReportRepository;
         this.findingRepository = findingRepository;
         this.incidentRepository = incidentRepository;
         this.runRepository = runRepository;
+        this.operationEventRepository = operationEventRepository;
     }
 
     public boolean enabled() {
@@ -55,6 +59,7 @@ public class PlatformOpsRetentionService {
         var deletedRuns = runRepository.deleteUnreferencedTerminalRunsBefore(
                 cutoff,
                 List.of(PlatformOpsRunStatus.COMPLETED, PlatformOpsRunStatus.FAILED));
+        var deletedLogProjectionEvents = operationEventRepository.deleteLogProjectionEventsCreatedBefore(cutoff);
 
         return new PlatformOpsRetentionResult(
                 true,
@@ -63,6 +68,7 @@ public class PlatformOpsRetentionService {
                 deletedDailyReports,
                 deletedFindings,
                 deletedIncidents,
-                deletedRuns);
+                deletedRuns,
+                deletedLogProjectionEvents);
     }
 }
