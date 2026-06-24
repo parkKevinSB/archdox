@@ -55,6 +55,7 @@ import {
   createDocumentTemplateRevision,
   createOfficeInvitation,
   createProject,
+  deletePlatformOpsControlProfile,
   deactivateOfficeMember,
   deactivatePlatformLegalDomainBinding,
   deleteProject,
@@ -583,6 +584,7 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "취소",
   COMPLETED: "완료",
   CRITICAL: "긴급",
+  DELETED: "삭제됨",
   DELIVERED: "전달됨",
   DISABLED: "비활성",
   DRAFT: "초안",
@@ -1217,6 +1219,28 @@ export default function App() {
       setNotice("운영 제어 프로필을 갱신했습니다.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "운영 제어 프로필을 갱신하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteOpsControlProfile(profileId: number) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    const confirmed = window.confirm("이 운영 제어 프로필을 삭제하시겠습니까? 삭제된 프로필은 기본 목록에서 숨겨집니다.");
+    if (!confirmed) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await deletePlatformOpsControlProfile(auth.accessToken, profileId);
+      const opsControlProfiles = await getPlatformOpsControlProfiles(auth.accessToken, 100);
+      setPlatformData((current) => ({ ...current, opsControlProfiles }));
+      setNotice("운영 제어 프로필을 삭제했습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 제어 프로필을 삭제하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -2277,6 +2301,7 @@ export default function App() {
               onUpdateOpsAutomationSettings={handleUpdateOpsAutomationSettings}
               onCreateOpsControlProfile={handleCreateOpsControlProfile}
               onUpdateOpsControlProfile={handleUpdateOpsControlProfile}
+              onDeleteOpsControlProfile={handleDeleteOpsControlProfile}
             />
           )}
           {isAiView(activeView) && (
@@ -5602,7 +5627,8 @@ function PlatformView({
   onUpdateServerRuntimeSettings,
   onUpdateOpsAutomationSettings,
   onCreateOpsControlProfile,
-  onUpdateOpsControlProfile
+  onUpdateOpsControlProfile,
+  onDeleteOpsControlProfile
 }: {
   view: PlatformViewKey;
   accessToken: string;
@@ -5661,6 +5687,7 @@ function PlatformView({
   onUpdateOpsAutomationSettings: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
   onCreateOpsControlProfile: (body: OpsControlProfileCreatePayload) => Promise<void>;
   onUpdateOpsControlProfile: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
+  onDeleteOpsControlProfile: (profileId: number) => Promise<void>;
 }) {
   const summary = data.summary;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
@@ -5830,6 +5857,7 @@ function PlatformView({
           profiles={data.opsControlProfiles}
           onCreate={onCreateOpsControlProfile}
           onUpdate={onUpdateOpsControlProfile}
+          onDelete={onDeleteOpsControlProfile}
         />
       ) : null}
 
@@ -8109,26 +8137,76 @@ function EngineApiKeyCreateForm({
   );
 }
 
+type OpsSignalStat = {
+  signal: string;
+  count: number;
+  latestReportId: number;
+  latestReportCreatedAt: string;
+  latestSeverity: string;
+};
+
+function buildOpsSignalStats(
+  reports: PlatformOpsDailyReport[],
+  selector: (report: PlatformOpsDailyReport) => string[]
+) {
+  const stats = new Map<string, OpsSignalStat & { latestTime: number }>();
+  reports.slice(0, 30).forEach((report) => {
+    const reportTime = Date.parse(report.createdAt);
+    const uniqueSignals = new Set(selector(report).map((signal) => signal.trim()).filter(Boolean));
+    uniqueSignals.forEach((signal) => {
+      const current = stats.get(signal);
+      if (!current) {
+        stats.set(signal, {
+          signal,
+          count: 1,
+          latestReportId: report.id,
+          latestReportCreatedAt: report.createdAt,
+          latestSeverity: report.severity,
+          latestTime: reportTime
+        });
+        return;
+      }
+      current.count += 1;
+      if (reportTime > current.latestTime) {
+        current.latestReportId = report.id;
+        current.latestReportCreatedAt = report.createdAt;
+        current.latestSeverity = report.severity;
+        current.latestTime = reportTime;
+      }
+    });
+  });
+
+  return [...stats.values()]
+    .sort((left, right) => right.count - left.count || right.latestTime - left.latestTime)
+    .map(({ latestTime: _latestTime, ...stat }) => stat);
+}
+
 function PlatformOpsPidTuningPanel({
   busy,
   reports,
   profiles,
   onCreate,
-  onUpdate
+  onUpdate,
+  onDelete
 }: {
   busy: boolean;
   reports: PlatformOpsDailyReport[];
   profiles: PlatformOpsControlProfile[];
   onCreate: (body: OpsControlProfileCreatePayload) => Promise<void>;
   onUpdate: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
+  onDelete: (profileId: number) => Promise<void>;
 }) {
   const sortedReports = [...reports].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
   const latest = sortedReports[0] ?? null;
-  const iSignals = latest?.iLikeSignals ?? [];
-  const activeProfiles = profiles.filter((profile) => profile.status === "ACTIVE");
+  const pSignalStats = buildOpsSignalStats(sortedReports, (report) => report.pLikeSignals);
+  const iSignalStats = buildOpsSignalStats(sortedReports, (report) => report.iLikeSignals);
+  const dSignalStats = buildOpsSignalStats(sortedReports, (report) => report.dLikeSignals);
+  const visibleProfiles = profiles.filter((profile) => profile.status !== "DELETED");
+  const activeProfiles = visibleProfiles.filter((profile) => profile.status === "ACTIVE");
   const globalProfiles = activeProfiles.filter((profile) => profile.scopeType === "GLOBAL");
   const modelProfiles = activeProfiles.filter((profile) => profile.scopeType === "MODEL");
-  const disabledProfiles = profiles.filter((profile) => profile.status !== "ACTIVE");
+  const disabledProfiles = visibleProfiles.filter((profile) => profile.status === "DISABLED");
+  const repeatedISignals = iSignalStats.filter((signal) => signal.count > 1);
   const [severity, setSeverity] = useState("WARN");
   const [iWeight, setIWeight] = useState("1");
   const [modelId, setModelId] = useState("openai-main:gpt-4.1-mini");
@@ -8138,7 +8216,11 @@ function PlatformOpsPidTuningPanel({
   const normalizedWeight = Number.parseFloat(iWeight);
   const safeWeight = Number.isFinite(normalizedWeight) && normalizedWeight >= 0 ? normalizedWeight : 1;
 
-  async function applySignal(signalText: string, scopeType: "GLOBAL" | "MODEL") {
+  async function applySignal(
+    signalText: string,
+    scopeType: "GLOBAL" | "MODEL",
+    sourceDailyReportId?: number | null
+  ) {
     const trimmedSignal = signalText.trim();
     const trimmedModel = modelId.trim();
     if (!trimmedSignal) {
@@ -8154,13 +8236,13 @@ function PlatformOpsPidTuningPanel({
       signalText: trimmedSignal,
       severity,
       iWeight: safeWeight,
-      sourceDailyReportId: latest?.id ?? null,
+      sourceDailyReportId: sourceDailyReportId ?? latest?.id ?? null,
       notes: notes.trim() || null
     });
   }
 
   async function applyManual(scopeType: "GLOBAL" | "MODEL") {
-    await applySignal(manualSignal, scopeType);
+    await applySignal(manualSignal, scopeType, latest?.id ?? null);
     setManualSignal("");
   }
 
@@ -8168,35 +8250,60 @@ function PlatformOpsPidTuningPanel({
     <Panel
       title="PID 튜닝"
       icon={<Gauge size={18} />}
-      action={<span className="panel-context">사람 승인 기반 제어 프로필</span>}
+      action={<span className="panel-context">사람 승인 기반 운영 제어값</span>}
     >
       <div className="ops-diagnosis-detail">
-        <InlineNotice message="P-like는 현재 상태, I-like는 반복·누적 경향, D-like는 급격한 변화 신호입니다. 이 화면은 자동 튜닝이 아니라 운영자가 I-like 신호를 공용 또는 모델별 제어 프로필로 채택하는 곳입니다." />
+        <InlineNotice message="P는 지금 보이는 상태, I는 반복되어 누적된 패턴, D는 최근 갑자기 변한 신호입니다. 이 화면에서는 AI가 자동으로 설정을 바꾸지 않고, 운영자가 반복 신호를 공용 또는 모델별 제어 프로필로 채택합니다." />
         <div className="ops-detail-grid">
-          <MetricCard icon={<Gauge size={20} />} label="활성 공용값" value={globalProfiles.length} detail="GLOBAL I-like" tone="blue" />
-          <MetricCard icon={<KeyRound size={20} />} label="활성 모델값" value={modelProfiles.length} detail="MODEL I-like" tone="slate" />
-          <MetricCard icon={<Activity size={20} />} label="최근 I 신호" value={iSignals.length} detail={latest ? `Daily report #${latest.id}` : "최근 리포트 없음"} tone={iSignals.length > 0 ? "amber" : "green"} />
-          <MetricCard icon={<Clock3 size={20} />} label="비활성 프로필" value={disabledProfiles.length} detail="보관된 튜닝값" tone={disabledProfiles.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Activity size={20} />} label="P 현재 신호" value={pSignalStats.length} detail="최근 30개 리포트 기준" tone={pSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Gauge size={20} />} label="I 반복 신호" value={iSignalStats.length} detail={`${repeatedISignals.length}개 반복`} tone={iSignalStats.length > 0 ? "blue" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="D 변화 신호" value={dSignalStats.length} detail="급격한 변화 후보" tone={dSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<ShieldCheck size={20} />} label="활성 제어값" value={activeProfiles.length} detail={`공용 ${globalProfiles.length} / 모델 ${modelProfiles.length}`} tone="slate" />
+        </div>
+
+        <div className="dashboard-grid">
+          <OpsPidSignalStatsCard
+            title="P 상태"
+            subtitle="현재 리포트들에서 바로 확인해야 할 운영 상태입니다."
+            stats={pSignalStats}
+            empty="최근 P 상태 신호가 없습니다."
+          />
+          <OpsPidSignalStatsCard
+            title="I 반복 신호"
+            subtitle="반복 횟수를 보고 공용 또는 모델별 제어값으로 채택합니다."
+            stats={iSignalStats}
+            empty="최근 I 반복 신호가 없습니다."
+            busy={busy}
+            modelId={modelId}
+            onApply={applySignal}
+          />
+          <OpsPidSignalStatsCard
+            title="D 변화 신호"
+            subtitle="최근 갑자기 늘거나 악화된 변화 후보입니다."
+            stats={dSignalStats}
+            empty="최근 D 변화 신호가 없습니다."
+          />
         </div>
 
         <div className="dashboard-grid">
           <div className="ops-snapshot-card">
             <div className="ops-snapshot-heading">
-              <strong>채택 기준</strong>
-              <span>반복 신호를 어떤 강도로 누적할지 정합니다.</span>
+              <strong>수동 신호 등록</strong>
+              <span>자동 리포트에 아직 잡히지 않은 반복 패턴만 직접 등록합니다.</span>
             </div>
+            <InlineNotice message="채택 기준은 자유 메모장이 아니라 운영자가 확인한 반복 패턴을 누적값으로 고정하는 설정입니다. 예: 특정 모델의 법령검토 재시도 반복, 특정 기능의 토큰 사용량 급증." />
             <div className="server-runtime-settings-form">
               <label>
                 심각도
                 <select value={severity} onChange={(event) => setSeverity(event.target.value)}>
-                  <option value="INFO">INFO</option>
-                  <option value="WARN">WARN</option>
-                  <option value="ERROR">ERROR</option>
-                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="INFO">정보</option>
+                  <option value="WARN">주의</option>
+                  <option value="ERROR">오류</option>
+                  <option value="CRITICAL">긴급</option>
                 </select>
               </label>
               <label>
-                I 값
+                I 가중치
                 <input
                   min="0"
                   step="0.1"
@@ -8217,16 +8324,16 @@ function PlatformOpsPidTuningPanel({
                 운영 메모
                 <textarea
                   rows={3}
-                  placeholder="왜 이 신호를 누적 기준으로 채택했는지 적습니다."
+                  placeholder="예: 같은 모델에서 법령검토 validation retry가 반복되어 모델별 기준으로 관찰합니다."
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                 />
               </label>
               <label className="wide-field">
-                수동 I-like 신호
+                수동 I 반복 신호
                 <textarea
                   rows={3}
-                  placeholder="반복적으로 관찰한 운영 패턴을 직접 입력할 수 있습니다."
+                  placeholder="예: LEGAL_REVIEW validation retry repeats for openai-main:gpt-4.1-mini"
                   value={manualSignal}
                   onChange={(event) => setManualSignal(event.target.value)}
                 />
@@ -8238,7 +8345,7 @@ function PlatformOpsPidTuningPanel({
                   onClick={() => applyManual("GLOBAL")}
                   type="button"
                 >
-                  공용 기준으로 저장
+                  공용값으로 저장
                 </button>
                 <button
                   className="button"
@@ -8246,7 +8353,7 @@ function PlatformOpsPidTuningPanel({
                   onClick={() => applyManual("MODEL")}
                   type="button"
                 >
-                  모델 기준으로 저장
+                  모델값으로 저장
                 </button>
               </div>
             </div>
@@ -8254,60 +8361,45 @@ function PlatformOpsPidTuningPanel({
 
           <div className="ops-snapshot-card">
             <div className="ops-snapshot-heading">
-              <strong>최근 I-like 신호</strong>
-              <span>{latest ? `Daily report #${latest.id} · ${formatDate(latest.createdAt)}` : "최근 리포트 없음"}</span>
+              <strong>읽는 방법</strong>
+              <span>{latest ? `최근 Daily report #${latest.id} · ${formatDate(latest.createdAt)}` : "최근 리포트 없음"}</span>
             </div>
-            {iSignals.length === 0 ? (
-              <EmptyState message="최근 운영 리포트에 I-like 신호가 없습니다." />
-            ) : (
-              <div className="ops-snapshot-list">
-                {iSignals.slice(0, 8).map((signal, index) => (
-                  <div className="ops-snapshot-item" key={`${index}:${signal}`}>
-                    <span>{signal}</span>
-                    <div className="member-actions">
-                      <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() => applySignal(signal, "GLOBAL")}
-                        type="button"
-                      >
-                        공용 채택
-                      </button>
-                      <button
-                        className="button"
-                        disabled={busy || !modelId.trim()}
-                        onClick={() => applySignal(signal, "MODEL")}
-                        type="button"
-                      >
-                        모델 채택
-                      </button>
-                    </div>
-                  </div>
-                ))}
+            <div className="ops-snapshot-list">
+              <div className="ops-snapshot-item">
+                <span>P 상태는 오늘 당장 확인할 현황입니다. 보통 채택 버튼이 아니라 관측용입니다.</span>
               </div>
-            )}
+              <div className="ops-snapshot-item">
+                <span>I 반복 신호는 여러 리포트에서 반복될수록 중요합니다. 이 값만 제어 프로필로 채택합니다.</span>
+              </div>
+              <div className="ops-snapshot-item">
+                <span>D 변화 신호는 갑자기 나빠진 변화입니다. 반복되면 다음 리포트에서 I 신호로 올라올 수 있습니다.</span>
+              </div>
+              <div className="ops-snapshot-item">
+                <span>프로필 삭제는 폐기 처리입니다. 운영 감사 이력은 남고 기본 목록에서는 숨겨집니다.</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <Panel title="제어 프로필" icon={<ShieldCheck size={18} />} count={profiles.length}>
+        <Panel title="제어 프로필" icon={<ShieldCheck size={18} />} count={visibleProfiles.length}>
           <Table
-            columns={["범위", "신호", "I 값", "관측", "상태", "작업"]}
+            columns={["범위", "신호", "I 가중치", "관측", "상태", "작업"]}
             empty="아직 채택된 PID 제어 프로필이 없습니다."
-            rows={profiles.map((profile) => [
+            rows={visibleProfiles.map((profile) => [
               <CellTitle
                 key="scope"
                 title={profile.scopeType === "MODEL" ? "모델별" : "공용"}
-                subtitle={profile.modelId || "GLOBAL"}
+                subtitle={profile.modelId || "전체 모델"}
               />,
               <CellTitle
                 key="signal"
                 title={profile.signalText}
-                subtitle={`${displayLabel(profile.signalKind)} · ${displayLabel(profile.severity)}`}
+                subtitle={`${displayLabel(profile.signalKind)} · ${displayLabel(profile.severity)}${profile.sourceDailyReportId ? ` · Daily #${profile.sourceDailyReportId}` : ""}`}
               />,
               profile.iWeight,
               <CellTitle
                 key="observed"
-                title={`${profile.hitCount}회`}
+                title={`${profile.hitCount}회 관측`}
                 subtitle={`${formatDate(profile.firstObservedAt)} ~ ${formatDate(profile.lastObservedAt)}`}
               />,
               <StatusBadge key="status" status={profile.status} />,
@@ -8341,99 +8433,37 @@ function PlatformOpsPidTuningPanel({
                     활성화
                   </button>
                 )}
+                <button className="button danger" disabled={busy} onClick={() => onDelete(profile.id)} type="button">
+                  삭제
+                </button>
               </div>
             ])}
           />
+          {disabledProfiles.length > 0 ? (
+            <p className="panel-context">비활성 프로필 {disabledProfiles.length}개는 보관 중이며, 필요하면 다시 활성화할 수 있습니다.</p>
+          ) : null}
         </Panel>
       </div>
     </Panel>
   );
 }
 
-function PlatformOpsControlSignalPanel({ reports }: { reports: PlatformOpsDailyReport[] }) {
-  const sortedReports = [...reports].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
-  const latest = sortedReports[0] ?? null;
-  const pSignals = latest?.pLikeSignals ?? [];
-  const iSignals = latest?.iLikeSignals ?? [];
-  const dSignals = latest?.dLikeSignals ?? [];
-  const recommendations = latest?.recommendations ?? [];
-
-  if (!latest) {
-    return (
-      <Panel title="운영 제어 신호" icon={<Gauge size={18} />}>
-        <EmptyState message="아직 생성된 일일 운영 리포트가 없습니다. 리포트가 생성되면 P/I/D 관점의 운영 신호가 여기에 표시됩니다." />
-      </Panel>
-    );
-  }
-
-  return (
-    <Panel
-      title="운영 제어 신호"
-      icon={<Gauge size={18} />}
-      action={<span className="panel-context">Daily report #{latest.id} · {formatDate(latest.createdAt)}</span>}
-    >
-      <div className="ops-diagnosis-detail">
-        <InlineNotice message="이 신호는 자동 튜닝 값이 아니라 운영자가 확인할 제어 입력입니다. 현재 신호, 누적 신호, 변화 신호를 보고 다음 action이나 설정 변경을 결정합니다." />
-        <div className="ops-detail-grid">
-          <MetricCard icon={<Activity size={20} />} label="P-like 현재 신호" value={pSignals.length} detail="지금 바로 볼 문제" tone={pSignals.length > 0 ? "amber" : "green"} />
-          <MetricCard icon={<Gauge size={20} />} label="I-like 누적 신호" value={iSignals.length} detail="반복·누적 경향" tone={iSignals.length > 0 ? "blue" : "green"} />
-          <MetricCard icon={<Clock3 size={20} />} label="D-like 변화 신호" value={dSignals.length} detail="급격한 변화/가속" tone={dSignals.length > 0 ? "amber" : "green"} />
-          <MetricCard icon={<ShieldCheck size={20} />} label="권장 조치" value={recommendations.length} detail={displayLabel(latest.status)} tone={recommendations.length > 0 ? "slate" : "green"} />
-        </div>
-
-        <div className="dashboard-grid">
-          <OpsSignalCard
-            title="P-like 현재 신호"
-            subtitle="현재 주기에서 바로 확인할 운영 상태입니다."
-            items={pSignals}
-            empty="현재 신호가 없습니다."
-          />
-          <OpsSignalCard
-            title="I-like 누적 신호"
-            subtitle="반복되거나 누적된 운영 패턴입니다."
-            items={iSignals}
-            empty="누적 신호가 없습니다."
-          />
-          <OpsSignalCard
-            title="D-like 변화 신호"
-            subtitle="최근 변화량이나 악화 속도를 보는 신호입니다."
-            items={dSignals}
-            empty="변화 신호가 없습니다."
-          />
-          <OpsSignalCard
-            title="권장 조치"
-            subtitle="아직 자동 실행하지 않고 사람이 승인할 후보입니다."
-            items={recommendations}
-            empty="권장 조치가 없습니다."
-          />
-        </div>
-
-        <Table
-          columns={["리포트", "상태", "심각도", "기간", "신호"]}
-          empty="일일 운영 리포트가 없습니다."
-          rows={sortedReports.slice(0, 8).map((report) => [
-            <CellTitle key="report" title={report.title} subtitle={`Run #${report.runId} / ${formatDate(report.createdAt)}`} />,
-            <StatusBadge key="status" status={report.status} />,
-            <StatusBadge key="severity" status={report.severity} />,
-            `${formatDate(report.periodFrom)} ~ ${formatDate(report.periodTo)}`,
-            `P ${report.pLikeSignals.length} / I ${report.iLikeSignals.length} / D ${report.dLikeSignals.length}`
-          ])}
-        />
-      </div>
-    </Panel>
-  );
-}
-
-function OpsSignalCard({
+function OpsPidSignalStatsCard({
   title,
   subtitle,
-  items,
-  empty
+  stats,
+  empty,
+  busy = false,
+  modelId,
+  onApply
 }: {
   title: string;
   subtitle: string;
-  items: string[];
+  stats: OpsSignalStat[];
   empty: string;
+  busy?: boolean;
+  modelId?: string;
+  onApply?: (signalText: string, scopeType: "GLOBAL" | "MODEL", sourceDailyReportId?: number | null) => Promise<void>;
 }) {
   return (
     <div className="ops-snapshot-card">
@@ -8441,13 +8471,36 @@ function OpsSignalCard({
         <strong>{title}</strong>
         <span>{subtitle}</span>
       </div>
-      {items.length === 0 ? (
+      {stats.length === 0 ? (
         <EmptyState message={empty} />
       ) : (
         <div className="ops-snapshot-list">
-          {items.slice(0, 6).map((item, index) => (
-            <div className="ops-snapshot-item" key={`${title}:${index}`}>
-              <span>{item}</span>
+          {stats.slice(0, 8).map((stat) => (
+            <div className="ops-snapshot-item" key={`${title}:${stat.signal}`}>
+              <span>{stat.signal}</span>
+              <small>
+                최근 30개 리포트 중 {stat.count}회 · 마지막 Daily #{stat.latestReportId} · {formatDate(stat.latestReportCreatedAt)} · {displayLabel(stat.latestSeverity)}
+              </small>
+              {onApply ? (
+                <div className="member-actions">
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={() => onApply(stat.signal, "GLOBAL", stat.latestReportId)}
+                    type="button"
+                  >
+                    공용 채택
+                  </button>
+                  <button
+                    className="button"
+                    disabled={busy || !modelId?.trim()}
+                    onClick={() => onApply(stat.signal, "MODEL", stat.latestReportId)}
+                    type="button"
+                  >
+                    모델 채택
+                  </button>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

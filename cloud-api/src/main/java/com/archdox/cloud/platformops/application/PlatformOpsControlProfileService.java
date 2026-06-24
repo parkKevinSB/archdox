@@ -47,7 +47,7 @@ public class PlatformOpsControlProfileService {
             Integer limit
     ) {
         platformAdminService.requirePlatformAdmin(principal);
-        return repository.search(status, PageRequest.of(0, normalizeLimit(limit)))
+        return repository.search(status, PlatformOpsControlProfileStatus.DELETED, PageRequest.of(0, normalizeLimit(limit)))
                 .stream()
                 .map(PlatformOpsControlProfileResponse::from)
                 .toList();
@@ -110,6 +110,21 @@ public class PlatformOpsControlProfileService {
                 principal.userId(),
                 OffsetDateTime.now());
         return PlatformOpsControlProfileResponse.from(repository.save(profile));
+    }
+
+    @Transactional
+    public void delete(UserPrincipal principal, Long profileId) {
+        platformAdminService.requirePlatformAdmin(principal);
+        var profile = repository.findById(profileId)
+                .orElseThrow(() -> new NotFoundException("Platform ops control profile not found"));
+        profile.update(
+                PlatformOpsControlProfileStatus.DELETED,
+                null,
+                null,
+                profile.notes(),
+                principal.userId(),
+                OffsetDateTime.now());
+        repository.save(profile);
     }
 
     private int normalizeLimit(Integer limit) {

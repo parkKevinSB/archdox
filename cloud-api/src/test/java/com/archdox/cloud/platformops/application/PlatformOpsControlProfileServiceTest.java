@@ -13,6 +13,7 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.domain.PlatformOpsControlProfile;
 import com.archdox.cloud.platformops.domain.PlatformOpsControlProfileScope;
+import com.archdox.cloud.platformops.domain.PlatformOpsControlProfileStatus;
 import com.archdox.cloud.platformops.domain.PlatformOpsControlSignalKind;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.dto.CreatePlatformOpsControlProfileRequest;
@@ -121,5 +122,32 @@ class PlatformOpsControlProfileServiceTest {
                 null)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("modelId");
+    }
+
+    @Test
+    void deleteSoftDeletesControlProfile() {
+        var existing = new PlatformOpsControlProfile(
+                PlatformOpsControlSignalKind.I_LIKE,
+                PlatformOpsControlProfileScope.GLOBAL,
+                null,
+                "delete-key",
+                "Repeated token burst signal.",
+                PlatformOpsFindingSeverity.WARN,
+                BigDecimal.ONE,
+                30L,
+                "approved",
+                7L,
+                OffsetDateTime.parse("2026-06-25T00:00:00Z"));
+        ReflectionTestUtils.setField(existing, "id", 31L);
+
+        when(repository.findById(31L)).thenReturn(Optional.of(existing));
+        when(repository.save(any(PlatformOpsControlProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.delete(principal, 31L);
+
+        var captor = ArgumentCaptor.forClass(PlatformOpsControlProfile.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().status()).isEqualTo(PlatformOpsControlProfileStatus.DELETED);
+        verify(platformAdminService).requirePlatformAdmin(principal);
     }
 }

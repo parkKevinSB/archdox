@@ -784,6 +784,13 @@ export function updatePlatformOpsControlProfile(
   });
 }
 
+export function deletePlatformOpsControlProfile(token: string, profileId: number) {
+  return request<void>(`/api/v1/platform-admin/ops/control-profiles/${profileId}`, {
+    token,
+    method: "DELETE"
+  });
+}
+
 export function diagnosePlatformOpsIncident(token: string, incidentId: number) {
   return request<PlatformOpsRun>(`/api/v1/platform-admin/ops/incidents/${incidentId}/diagnose`, {
     token,

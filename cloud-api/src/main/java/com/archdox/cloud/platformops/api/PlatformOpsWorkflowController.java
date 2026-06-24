@@ -25,7 +25,9 @@ import com.archdox.cloud.platformops.flow.PlatformOpsDiagnosisFlowFactory;
 import com.archdox.cloud.platformops.flow.PlatformOpsWorker;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -132,6 +135,15 @@ public class PlatformOpsWorkflowController {
             @RequestBody UpdatePlatformOpsControlProfileRequest request
     ) {
         return controlProfileService.update(principal(authentication), profileId, request);
+    }
+
+    @DeleteMapping("/control-profiles/{profileId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteControlProfile(
+            Authentication authentication,
+            @PathVariable Long profileId
+    ) {
+        controlProfileService.delete(principal(authentication), profileId);
     }
 
     @PostMapping("/incidents/{incidentId}/diagnose")

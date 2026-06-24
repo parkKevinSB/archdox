@@ -15,11 +15,13 @@ public interface PlatformOpsControlProfileRepository extends JpaRepository<Platf
     @Query("""
             select profile
             from PlatformOpsControlProfile profile
-            where (:status is null or profile.status = :status)
+            where (:status is not null and profile.status = :status)
+               or (:status is null and profile.status <> :hiddenStatus)
             order by profile.lastObservedAt desc, profile.id desc
             """)
     List<PlatformOpsControlProfile> search(
             @Param("status") PlatformOpsControlProfileStatus status,
+            @Param("hiddenStatus") PlatformOpsControlProfileStatus hiddenStatus,
             Pageable pageable);
 
     @Query("""
