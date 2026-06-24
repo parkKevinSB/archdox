@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { UseFormRegister, UseFormReturn } from "react-hook-form";
 import type { InspectionReport, InspectionStep, ReportStepDefinition, ReportWizardFormValues, Site } from "../../types";
 
+const weatherQuickOptions = ["맑음", "구름 많음", "흐림", "비", "소나기", "눈", "안개", "강풍"];
+
 export type ReportStepComponentProps = {
   canWriteReports: boolean;
   definition: ReportStepDefinition;
@@ -17,7 +19,7 @@ export type ReportStepComponentProps = {
   token: string;
 };
 
-export function ReportFormStep({ canWriteReports, definition, register, revision }: ReportStepComponentProps) {
+export function ReportFormStep({ canWriteReports, definition, form, register, revision }: ReportStepComponentProps) {
   return (
     <>
       <div className="wizard-form-head">
@@ -51,6 +53,26 @@ export function ReportFormStep({ canWriteReports, definition, register, revision
                 {...register(field.key)}
               />
             )}
+            {field.key === "weather" ? (
+              <div className="weather-quick-options" role="group" aria-label="날씨 빠른 선택">
+                {weatherQuickOptions.map((option) => {
+                  const active = form.watch(field.key) === option;
+                  return (
+                    <button
+                      className={active ? "active" : ""}
+                      disabled={!canWriteReports}
+                      key={option}
+                      onClick={() => {
+                        form.setValue(field.key, option, { shouldDirty: true, shouldValidate: true });
+                      }}
+                      type="button"
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </label>
           )
         ))}

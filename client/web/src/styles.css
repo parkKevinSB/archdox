@@ -2845,6 +2845,35 @@ button {
   box-shadow: 0 0 0 3px #d9eee9;
 }
 
+.weather-quick-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weather-quick-options button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cfddd9;
+  border-radius: 999px;
+  color: #40514e;
+  background: #f7fbfa;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.weather-quick-options button:hover:not(:disabled),
+.weather-quick-options button.active {
+  border-color: #2a7f70;
+  color: #ffffff;
+  background: #2a7f70;
+}
+
+.weather-quick-options button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .daily-supervision-summary {
   display: flex;
   flex-wrap: wrap;
