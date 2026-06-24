@@ -114,6 +114,7 @@ import {
   getPlatformWorkerGovernance,
   getPlatformOffices,
   getPlatformOfficeAiPolicies,
+  getPlatformOpsDailyReports,
   getPlatformOpsFindings,
   getPlatformOpsIncidents,
   getPlatformOpsRuns,
@@ -210,6 +211,7 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsDailyReport,
   PlatformOpsFinding,
   PlatformOpsIncident,
   PlatformOpsRun,
@@ -324,6 +326,7 @@ type PlatformOpsData = {
   opsRuns: PlatformOpsRun[];
   opsIncidents: PlatformOpsIncident[];
   opsFindings: PlatformOpsFinding[];
+  opsDailyReports: PlatformOpsDailyReport[];
   legalSyncRuns: LegalSyncRun[];
   legalChangeSets: LegalChangeSet[];
   legalChangeDigests: LegalChangeDigest[];
@@ -399,6 +402,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   opsRuns: [],
   opsIncidents: [],
   opsFindings: [],
+  opsDailyReports: [],
   legalSyncRuns: [],
   legalChangeSets: [],
   legalChangeDigests: [],
@@ -596,7 +600,8 @@ const codeLabels: Record<string, string> = {
   AI: "AI 보강",
   AI_REVIEW: "AI 검토",
   LEGAL_DIGEST_ENRICHMENT: "법령 변경 게시글 AI 초안",
-  PLATFORM_OPS_DIAGNOSIS: "플랫폼 운영 진단 AI",
+  PLATFORM_OPS_DIAGNOSIS: "운영 이슈 원인 분석 AI",
+  PLATFORM_OPS_DAILY_REPORT: "일일 운영 리포트 AI",
   API_LOCAL: "API 로컬 저장소",
   ARCHDOX_AGENT: "ArchDox Agent",
   CLOUD_MANAGED: "클라우드 관리형",
@@ -621,6 +626,7 @@ const codeLabels: Record<string, string> = {
   LEGAL: "법령",
   LOCAL_OFFICE: "사무소 로컬",
   MANUAL_DIAGNOSIS: "수동 진단",
+  AUTO_SYSTEM_DIAGNOSIS: "자동 시스템 진단",
   PERSONAL: "개인",
   PHOTO_PICKUP: "사진 회수",
   PLATFORM: "플랫폼",
@@ -893,13 +899,14 @@ export default function App() {
       const next: Partial<PlatformOpsData> = {};
 
       if (view === "platform-overview") {
-        const [summary, opsIncidents, opsRuns, opsFindings] = await Promise.all([
+        const [summary, opsIncidents, opsRuns, opsFindings, opsDailyReports] = await Promise.all([
           getPlatformSummary(token),
           getPlatformOpsIncidents(token, 50),
           getPlatformOpsRuns(token, 50),
-          getPlatformOpsFindings(token, 50)
+          getPlatformOpsFindings(token, 50),
+          getPlatformOpsDailyReports(token, 20)
         ]);
-        Object.assign(next, { summary, opsIncidents, opsRuns, opsFindings });
+        Object.assign(next, { summary, opsIncidents, opsRuns, opsFindings, opsDailyReports });
       } else if (view === "platform-offices") {
         next.offices = await getPlatformOffices(token, 100);
       } else if (view === "platform-users") {
@@ -917,13 +924,14 @@ export default function App() {
         ]);
         Object.assign(next, { photos, deliveries });
       } else if (view === "platform-incidents") {
-        const [summary, opsRuns, opsIncidents, opsFindings] = await Promise.all([
+        const [summary, opsRuns, opsIncidents, opsFindings, opsDailyReports] = await Promise.all([
           getPlatformSummary(token),
           getPlatformOpsRuns(token, 50),
           getPlatformOpsIncidents(token, 50),
-          getPlatformOpsFindings(token, 50)
+          getPlatformOpsFindings(token, 50),
+          getPlatformOpsDailyReports(token, 20)
         ]);
-        Object.assign(next, { summary, opsRuns, opsIncidents, opsFindings });
+        Object.assign(next, { summary, opsRuns, opsIncidents, opsFindings, opsDailyReports });
       } else if (view === "platform-events") {
         const [summary, events] = await Promise.all([
           getPlatformSummary(token),
@@ -5702,6 +5710,10 @@ function PlatformView({
       ) : null}
 
       {showOverview || showIncidents ? (
+        <PlatformOpsControlSignalPanel reports={data.opsDailyReports} />
+      ) : null}
+
+      {showOverview || showIncidents ? (
         <PlatformOpsDiagnosisDetailPanel
           incident={selectedDiagnosisIncident}
           run={selectedDiagnosisRun}
@@ -7608,6 +7620,112 @@ function EngineApiKeyCreateForm({
         API Key 발급
       </button>
     </form>
+  );
+}
+
+function PlatformOpsControlSignalPanel({ reports }: { reports: PlatformOpsDailyReport[] }) {
+  const sortedReports = [...reports].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  const latest = sortedReports[0] ?? null;
+  const pSignals = latest?.pLikeSignals ?? [];
+  const iSignals = latest?.iLikeSignals ?? [];
+  const dSignals = latest?.dLikeSignals ?? [];
+  const recommendations = latest?.recommendations ?? [];
+
+  if (!latest) {
+    return (
+      <Panel title="운영 제어 신호" icon={<Gauge size={18} />}>
+        <EmptyState message="아직 생성된 일일 운영 리포트가 없습니다. 리포트가 생성되면 P/I/D 관점의 운영 신호가 여기에 표시됩니다." />
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel
+      title="운영 제어 신호"
+      icon={<Gauge size={18} />}
+      action={<span className="panel-context">Daily report #{latest.id} · {formatDate(latest.createdAt)}</span>}
+    >
+      <div className="ops-diagnosis-detail">
+        <InlineNotice message="이 신호는 자동 튜닝 값이 아니라 운영자가 확인할 제어 입력입니다. 현재 신호, 누적 신호, 변화 신호를 보고 다음 action이나 설정 변경을 결정합니다." />
+        <div className="ops-detail-grid">
+          <MetricCard icon={<Activity size={20} />} label="P-like 현재 신호" value={pSignals.length} detail="지금 바로 볼 문제" tone={pSignals.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Gauge size={20} />} label="I-like 누적 신호" value={iSignals.length} detail="반복·누적 경향" tone={iSignals.length > 0 ? "blue" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="D-like 변화 신호" value={dSignals.length} detail="급격한 변화/가속" tone={dSignals.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<ShieldCheck size={20} />} label="권장 조치" value={recommendations.length} detail={displayLabel(latest.status)} tone={recommendations.length > 0 ? "slate" : "green"} />
+        </div>
+
+        <div className="dashboard-grid">
+          <OpsSignalCard
+            title="P-like 현재 신호"
+            subtitle="현재 주기에서 바로 확인할 운영 상태입니다."
+            items={pSignals}
+            empty="현재 신호가 없습니다."
+          />
+          <OpsSignalCard
+            title="I-like 누적 신호"
+            subtitle="반복되거나 누적된 운영 패턴입니다."
+            items={iSignals}
+            empty="누적 신호가 없습니다."
+          />
+          <OpsSignalCard
+            title="D-like 변화 신호"
+            subtitle="최근 변화량이나 악화 속도를 보는 신호입니다."
+            items={dSignals}
+            empty="변화 신호가 없습니다."
+          />
+          <OpsSignalCard
+            title="권장 조치"
+            subtitle="아직 자동 실행하지 않고 사람이 승인할 후보입니다."
+            items={recommendations}
+            empty="권장 조치가 없습니다."
+          />
+        </div>
+
+        <Table
+          columns={["리포트", "상태", "심각도", "기간", "신호"]}
+          empty="일일 운영 리포트가 없습니다."
+          rows={sortedReports.slice(0, 8).map((report) => [
+            <CellTitle key="report" title={report.title} subtitle={`Run #${report.runId} / ${formatDate(report.createdAt)}`} />,
+            <StatusBadge key="status" status={report.status} />,
+            <StatusBadge key="severity" status={report.severity} />,
+            `${formatDate(report.periodFrom)} ~ ${formatDate(report.periodTo)}`,
+            `P ${report.pLikeSignals.length} / I ${report.iLikeSignals.length} / D ${report.dLikeSignals.length}`
+          ])}
+        />
+      </div>
+    </Panel>
+  );
+}
+
+function OpsSignalCard({
+  title,
+  subtitle,
+  items,
+  empty
+}: {
+  title: string;
+  subtitle: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div className="ops-snapshot-card">
+      <div className="ops-snapshot-heading">
+        <strong>{title}</strong>
+        <span>{subtitle}</span>
+      </div>
+      {items.length === 0 ? (
+        <EmptyState message={empty} />
+      ) : (
+        <div className="ops-snapshot-list">
+          {items.slice(0, 6).map((item, index) => (
+            <div className="ops-snapshot-item" key={`${title}:${index}`}>
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@ package com.archdox.cloud.platformops.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,41 +26,40 @@ class PlatformOpsDailyReportMonitorServiceTest {
             reportService);
 
     @Test
-    void generatesDailyReportWhenDueSlotHasNotBeenHandled() {
+    void requestsDailyReportWhenDueSlotHasNotBeenHandled() {
         var now = OffsetDateTime.parse("2026-06-10T15:00:00Z");
-        when(runRepository.existsByTriggerTypeAndStatus(
-                PlatformOpsRunTriggerType.AUTO_DAILY_REPORT,
-                PlatformOpsRunStatus.RUNNING)).thenReturn(false);
+        when(runRepository.existsByTriggerTypeInAndStatus(
+                org.mockito.ArgumentMatchers.anyList(),
+                eq(PlatformOpsRunStatus.RUNNING))).thenReturn(false);
         when(runRepository.findFirstByTriggerTypeOrderByStartedAtDescIdDesc(
                 PlatformOpsRunTriggerType.AUTO_DAILY_REPORT)).thenReturn(Optional.empty());
-        when(reportService.generate(any(), any())).thenReturn(PlatformOpsDailyReportDecision.generated(
-                now,
-                21L,
-                "/tmp/report.md"));
+        var run = mock(PlatformOpsRun.class);
+        when(run.id()).thenReturn(21L);
+        when(reportService.requestAutoDailyReport(any(), any())).thenReturn(run);
 
-        var decision = service.checkAndGenerateIfDue(now);
+        var decision = service.checkAndRequestIfDue(now);
 
-        assertThat(decision.status()).isEqualTo("GENERATED");
+        assertThat(decision.status()).isEqualTo("REQUESTED");
         assertThat(decision.opsRunId()).isEqualTo(21L);
-        verify(reportService).generate(any(), any());
+        verify(reportService).requestAutoDailyReport(any(), any());
     }
 
     @Test
     void skipsWhenLatestDailyReportAlreadyHandledDueSlot() {
         var now = OffsetDateTime.parse("2026-06-10T15:30:00Z");
         var latest = mock(PlatformOpsRun.class);
-        when(runRepository.existsByTriggerTypeAndStatus(
-                PlatformOpsRunTriggerType.AUTO_DAILY_REPORT,
-                PlatformOpsRunStatus.RUNNING)).thenReturn(false);
+        when(runRepository.existsByTriggerTypeInAndStatus(
+                org.mockito.ArgumentMatchers.anyList(),
+                eq(PlatformOpsRunStatus.RUNNING))).thenReturn(false);
         when(latest.startedAt()).thenReturn(OffsetDateTime.parse("2026-06-10T15:05:00Z"));
         when(runRepository.findFirstByTriggerTypeOrderByStartedAtDescIdDesc(
                 PlatformOpsRunTriggerType.AUTO_DAILY_REPORT)).thenReturn(Optional.of(latest));
 
-        var decision = service.checkAndGenerateIfDue(now);
+        var decision = service.checkAndRequestIfDue(now);
 
         assertThat(decision.status()).isEqualTo("SKIPPED");
         assertThat(decision.reason()).isEqualTo("DUE_SLOT_ALREADY_HANDLED");
-        verify(reportService, never()).generate(any(), any());
+        verify(reportService, never()).requestAutoDailyReport(any(), any());
     }
 
     private PlatformOpsDailyReportProperties enabledProperties() {

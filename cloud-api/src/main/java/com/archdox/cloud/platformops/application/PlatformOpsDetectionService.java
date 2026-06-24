@@ -54,15 +54,13 @@ public class PlatformOpsDetectionService {
     @Transactional
     public PlatformOpsDetectionSummary requestStuckDetection(Long startedByUserId) {
         var now = OffsetDateTime.now();
-        var run = runRepository.save(new PlatformOpsRun(
-                PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK,
-                startedByUserId,
-                Map.of(
-                        "state", "REQUESTED",
-                        "detectorCount", detectors.size(),
-                        "maxDetectedItems", Math.max(1, properties.getMaxDetectedItems())),
-                now));
+        var run = requestDetectionRun(PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK, startedByUserId, now);
         return new PlatformOpsDetectionSummary(run.id(), 0, 0, 0, 0, 0, 0, now);
+    }
+
+    @Transactional
+    public PlatformOpsRun requestAutoStuckDetection(OffsetDateTime now) {
+        return requestDetectionRun(PlatformOpsRunTriggerType.AUTO_DETECT_STUCK, null, now);
     }
 
     @Transactional
@@ -75,13 +73,7 @@ public class PlatformOpsDetectionService {
     @Transactional
     public PlatformOpsDetectionSummary detectStuck(Long startedByUserId) {
         var now = OffsetDateTime.now();
-        var run = runRepository.save(new PlatformOpsRun(
-                PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK,
-                startedByUserId,
-                Map.of(
-                        "detectorCount", detectors.size(),
-                        "maxDetectedItems", Math.max(1, properties.getMaxDetectedItems())),
-                now));
+        var run = requestDetectionRun(PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK, startedByUserId, now);
         return execute(run, now, PageRequest.of(0, Math.max(1, properties.getMaxDetectedItems())));
     }
 
@@ -117,6 +109,21 @@ public class PlatformOpsDetectionService {
                 incidentCount,
                 findingCount,
                 now);
+    }
+
+    private PlatformOpsRun requestDetectionRun(
+            PlatformOpsRunTriggerType triggerType,
+            Long startedByUserId,
+            OffsetDateTime now
+    ) {
+        return runRepository.save(new PlatformOpsRun(
+                triggerType,
+                startedByUserId,
+                Map.of(
+                        "state", "REQUESTED",
+                        "detectorCount", detectors.size(),
+                        "maxDetectedItems", Math.max(1, properties.getMaxDetectedItems())),
+                now));
     }
 
     private PlatformOpsIncident upsertIncident(

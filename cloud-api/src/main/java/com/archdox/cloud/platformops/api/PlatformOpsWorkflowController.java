@@ -3,6 +3,7 @@ package com.archdox.cloud.platformops.api;
 import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.platformops.application.PlatformOpsDiagnosisService;
 import com.archdox.cloud.platformops.application.PlatformOpsQueryService;
+import com.archdox.cloud.platformops.application.PlatformOpsDailyReportService;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSource;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus;
@@ -10,10 +11,14 @@ import com.archdox.cloud.platformops.domain.PlatformOpsRunStatus;
 import com.archdox.cloud.platformops.domain.PlatformOpsRunTriggerType;
 import com.archdox.cloud.platformops.dto.PlatformOpsFindingResponse;
 import com.archdox.cloud.platformops.dto.PlatformOpsIncidentResponse;
+import com.archdox.cloud.platformops.dto.PlatformOpsDailyReportResponse;
 import com.archdox.cloud.platformops.dto.PlatformOpsRunResponse;
+import com.archdox.cloud.platformops.event.PlatformOpsDailyReportRequested;
 import com.archdox.cloud.platformops.event.PlatformOpsDiagnosisRequested;
+import com.archdox.cloud.platformops.flow.PlatformOpsDailyReportFlowFactory;
 import com.archdox.cloud.platformops.flow.PlatformOpsDiagnosisFlowFactory;
 import com.archdox.cloud.platformops.flow.PlatformOpsWorker;
+import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,18 +33,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class PlatformOpsWorkflowController {
     private final PlatformOpsQueryService service;
     private final PlatformOpsDiagnosisService diagnosisService;
+    private final PlatformOpsDailyReportService dailyReportService;
     private final PlatformOpsDiagnosisFlowFactory diagnosisFlowFactory;
+    private final PlatformOpsDailyReportFlowFactory dailyReportFlowFactory;
     private final PlatformOpsWorker worker;
 
     public PlatformOpsWorkflowController(
             PlatformOpsQueryService service,
             PlatformOpsDiagnosisService diagnosisService,
+            PlatformOpsDailyReportService dailyReportService,
             PlatformOpsDiagnosisFlowFactory diagnosisFlowFactory,
+            PlatformOpsDailyReportFlowFactory dailyReportFlowFactory,
             PlatformOpsWorker worker
     ) {
         this.service = service;
         this.diagnosisService = diagnosisService;
+        this.dailyReportService = dailyReportService;
         this.diagnosisFlowFactory = diagnosisFlowFactory;
+        this.dailyReportFlowFactory = dailyReportFlowFactory;
         this.worker = worker;
     }
 
@@ -79,6 +90,14 @@ public class PlatformOpsWorkflowController {
         return service.findings(principal(authentication), officeId, runId, incidentId, severity, source, category, limit);
     }
 
+    @GetMapping("/daily-reports")
+    public List<PlatformOpsDailyReportResponse> dailyReports(
+            Authentication authentication,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return service.dailyReports(principal(authentication), limit);
+    }
+
     @PostMapping("/incidents/{incidentId}/diagnose")
     public PlatformOpsRunResponse diagnoseIncident(
             Authentication authentication,
@@ -89,6 +108,17 @@ public class PlatformOpsWorkflowController {
         worker.submit(diagnosisFlowFactory.create(new PlatformOpsDiagnosisRequested(
                 run.id(),
                 incidentId,
+                principal.userId())));
+        return PlatformOpsRunResponse.from(run);
+    }
+
+    @PostMapping("/daily-reports/generate")
+    public PlatformOpsRunResponse generateDailyReport(Authentication authentication) {
+        var principal = principal(authentication);
+        var run = dailyReportService.requestManualDailyReport(principal, OffsetDateTime.now());
+        worker.submit(dailyReportFlowFactory.create(new PlatformOpsDailyReportRequested(
+                run.id(),
+                run.startedAt(),
                 principal.userId())));
         return PlatformOpsRunResponse.from(run);
     }

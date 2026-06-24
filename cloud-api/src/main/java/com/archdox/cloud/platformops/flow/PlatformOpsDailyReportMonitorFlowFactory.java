@@ -12,18 +12,28 @@ public class PlatformOpsDailyReportMonitorFlowFactory {
 
     private final PlatformOpsDailyReportMonitorService monitorService;
     private final PlatformOpsDailyReportProperties properties;
+    private final PlatformOpsDailyReportFlowFactory dailyReportFlowFactory;
+    private final PlatformOpsWorker platformOpsWorker;
 
     public PlatformOpsDailyReportMonitorFlowFactory(
             PlatformOpsDailyReportMonitorService monitorService,
-            PlatformOpsDailyReportProperties properties
+            PlatformOpsDailyReportProperties properties,
+            PlatformOpsDailyReportFlowFactory dailyReportFlowFactory,
+            PlatformOpsWorker platformOpsWorker
     ) {
         this.monitorService = monitorService;
         this.properties = properties;
+        this.dailyReportFlowFactory = dailyReportFlowFactory;
+        this.platformOpsWorker = platformOpsWorker;
     }
 
     public Flow create() {
         return Flow.builder(FLOW_TYPE, "global")
-                .step("monitor-platform-ops-daily-report", new PlatformOpsDailyReportMonitorStep(monitorService, properties))
+                .step("monitor-platform-ops-daily-report", new PlatformOpsDailyReportMonitorStep(
+                        monitorService,
+                        properties,
+                        dailyReportFlowFactory,
+                        platformOpsWorker))
                 .build();
     }
 }

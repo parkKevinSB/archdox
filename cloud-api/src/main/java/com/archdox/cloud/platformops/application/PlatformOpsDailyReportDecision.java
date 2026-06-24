@@ -6,18 +6,14 @@ public record PlatformOpsDailyReportDecision(
         String status,
         String reason,
         OffsetDateTime dueAt,
-        Long opsRunId,
-        String reportPath
+        Long opsRunId
 ) {
     public static PlatformOpsDailyReportDecision skipped(String reason, OffsetDateTime dueAt) {
-        return new PlatformOpsDailyReportDecision("SKIPPED", reason, dueAt, null, null);
+        return new PlatformOpsDailyReportDecision("SKIPPED", reason, dueAt, null);
     }
 
-    public static PlatformOpsDailyReportDecision generated(
-            OffsetDateTime dueAt,
-            Long opsRunId,
-            String reportPath
-    ) {
-        return new PlatformOpsDailyReportDecision("GENERATED", "DUE", dueAt, opsRunId, reportPath);
+    public static PlatformOpsDailyReportDecision requested(OffsetDateTime dueAt, Long opsRunId) {
+        return new PlatformOpsDailyReportDecision("REQUESTED", "DUE", dueAt, opsRunId);
     }
+
 }

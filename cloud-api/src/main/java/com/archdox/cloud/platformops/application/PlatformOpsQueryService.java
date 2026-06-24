@@ -12,7 +12,9 @@ import com.archdox.cloud.platformops.domain.PlatformOpsRunStatus;
 import com.archdox.cloud.platformops.domain.PlatformOpsRunTriggerType;
 import com.archdox.cloud.platformops.dto.PlatformOpsFindingResponse;
 import com.archdox.cloud.platformops.dto.PlatformOpsIncidentResponse;
+import com.archdox.cloud.platformops.dto.PlatformOpsDailyReportResponse;
 import com.archdox.cloud.platformops.dto.PlatformOpsRunResponse;
+import com.archdox.cloud.platformops.infra.PlatformOpsDailyReportRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsFindingRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsIncidentRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsRunRepository;
@@ -30,17 +32,20 @@ public class PlatformOpsQueryService {
     private final PlatformOpsRunRepository runRepository;
     private final PlatformOpsIncidentRepository incidentRepository;
     private final PlatformOpsFindingRepository findingRepository;
+    private final PlatformOpsDailyReportRepository dailyReportRepository;
 
     public PlatformOpsQueryService(
             PlatformAdminService platformAdminService,
             PlatformOpsRunRepository runRepository,
             PlatformOpsIncidentRepository incidentRepository,
-            PlatformOpsFindingRepository findingRepository
+            PlatformOpsFindingRepository findingRepository,
+            PlatformOpsDailyReportRepository dailyReportRepository
     ) {
         this.platformAdminService = platformAdminService;
         this.runRepository = runRepository;
         this.incidentRepository = incidentRepository;
         this.findingRepository = findingRepository;
+        this.dailyReportRepository = dailyReportRepository;
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +100,15 @@ public class PlatformOpsQueryService {
                         PageRequest.of(0, normalizeLimit(limit)))
                 .stream()
                 .map(this::toFinding)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlatformOpsDailyReportResponse> dailyReports(UserPrincipal principal, Integer limit) {
+        platformAdminService.requirePlatformAdmin(principal);
+        return dailyReportRepository.findAllByOrderByDueAtDescIdDesc(PageRequest.of(0, normalizeLimit(limit)))
+                .stream()
+                .map(PlatformOpsDailyReportResponse::from)
                 .toList();
     }
 

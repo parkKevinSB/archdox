@@ -3,11 +3,13 @@ package com.archdox.cloud.platformops.infra;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncident;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,6 +21,22 @@ public interface PlatformOpsIncidentRepository extends JpaRepository<PlatformOps
             String primaryResourceId);
 
     long countByStatusIn(Collection<PlatformOpsIncidentStatus> statuses);
+
+    List<PlatformOpsIncident> findByStatusInOrderByLastSeenAtDescIdDesc(
+            Collection<PlatformOpsIncidentStatus> statuses,
+            Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from PlatformOpsIncident incident
+            where incident.lastSeenAt < :cutoff
+              and not exists (
+                  select 1
+                  from PlatformOpsFinding finding
+                  where finding.incidentId = incident.id
+              )
+            """)
+    int deleteStaleUnreferencedBefore(@Param("cutoff") OffsetDateTime cutoff);
 
     @Query("""
             select incident

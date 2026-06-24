@@ -54,6 +54,7 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsDailyReport,
   PlatformOpsFinding,
   PlatformOpsIncident,
   PlatformOpsRun,
@@ -712,6 +713,13 @@ export function getPlatformOpsFindings(token: string, limit = 50, incidentId?: n
   return request<PlatformOpsFinding[]>("/api/v1/platform-admin/ops/findings", {
     token,
     query: { limit, incidentId }
+  });
+}
+
+export function getPlatformOpsDailyReports(token: string, limit = 20) {
+  return request<PlatformOpsDailyReport[]>("/api/v1/platform-admin/ops/daily-reports", {
+    token,
+    query: { limit }
   });
 }
 

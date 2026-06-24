@@ -44,6 +44,8 @@ public class PlatformOpsAiDiagnosisFindingSink implements FindingSink {
         findingRepository.deleteByRunIdAndSource(run.id(), PlatformOpsFindingSource.AI_HARNESS);
         for (var finding : findings) {
             var evidence = evidence(finding);
+            var resourceType = run.incidentId() == null ? "PLATFORM_OPS_RUN" : "PLATFORM_OPS_INCIDENT";
+            var resourceId = run.incidentId() == null ? String.valueOf(run.id()) : String.valueOf(run.incidentId());
             findingRepository.save(new PlatformOpsFinding(
                     run.incidentId(),
                     run.id(),
@@ -54,8 +56,8 @@ public class PlatformOpsAiDiagnosisFindingSink implements FindingSink {
                     category(finding),
                     title(finding),
                     finding.message(),
-                    "PLATFORM_OPS_INCIDENT",
-                    run.incidentId() == null ? null : String.valueOf(run.incidentId()),
+                    resourceType,
+                    resourceId,
                     "platform-ops-diagnosis",
                     String.valueOf(run.id()),
                     evidence,

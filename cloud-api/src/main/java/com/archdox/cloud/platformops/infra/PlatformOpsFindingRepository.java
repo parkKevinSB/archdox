@@ -7,13 +7,30 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PlatformOpsFindingRepository extends JpaRepository<PlatformOpsFinding, Long> {
     List<PlatformOpsFinding> findByIncidentIdOrderByCreatedAtDescIdDesc(Long incidentId, Pageable pageable);
 
+    List<PlatformOpsFinding> findByRunIdOrderByCreatedAtAscIdAsc(Long runId);
+
+    List<PlatformOpsFinding> findBySourceAndWorkflowTypeAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
+            PlatformOpsFindingSource source,
+            String workflowType,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Pageable pageable);
+
     void deleteByRunIdAndSource(Long runId, PlatformOpsFindingSource source);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from PlatformOpsFinding finding
+            where finding.createdAt < :cutoff
+            """)
+    int deleteCreatedBefore(@Param("cutoff") OffsetDateTime cutoff);
 
     long countByRunIdAndSource(Long runId, PlatformOpsFindingSource source);
 

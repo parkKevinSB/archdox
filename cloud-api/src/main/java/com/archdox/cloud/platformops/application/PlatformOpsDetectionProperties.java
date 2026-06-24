@@ -6,12 +6,21 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "archdox.platform-admin.health")
 public class PlatformOpsDetectionProperties {
+    private boolean enabled = true;
     private long documentJobStuckMinutes = 30;
     private long agentCommandStuckMinutes = 15;
     private long photoPickupStuckMinutes = 30;
     private long deliveryStuckMinutes = 15;
     private int maxDetectedItems = 100;
-    private long workerIntervalMs = 1000;
+    private long workerIntervalMs = 300_000;
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     public long getDocumentJobStuckMinutes() {
         return documentJobStuckMinutes;
@@ -62,6 +71,6 @@ public class PlatformOpsDetectionProperties {
     }
 
     public long safeWorkerIntervalMs() {
-        return Math.max(100, workerIntervalMs);
+        return Math.max(10_000, workerIntervalMs);
     }
 }

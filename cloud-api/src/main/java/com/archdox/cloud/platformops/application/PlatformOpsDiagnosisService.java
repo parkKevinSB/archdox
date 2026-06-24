@@ -33,6 +33,7 @@ import io.github.parkkevinsb.flower.ai.harness.spec.AiHarnessSpec;
 import io.github.parkkevinsb.flower.ai.harness.spi.TraceListener;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformOpsDiagnosisService {
     private static final int SNAPSHOT_FINDING_LIMIT = 20;
     private static final int SNAPSHOT_EVENT_LIMIT = 20;
+    private static final List<com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus> ACTIVE_INCIDENT_STATUSES = List.of(
+            com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus.OPEN,
+            com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus.ACKNOWLEDGED);
 
     private final PlatformAdminService platformAdminService;
     private final PlatformOpsRunRepository runRepository;
@@ -102,10 +106,60 @@ public class PlatformOpsDiagnosisService {
     }
 
     @Transactional
+    public PlatformOpsRun requestAutoIncidentDiagnosis(Long incidentId, Long parentRunId, OffsetDateTime now) {
+        var incident = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new NotFoundException("Platform ops incident not found"));
+        var snapshot = new LinkedHashMap<String, Object>(requestedSnapshot(incident));
+        snapshot.put("triggeredBy", "PLATFORM_OPS_DAILY_REPORT");
+        snapshot.put("parentOpsRunId", parentRunId);
+        var run = new PlatformOpsRun(
+                PlatformOpsRunTriggerType.AUTO_DIAGNOSIS,
+                null,
+                snapshot,
+                now);
+        run.attachIncident(incident.id());
+        return runRepository.save(run);
+    }
+
+    @Transactional
+    public PlatformOpsRun requestAutoSystemDiagnosis(Long parentRunId, OffsetDateTime now) {
+        var parentRun = runRepository.findById(parentRunId)
+                .orElseThrow(() -> new NotFoundException("Platform ops parent run not found"));
+        var parentSnapshot = parentRun.inputSnapshotJson();
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("state", "REQUESTED");
+        snapshot.put("diagnosisType", "SYSTEM_DAILY_OPERATIONS");
+        snapshot.put("diagnosisScope", "SYSTEM");
+        snapshot.put("category", "SYSTEM_DAILY_OPERATIONS");
+        snapshot.put("severity", "INFO");
+        snapshot.put("triggeredBy", "PLATFORM_OPS_DAILY_REPORT");
+        snapshot.put("parentOpsRunId", parentRunId);
+        put(snapshot, "dueAt", parentSnapshot.get("dueAt"));
+        put(snapshot, "periodFrom", parentSnapshot.get("periodFrom"));
+        put(snapshot, "periodTo", parentSnapshot.get("periodTo"));
+        snapshot.put("redactionPolicy", redactionPolicy());
+        return runRepository.save(new PlatformOpsRun(
+                PlatformOpsRunTriggerType.AUTO_SYSTEM_DIAGNOSIS,
+                null,
+                snapshot,
+                now));
+    }
+
+    @Transactional
     public PlatformOpsDiagnosisSummary executeIncidentDiagnosis(Long runId) {
-        var summary = buildIncidentDiagnosisSnapshot(runId);
+        var summary = buildDiagnosisSnapshot(runId);
         completeIncidentDiagnosis(runId);
         return summary;
+    }
+
+    @Transactional
+    public PlatformOpsDiagnosisSummary buildDiagnosisSnapshot(Long runId) {
+        var run = runRepository.findById(runId)
+                .orElseThrow(() -> new NotFoundException("Platform ops run not found"));
+        if (run.incidentId() == null) {
+            return buildSystemDiagnosisSnapshot(run);
+        }
+        return buildIncidentDiagnosisSnapshot(run.id());
     }
 
     @Transactional
@@ -128,6 +182,49 @@ public class PlatformOpsDiagnosisService {
         findingRepository.save(diagnosisFinding(run, incident, findings, events, now));
         recordDiagnosisEvent(run, incident, findings, events);
         return new PlatformOpsDiagnosisSummary(run.id(), incident.id(), findings.size(), events.size(), now);
+    }
+
+    @Transactional
+    public PlatformOpsDiagnosisSummary buildSystemDiagnosisSnapshot(PlatformOpsRun run) {
+        var now = OffsetDateTime.now();
+        var requested = run.inputSnapshotJson();
+        var from = offsetDateTime(requested.get("periodFrom"), now.minusDays(1));
+        var to = offsetDateTime(requested.get("periodTo"), now);
+        var activeIncidents = incidentRepository.findByStatusInOrderByLastSeenAtDescIdDesc(
+                ACTIVE_INCIDENT_STATUSES,
+                PageRequest.of(0, SNAPSHOT_FINDING_LIMIT));
+        var events = operationEventRepository.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
+                from,
+                to,
+                PageRequest.of(0, SNAPSHOT_EVENT_LIMIT));
+        var severity = activeIncidents.stream()
+                .map(PlatformOpsIncident::severity)
+                .max(Comparator.comparingInt(Enum::ordinal))
+                .orElse(PlatformOpsFindingSeverity.INFO);
+
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("state", "SNAPSHOT_READY");
+        snapshot.put("diagnosisType", "SYSTEM_DAILY_OPERATIONS");
+        snapshot.put("diagnosisScope", "SYSTEM");
+        snapshot.put("diagnosedAt", now.toString());
+        snapshot.put("periodFrom", from.toString());
+        snapshot.put("periodTo", to.toString());
+        snapshot.put("activeIncidentCount", activeIncidents.size());
+        snapshot.put("activeIncidents", activeIncidents.stream()
+                .map(this::incidentSnapshot)
+                .toList());
+        snapshot.put("operationEventCount", events.size());
+        snapshot.put("operationEvents", events.stream().map(this::eventSnapshot).toList());
+        snapshot.put("redactionPolicy", redactionPolicy());
+        snapshot.put("nextAiHarness", Map.of(
+                "type", "OpsDiagnosisHarness",
+                "status", "RESERVED",
+                "scope", "SYSTEM",
+                "note", "This snapshot lets AI diagnose the whole daily operations window before report generation."));
+        run.replaceSnapshot(snapshot);
+        findingRepository.save(systemDiagnosisFinding(run, severity, snapshot, now));
+        recordSystemDiagnosisEvent(run, snapshot, severity);
+        return new PlatformOpsDiagnosisSummary(run.id(), null, activeIncidents.size(), events.size(), now);
     }
 
     @Transactional
@@ -317,6 +414,35 @@ public class PlatformOpsDiagnosisService {
                 now);
     }
 
+    private PlatformOpsFinding systemDiagnosisFinding(
+            PlatformOpsRun run,
+            PlatformOpsFindingSeverity severity,
+            Map<String, Object> snapshot,
+            OffsetDateTime now
+    ) {
+        return new PlatformOpsFinding(
+                null,
+                run.id(),
+                null,
+                severity,
+                PlatformOpsFindingSource.SYSTEM_DIAGNOSIS,
+                "OPS_SYSTEM_DIAGNOSIS_SNAPSHOT_READY",
+                "OPS_SYSTEM_DIAGNOSIS",
+                "운영 시스템 진단 입력 준비 완료",
+                "일일 운영 리포트 생성을 위해 전체 운영 window의 incident와 operation event를 모았습니다.",
+                "PLATFORM_OPS_RUN",
+                String.valueOf(run.id()),
+                "platform-ops-diagnosis",
+                String.valueOf(run.id()),
+                Map.of(
+                        "periodFrom", snapshot.get("periodFrom"),
+                        "periodTo", snapshot.get("periodTo"),
+                        "activeIncidentCount", snapshot.get("activeIncidentCount"),
+                        "operationEventCount", snapshot.get("operationEventCount")),
+                "AI 시스템 진단과 대표 incident 진단 결과를 함께 사용해 일일 운영 리포트를 작성합니다.",
+                now);
+    }
+
     private void recordDiagnosisEvent(
             PlatformOpsRun run,
             PlatformOpsIncident incident,
@@ -339,6 +465,32 @@ public class PlatformOpsDiagnosisService {
                         "incidentId", incident.id(),
                         "recentFindingCount", findings.size(),
                         "relatedOperationEventCount", events.size()));
+    }
+
+    private void recordSystemDiagnosisEvent(
+            PlatformOpsRun run,
+            Map<String, Object> snapshot,
+            PlatformOpsFindingSeverity severity
+    ) {
+        operationEventService.record(
+                null,
+                severity.ordinal() >= PlatformOpsFindingSeverity.ERROR.ordinal()
+                        ? OperationEventSeverity.WARN
+                        : OperationEventSeverity.INFO,
+                "OPS_SYSTEM_DIAGNOSIS_SNAPSHOT_READY",
+                "platform-ops-diagnosis",
+                String.valueOf(run.id()),
+                "PLATFORM_OPS_RUN",
+                run.id(),
+                run.startedByUserId(),
+                null,
+                "Platform ops system diagnosis snapshot is ready",
+                Map.of(
+                        "opsRunId", run.id(),
+                        "periodFrom", snapshot.get("periodFrom"),
+                        "periodTo", snapshot.get("periodTo"),
+                        "activeIncidentCount", snapshot.get("activeIncidentCount"),
+                        "operationEventCount", snapshot.get("operationEventCount")));
     }
 
     private Map<String, Object> incidentSnapshot(PlatformOpsIncident incident) {
@@ -396,8 +548,8 @@ public class PlatformOpsDiagnosisService {
                 String.valueOf(run.id()),
                 run.incidentId() == null ? "" : String.valueOf(run.incidentId()),
                 incident == null || incident.officeId() == null ? "" : String.valueOf(incident.officeId()),
-                incident == null ? "" : incident.category(),
-                incident == null ? "" : incident.severity().name(),
+                incident == null ? stringValue(run.inputSnapshotJson().getOrDefault("category", "SYSTEM_DAILY_OPERATIONS")) : incident.category(),
+                incident == null ? stringValue(run.inputSnapshotJson().getOrDefault("severity", "INFO")) : incident.severity().name(),
                 run.inputSnapshotJson());
     }
 
@@ -530,6 +682,13 @@ public class PlatformOpsDiagnosisService {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private OffsetDateTime offsetDateTime(Object value, OffsetDateTime fallback) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
+        }
+        return OffsetDateTime.parse(String.valueOf(value));
     }
 
     private Map<String, Object> redactionPolicy() {

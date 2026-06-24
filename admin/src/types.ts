@@ -722,6 +722,26 @@ export type PlatformOpsFinding = {
   createdAt: string;
 };
 
+export type PlatformOpsDailyReport = {
+  id: number;
+  runId: number;
+  dueAt: string;
+  periodFrom: string;
+  periodTo: string;
+  status: string;
+  severity: string;
+  title: string;
+  summary: string;
+  reportPath?: string | null;
+  aiHarnessRunId?: string | null;
+  pLikeSignals: string[];
+  iLikeSignals: string[];
+  dLikeSignals: string[];
+  recommendations: string[];
+  evidence: Record<string, unknown>;
+  createdAt: string;
+};
+
 export type LegalSyncRun = {
   id: number;
   triggerType: string;

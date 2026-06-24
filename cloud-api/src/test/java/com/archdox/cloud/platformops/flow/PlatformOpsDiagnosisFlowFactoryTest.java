@@ -30,7 +30,7 @@ class PlatformOpsDiagnosisFlowFactoryTest {
             worker.tickOnce();
         }
 
-        verify(service).buildIncidentDiagnosisSnapshot(300L);
+        verify(service).buildDiagnosisSnapshot(300L);
         verify(service).createAiDiagnosisHarnessFlow(300L);
         verify(service).isAiHarnessTerminal(300L);
         verify(service).summarizeAiDiagnosis(300L);

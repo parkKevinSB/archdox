@@ -25,7 +25,8 @@ public class PlatformOpsDiagnosisFlowFactory {
     }
 
     public Flow create(PlatformOpsDiagnosisRequested event) {
-        return Flow.builder(FLOW_TYPE, "run:" + event.opsRunId() + ":incident:" + event.incidentId())
+        var targetKey = event.incidentId() == null ? "system" : "incident:" + event.incidentId();
+        return Flow.builder(FLOW_TYPE, "run:" + event.opsRunId() + ":" + targetKey)
                 .step("build-diagnosis-snapshot", new BuildPlatformOpsDiagnosisSnapshotStep(diagnosisService, event))
                 .step("submit-ops-diagnosis-ai-harness", new SubmitPlatformOpsAiDiagnosisHarnessStep(diagnosisService, aiDiagnosisWorker, event))
                 .step("await-ops-diagnosis-ai-harness", new AwaitPlatformOpsAiDiagnosisHarnessStep(diagnosisService, event))

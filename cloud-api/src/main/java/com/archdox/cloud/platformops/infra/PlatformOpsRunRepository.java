@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,12 +17,44 @@ public interface PlatformOpsRunRepository extends JpaRepository<PlatformOpsRun, 
 
     boolean existsByTriggerTypeAndStatus(PlatformOpsRunTriggerType triggerType, PlatformOpsRunStatus status);
 
+    boolean existsByTriggerTypeInAndStatus(List<PlatformOpsRunTriggerType> triggerTypes, PlatformOpsRunStatus status);
+
+    boolean existsByIncidentIdAndTriggerTypeInAndStatus(
+            Long incidentId,
+            List<PlatformOpsRunTriggerType> triggerTypes,
+            PlatformOpsRunStatus status);
+
+    boolean existsByIncidentIdAndTriggerTypeInAndStartedAtGreaterThanEqual(
+            Long incidentId,
+            List<PlatformOpsRunTriggerType> triggerTypes,
+            OffsetDateTime startedAt);
+
     Optional<PlatformOpsRun> findFirstByTriggerTypeOrderByStartedAtDescIdDesc(PlatformOpsRunTriggerType triggerType);
 
     long countByStatusAndStartedAtGreaterThanEqualAndStartedAtLessThan(
             PlatformOpsRunStatus status,
             OffsetDateTime from,
             OffsetDateTime to);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from PlatformOpsRun run
+            where run.status in :terminalStatuses
+              and run.startedAt < :cutoff
+              and not exists (
+                  select 1
+                  from PlatformOpsFinding finding
+                  where finding.runId = run.id
+              )
+              and not exists (
+                  select 1
+                  from PlatformOpsDailyReport dailyReport
+                  where dailyReport.runId = run.id
+              )
+            """)
+    int deleteUnreferencedTerminalRunsBefore(
+            @Param("cutoff") OffsetDateTime cutoff,
+            @Param("terminalStatuses") List<PlatformOpsRunStatus> terminalStatuses);
 
     @Query("""
             select run

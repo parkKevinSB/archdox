@@ -21,7 +21,7 @@ public final class BuildPlatformOpsDiagnosisSnapshotStep extends Step {
     @Override
     protected StepResult onTick(StepContext ctx) {
         try {
-            diagnosisService.buildIncidentDiagnosisSnapshot(event.opsRunId());
+            diagnosisService.buildDiagnosisSnapshot(event.opsRunId());
             return StepResult.done();
         } catch (RuntimeException ex) {
             diagnosisService.markRunFailed(event.opsRunId(), ex.getClass().getSimpleName());

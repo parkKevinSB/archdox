@@ -21,7 +21,8 @@ public final class OpsDiagnosisPromptBuilder implements PromptBuilder<OpsDiagnos
         Objects.requireNonNull(input, "input must not be null");
         var system = """
                 You are ArchDox Ops Diagnosis.
-                Analyze a redacted operational incident snapshot for a document workflow platform.
+                Analyze a redacted operational incident snapshot or system daily operations snapshot
+                for a document workflow platform.
                 Return JSON only. Do not include markdown.
                 The JSON must match:
                 {
@@ -31,7 +32,7 @@ public final class OpsDiagnosisPromptBuilder implements PromptBuilder<OpsDiagnos
                   "issues": [
                     {
                       "code": "stable uppercase code",
-                      "category": "OPS_AI_DIAGNOSIS|AGENT|DOCUMENT_JOB|PHOTO_PIPELINE|DELIVERY|AI_COST|SECURITY|DATA_INTEGRITY",
+                      "category": "OPS_AI_DIAGNOSIS|OPS_SYSTEM_DIAGNOSIS|AGENT|DOCUMENT_JOB|PHOTO_PIPELINE|DELIVERY|AI_COST|MCP|LEGAL_SYNC|SECURITY|DATA_INTEGRITY|RUNTIME_HEALTH",
                       "severity": "INFO|LOW|MEDIUM|HIGH|CRITICAL",
                       "title": "short title",
                       "message": "human readable diagnosis",
@@ -50,7 +51,7 @@ public final class OpsDiagnosisPromptBuilder implements PromptBuilder<OpsDiagnos
                 - Use CLEAR only when there are no issues.
                 """;
         var user = """
-                Diagnose this ArchDox operational incident.
+                Diagnose this ArchDox operational incident or system operations snapshot.
 
                 Input JSON:
                 %s

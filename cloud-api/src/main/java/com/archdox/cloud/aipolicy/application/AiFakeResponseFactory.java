@@ -14,6 +14,7 @@ public class AiFakeResponseFactory {
     private static final String DOCUMENT_QA_PROMPT = "archdox-document-qa";
     private static final String REPORT_PREFLIGHT_PROMPT = "archdox-report-preflight";
     private static final String OPS_DIAGNOSIS_PROMPT = "archdox-ops-diagnosis";
+    private static final String OPS_DAILY_REPORT_PROMPT = "archdox-ops-daily-report";
     private static final String CONVERSATION_PLANNER_PROMPT = "archdox-conversation-planner";
     private static final String LEGAL_DIGEST_PROMPT = "archdox-legal-digest";
     private static final Pattern USER_MESSAGE_PATTERN = Pattern.compile("\\\"userMessage\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"");
@@ -23,6 +24,7 @@ public class AiFakeResponseFactory {
             case DOCUMENT_QA_PROMPT -> documentQaResponse();
             case REPORT_PREFLIGHT_PROMPT -> reportPreflightResponse();
             case OPS_DIAGNOSIS_PROMPT -> opsDiagnosisResponse();
+            case OPS_DAILY_REPORT_PROMPT -> opsDailyReportResponse();
             case CONVERSATION_PLANNER_PROMPT -> conversationPlannerResponse(request);
             case LEGAL_DIGEST_PROMPT -> legalDigestResponse();
             default -> defaultPassResponse();
@@ -99,6 +101,39 @@ public class AiFakeResponseFactory {
                       "likelyCause": "Local fake AI provider is enabled.",
                       "recommendation": "Before production, run a separate smoke test with a real provider credential.",
                       "suggestedAction": "MANUAL_INVESTIGATION"
+                    }
+                  ]
+                }
+                """;
+    }
+
+    private String opsDailyReportResponse() {
+        return """
+                {
+                  "status": "WATCH",
+                  "summary": "Development fake AI summarized the redacted platform operations evidence. No external model API was called.",
+                  "confidence": "HIGH",
+                  "pLikeCurrentFindings": [
+                    "현재 run의 운영 증거 묶음은 정상적으로 수집되었습니다."
+                  ],
+                  "iLikeAccumulatedSignals": [
+                    "개발용 fake provider 응답이므로 누적 편향 판단은 수행하지 않았습니다."
+                  ],
+                  "dLikeTrendSignals": [],
+                  "recommendations": [
+                    "운영 배포 전 실제 provider로 별도 smoke test를 수행하십시오."
+                  ],
+                  "issues": [
+                    {
+                      "code": "FAKE_OPS_DAILY_REPORT",
+                      "category": "OPS_DAILY_REPORT",
+                      "severity": "LOW",
+                      "title": "Development daily report",
+                      "message": "운영 일일 리포트 하네스가 개발용 fake 응답으로 정상 실행되었습니다.",
+                      "evidence": "Fake provider response for platform ops daily report flow verification.",
+                      "likelyCause": "Local fake AI provider is enabled.",
+                      "recommendation": "Before production, run a separate smoke test with a real provider credential.",
+                      "suggestedAction": "REVIEW_REPORT"
                     }
                   ]
                 }

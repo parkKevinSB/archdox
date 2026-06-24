@@ -27,7 +27,7 @@ public class PlatformOpsDailyReportMonitorService {
     }
 
     @Transactional
-    public PlatformOpsDailyReportDecision checkAndGenerateIfDue(OffsetDateTime now) {
+    public PlatformOpsDailyReportDecision checkAndRequestIfDue(OffsetDateTime now) {
         if (!properties.isEnabled()) {
             return PlatformOpsDailyReportDecision.skipped("MONITOR_DISABLED", null);
         }
@@ -35,8 +35,10 @@ public class PlatformOpsDailyReportMonitorService {
         if (Duration.between(dueAt, now).toMinutes() > properties.safeCatchUpGraceMinutes()) {
             return PlatformOpsDailyReportDecision.skipped("OUTSIDE_CATCH_UP_WINDOW", dueAt);
         }
-        if (runRepository.existsByTriggerTypeAndStatus(
-                PlatformOpsRunTriggerType.AUTO_DAILY_REPORT,
+        if (runRepository.existsByTriggerTypeInAndStatus(
+                java.util.List.of(
+                        PlatformOpsRunTriggerType.AUTO_DAILY_REPORT,
+                        PlatformOpsRunTriggerType.MANUAL_DAILY_REPORT),
                 PlatformOpsRunStatus.RUNNING)) {
             return PlatformOpsDailyReportDecision.skipped("REPORT_ALREADY_RUNNING", dueAt);
         }
@@ -45,7 +47,8 @@ public class PlatformOpsDailyReportMonitorService {
         if (latest != null && !latest.startedAt().isBefore(dueAt)) {
             return PlatformOpsDailyReportDecision.skipped("DUE_SLOT_ALREADY_HANDLED", dueAt);
         }
-        return reportService.generate(dueAt, now);
+        var run = reportService.requestAutoDailyReport(dueAt, now);
+        return PlatformOpsDailyReportDecision.requested(dueAt, run.id());
     }
 
     private OffsetDateTime latestDueAt(OffsetDateTime now) {

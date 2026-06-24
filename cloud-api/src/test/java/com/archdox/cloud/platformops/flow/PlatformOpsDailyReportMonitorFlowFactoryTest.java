@@ -21,25 +21,31 @@ class PlatformOpsDailyReportMonitorFlowFactoryTest {
     @Test
     void monitorFlowLoopsThroughCheckAndWaitSteps() {
         var service = mock(PlatformOpsDailyReportMonitorService.class);
-        when(service.checkAndGenerateIfDue(any(OffsetDateTime.class)))
+        when(service.checkAndRequestIfDue(any(OffsetDateTime.class)))
                 .thenReturn(PlatformOpsDailyReportDecision.skipped("NOT_DUE", null));
         var properties = new PlatformOpsDailyReportProperties();
         properties.setEnabled(true);
         properties.setCheckIntervalMs(1_000);
+        var dailyReportFlowFactory = mock(PlatformOpsDailyReportFlowFactory.class);
+        var platformOpsWorker = mock(PlatformOpsWorker.class);
         var clock = new ManualClock();
         var worker = workerWith(clock);
-        worker.submit(new PlatformOpsDailyReportMonitorFlowFactory(service, properties).create());
+        worker.submit(new PlatformOpsDailyReportMonitorFlowFactory(
+                service,
+                properties,
+                dailyReportFlowFactory,
+                platformOpsWorker).create());
 
         worker.tickOnce();
-        verify(service, times(1)).checkAndGenerateIfDue(any(OffsetDateTime.class));
+        verify(service, times(1)).checkAndRequestIfDue(any(OffsetDateTime.class));
 
         clock.advance(999);
         tick(worker, 2);
-        verify(service, times(1)).checkAndGenerateIfDue(any(OffsetDateTime.class));
+        verify(service, times(1)).checkAndRequestIfDue(any(OffsetDateTime.class));
 
         clock.advance(1);
         tick(worker, 2);
-        verify(service, times(2)).checkAndGenerateIfDue(any(OffsetDateTime.class));
+        verify(service, times(2)).checkAndRequestIfDue(any(OffsetDateTime.class));
     }
 
     private Worker workerWith(ManualClock clock) {

@@ -12,6 +12,9 @@ public class PlatformOpsDailyReportProperties {
     private long checkIntervalMs = 60_000;
     private long catchUpGraceMinutes = 180;
     private String reportDirectory = "build/ops-reports";
+    private boolean autoDiagnosisEnabled = true;
+    private int autoDiagnosisIncidentLimit = 5;
+    private String autoDiagnosisMinSeverity = "WARN";
 
     public boolean isEnabled() {
         return enabled;
@@ -63,11 +66,41 @@ public class PlatformOpsDailyReportProperties {
                 : reportDirectory;
     }
 
+    public boolean isAutoDiagnosisEnabled() {
+        return autoDiagnosisEnabled;
+    }
+
+    public void setAutoDiagnosisEnabled(boolean autoDiagnosisEnabled) {
+        this.autoDiagnosisEnabled = autoDiagnosisEnabled;
+    }
+
+    public int getAutoDiagnosisIncidentLimit() {
+        return autoDiagnosisIncidentLimit;
+    }
+
+    public void setAutoDiagnosisIncidentLimit(int autoDiagnosisIncidentLimit) {
+        this.autoDiagnosisIncidentLimit = autoDiagnosisIncidentLimit;
+    }
+
+    public String getAutoDiagnosisMinSeverity() {
+        return autoDiagnosisMinSeverity;
+    }
+
+    public void setAutoDiagnosisMinSeverity(String autoDiagnosisMinSeverity) {
+        this.autoDiagnosisMinSeverity = autoDiagnosisMinSeverity == null || autoDiagnosisMinSeverity.isBlank()
+                ? "WARN"
+                : autoDiagnosisMinSeverity.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
     public long safeCheckIntervalMs() {
         return Math.max(1_000, checkIntervalMs);
     }
 
     public long safeCatchUpGraceMinutes() {
         return Math.max(0, catchUpGraceMinutes);
+    }
+
+    public int safeAutoDiagnosisIncidentLimit() {
+        return Math.max(0, Math.min(autoDiagnosisIncidentLimit, 5));
     }
 }

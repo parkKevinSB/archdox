@@ -2,6 +2,9 @@ package com.archdox.cloud.platformops.flow.step;
 
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportMonitorService;
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportProperties;
+import com.archdox.cloud.platformops.event.PlatformOpsDailyReportRequested;
+import com.archdox.cloud.platformops.flow.PlatformOpsDailyReportFlowFactory;
+import com.archdox.cloud.platformops.flow.PlatformOpsWorker;
 import io.github.parkkevinsb.flower.core.step.Step;
 import io.github.parkkevinsb.flower.core.step.StepContext;
 import io.github.parkkevinsb.flower.core.step.StepResult;
@@ -18,13 +21,19 @@ public class PlatformOpsDailyReportMonitorStep extends Step {
 
     private final PlatformOpsDailyReportMonitorService monitorService;
     private final PlatformOpsDailyReportProperties properties;
+    private final PlatformOpsDailyReportFlowFactory dailyReportFlowFactory;
+    private final PlatformOpsWorker platformOpsWorker;
 
     public PlatformOpsDailyReportMonitorStep(
             PlatformOpsDailyReportMonitorService monitorService,
-            PlatformOpsDailyReportProperties properties
+            PlatformOpsDailyReportProperties properties,
+            PlatformOpsDailyReportFlowFactory dailyReportFlowFactory,
+            PlatformOpsWorker platformOpsWorker
     ) {
         this.monitorService = monitorService;
         this.properties = properties;
+        this.dailyReportFlowFactory = dailyReportFlowFactory;
+        this.platformOpsWorker = platformOpsWorker;
     }
 
     @Override
@@ -42,10 +51,14 @@ public class PlatformOpsDailyReportMonitorStep extends Step {
 
     private StepResult check(StepContext ctx) {
         try {
-            var decision = monitorService.checkAndGenerateIfDue(
+            var decision = monitorService.checkAndRequestIfDue(
                     OffsetDateTime.ofInstant(Instant.ofEpochMilli(ctx.clock().currentTimeMillis()), ZoneOffset.UTC));
-            if ("GENERATED".equals(decision.status())) {
-                log.info("Platform ops daily report generated run {} at {}", decision.opsRunId(), decision.reportPath());
+            if ("REQUESTED".equals(decision.status())) {
+                platformOpsWorker.submit(dailyReportFlowFactory.create(new PlatformOpsDailyReportRequested(
+                        decision.opsRunId(),
+                        decision.dueAt(),
+                        null)));
+                log.info("Platform ops daily report requested run {}", decision.opsRunId());
             }
         } catch (Exception ex) {
             log.warn("Platform ops daily report monitor check failed", ex);
