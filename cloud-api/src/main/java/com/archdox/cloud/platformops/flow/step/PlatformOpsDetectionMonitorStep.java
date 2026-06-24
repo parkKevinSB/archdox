@@ -62,7 +62,7 @@ public class PlatformOpsDetectionMonitorStep extends Step {
         } catch (Exception ex) {
             log.warn("Platform ops detection monitor check failed", ex);
         }
-        ctx.startTimeout(properties.safeWorkerIntervalMs());
+        ctx.startTimeout(properties.safeDetectionCheckIntervalMs());
         ctx.setStepNo(WAIT);
         return StepResult.stay();
     }

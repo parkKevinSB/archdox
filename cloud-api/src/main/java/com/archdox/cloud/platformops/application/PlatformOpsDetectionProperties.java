@@ -12,7 +12,8 @@ public class PlatformOpsDetectionProperties {
     private long photoPickupStuckMinutes = 30;
     private long deliveryStuckMinutes = 15;
     private int maxDetectedItems = 100;
-    private long workerIntervalMs = 300_000;
+    private long workerIntervalMs = 250;
+    private long detectionCheckIntervalMs = 300_000;
 
     public boolean isEnabled() {
         return enabled;
@@ -71,6 +72,18 @@ public class PlatformOpsDetectionProperties {
     }
 
     public long safeWorkerIntervalMs() {
-        return Math.max(10_000, workerIntervalMs);
+        return Math.max(100, workerIntervalMs);
+    }
+
+    public long getDetectionCheckIntervalMs() {
+        return detectionCheckIntervalMs;
+    }
+
+    public void setDetectionCheckIntervalMs(long detectionCheckIntervalMs) {
+        this.detectionCheckIntervalMs = detectionCheckIntervalMs;
+    }
+
+    public long safeDetectionCheckIntervalMs() {
+        return Math.max(1_000, detectionCheckIntervalMs);
     }
 }

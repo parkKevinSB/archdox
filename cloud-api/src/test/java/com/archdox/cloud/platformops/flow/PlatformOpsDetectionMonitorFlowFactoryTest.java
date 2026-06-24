@@ -25,7 +25,8 @@ class PlatformOpsDetectionMonitorFlowFactoryTest {
                 .thenReturn(PlatformOpsDetectionMonitorDecision.skipped("NOT_DUE"));
         var properties = new PlatformOpsDetectionProperties();
         properties.setEnabled(true);
-        properties.setWorkerIntervalMs(10_000);
+        properties.setWorkerIntervalMs(250);
+        properties.setDetectionCheckIntervalMs(10_000);
         var detectionFlowFactory = mock(PlatformOpsDetectionFlowFactory.class);
         var platformOpsWorker = mock(PlatformOpsWorker.class);
         var clock = new ManualClock();

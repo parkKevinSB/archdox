@@ -8,6 +8,7 @@ import com.archdox.cloud.monitoring.application.ServerRuntimeHealthProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportProperties;
 import com.archdox.cloud.platformops.application.PlatformOpsRetentionProperties;
+import com.archdox.cloud.platformops.application.PlatformOpsRunRecoveryService;
 import com.archdox.cloud.platformops.flow.PlatformOpsDetectionMonitorFlowFactory;
 import com.archdox.cloud.platformops.flow.PlatformOpsDailyReportMonitorFlowFactory;
 import com.archdox.cloud.platformops.flow.PlatformOpsRetentionMonitorFlowFactory;
@@ -29,6 +30,7 @@ public class OperationalMonitorFlowBootstrap {
     private final PlatformOpsDailyReportMonitorFlowFactory dailyReportMonitorFlowFactory;
     private final PlatformOpsRetentionProperties platformOpsRetentionProperties;
     private final PlatformOpsRetentionMonitorFlowFactory platformOpsRetentionMonitorFlowFactory;
+    private final PlatformOpsRunRecoveryService platformOpsRunRecoveryService;
     private final MonitoringWorker monitoringWorker;
 
     public OperationalMonitorFlowBootstrap(
@@ -44,6 +46,7 @@ public class OperationalMonitorFlowBootstrap {
             PlatformOpsDailyReportMonitorFlowFactory dailyReportMonitorFlowFactory,
             PlatformOpsRetentionProperties platformOpsRetentionProperties,
             PlatformOpsRetentionMonitorFlowFactory platformOpsRetentionMonitorFlowFactory,
+            PlatformOpsRunRecoveryService platformOpsRunRecoveryService,
             MonitoringWorker monitoringWorker
     ) {
         this.aiObservabilityRetentionProperties = aiObservabilityRetentionProperties;
@@ -58,11 +61,13 @@ public class OperationalMonitorFlowBootstrap {
         this.dailyReportMonitorFlowFactory = dailyReportMonitorFlowFactory;
         this.platformOpsRetentionProperties = platformOpsRetentionProperties;
         this.platformOpsRetentionMonitorFlowFactory = platformOpsRetentionMonitorFlowFactory;
+        this.platformOpsRunRecoveryService = platformOpsRunRecoveryService;
         this.monitoringWorker = monitoringWorker;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void submitOperationalMonitorFlows() {
+        platformOpsRunRecoveryService.failInterruptedRuns(java.time.OffsetDateTime.now());
         if (aiObservabilityRetentionProperties.isEnabled()) {
             monitoringWorker.submit(aiObservabilityRetentionMonitorFlowFactory.create());
         }

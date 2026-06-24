@@ -15,6 +15,8 @@ import org.springframework.data.repository.query.Param;
 public interface PlatformOpsRunRepository extends JpaRepository<PlatformOpsRun, Long> {
     Optional<PlatformOpsRun> findByAiHarnessRunId(String aiHarnessRunId);
 
+    List<PlatformOpsRun> findByStatus(PlatformOpsRunStatus status);
+
     boolean existsByTriggerTypeAndStatus(PlatformOpsRunTriggerType triggerType, PlatformOpsRunStatus status);
 
     boolean existsByTriggerTypeInAndStatus(List<PlatformOpsRunTriggerType> triggerTypes, PlatformOpsRunStatus status);
