@@ -101,6 +101,14 @@ export type DocumentJobResponse = {
   artifacts: DocumentArtifactResponse[];
 };
 
+export type DocumentHtmlPreviewResponse = {
+  reportId: number;
+  reportNo: string;
+  reportTitle: string;
+  fileName: string;
+  html: string;
+};
+
 export type DocumentDeliveryRequestResponse = {
   id: number;
   officeId: number;

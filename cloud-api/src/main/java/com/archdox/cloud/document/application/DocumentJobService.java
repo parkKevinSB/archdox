@@ -15,6 +15,7 @@ import com.archdox.cloud.document.domain.DocumentJobStatus;
 import com.archdox.cloud.document.domain.DocumentWorkerType;
 import com.archdox.cloud.document.dto.CreateDocumentJobRequest;
 import com.archdox.cloud.document.dto.DocumentArtifactResponse;
+import com.archdox.cloud.document.dto.DocumentHtmlPreviewResponse;
 import com.archdox.cloud.document.dto.DocumentJobResponse;
 import com.archdox.cloud.document.event.DocumentGeneratedEvent;
 import com.archdox.cloud.document.infra.DocumentArtifactRepository;
@@ -40,16 +41,20 @@ import com.archdox.cloud.photo.domain.PhotoAssetStatus;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
 import com.archdox.cloud.photo.domain.PhotoStatus;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
+import com.archdox.cloud.photo.infra.PhotoLocalObjectStore;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.document.BundledDocumentTemplates;
 import com.archdox.document.DocumentGenerationRequest;
+import com.archdox.document.HtmlPreviewDocumentRenderer;
 import com.archdox.document.OutputFormat;
 import com.archdox.document.PhotoLayoutSize;
+import com.archdox.document.ResolvedPhotoContent;
 import com.archdox.document.TemplateSpec;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.parkkevinsb.bloom.EventBus;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
@@ -60,6 +65,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,6 +90,7 @@ public class DocumentJobService {
     private final InspectionReportRepository reportRepository;
     private final PhotoRepository photoRepository;
     private final PhotoAssetRepository photoAssetRepository;
+    private final PhotoLocalObjectStore photoObjectStore;
     private final DocumentJobRepository documentJobRepository;
     private final DocumentArtifactRepository documentArtifactRepository;
     private final DocumentLocalObjectStore objectStore;
@@ -100,12 +107,14 @@ public class DocumentJobService {
     private final DocumentPreflightGateService preflightGateService;
     private final ChecklistDocxExportService checklistDocxExportService;
     private final ObjectMapper objectMapper;
+    private final HtmlPreviewDocumentRenderer htmlPreviewRenderer;
 
     public DocumentJobService(
             InspectionReportService inspectionReportService,
             InspectionReportRepository reportRepository,
             PhotoRepository photoRepository,
             PhotoAssetRepository photoAssetRepository,
+            PhotoLocalObjectStore photoObjectStore,
             DocumentJobRepository documentJobRepository,
             DocumentArtifactRepository documentArtifactRepository,
             DocumentLocalObjectStore objectStore,
@@ -127,6 +136,7 @@ public class DocumentJobService {
         this.reportRepository = reportRepository;
         this.photoRepository = photoRepository;
         this.photoAssetRepository = photoAssetRepository;
+        this.photoObjectStore = photoObjectStore;
         this.documentJobRepository = documentJobRepository;
         this.documentArtifactRepository = documentArtifactRepository;
         this.objectStore = objectStore;
@@ -143,6 +153,7 @@ public class DocumentJobService {
         this.preflightGateService = preflightGateService;
         this.checklistDocxExportService = checklistDocxExportService;
         this.objectMapper = objectMapper;
+        this.htmlPreviewRenderer = new HtmlPreviewDocumentRenderer(this::resolvePreviewPhotoContent);
     }
 
     @Transactional
@@ -196,6 +207,33 @@ public class DocumentJobService {
                                 ? ""
                                 : selectedTemplateRevisionId(report, configuration)));
         return toResponse(job);
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentHtmlPreviewResponse previewHtml(Long reportId, UserPrincipal principal) {
+        var report = inspectionReportService.requireReport(reportId);
+        permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
+        requireCanRequestGeneration(report);
+        preflightGateService.requirePassedForGeneration(report);
+        requirePhotoAssetsReadyForGeneration(report);
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
+        var snapshot = new LinkedHashMap<>(snapshotBuilder.build(report, configuration, List.of()));
+        var request = new DocumentGenerationRequest(
+                "preview-" + report.id() + "-" + report.generationRevision(),
+                String.valueOf(officeId),
+                String.valueOf(report.id()),
+                templateSpec(snapshot, report),
+                snapshot,
+                toEnginePhotos(snapshot, report),
+                OutputFormat.HTML);
+        var artifact = htmlPreviewRenderer.render(request);
+        return new DocumentHtmlPreviewResponse(
+                report.id(),
+                report.reportNo(),
+                report.title(),
+                artifact.fileName(),
+                new String(artifact.content(), StandardCharsets.UTF_8));
     }
 
     private List<DocumentSnapshotBuilder.RenderOverride> renderOverrides(CreateDocumentJobRequest request) {
@@ -821,7 +859,12 @@ public class DocumentJobService {
 
     @SuppressWarnings("unchecked")
     private TemplateSpec templateSpec(DocumentJob job, InspectionReport report) {
-        var configuration = mapValue(job.inputSnapshotJson().get("configuration"));
+        return templateSpec(job.inputSnapshotJson(), report);
+    }
+
+    @SuppressWarnings("unchecked")
+    private TemplateSpec templateSpec(Map<String, Object> snapshot, InspectionReport report) {
+        var configuration = mapValue(snapshot.get("configuration"));
         var template = mapValue(configuration.get("template"));
         var source = stringValue(template.get("source"));
         if (!ConfigResolutionSource.NOT_CONFIGURED.name().equals(source) && template.get("revisionId") != null) {
@@ -871,7 +914,11 @@ public class DocumentJobService {
     }
 
     private List<com.archdox.document.PhotoAsset> toEnginePhotos(DocumentJob job, InspectionReport report) {
-        var snapshotPhotos = listValue(job.inputSnapshotJson().get("photos"));
+        return toEnginePhotos(job.inputSnapshotJson(), report);
+    }
+
+    private List<com.archdox.document.PhotoAsset> toEnginePhotos(Map<String, Object> snapshot, InspectionReport report) {
+        var snapshotPhotos = listValue(snapshot.get("photos"));
         if (!snapshotPhotos.isEmpty()) {
             var photos = new ArrayList<com.archdox.document.PhotoAsset>();
             for (Object rawPhoto : snapshotPhotos) {
@@ -911,6 +958,20 @@ public class DocumentJobService {
                     "/agent/api/v1/photos/%d/assets/WORKING/content".formatted(photo.id())));
         }
         return photos;
+    }
+
+    private Optional<ResolvedPhotoContent> resolvePreviewPhotoContent(com.archdox.document.PhotoAsset photo) throws IOException {
+        if (photo == null || photo.storageRef() == null || photo.storageRef().isBlank()) {
+            return Optional.empty();
+        }
+        if (!photoObjectStore.exists(photo.storageRef())) {
+            return Optional.empty();
+        }
+        try (var input = photoObjectStore.open(photo.storageRef())) {
+            return Optional.of(new ResolvedPhotoContent(
+                    input.readAllBytes(),
+                    optionalStringValue(photo.mimeType(), "image/jpeg")));
+        }
     }
 
     private void requirePhotoAssetsReadyForGeneration(InspectionReport report) {

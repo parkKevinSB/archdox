@@ -242,6 +242,7 @@ export function DocumentWorkspace({
                 preflightRun={selectedDocumentContext.preflightRun}
                 previewingArtifactId={workspace.previewingArtifactId}
                 previewingChecklist={workspace.previewingChecklist}
+                previewingDocumentHtmlReportId={workspace.previewingDocumentHtmlReportId}
                 projectName={selectedDocumentContext.projectName}
                 report={selectedDocumentContext.report}
                 requestingDeliveryArtifactId={workspace.requestingDeliveryArtifactId}
@@ -251,7 +252,7 @@ export function DocumentWorkspace({
                 resolvingPreflightFindingId={workspace.resolvingPreflightFindingId}
                 onCreate={() => requestSignedGeneration(selectedDocumentContext.report, "DOCX")}
                 onCreatePdf={() => requestSignedGeneration(selectedDocumentContext.report, "PDF")}
-                onCreatePreview={() => requestSignedGeneration(selectedDocumentContext.report, "HTML")}
+                onCreatePreview={() => workspace.previewDocumentHtml(selectedDocumentContext.report.id)}
                 onDownloadPrepared={(artifact, delivery) => workspace.downloadPreparedArtifact({ artifact, delivery })}
                 onPreviewArtifact={(artifact, job) => workspace.previewArtifact({ artifact, job })}
                 onPreviewChecklist={(type) => workspace.previewChecklistPrint({ reportId: selectedDocumentContext.report.id, type })}
@@ -375,6 +376,7 @@ function DocumentReportCard({
   report,
   previewingArtifactId,
   previewingChecklist,
+  previewingDocumentHtmlReportId,
   requestingDeliveryArtifactId,
   reviewing,
   applyingPreflightFindingId,
@@ -402,6 +404,7 @@ function DocumentReportCard({
   report: InspectionReport;
   previewingArtifactId: number | null;
   previewingChecklist: { reportId: number; type?: ChecklistPrintType } | null;
+  previewingDocumentHtmlReportId: number | null;
   requestingDeliveryArtifactId: number | null;
   reviewing: boolean;
   applyingPreflightFindingId: number | null;
@@ -409,7 +412,7 @@ function DocumentReportCard({
   steps: InspectionStep[];
   onCreate: () => void;
   onCreatePdf: () => void;
-  onCreatePreview: () => void;
+  onCreatePreview: () => Promise<unknown>;
   onDownloadPrepared: (artifact: DocumentArtifactResponse, delivery: DocumentDeliveryRequestResponse) => Promise<unknown>;
   onPreviewArtifact: (artifact: DocumentArtifactResponse, job: DocumentJobResponse) => Promise<unknown>;
   onPreviewChecklist: (type?: ChecklistPrintType) => Promise<unknown>;
@@ -448,13 +451,13 @@ function DocumentReportCard({
     ? `${checklistOutput.label}로 출력합니다. ${actionHint}`
     : actionHint;
   const creatingDocx = creating && (creatingOutputFormat === null || creatingOutputFormat === "DOCX");
-  const creatingHtml = creating && creatingOutputFormat === "HTML";
   const creatingPdf = creating && creatingOutputFormat === "PDF";
   const preflightStatus = preflightStatusLabel(preflightRun, Boolean(preflightRun && !preflightCurrent));
   const preflightBusy = reviewing || preflightActive;
   const canReview = ["READY_TO_GENERATE", "GENERATED", "FAILED", "STEP_SAVED"].includes(report.status);
   const generatedArtifactCount = latestGeneratedJob?.artifacts.length ?? 0;
   const checklistPreviewing = previewingChecklist?.reportId === report.id;
+  const htmlPreviewing = previewingDocumentHtmlReportId === report.id;
 
   return (
     <article className="document-card">
@@ -588,9 +591,9 @@ function DocumentReportCard({
             </>
           ) : (
             <>
-              <button className="secondary-button" disabled={!canCreateHtmlOrPdf || creating} onClick={onCreatePreview} type="button">
-                {creatingHtml ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
-                HTML 생성
+              <button className="secondary-button" disabled={!canCreateHtmlOrPdf || creating || htmlPreviewing} onClick={onCreatePreview} type="button">
+                {htmlPreviewing ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
+                미리보기
               </button>
               <button className="secondary-button" disabled={!canCreateHtmlOrPdf || creating} onClick={onCreatePdf} type="button">
                 {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
@@ -1638,33 +1641,57 @@ function DocumentPreviewDialog({
 }: {
   onClose: () => void;
   preview: {
-    artifact: DocumentArtifactResponse;
+    artifact?: DocumentArtifactResponse;
+    downloadFileName: string;
+    fileName: string;
     html: string;
-    job: DocumentJobResponse;
+    job?: DocumentJobResponse;
+    subtitle: string;
   };
 }) {
+  const downloadHtml = () => downloadPreviewHtml(preview.html, preview.downloadFileName);
+
   return (
     <div className="document-preview-backdrop" role="presentation">
       <section className="document-preview-dialog" role="dialog" aria-modal="true" aria-label="HTML 문서 미리보기">
         <header className="document-preview-header">
-          <div>
+          <div className="document-preview-header-main">
             <span>HTML 미리보기</span>
-            <strong>{preview.artifact.fileName}</strong>
-            <small>job #{preview.job.id} / revision v{preview.job.reportRevision}</small>
+            <strong>{preview.fileName}</strong>
+            <small>{preview.subtitle}</small>
           </div>
-          <button className="icon-button" onClick={onClose} type="button" aria-label="미리보기 닫기">
-            <X size={18} />
-          </button>
+          <div className="document-preview-header-actions">
+            <button className="secondary-button compact-button" onClick={downloadHtml} type="button">
+              <Download size={15} />
+              HTML 다운로드
+            </button>
+            <button className="icon-button" onClick={onClose} type="button" aria-label="미리보기 닫기">
+              <X size={18} />
+            </button>
+          </div>
         </header>
         <iframe
           className="document-preview-frame"
           sandbox=""
           srcDoc={preview.html}
-          title={preview.artifact.fileName}
+          title={preview.fileName}
         />
       </section>
     </div>
   );
+}
+
+function downloadPreviewHtml(html: string, fileName: string) {
+  const safeName = fileName.toLowerCase().endsWith(".html") ? fileName : `${fileName}.html`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = safeName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 function ChecklistPrintPreviewDialog({
@@ -2908,7 +2935,7 @@ function documentListStatus(
   }
   if (preflightRun.status === "PASSED" && !isPreflightAiPending(preflightRun)) {
     return {
-      detail: "DOCX/PDF/HTML 생성 가능",
+      detail: "DOCX/PDF/미리보기 가능",
       label: "생성 가능",
       tone: "green"
     };

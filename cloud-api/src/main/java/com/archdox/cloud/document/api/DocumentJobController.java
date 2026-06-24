@@ -3,6 +3,7 @@ package com.archdox.cloud.document.api;
 import com.archdox.cloud.document.application.DocumentGenerationRequestService;
 import com.archdox.cloud.document.application.DocumentJobService;
 import com.archdox.cloud.document.dto.CreateDocumentJobRequest;
+import com.archdox.cloud.document.dto.DocumentHtmlPreviewResponse;
 import com.archdox.cloud.document.dto.DocumentJobResponse;
 import com.archdox.cloud.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -44,6 +45,14 @@ public class DocumentJobController {
     @GetMapping("/inspection-reports/{reportId}/document-jobs")
     public List<DocumentJobResponse> listByReport(@PathVariable Long reportId) {
         return documentJobService.listByReport(reportId);
+    }
+
+    @GetMapping("/inspection-reports/{reportId}/document-preview")
+    public DocumentHtmlPreviewResponse previewHtml(
+            @PathVariable Long reportId,
+            Authentication authentication
+    ) {
+        return documentJobService.previewHtml(reportId, (UserPrincipal) authentication.getPrincipal());
     }
 
     @GetMapping("/document-jobs/{jobId}")

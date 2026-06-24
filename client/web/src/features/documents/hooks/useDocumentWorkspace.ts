@@ -11,6 +11,7 @@ import {
   directArtifactDownloadUrl,
   downloadDocumentUrl,
   fetchChecklistPrintPreview,
+  fetchDocumentHtmlPreview,
   fetchDocumentTextUrl,
   listDocumentDeliveryRequestsByJob,
   listDocumentJobsByReport,
@@ -80,9 +81,12 @@ type ApplyNarrativeInput = {
 };
 
 export type DocumentPreviewState = {
-  artifact: DocumentArtifactResponse;
+  artifact?: DocumentArtifactResponse;
+  downloadFileName: string;
+  fileName: string;
   html: string;
-  job: DocumentJobResponse;
+  job?: DocumentJobResponse;
+  subtitle: string;
 };
 
 export type ChecklistPrintPreviewState = {
@@ -346,6 +350,23 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     }
   });
 
+  const documentHtmlPreviewMutation = useMutation({
+    mutationFn: async (reportId: number) => {
+      if (!officeId) {
+        throw new Error("Office selection is required.");
+      }
+      return fetchDocumentHtmlPreview(token, officeId, reportId);
+    },
+    onSuccess: (response) => {
+      setPreview({
+        downloadFileName: response.fileName,
+        fileName: response.fileName,
+        html: response.html,
+        subtitle: `${response.reportTitle || response.reportNo} / 현재 작성본 미리보기`
+      });
+    }
+  });
+
   const requestDeliveryMutation = useMutation({
     mutationFn: async ({ artifact, job }: { artifact: DocumentArtifactResponse; job: DocumentJobResponse }) => {
       if (!officeId) {
@@ -442,7 +463,14 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
         throw new Error("HTML 미리보기 파일이 준비 중입니다. 잠시 후 다시 시도하세요.");
       }
       const html = await fetchDocumentTextUrl(token, officeId, downloadUrl);
-      setPreview({ artifact, html, job });
+      setPreview({
+        artifact,
+        downloadFileName: defaultDownloadFileName(artifact),
+        fileName: artifact.fileName,
+        html,
+        job,
+        subtitle: `job #${job.id} / revision v${job.reportRevision}`
+      });
       return { artifact, html, job };
     },
     onSettled: async () => {
@@ -488,12 +516,14 @@ export function useDocumentWorkspace({ officeId, onRefreshWorkspace, reports, to
     documentReports,
     downloadPreparedArtifact: downloadPreparedMutation.mutateAsync,
     downloadingArtifactId: downloadPreparedMutation.isPending ? downloadPreparedMutation.variables?.artifact.id ?? null : null,
-    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? checklistPreviewMutation.error ?? polishNarrativeMutation.error ?? applyNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
+    error: jobsQuery.error ?? deliveriesQuery.error ?? preflightRunsQuery.error ?? preflightFindingsQuery.error ?? stepsQuery.error ?? createJobMutation.error ?? createPreflightReviewMutation.error ?? resolvePreflightFindingMutation.error ?? applyPreflightFindingFixMutation.error ?? checklistPreviewMutation.error ?? documentHtmlPreviewMutation.error ?? polishNarrativeMutation.error ?? applyNarrativeMutation.error ?? requestDeliveryMutation.error ?? downloadPreparedMutation.error ?? previewArtifactMutation.error,
     jobsByReport: jobsQuery.data ?? {},
     loading: jobsQuery.isLoading || deliveriesQuery.isLoading || preflightRunsQuery.isLoading || preflightFindingsQuery.isLoading || stepsQuery.isLoading,
     preview,
     previewArtifact: previewArtifactMutation.mutateAsync,
+    previewDocumentHtml: documentHtmlPreviewMutation.mutateAsync,
     previewChecklistPrint: checklistPreviewMutation.mutateAsync,
+    previewingDocumentHtmlReportId: documentHtmlPreviewMutation.isPending ? documentHtmlPreviewMutation.variables ?? null : null,
     previewingChecklist: checklistPreviewMutation.isPending ? checklistPreviewMutation.variables ?? null : null,
     previewingArtifactId: previewArtifactMutation.isPending ? previewArtifactMutation.variables?.artifact.id ?? null : null,
     applyDocumentNarrativeToReport: applyNarrativeMutation.mutateAsync as (input: ApplyNarrativeInput) => Promise<DocumentNarrativeApplyResponse>,

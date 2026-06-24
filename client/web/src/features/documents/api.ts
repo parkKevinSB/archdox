@@ -4,6 +4,7 @@ import type {
   ChecklistPrintType,
   DocumentArtifactResponse,
   DocumentDeliveryRequestResponse,
+  DocumentHtmlPreviewResponse,
   DocumentJobResponse,
   DocumentNarrativeApplyResponse,
   DocumentNarrativePolishFieldInput,
@@ -40,6 +41,13 @@ export function createDocumentJob(
 
 export function listDocumentJobsByReport(token: string, officeId: number, reportId: number) {
   return request<DocumentJobResponse[]>(`/api/v1/inspection-reports/${reportId}/document-jobs`, {
+    token,
+    officeId
+  });
+}
+
+export function fetchDocumentHtmlPreview(token: string, officeId: number, reportId: number) {
+  return request<DocumentHtmlPreviewResponse>(`/api/v1/inspection-reports/${reportId}/document-preview`, {
     token,
     officeId
   });
