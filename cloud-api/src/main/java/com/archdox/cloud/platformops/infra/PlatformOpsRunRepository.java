@@ -38,6 +38,26 @@ public interface PlatformOpsRunRepository extends JpaRepository<PlatformOpsRun, 
             OffsetDateTime from,
             OffsetDateTime to);
 
+    long countByStatusAndFailureCodeAndStartedAtGreaterThanEqualAndStartedAtLessThan(
+            PlatformOpsRunStatus status,
+            String failureCode,
+            OffsetDateTime from,
+            OffsetDateTime to);
+
+    @Query("""
+            select count(run)
+            from PlatformOpsRun run
+            where run.status = :status
+              and (run.failureCode is null or run.failureCode <> :excludedFailureCode)
+              and run.startedAt >= :from
+              and run.startedAt < :to
+            """)
+    long countByStatusAndFailureCodeOtherThan(
+            @Param("status") PlatformOpsRunStatus status,
+            @Param("excludedFailureCode") String excludedFailureCode,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             delete from PlatformOpsRun run

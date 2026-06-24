@@ -98,6 +98,16 @@ public class PlatformOpsIncident {
         }
     }
 
+    public void resolve(String summary, OffsetDateTime now) {
+        if (this.status == PlatformOpsIncidentStatus.IGNORED) {
+            return;
+        }
+        this.status = PlatformOpsIncidentStatus.RESOLVED;
+        this.summary = required(summary);
+        this.resolvedAt = now;
+        this.lastSeenAt = now;
+    }
+
     public Long id() {
         return id;
     }

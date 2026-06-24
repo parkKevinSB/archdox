@@ -87,6 +87,9 @@ public class PlatformOpsDetectionService {
 
         var detected = new ArrayList<PlatformOpsDetectionFinding>();
         detectors.forEach(detector -> detected.addAll(detector.detect(context)));
+        var activeKeys = detected.stream()
+                .map(this::incidentKey)
+                .toList();
 
         var incidentCount = 0;
         var findingCount = 0;
@@ -97,8 +100,9 @@ public class PlatformOpsDetectionService {
             incidentCount += 1;
             findingCount += 1;
         }
+        var resolvedCount = resolveStaleIncidents(run, context, activeKeys);
 
-        run.replaceSnapshot(snapshot(detected, incidentCount, findingCount));
+        run.replaceSnapshot(snapshot(detected, incidentCount, findingCount, resolvedCount));
         run.complete(now);
         return new PlatformOpsDetectionSummary(
                 run.id(),
@@ -178,6 +182,37 @@ public class PlatformOpsDetectionService {
                 now);
     }
 
+    private int resolveStaleIncidents(
+            PlatformOpsRun run,
+            PlatformOpsDetectionContext context,
+            List<String> activeKeys
+    ) {
+        var resolvedCount = 0;
+        for (var detector : detectors) {
+            if (!detector.supportsAutoResolve()) {
+                continue;
+            }
+            var activeIncidents = incidentRepository.findByStatusInAndCategoryOrderByLastSeenAtDescIdDesc(
+                    ACTIVE_INCIDENT_STATUSES,
+                    detector.category(),
+                    PageRequest.of(0, 500));
+            for (var incident : activeIncidents) {
+                if (activeKeys.contains(incidentKey(incident))) {
+                    continue;
+                }
+                var resolution = detector.resolve(incident, context);
+                if (resolution.isEmpty()) {
+                    continue;
+                }
+                incident.resolve(resolution.get().message(), context.now());
+                incidentRepository.save(incident);
+                recordResolutionEvent(incident, resolution.get(), run.startedByUserId());
+                resolvedCount += 1;
+            }
+        }
+        return resolvedCount;
+    }
+
     private void recordOperationEvent(PlatformOpsDetectionFinding finding, Long actorUserId) {
         operationEventService.record(
                 finding.officeId(),
@@ -193,6 +228,25 @@ public class PlatformOpsDetectionService {
                 finding.evidenceJson());
     }
 
+    private void recordResolutionEvent(
+            PlatformOpsIncident incident,
+            PlatformOpsIncidentResolution resolution,
+            Long actorUserId
+    ) {
+        operationEventService.record(
+                incident.officeId(),
+                OperationEventSeverity.INFO,
+                resolution.code(),
+                incident.category().toLowerCase().replace('_', '-'),
+                incident.primaryResourceId(),
+                incident.primaryResourceType(),
+                parseLong(incident.primaryResourceId()),
+                actorUserId,
+                null,
+                resolution.message(),
+                resolution.evidenceJson());
+    }
+
     private OperationEventSeverity toOperationSeverity(PlatformOpsFindingSeverity severity) {
         if (severity == PlatformOpsFindingSeverity.ERROR || severity == PlatformOpsFindingSeverity.CRITICAL) {
             return OperationEventSeverity.ERROR;
@@ -206,7 +260,8 @@ public class PlatformOpsDetectionService {
     private Map<String, Object> snapshot(
             List<PlatformOpsDetectionFinding> detected,
             int incidentCount,
-            int findingCount
+            int findingCount,
+            int resolvedCount
     ) {
         var byCategory = new LinkedHashMap<String, Object>();
         detected.stream()
@@ -216,8 +271,28 @@ public class PlatformOpsDetectionService {
         var snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("findingCount", findingCount);
         snapshot.put("incidentCount", incidentCount);
+        snapshot.put("resolvedIncidentCount", resolvedCount);
         snapshot.put("byCategory", byCategory);
         return snapshot;
+    }
+
+    private String incidentKey(PlatformOpsDetectionFinding finding) {
+        return finding.category() + "|" + finding.resourceType() + "|" + finding.resourceId();
+    }
+
+    private String incidentKey(PlatformOpsIncident incident) {
+        return incident.category() + "|" + incident.primaryResourceType() + "|" + incident.primaryResourceId();
+    }
+
+    private Long parseLong(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private int count(List<PlatformOpsDetectionFinding> findings, String category) {

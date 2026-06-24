@@ -14,6 +14,7 @@ import com.archdox.cloud.aipolicy.infra.AiModelCallLogRepository;
 import com.archdox.cloud.engine.usage.infra.EngineApiUsageEventRepository;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
+import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncident;
@@ -120,6 +121,7 @@ class PlatformOpsDailyReportServiceAutoDiagnosisTest {
                 findingRepository,
                 mock(PlatformOpsDailyReportRepository.class),
                 mock(OperationEventRepository.class),
+                mock(PhotoRepository.class),
                 mock(AiModelCallLogRepository.class),
                 mock(EngineApiUsageEventRepository.class),
                 operationEventService,

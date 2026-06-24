@@ -26,6 +26,16 @@ public interface PlatformOpsIncidentRepository extends JpaRepository<PlatformOps
             Collection<PlatformOpsIncidentStatus> statuses,
             Pageable pageable);
 
+    List<PlatformOpsIncident> findByStatusInAndCategoryOrderByLastSeenAtDescIdDesc(
+            Collection<PlatformOpsIncidentStatus> statuses,
+            String category,
+            Pageable pageable);
+
+    long countByStatusAndResolvedAtGreaterThanEqualAndResolvedAtLessThan(
+            PlatformOpsIncidentStatus status,
+            OffsetDateTime from,
+            OffsetDateTime to);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             delete from PlatformOpsIncident incident

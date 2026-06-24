@@ -12,6 +12,9 @@ import com.archdox.cloud.global.security.UserPrincipal;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
+import com.archdox.cloud.photo.domain.PhotoPickupStatus;
+import com.archdox.cloud.photo.domain.PhotoStatus;
+import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.domain.PlatformOpsDailyReport;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
@@ -59,6 +62,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformOpsDailyReportService {
     private static final int RECENT_EVENT_LIMIT = 20;
     private static final int TOP_GROUP_LIMIT = 8;
+    private static final int INCIDENT_BREAKDOWN_LIMIT = 500;
+    private static final String FLOW_INTERRUPTED_BY_RESTART = "FLOW_INTERRUPTED_BY_RESTART";
     private static final String ACTION_TYPE = "GENERATE_PLATFORM_OPS_DAILY_REPORT";
     private static final List<PlatformOpsIncidentStatus> ACTIVE_INCIDENT_STATUSES = List.of(
             PlatformOpsIncidentStatus.OPEN,
@@ -74,6 +79,7 @@ public class PlatformOpsDailyReportService {
     private final PlatformOpsFindingRepository findingRepository;
     private final PlatformOpsDailyReportRepository dailyReportRepository;
     private final OperationEventRepository operationEventRepository;
+    private final PhotoRepository photoRepository;
     private final AiModelCallLogRepository aiModelCallLogRepository;
     private final EngineApiUsageEventRepository engineApiUsageEventRepository;
     private final OperationEventService operationEventService;
@@ -93,6 +99,7 @@ public class PlatformOpsDailyReportService {
             PlatformOpsFindingRepository findingRepository,
             PlatformOpsDailyReportRepository dailyReportRepository,
             OperationEventRepository operationEventRepository,
+            PhotoRepository photoRepository,
             AiModelCallLogRepository aiModelCallLogRepository,
             EngineApiUsageEventRepository engineApiUsageEventRepository,
             OperationEventService operationEventService,
@@ -111,6 +118,7 @@ public class PlatformOpsDailyReportService {
         this.findingRepository = findingRepository;
         this.dailyReportRepository = dailyReportRepository;
         this.operationEventRepository = operationEventRepository;
+        this.photoRepository = photoRepository;
         this.aiModelCallLogRepository = aiModelCallLogRepository;
         this.engineApiUsageEventRepository = engineApiUsageEventRepository;
         this.operationEventService = operationEventService;
@@ -366,6 +374,8 @@ public class PlatformOpsDailyReportService {
                         from,
                         to,
                         PageRequest.of(0, RECENT_EVENT_LIMIT));
+        var incidentBreakdown = incidentBreakdown(from, to);
+        var failedOpsRunBreakdown = failedOpsRunBreakdown(from, to);
 
         var snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("runId", runId);
@@ -375,11 +385,14 @@ public class PlatformOpsDailyReportService {
         snapshot.put("periodFrom", from.toString());
         snapshot.put("periodTo", to.toString());
         snapshot.put("controlBoundary", controlBoundary());
-        snapshot.put("openIncidentCount", incidentRepository.countByStatusIn(ACTIVE_INCIDENT_STATUSES));
+        snapshot.put("openIncidentCount", incidentBreakdown.get("openTotal"));
+        snapshot.put("incidentBreakdown", incidentBreakdown);
         snapshot.put("failedOpsRunCount", runRepository.countByStatusAndStartedAtGreaterThanEqualAndStartedAtLessThan(
                 PlatformOpsRunStatus.FAILED,
                 from,
                 to));
+        snapshot.put("failedOpsRunBreakdown", failedOpsRunBreakdown);
+        snapshot.put("photoPickup", photoPickupSnapshot());
         snapshot.put("operationEventCount", operationEventRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(from, to));
         snapshot.put("operationEventsBySeverity", operationEventRepository.summarizeSeverity(from, to).stream()
                 .map(item -> Map.of(
@@ -450,6 +463,75 @@ public class PlatformOpsDailyReportService {
         return snapshot;
     }
 
+    private Map<String, Object> incidentBreakdown(OffsetDateTime from, OffsetDateTime to) {
+        var activeIncidents = incidentRepository.findByStatusInOrderByLastSeenAtDescIdDesc(
+                ACTIVE_INCIDENT_STATUSES,
+                PageRequest.of(0, INCIDENT_BREAKDOWN_LIMIT));
+        var openTotal = incidentRepository.countByStatusIn(ACTIVE_INCIDENT_STATUSES);
+        var realActive = activeIncidents.stream()
+                .filter(incident -> !incident.lastSeenAt().isBefore(from))
+                .count();
+        var loadedStale = activeIncidents.stream()
+                .filter(incident -> incident.lastSeenAt().isBefore(from))
+                .count();
+        var notLoaded = Math.max(0, openTotal - activeIncidents.size());
+        var newToday = activeIncidents.stream()
+                .filter(incident -> !incident.firstSeenAt().isBefore(from) && incident.firstSeenAt().isBefore(to))
+                .count();
+        var resolvedToday = incidentRepository.countByStatusAndResolvedAtGreaterThanEqualAndResolvedAtLessThan(
+                PlatformOpsIncidentStatus.RESOLVED,
+                from,
+                to);
+        var byCategory = new LinkedHashMap<String, Long>();
+        activeIncidents.forEach(incident -> byCategory.merge(incident.category(), 1L, Long::sum));
+
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("openTotal", openTotal);
+        snapshot.put("realActive", realActive);
+        snapshot.put("stale", loadedStale + notLoaded);
+        snapshot.put("newToday", newToday);
+        snapshot.put("resolvedToday", resolvedToday);
+        snapshot.put("loadedOpenIncidentCount", activeIncidents.size());
+        snapshot.put("classification", "realActive=lastSeenAt within report period, stale=open but not re-detected in report period");
+        snapshot.put("byCategory", byCategory);
+        return snapshot;
+    }
+
+    private Map<String, Object> failedOpsRunBreakdown(OffsetDateTime from, OffsetDateTime to) {
+        var total = runRepository.countByStatusAndStartedAtGreaterThanEqualAndStartedAtLessThan(
+                PlatformOpsRunStatus.FAILED,
+                from,
+                to);
+        var restartRelated = runRepository.countByStatusAndFailureCodeAndStartedAtGreaterThanEqualAndStartedAtLessThan(
+                PlatformOpsRunStatus.FAILED,
+                FLOW_INTERRUPTED_BY_RESTART,
+                from,
+                to);
+        var actionable = runRepository.countByStatusAndFailureCodeOtherThan(
+                PlatformOpsRunStatus.FAILED,
+                FLOW_INTERRUPTED_BY_RESTART,
+                from,
+                to);
+
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("total", total);
+        snapshot.put("restartRelated", restartRelated);
+        snapshot.put("actionable", actionable);
+        snapshot.put("restartFailureCode", FLOW_INTERRUPTED_BY_RESTART);
+        snapshot.put("classification", "restartRelated failed runs are deployment/restart effects unless they repeat after restart grace.");
+        return snapshot;
+    }
+
+    private Map<String, Object> photoPickupSnapshot() {
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("uploadedPendingOriginalPickup", photoRepository.countByStatusAndOriginalPickupStatus(
+                PhotoStatus.UPLOADED,
+                PhotoPickupStatus.PENDING));
+        snapshot.put("allPendingOriginalPickup", photoRepository.countByOriginalPickupStatus(PhotoPickupStatus.PENDING));
+        snapshot.put("note", "uploadedPendingOriginalPickup is the real photo original pickup backlog candidate.");
+        return snapshot;
+    }
+
     private PlatformOpsFinding snapshotFinding(
             PlatformOpsRun run,
             Map<String, Object> snapshot,
@@ -473,7 +555,10 @@ public class PlatformOpsDailyReportService {
                         "periodFrom", snapshot.get("periodFrom"),
                         "periodTo", snapshot.get("periodTo"),
                         "openIncidentCount", snapshot.get("openIncidentCount"),
-                        "failedOpsRunCount", snapshot.get("failedOpsRunCount")),
+                        "incidentBreakdown", snapshot.get("incidentBreakdown"),
+                        "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
+                        "failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"),
+                        "photoPickup", snapshot.get("photoPickup")),
                 "Review the daily report if WARN/ERROR counts, open incidents, or usage spikes increased.",
                 now);
     }
@@ -504,7 +589,10 @@ public class PlatformOpsDailyReportService {
                         "periodFrom", snapshot.get("periodFrom"),
                         "periodTo", snapshot.get("periodTo"),
                         "openIncidentCount", snapshot.get("openIncidentCount"),
+                        "incidentBreakdown", snapshot.get("incidentBreakdown"),
                         "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
+                        "failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"),
+                        "photoPickup", snapshot.get("photoPickup"),
                         "aiHarnessStatus", snapshot.get("aiHarnessStatus")),
                 "Review the daily report and decide whether any suggested action should be submitted as a separate controlled action.",
                 now);
@@ -562,6 +650,10 @@ public class PlatformOpsDailyReportService {
         builder.append("- Period: ").append(snapshot.get("periodFrom")).append(" ~ ").append(snapshot.get("periodTo")).append('\n');
         builder.append("- Open incidents: ").append(snapshot.get("openIncidentCount")).append('\n');
         builder.append("- Failed ops runs: ").append(snapshot.get("failedOpsRunCount")).append('\n');
+        builder.append("- Real active incidents: ").append(childMap(snapshot, "incidentBreakdown").getOrDefault("realActive", 0)).append('\n');
+        builder.append("- Stale open incidents: ").append(childMap(snapshot, "incidentBreakdown").getOrDefault("stale", 0)).append('\n');
+        builder.append("- Restart-related failed ops runs: ").append(childMap(snapshot, "failedOpsRunBreakdown").getOrDefault("restartRelated", 0)).append('\n');
+        builder.append("- Photo pickup pending originals: ").append(childMap(snapshot, "photoPickup").getOrDefault("uploadedPendingOriginalPickup", 0)).append('\n');
         builder.append("- Operation events: ").append(snapshot.get("operationEventCount")).append('\n');
         builder.append("- Platform ops findings: ").append(snapshot.get("platformOpsFindingCount")).append('\n');
         builder.append("- AI harness status: ").append(snapshot.getOrDefault("aiHarnessStatus", "UNKNOWN")).append('\n');
@@ -594,6 +686,12 @@ public class PlatformOpsDailyReportService {
 
         builder.append("\n## AI Usage\n\n");
         appendMap(builder, childMap(snapshot, "aiUsage"), List.of("callCount", "succeededCount", "failedCount", "inputTokens", "outputTokens", "estimatedTotalCost"));
+        builder.append("\n## Incident Breakdown\n\n");
+        appendMap(builder, childMap(snapshot, "incidentBreakdown"), List.of("openTotal", "realActive", "stale", "newToday", "resolvedToday"));
+        builder.append("\n## Failed Ops Run Breakdown\n\n");
+        appendMap(builder, childMap(snapshot, "failedOpsRunBreakdown"), List.of("total", "actionable", "restartRelated"));
+        builder.append("\n## Photo Pickup\n\n");
+        appendMap(builder, childMap(snapshot, "photoPickup"), List.of("uploadedPendingOriginalPickup", "allPendingOriginalPickup"));
         builder.append("\n## Engine/MCP Usage\n\n");
         appendMap(builder, childMap(snapshot, "engineUsage"), List.of("eventCount", "requestUnits"));
         builder.append("\n## Redaction\n\n");
@@ -635,6 +733,7 @@ public class PlatformOpsDailyReportService {
                         "periodFrom", snapshot.get("periodFrom"),
                         "periodTo", snapshot.get("periodTo"),
                         "openIncidentCount", snapshot.get("openIncidentCount"),
+                        "incidentBreakdown", snapshot.get("incidentBreakdown"),
                         "failedOpsRunCount", snapshot.get("failedOpsRunCount")));
     }
 
@@ -661,7 +760,10 @@ public class PlatformOpsDailyReportService {
                         "periodFrom", snapshot.get("periodFrom"),
                         "periodTo", snapshot.get("periodTo"),
                         "openIncidentCount", snapshot.get("openIncidentCount"),
+                        "incidentBreakdown", snapshot.get("incidentBreakdown"),
                         "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
+                        "failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"),
+                        "photoPickup", snapshot.get("photoPickup"),
                         "aiHarnessStatus", snapshot.get("aiHarnessStatus")));
     }
 
@@ -882,7 +984,10 @@ public class PlatformOpsDailyReportService {
     private Map<String, Object> deterministicSignals(Map<String, Object> snapshot) {
         var pLike = new LinkedHashMap<String, Object>();
         pLike.put("openIncidentCount", snapshot.get("openIncidentCount"));
+        pLike.put("incidentBreakdown", snapshot.get("incidentBreakdown"));
         pLike.put("failedOpsRunCount", snapshot.get("failedOpsRunCount"));
+        pLike.put("failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"));
+        pLike.put("photoPickup", snapshot.get("photoPickup"));
         pLike.put("operationEventCount", snapshot.get("operationEventCount"));
         var iLike = new LinkedHashMap<String, Object>();
         iLike.put("aiUsage", snapshot.get("aiUsage"));
@@ -920,10 +1025,17 @@ public class PlatformOpsDailyReportService {
     }
 
     private String deterministicSummary(Map<String, Object> snapshot) {
-        return "Daily report generated from deterministic platform operations evidence. Open incidents: "
-                + snapshot.getOrDefault("openIncidentCount", 0)
-                + ", failed ops runs: "
-                + snapshot.getOrDefault("failedOpsRunCount", 0)
+        var incidentBreakdown = childMap(snapshot, "incidentBreakdown");
+        var failedBreakdown = childMap(snapshot, "failedOpsRunBreakdown");
+        var photoPickup = childMap(snapshot, "photoPickup");
+        return "Daily report generated from deterministic platform operations evidence. Real active incidents: "
+                + incidentBreakdown.getOrDefault("realActive", 0)
+                + ", stale open incidents: "
+                + incidentBreakdown.getOrDefault("stale", 0)
+                + ", restart-related failed ops runs: "
+                + failedBreakdown.getOrDefault("restartRelated", 0)
+                + ", photo pickup pending originals: "
+                + photoPickup.getOrDefault("uploadedPendingOriginalPickup", 0)
                 + ", operation events: "
                 + snapshot.getOrDefault("operationEventCount", 0)
                 + ".";

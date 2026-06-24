@@ -45,6 +45,8 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     long countByStatus(PhotoStatus status);
 
+    long countByStatusAndOriginalPickupStatus(PhotoStatus status, PhotoPickupStatus originalPickupStatus);
+
     long countByOriginalPickupStatus(PhotoPickupStatus status);
 
     @Query("""

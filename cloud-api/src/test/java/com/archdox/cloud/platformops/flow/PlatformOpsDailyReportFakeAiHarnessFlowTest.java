@@ -27,6 +27,7 @@ import com.archdox.cloud.engine.usage.infra.EngineApiUsageEventRepository;
 import com.archdox.cloud.global.event.ArchDoxRuntimeConfiguration;
 import com.archdox.cloud.operation.application.OperationEventService;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
+import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportFindingSink;
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportProperties;
@@ -75,6 +76,7 @@ class PlatformOpsDailyReportFakeAiHarnessFlowTest {
         var findingRepository = mock(PlatformOpsFindingRepository.class);
         var dailyReportRepository = mock(PlatformOpsDailyReportRepository.class);
         var operationEventRepository = mock(OperationEventRepository.class);
+        var photoRepository = mock(PhotoRepository.class);
         var operationEventService = mock(OperationEventService.class);
         var aiModelCallLogRepository = mock(AiModelCallLogRepository.class);
         var engineUsageRepository = mock(EngineApiUsageEventRepository.class);
@@ -118,6 +120,7 @@ class PlatformOpsDailyReportFakeAiHarnessFlowTest {
                 findingRepository,
                 dailyReportRepository,
                 operationEventRepository,
+                photoRepository,
                 aiModelCallLogRepository,
                 engineUsageRepository,
                 operationEventService,

@@ -14,6 +14,7 @@ import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncident;
+import com.archdox.cloud.platformops.domain.PlatformOpsIncidentStatus;
 import com.archdox.cloud.platformops.domain.PlatformOpsRun;
 import com.archdox.cloud.platformops.infra.PlatformOpsFindingRepository;
 import com.archdox.cloud.platformops.infra.PlatformOpsIncidentRepository;
@@ -76,6 +77,58 @@ class PlatformOpsDetectionServiceTest {
                 anyMap());
     }
 
+    @Test
+    void detectionAutoResolvesStaleIncidentWhenDetectorConfirmsItIsNoLongerActive() {
+        var properties = new PlatformOpsDetectionProperties();
+        var detector = new FixedResolvingDetector();
+        var service = new PlatformOpsDetectionService(
+                List.of(detector),
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        properties,
+                        new PlatformOpsDailyReportProperties(),
+                        new PlatformOpsRetentionProperties()),
+                runRepository,
+                incidentRepository,
+                findingRepository,
+                operationEventService);
+        var incident = new PlatformOpsIncident(
+                PlatformOpsFindingSeverity.WARN,
+                "PHOTO_PICKUP_STUCK",
+                "Photo pickup appears stuck",
+                "Photo pickup was pending.",
+                7L,
+                "PHOTO",
+                "44",
+                10L,
+                java.time.OffsetDateTime.parse("2026-06-24T00:00:00Z"));
+
+        when(runRepository.save(any(PlatformOpsRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(incidentRepository.findByStatusInAndCategoryOrderByLastSeenAtDescIdDesc(
+                any(),
+                eq("PHOTO_PICKUP_STUCK"),
+                any()))
+                .thenReturn(List.of(incident));
+        when(incidentRepository.save(any(PlatformOpsIncident.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var summary = service.detectStuck(1L);
+
+        assertEquals(0, summary.findingCount());
+        assertEquals(PlatformOpsIncidentStatus.RESOLVED, incident.status());
+        verify(incidentRepository).save(incident);
+        verify(operationEventService).record(
+                eq(7L),
+                eq(OperationEventSeverity.INFO),
+                eq("PHOTO_PICKUP_STUCK_RESOLVED_PICKUP_NOT_PENDING"),
+                eq("photo-pickup-stuck"),
+                eq("44"),
+                eq("PHOTO"),
+                eq(44L),
+                eq(1L),
+                isNull(),
+                eq("Photo pickup is no longer pending."),
+                anyMap());
+    }
+
     private static class FixedDetector implements PlatformOpsDetector {
         @Override
         public String category() {
@@ -97,6 +150,34 @@ class PlatformOpsDetectionServiceTest {
                     "99",
                     Map.of("status", "GENERATING"),
                     "Check the selected ArchDox Agent."));
+        }
+    }
+
+    private static class FixedResolvingDetector implements PlatformOpsDetector {
+        @Override
+        public String category() {
+            return "PHOTO_PICKUP_STUCK";
+        }
+
+        @Override
+        public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
+            return List.of();
+        }
+
+        @Override
+        public boolean supportsAutoResolve() {
+            return true;
+        }
+
+        @Override
+        public Optional<PlatformOpsIncidentResolution> resolve(
+                PlatformOpsIncident incident,
+                PlatformOpsDetectionContext context
+        ) {
+            return Optional.of(new PlatformOpsIncidentResolution(
+                    "PHOTO_PICKUP_STUCK_RESOLVED_PICKUP_NOT_PENDING",
+                    "Photo pickup is no longer pending.",
+                    Map.of("photoId", 44L)));
         }
     }
 }

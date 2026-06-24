@@ -56,6 +56,9 @@ public final class OpsDailyReportPromptBuilder implements PromptBuilder<OpsDaily
                 - P-like signals are immediate current-run problems.
                 - I-like signals are repeated or accumulated problems across the evidence window.
                 - D-like signals are worsening, oscillating, or sudden-change patterns.
+                - Treat failedOpsRunBreakdown.restartRelated as deployment/restart impact, not as an application outage by itself.
+                - Prefer incidentBreakdown.realActive over raw openIncidentCount when deciding whether operators must act now.
+                - Treat incidentBreakdown.stale as cleanup/noise candidates unless fresh evidence proves they are still active.
                 - If evidence is insufficient, say so and recommend human review.
                 """;
         var user = """
