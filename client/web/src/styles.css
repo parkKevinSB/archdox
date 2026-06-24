@@ -2726,6 +2726,10 @@ button {
   font-size: 11px;
 }
 
+.context-strip b::after {
+  content: ":";
+}
+
 .context-strip em {
   min-width: 0;
   color: #263936;
@@ -6101,7 +6105,9 @@ button.list-row {
   }
 
   .context-strip {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
     margin-right: 0;
     overflow: visible;
@@ -6110,6 +6116,8 @@ button.list-row {
 
   .context-strip span {
     align-items: center;
+    flex: 0 1 auto;
+    max-width: 100%;
     min-height: 0;
     padding: 5px 8px;
     border-radius: 999px;
@@ -6125,22 +6133,6 @@ button.list-row {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .context-strip .context-project {
-    grid-column: 1 / -1;
-  }
-
-  .context-strip .context-project em {
-    display: -webkit-box;
-    overflow: hidden;
-    white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .context-strip .context-secondary {
-    display: none;
   }
 
   .mobile-step-overview {
