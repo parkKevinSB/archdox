@@ -16,8 +16,14 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        fontconfig \
+        fonts-noto-cjk \
+        fonts-noto-cjk-extra \
+        libreoffice-java-common \
+        libreoffice-writer \
         tzdata \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f
 
 RUN useradd --create-home --shell /usr/sbin/nologin archdox \
     && mkdir -p /var/lib/archdox /var/log/archdox /tmp/archdox \
@@ -29,7 +35,8 @@ COPY --from=builder /workspace/cloud-api/build/libs/cloud-api-*.jar /app/cloud-a
 ENV SPRING_PROFILES_ACTIVE=local \
     HOME=/home/archdox \
     TMPDIR=/tmp/archdox \
-    LOG_PATH=/var/log/archdox
+    LOG_PATH=/var/log/archdox \
+    SAL_USE_VCLPLUGIN=svp
 
 USER archdox
 EXPOSE 8080

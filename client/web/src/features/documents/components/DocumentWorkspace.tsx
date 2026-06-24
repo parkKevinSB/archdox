@@ -584,6 +584,10 @@ function DocumentReportCard({
                 {checklistPreviewing ? <Loader2 className="spin" size={17} /> : <Eye size={17} />}
                 미리보기
               </button>
+              <button className="secondary-button" disabled={!canCreate || creating} onClick={onCreatePdf} type="button">
+                {creatingPdf ? <Loader2 className="spin" size={17} /> : <FileText size={17} />}
+                PDF 생성
+              </button>
               <button className="primary-button" disabled={!canCreate || creating} onClick={onCreate} type="button">
                 {creatingDocx || active ? <Loader2 className="spin" size={17} /> : <UploadCloud size={17} />}
                 DOCX 생성

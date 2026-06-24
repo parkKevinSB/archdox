@@ -59,13 +59,21 @@ class DocumentGenerationRoutingServiceTest {
     }
 
     @Test
-    void rejectsChecklistPdfForCloudApiRoute() {
+    void routesChecklistPdfToCloudApiWithoutAgent() {
         var service = service(false);
 
-        var error = assertThrows(BadRequestException.class, () ->
+        assertEquals(
+                DocumentWorkerType.CLOUD_API,
                 service.route(10L, CHECKLIST_REPORT_TYPE, OutputFormat.PDF, null));
+    }
 
-        assertEquals("DOCUMENT_WORKER_UNSUPPORTED", error.code());
+    @Test
+    void routesExplicitChecklistPdfToCloudApi() {
+        var service = service(false);
+
+        assertEquals(
+                DocumentWorkerType.CLOUD_API,
+                service.route(10L, CHECKLIST_REPORT_TYPE, OutputFormat.PDF, DocumentWorkerType.CLOUD_API));
     }
 
     @Test

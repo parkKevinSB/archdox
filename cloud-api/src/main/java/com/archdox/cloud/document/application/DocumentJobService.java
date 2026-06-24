@@ -44,8 +44,13 @@ import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoLocalObjectStore;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.document.BundledDocumentTemplates;
+import com.archdox.document.ArtifactType;
 import com.archdox.document.DocumentGenerationRequest;
+import com.archdox.document.DocumentExportRequest;
 import com.archdox.document.HtmlPreviewDocumentRenderer;
+import com.archdox.document.GeneratedArtifact;
+import com.archdox.document.LibreOfficeDocumentArtifactExporter;
+import com.archdox.document.LibreOfficePdfExportOptions;
 import com.archdox.document.OutputFormat;
 import com.archdox.document.PhotoLayoutSize;
 import com.archdox.document.ResolvedPhotoContent;
@@ -79,6 +84,7 @@ public class DocumentJobService {
     private static final String REPORT_TYPE_CHECKLIST = "CONSTRUCTION_SUPERVISION_CHECKLIST";
     private static final String DOCX_MIME_TYPE =
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    private static final String PDF_MIME_TYPE = "application/pdf";
     private static final int MAX_SIGNATURE_DATA_URL_LENGTH = 1_000_000;
     private static final int MAX_SIGNATURE_IMAGE_BYTES = 750_000;
     private static final Set<String> SUPPORTED_SIGNATURE_MIME_TYPES = Set.of(
@@ -106,6 +112,7 @@ public class DocumentJobService {
     private final DocumentGenerationRoutingService routingService;
     private final DocumentPreflightGateService preflightGateService;
     private final ChecklistDocxExportService checklistDocxExportService;
+    private final LibreOfficeDocumentArtifactExporter checklistPdfExporter;
     private final ObjectMapper objectMapper;
     private final HtmlPreviewDocumentRenderer htmlPreviewRenderer;
 
@@ -152,6 +159,7 @@ public class DocumentJobService {
         this.routingService = routingService;
         this.preflightGateService = preflightGateService;
         this.checklistDocxExportService = checklistDocxExportService;
+        this.checklistPdfExporter = new LibreOfficeDocumentArtifactExporter(LibreOfficePdfExportOptions.defaults());
         this.objectMapper = objectMapper;
         this.htmlPreviewRenderer = new HtmlPreviewDocumentRenderer(this::resolvePreviewPhotoContent);
     }
@@ -695,10 +703,10 @@ public class DocumentJobService {
                     "UNSUPPORTED_REPORT_TYPE",
                     "CLOUD_API document generation only supports construction supervision checklist reports");
         }
-        if (job.outputFormat() != OutputFormat.DOCX) {
+        if (job.outputFormat() != OutputFormat.DOCX && job.outputFormat() != OutputFormat.PDF) {
             throw new DocumentGenerationException(
                     "UNSUPPORTED_OUTPUT_FORMAT",
-                    "Construction supervision checklist generation currently supports DOCX only");
+                    "Construction supervision checklist generation supports DOCX and PDF");
         }
 
         var now = OffsetDateTime.now();
@@ -707,47 +715,101 @@ public class DocumentJobService {
         job.updateProgress(
                 DocumentJobProgressStep.RENDERING,
                 70,
-                "선택한 감리일지를 기준으로 체크리스트 DOCX를 생성하는 중입니다.",
+                "선택한 감리일지를 기준으로 체크리스트 문서를 생성하는 중입니다.",
                 now);
         var export = checklistDocxExportService.exportSystem(officeId, report.id(), null);
-        var storageRef = checklistStorageRef(job, export.fileName());
+        var artifactPayload = job.outputFormat() == OutputFormat.PDF
+                ? convertChecklistPdf(job, report, export)
+                : checklistDocxArtifact(job, export);
         try {
-            objectStore.write(storageRef, export.content());
+            objectStore.write(artifactPayload.storageRef(), artifactPayload.content());
         } catch (IOException ex) {
             throw new DocumentGenerationException(
                     "DOCUMENT_ARTIFACT_WRITE_FAILED",
-                    "Failed to save checklist DOCX artifact",
+                    "Failed to save checklist document artifact",
                     ex);
         }
 
         job.updateProgress(
                 DocumentJobProgressStep.STORING_ARTIFACTS,
                 90,
-                "체크리스트 DOCX 파일 정보를 저장하는 중입니다.",
+                "체크리스트 파일 정보를 저장하는 중입니다.",
                 OffsetDateTime.now());
         documentArtifactRepository.deleteByDocumentJobId(job.id());
         var artifact = documentArtifactRepository.save(new DocumentArtifact(
                 job.officeId(),
                 job.id(),
                 job.reportId(),
-                DocumentArtifactType.DOCX,
+                artifactPayload.artifactType(),
                 DocumentArtifactStorageKind.API_LOCAL,
-                storageRef,
-                export.fileName(),
-                DOCX_MIME_TYPE,
-                export.content().length,
-                sha256(export.content()),
+                artifactPayload.storageRef(),
+                artifactPayload.fileName(),
+                artifactPayload.mimeType(),
+                artifactPayload.content().length,
+                sha256(artifactPayload.content()),
                 OffsetDateTime.now()));
         var completedAt = OffsetDateTime.now();
         job.markGenerated(completedAt);
         report.markGenerated(job.reportRevision(), completedAt);
-        recordGenerated(job, "체크리스트 DOCX 생성이 완료되었습니다.", 1);
+        recordGenerated(job, "체크리스트 " + job.outputFormat().name() + " 생성이 완료되었습니다.", 1);
         publishAfterCommit(new DocumentGeneratedEvent(
                 job.officeId(),
                 job.reportId(),
                 job.id(),
                 List.of(artifact.id()),
                 completedAt));
+    }
+
+    private ChecklistArtifactPayload checklistDocxArtifact(DocumentJob job, com.archdox.cloud.checklistprint.dto.ChecklistDocxExport export) {
+        return new ChecklistArtifactPayload(
+                DocumentArtifactType.DOCX,
+                checklistStorageRef(job, export.fileName()),
+                export.fileName(),
+                DOCX_MIME_TYPE,
+                export.content());
+    }
+
+    private ChecklistArtifactPayload convertChecklistPdf(
+            DocumentJob job,
+            InspectionReport report,
+            com.archdox.cloud.checklistprint.dto.ChecklistDocxExport export
+    ) {
+        var docxStorageRef = checklistStorageRef(job, export.fileName());
+        var source = new GeneratedArtifact(
+                ArtifactType.DOCX,
+                export.fileName(),
+                docxStorageRef,
+                export.content().length,
+                sha256(export.content()),
+                export.content());
+        var result = checklistPdfExporter.export(new DocumentExportRequest(
+                String.valueOf(job.id()),
+                String.valueOf(report.id()),
+                templateSpec(Map.of(), report),
+                source,
+                ArtifactType.PDF,
+                Map.of()));
+        if (!result.isCompleted()) {
+            throw new DocumentGenerationException(
+                    result.errorCode() == null ? "DOCUMENT_PDF_EXPORT_FAILED" : result.errorCode(),
+                    result.errorMessage() == null ? "Failed to export checklist PDF" : result.errorMessage());
+        }
+        var artifact = result.artifact();
+        return new ChecklistArtifactPayload(
+                DocumentArtifactType.PDF,
+                artifact.storageRef(),
+                artifact.fileName(),
+                PDF_MIME_TYPE,
+                artifact.content());
+    }
+
+    private record ChecklistArtifactPayload(
+            DocumentArtifactType artifactType,
+            String storageRef,
+            String fileName,
+            String mimeType,
+            byte[] content
+    ) {
     }
 
     @Transactional

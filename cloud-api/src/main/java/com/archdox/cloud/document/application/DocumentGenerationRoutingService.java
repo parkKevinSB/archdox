@@ -29,7 +29,7 @@ public class DocumentGenerationRoutingService {
                 validateExplicitRoute(officeId, normalizedOutputFormat, requestedWorkerType, true);
                 return requestedWorkerType;
             }
-            if (normalizedOutputFormat == OutputFormat.DOCX) {
+            if (isCloudApiChecklistFormat(normalizedOutputFormat)) {
                 return DocumentWorkerType.CLOUD_API;
             }
             throw unsupported(DocumentWorkerType.CLOUD_API, normalizedOutputFormat);
@@ -62,7 +62,7 @@ public class DocumentGenerationRoutingService {
                 && agentCommandService.hasDocumentRenderTarget(officeId, outputFormat)) {
             return;
         }
-        if (allowCloudApi && workerType == DocumentWorkerType.CLOUD_API && outputFormat == OutputFormat.DOCX) {
+        if (allowCloudApi && workerType == DocumentWorkerType.CLOUD_API && isCloudApiChecklistFormat(outputFormat)) {
             return;
         }
         throw unsupported(workerType, outputFormat);
@@ -70,6 +70,10 @@ public class DocumentGenerationRoutingService {
 
     private boolean isChecklistReport(String reportType) {
         return REPORT_TYPE_CHECKLIST.equals(reportType);
+    }
+
+    private boolean isCloudApiChecklistFormat(OutputFormat outputFormat) {
+        return outputFormat == OutputFormat.DOCX || outputFormat == OutputFormat.PDF;
     }
 
     private BadRequestException unavailable(OutputFormat outputFormat) {
