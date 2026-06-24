@@ -24,10 +24,8 @@ import com.archdox.cloud.workspace.application.WorkspaceCascadeDeletionService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +40,7 @@ public class InspectionReportService {
     private final DocumentTypeRegistryService documentTypeRegistryService;
     private final WorkspaceCascadeDeletionService deletionService;
     private final SiteSupervisionLedgerService supervisionLedgerService;
+    private final InspectionReportNumberGenerator reportNumberGenerator;
 
     public InspectionReportService(
             InspectionReportRepository reportRepository,
@@ -52,7 +51,8 @@ public class InspectionReportService {
             ReportSubmitValidationService submitValidationService,
             DocumentTypeRegistryService documentTypeRegistryService,
             WorkspaceCascadeDeletionService deletionService,
-            SiteSupervisionLedgerService supervisionLedgerService
+            SiteSupervisionLedgerService supervisionLedgerService,
+            InspectionReportNumberGenerator reportNumberGenerator
     ) {
         this.reportRepository = reportRepository;
         this.stepRepository = stepRepository;
@@ -63,6 +63,7 @@ public class InspectionReportService {
         this.documentTypeRegistryService = documentTypeRegistryService;
         this.deletionService = deletionService;
         this.supervisionLedgerService = supervisionLedgerService;
+        this.reportNumberGenerator = reportNumberGenerator;
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +92,7 @@ public class InspectionReportService {
                 officeId,
                 request.projectId(),
                 request.siteId(),
-                generateReportNo(now),
+                reportNumberGenerator.nextReportNo(officeId, request.projectId(), documentType.reportType(), now),
                 documentType.reportType(),
                 defaultTitle(request.title(), documentType.name()),
                 request.templateId(),
@@ -325,11 +326,6 @@ public class InspectionReportService {
                 step.payloadJson(),
                 step.clientRevision(),
                 step.savedAt());
-    }
-
-    private String generateReportNo(OffsetDateTime now) {
-        return "RPT-" + DateTimeFormatter.BASIC_ISO_DATE.format(now) + "-"
-                + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
     private String trimToNull(String value) {
