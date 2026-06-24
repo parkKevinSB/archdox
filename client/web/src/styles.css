@@ -3397,6 +3397,10 @@ button {
   font-weight: 850;
 }
 
+.daily-row-action {
+  white-space: nowrap;
+}
+
 .daily-check input {
   width: 14px;
   height: 14px;
@@ -6264,8 +6268,81 @@ button.list-row {
     align-items: start;
   }
 
+  .daily-checklist-rows {
+    gap: 8px;
+  }
+
+  .daily-checklist-rows-head {
+    align-items: center;
+  }
+
+  .daily-checklist-row {
+    gap: 10px;
+    padding: 10px;
+    border-color: #dfe9e6;
+    border-radius: 10px;
+    background: #fbfdfc;
+  }
+
+  .daily-checklist-row-main {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .daily-checklist-row-main strong {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .daily-checklist-row-main span:not(.daily-checklist-row-index) {
+    line-height: 1.4;
+  }
+
+  .daily-checklist-row-index {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+
   .daily-checklist-row-controls {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    justify-content: stretch;
+  }
+
+  .daily-check {
+    grid-column: span 2;
+    justify-content: center;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 4px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .daily-check input {
+    flex: 0 0 auto;
+  }
+
+  .daily-row-action {
+    grid-column: span 3;
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+
+  .daily-checklist-row-photos {
+    min-height: 28px;
+    padding: 2px 0 0 32px;
+  }
+
+  .daily-checklist-row-photos .daily-supervision-muted {
+    font-size: 11px;
   }
 
   .preflight-legal-review-ref-group > div {

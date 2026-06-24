@@ -831,7 +831,6 @@ function DailyChecklistRowsEditor({
     <div className="daily-checklist-rows">
       <div className="daily-checklist-rows-head">
         <strong>세부 감리항목</strong>
-        <span>기본값은 해당없음입니다. 오늘 검사한 항목만 적합 또는 부적합으로 바꿉니다.</span>
       </div>
       {entry.checklistRows.map((row, index) => (
         <div className="daily-checklist-row" key={row.id}>
@@ -871,7 +870,7 @@ function DailyChecklistRowsEditor({
               부적합
             </label>
             <button
-              className={row.referenceNote ? "secondary-button compact active" : "secondary-button compact"}
+              className={row.referenceNote ? "secondary-button compact daily-row-action active" : "secondary-button compact daily-row-action"}
               disabled={!canWriteReports}
               onClick={() => onOpenNote(row.id, "referenceNote")}
               type="button"
@@ -879,14 +878,14 @@ function DailyChecklistRowsEditor({
               기준·참고사항
             </button>
             <button
-              className={row.actionNote ? "secondary-button compact active" : "secondary-button compact"}
+              className={row.actionNote ? "secondary-button compact daily-row-action active" : "secondary-button compact daily-row-action"}
               disabled={!canWriteReports}
               onClick={() => onOpenNote(row.id, "actionNote")}
               type="button"
             >
               조치사항
             </button>
-            <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+            <label className={!canWriteReports ? "secondary-button compact daily-row-action disabled" : "secondary-button compact daily-row-action"}>
               <Camera size={14} />
               사진 촬영
               <input
@@ -897,7 +896,7 @@ function DailyChecklistRowsEditor({
                 type="file"
               />
             </label>
-            <label className={!canWriteReports ? "secondary-button compact disabled" : "secondary-button compact"}>
+            <label className={!canWriteReports ? "secondary-button compact daily-row-action disabled" : "secondary-button compact daily-row-action"}>
               <UploadCloud size={14} />
               사진 추가
               <input
