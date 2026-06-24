@@ -3,6 +3,27 @@ import { reportStepDefinitions } from "./flow/reportFlowDefinition";
 
 export { reportStepDefinitions } from "./flow/reportFlowDefinition";
 
+export const CHECKLIST_SOURCE_FIELD_KEY = "checklistSelection";
+
+export type ChecklistSourceOutputType = "TRADE" | "PHASE" | "ALL";
+export type ChecklistSourceSelectionMode = "ALL_SITE" | "DATE_RANGE" | "SELECTED_REPORTS";
+
+export type ChecklistSourceSelection = {
+  dateFrom: string;
+  dateTo: string;
+  outputType: ChecklistSourceOutputType;
+  selectedReportIds: number[];
+  selectionMode: ChecklistSourceSelectionMode;
+};
+
+export const DEFAULT_CHECKLIST_SOURCE_SELECTION: ChecklistSourceSelection = {
+  dateFrom: "",
+  dateTo: "",
+  outputType: "ALL",
+  selectedReportIds: [],
+  selectionMode: "ALL_SITE"
+};
+
 export function isReportStepCode(
   value?: string | null,
   definitions: ReportStepDefinition[] = reportStepDefinitions
@@ -26,7 +47,7 @@ export function payloadFieldValue(payload: Record<string, unknown>, key: string)
 
 export function payloadFromForm(definition: ReportStepDefinition, values: Record<string, string>) {
   return definition.fields.reduce<Record<string, unknown>>((payload, field) => {
-    const rawValue = values[field.key]?.trim() ?? "";
+    const rawValue = values[field.key]?.trim() ?? defaultFieldValue(definition, field.key);
     if (rawValue.length === 0) {
       return payload;
     }
@@ -46,4 +67,44 @@ export function payloadFromForm(definition: ReportStepDefinition, values: Record
     payload[field.key] = rawValue;
     return payload;
   }, {});
+}
+
+export function stepPayloadSatisfiesRequiredFields(definition: ReportStepDefinition, payload: Record<string, unknown>) {
+  return definition.fields
+    .filter((field) => field.required)
+    .every((field) => !isEmptyPayloadValue(payload[field.key], field.type));
+}
+
+function defaultFieldValue(definition: ReportStepDefinition, fieldKey: string) {
+  if (definition.stepType === "CHECKLIST_SOURCE" && fieldKey === CHECKLIST_SOURCE_FIELD_KEY) {
+    return JSON.stringify(DEFAULT_CHECKLIST_SOURCE_SELECTION);
+  }
+  return "";
+}
+
+function isEmptyPayloadValue(value: unknown, fieldType?: string) {
+  if (value === null || value === undefined) {
+    return true;
+  }
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (text.length === 0) {
+      return true;
+    }
+    if (fieldType === "json") {
+      try {
+        return isEmptyPayloadValue(JSON.parse(text));
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length === 0;
+  }
+  return false;
 }

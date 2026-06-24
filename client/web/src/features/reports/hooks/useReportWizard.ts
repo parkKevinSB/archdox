@@ -5,7 +5,8 @@ import {
   isReportStepCode,
   payloadFieldValue,
   payloadFromForm,
-  reportStepDefinitions
+  reportStepDefinitions,
+  stepPayloadSatisfiesRequiredFields
 } from "../reportSteps";
 import type {
   InspectionReport,
@@ -115,7 +116,7 @@ export function useReportWizard({
     const payload = savedStep?.payload ?? {};
     form.reset(Object.fromEntries(activeDefinition.fields.map((field) => [field.key, payloadFieldValue(payload, field.key)])));
     setLastSavedAt(savedStep?.savedAt ?? null);
-    setStepSaveStatus(savedStep ? "saved" : "idle");
+    setStepSaveStatus(savedStep && stepPayloadSatisfiesRequiredFields(activeDefinition, payload) ? "saved" : "idle");
   }, [activeDefinition, activeStepCode, form, report.id, savedSteps]);
 
   useEffect(() => {
@@ -138,7 +139,10 @@ export function useReportWizard({
     if (busy || loadingSteps) {
       return false;
     }
-    if (!form.formState.isDirty && savedSteps[activeDefinition.code]) {
+    const savedStep = savedSteps[activeDefinition.code];
+    if (!form.formState.isDirty
+      && savedStep
+      && stepPayloadSatisfiesRequiredFields(activeDefinition, savedStep.payload ?? {})) {
       setStepSaveStatus("saved");
       setNotice(`${activeDefinition.title} 단계가 이미 저장되어 있습니다.`);
       return true;

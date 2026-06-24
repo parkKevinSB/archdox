@@ -3,35 +3,23 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { getInspectionReports } from "../../../../api";
 import { getInspectionSteps } from "../../api";
+import {
+  CHECKLIST_SOURCE_FIELD_KEY,
+  DEFAULT_CHECKLIST_SOURCE_SELECTION,
+  type ChecklistSourceOutputType,
+  type ChecklistSourceSelection,
+  type ChecklistSourceSelectionMode
+} from "../../reportSteps";
 import type { InspectionReport, InspectionStep } from "../../types";
 import type { ReportStepComponentProps } from "./ReportFormStep";
-
-type ChecklistOutputType = "TRADE" | "PHASE" | "ALL";
-type ChecklistSelectionMode = "ALL_SITE" | "DATE_RANGE" | "SELECTED_REPORTS";
-
-type ChecklistSelection = {
-  dateFrom: string;
-  dateTo: string;
-  outputType: ChecklistOutputType;
-  selectedReportIds: number[];
-  selectionMode: ChecklistSelectionMode;
-};
 
 type SourceReport = {
   inspectionDate: string;
   report: InspectionReport;
 };
 
-const FIELD_KEY = "checklistSelection";
+const FIELD_KEY = CHECKLIST_SOURCE_FIELD_KEY;
 const DAILY_REPORT_TYPE = "CONSTRUCTION_DAILY_SUPERVISION_LOG";
-
-const DEFAULT_SELECTION: ChecklistSelection = {
-  dateFrom: "",
-  dateTo: "",
-  outputType: "ALL",
-  selectedReportIds: [],
-  selectionMode: "ALL_SITE"
-};
 
 export function ChecklistSourceStep({
   canWriteReports,
@@ -48,7 +36,7 @@ export function ChecklistSourceStep({
 
   useEffect(() => {
     if (!form.getValues(FIELD_KEY)) {
-      form.setValue(FIELD_KEY, JSON.stringify(DEFAULT_SELECTION), { shouldDirty: Boolean(savedStep) });
+      form.setValue(FIELD_KEY, JSON.stringify(DEFAULT_CHECKLIST_SOURCE_SELECTION), { shouldDirty: Boolean(savedStep) });
     }
   }, [form, report.id, savedStep]);
 
@@ -122,7 +110,7 @@ export function ChecklistSourceStep({
                 className={selection.outputType === value ? "active" : ""}
                 disabled={!canWriteReports}
                 key={value}
-                onClick={() => updateSelection({ outputType: value as ChecklistOutputType })}
+                onClick={() => updateSelection({ outputType: value as ChecklistSourceOutputType })}
                 type="button"
               >
                 {label}
@@ -149,7 +137,7 @@ export function ChecklistSourceStep({
                 className={selection.selectionMode === value ? "active" : ""}
                 disabled={!canWriteReports}
                 key={value}
-                onClick={() => updateSelection({ selectionMode: value as ChecklistSelectionMode })}
+                onClick={() => updateSelection({ selectionMode: value as ChecklistSourceSelectionMode })}
                 type="button"
               >
                 {label}
@@ -237,7 +225,7 @@ function inspectionDateOf(steps: InspectionStep[]) {
 
 function parseSelection(rawValue: string | undefined): ChecklistSelection {
   if (!rawValue) {
-    return DEFAULT_SELECTION;
+    return DEFAULT_CHECKLIST_SOURCE_SELECTION;
   }
   try {
     const parsed = JSON.parse(rawValue) as Partial<ChecklistSelection>;
