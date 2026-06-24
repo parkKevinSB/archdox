@@ -74,7 +74,7 @@ export function ReportWizard({
   } = wizard;
 
   return (
-    <Panel title="작성 마법사" action={<StatusBadge status={report.status} />}>
+    <Panel title="리포트 작성" action={<StatusBadge status={report.status} />}>
       <div className="wizard-shell">
         <div className="wizard-title-row">
           <div>

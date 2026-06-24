@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, PencilLine, Save, Send } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, PencilLine, Save, Send } from "lucide-react";
 import type { ReactNode } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { reportStepRegistry } from "../flow/reportStepRegistry";
@@ -67,9 +67,44 @@ export function ReportStepRunner({
   const activeIndex = stepDefinitions.findIndex((definition) => definition.code === activeStepCode);
   const firstStep = activeIndex <= 0;
   const lastStep = activeIndex >= stepDefinitions.length - 1;
+  const progressPercent = stepDefinitions.length > 0
+    ? Math.round((Object.keys(savedSteps).length / stepDefinitions.length) * 100)
+    : 0;
 
   return (
     <div className="wizard-grid">
+      <details className="mobile-step-overview">
+        <summary>
+          <span className="mobile-step-count">{activeIndex + 1}/{stepDefinitions.length}</span>
+          <span>
+            <strong>{activeDefinition.title}</strong>
+            <small>{stepStateLabel(Boolean(savedSteps[activeDefinition.code]), true)}</small>
+          </span>
+          <ChevronDown size={18} />
+        </summary>
+        <div className="mobile-step-progress" aria-hidden="true">
+          <span style={{ width: `${progressPercent}%` }} />
+        </div>
+        <div className="mobile-step-list" aria-label="리포트 작성 단계">
+          {stepDefinitions.map((definition, index) => {
+            const saved = Boolean(savedSteps[definition.code]);
+            const active = definition.code === activeStepCode;
+            return (
+              <button
+                className={active ? "mobile-step-button active" : "mobile-step-button"}
+                disabled={busy || loadingSteps}
+                key={definition.code}
+                onClick={() => selectStep(definition.code)}
+                type="button"
+              >
+                <span>{index + 1}</span>
+                <strong>{definition.title}</strong>
+                <small>{stepStateLabel(saved, active)}</small>
+              </button>
+            );
+          })}
+        </div>
+      </details>
       <div className="step-rail" aria-label="리포트 작성 단계">
         {stepDefinitions.map((definition, index) => {
           const saved = Boolean(savedSteps[definition.code]);
@@ -84,7 +119,7 @@ export function ReportStepRunner({
             >
               <span>{index + 1}</span>
               <strong>{definition.title}</strong>
-              <small>{saved ? "저장됨" : active ? "작성 중" : "작성 전"}</small>
+              <small>{stepStateLabel(saved, active)}</small>
             </button>
           );
         })}
@@ -142,6 +177,16 @@ export function ReportStepRunner({
       </form>
     </div>
   );
+}
+
+function stepStateLabel(saved: boolean, active: boolean) {
+  if (saved) {
+    return "저장됨";
+  }
+  if (active) {
+    return "작성 중";
+  }
+  return "작성 전";
 }
 
 function saveStateLabel(status: StepSaveStatus, lastSavedAt: string | null) {
