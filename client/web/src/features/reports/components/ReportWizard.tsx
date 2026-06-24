@@ -87,23 +87,23 @@ export function ReportWizard({
         </div>
 
         <div className="context-strip" aria-label="리포트 작성 정보">
-          <span>
+          <span className="context-project">
             <b>프로젝트</b>
             <em>{project?.name ?? `project #${report.projectId}`}</em>
           </span>
-          <span>
+          <span className="context-site">
             <b>현장</b>
             <em>{site?.name ?? (report.siteId ? `site #${report.siteId}` : "미지정")}</em>
           </span>
-          <span>
+          <span className="context-work-mode">
             <b>감리업무</b>
             <em>{supervisionWorkModeLabel(site?.supervisionWorkMode ?? workflowDefinition?.supervisionWorkMode)}</em>
           </span>
-          <span>
+          <span className="context-secondary">
             <b>유형</b>
             <em>{reportTypeLabel(report.reportType)}</em>
           </span>
-          <span>
+          <span className="context-secondary">
             <b>흐름</b>
             <em>{workflowDefinition?.title ?? "기본 작성 흐름"}</em>
           </span>

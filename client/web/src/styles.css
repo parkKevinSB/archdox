@@ -6101,7 +6101,7 @@ button.list-row {
   }
 
   .context-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 6px;
     margin-right: 0;
     overflow: visible;
@@ -6109,14 +6109,38 @@ button.list-row {
   }
 
   .context-strip span {
+    align-items: center;
     min-height: 0;
-    padding: 6px 9px;
+    padding: 5px 8px;
+    border-radius: 999px;
     font-size: 11px;
   }
 
   .context-strip b {
-    min-width: 44px;
+    min-width: 0;
     font-size: 10px;
+  }
+
+  .context-strip em {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .context-strip .context-project {
+    grid-column: 1 / -1;
+  }
+
+  .context-strip .context-project em {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .context-strip .context-secondary {
+    display: none;
   }
 
   .mobile-step-overview {
