@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class StuckDocumentJobDetector implements PlatformOpsDetector {
     private final DocumentJobRepository repository;
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
 
-    public StuckDocumentJobDetector(DocumentJobRepository repository, PlatformOpsDetectionProperties properties) {
+    public StuckDocumentJobDetector(DocumentJobRepository repository, PlatformOpsAutomationSettingsService automationSettingsService) {
         this.repository = repository;
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
     }
 
     @Override
@@ -24,7 +24,8 @@ public class StuckDocumentJobDetector implements PlatformOpsDetector {
 
     @Override
     public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
-        var cutoff = context.now().minusMinutes(properties.getDocumentJobStuckMinutes());
+        var settings = automationSettingsService.settings();
+        var cutoff = context.now().minusMinutes(settings.documentJobStuckMinutes());
         return repository.findByStatusInAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                         List.of(DocumentJobStatus.REQUESTED, DocumentJobStatus.GENERATING),
                         cutoff,
@@ -36,7 +37,7 @@ public class StuckDocumentJobDetector implements PlatformOpsDetector {
                     evidence.put("progressStep", job.progressStep().name());
                     evidence.put("progressPercent", job.progressPercent());
                     evidence.put("updatedAt", job.updatedAt().toString());
-                    evidence.put("thresholdMinutes", properties.getDocumentJobStuckMinutes());
+                    evidence.put("thresholdMinutes", settings.documentJobStuckMinutes());
                     return new PlatformOpsDetectionFinding(
                             job.officeId(),
                             PlatformOpsFindingSeverity.WARN,

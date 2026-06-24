@@ -2681,7 +2681,8 @@ button {
   font-weight: 800;
 }
 
-.server-runtime-settings-form input {
+.server-runtime-settings-form input,
+.server-runtime-settings-form select {
   width: 100%;
   min-height: 38px;
   padding: 0 10px;
@@ -2692,7 +2693,8 @@ button {
   background: #ffffff;
 }
 
-.server-runtime-settings-form input:focus {
+.server-runtime-settings-form input:focus,
+.server-runtime-settings-form select:focus {
   border-color: #2a7f70;
   box-shadow: 0 0 0 3px #d9eee9;
 }

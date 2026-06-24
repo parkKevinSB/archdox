@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.archdox.cloud.platformops.application.PlatformOpsDetectionMonitorDecision;
 import com.archdox.cloud.platformops.application.PlatformOpsDetectionMonitorService;
-import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
 import io.github.parkkevinsb.bloom.LocalEventBus;
 import io.github.parkkevinsb.flower.bloom.BloomEventBus;
 import io.github.parkkevinsb.flower.core.engine.Engine;
@@ -23,17 +22,13 @@ class PlatformOpsDetectionMonitorFlowFactoryTest {
         var service = mock(PlatformOpsDetectionMonitorService.class);
         when(service.checkAndRequestIfDue(any(OffsetDateTime.class)))
                 .thenReturn(PlatformOpsDetectionMonitorDecision.skipped("NOT_DUE"));
-        var properties = new PlatformOpsDetectionProperties();
-        properties.setEnabled(true);
-        properties.setWorkerIntervalMs(250);
-        properties.setDetectionCheckIntervalMs(10_000);
+        when(service.checkIntervalMs()).thenReturn(10_000L);
         var detectionFlowFactory = mock(PlatformOpsDetectionFlowFactory.class);
         var platformOpsWorker = mock(PlatformOpsWorker.class);
         var clock = new ManualClock();
         var worker = workerWith(clock);
         worker.submit(new PlatformOpsDetectionMonitorFlowFactory(
                 service,
-                properties,
                 detectionFlowFactory,
                 platformOpsWorker).create());
 

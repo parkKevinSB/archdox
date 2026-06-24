@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class StuckAgentCommandDetector implements PlatformOpsDetector {
     private final ArchDoxAgentCommandRepository repository;
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
 
-    public StuckAgentCommandDetector(ArchDoxAgentCommandRepository repository, PlatformOpsDetectionProperties properties) {
+    public StuckAgentCommandDetector(ArchDoxAgentCommandRepository repository, PlatformOpsAutomationSettingsService automationSettingsService) {
         this.repository = repository;
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
     }
 
     @Override
@@ -24,7 +24,8 @@ public class StuckAgentCommandDetector implements PlatformOpsDetector {
 
     @Override
     public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
-        var cutoff = context.now().minusMinutes(properties.getAgentCommandStuckMinutes());
+        var settings = automationSettingsService.settings();
+        var cutoff = context.now().minusMinutes(settings.agentCommandStuckMinutes());
         return repository.findByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
                         List.of(ArchDoxAgentCommandStatus.PENDING, ArchDoxAgentCommandStatus.DELIVERED, ArchDoxAgentCommandStatus.ACKED),
                         cutoff,
@@ -38,7 +39,7 @@ public class StuckAgentCommandDetector implements PlatformOpsDetector {
                     evidence.put("attemptCount", command.attemptCount());
                     evidence.put("maxAttempts", command.maxAttempts());
                     evidence.put("createdAt", command.createdAt().toString());
-                    evidence.put("thresholdMinutes", properties.getAgentCommandStuckMinutes());
+                    evidence.put("thresholdMinutes", settings.agentCommandStuckMinutes());
                     return new PlatformOpsDetectionFinding(
                             command.agent().officeId(),
                             PlatformOpsFindingSeverity.WARN,

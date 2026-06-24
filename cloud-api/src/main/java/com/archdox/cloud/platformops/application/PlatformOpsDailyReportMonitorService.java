@@ -12,27 +12,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PlatformOpsDailyReportMonitorService {
-    private final PlatformOpsDailyReportProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
     private final PlatformOpsRunRepository runRepository;
     private final PlatformOpsDailyReportService reportService;
 
     public PlatformOpsDailyReportMonitorService(
-            PlatformOpsDailyReportProperties properties,
+            PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsRunRepository runRepository,
             PlatformOpsDailyReportService reportService
     ) {
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
         this.runRepository = runRepository;
         this.reportService = reportService;
     }
 
     @Transactional
     public PlatformOpsDailyReportDecision checkAndRequestIfDue(OffsetDateTime now) {
-        if (!properties.isEnabled()) {
+        var settings = automationSettingsService.settings();
+        if (!settings.dailyReportEnabled()) {
             return PlatformOpsDailyReportDecision.skipped("MONITOR_DISABLED", null);
         }
         var dueAt = latestDueAt(now);
-        if (Duration.between(dueAt, now).toMinutes() > properties.safeCatchUpGraceMinutes()) {
+        if (Duration.between(dueAt, now).toMinutes() > settings.dailyReportCatchUpGraceMinutes()) {
             return PlatformOpsDailyReportDecision.skipped("OUTSIDE_CATCH_UP_WINDOW", dueAt);
         }
         if (runRepository.existsByTriggerTypeInAndStatus(
@@ -52,13 +53,22 @@ public class PlatformOpsDailyReportMonitorService {
     }
 
     private OffsetDateTime latestDueAt(OffsetDateTime now) {
-        var zone = ZoneId.of(properties.getZoneId());
+        var settings = automationSettingsService.settings();
+        var zone = ZoneId.of(settings.dailyReportZoneId());
         var localNow = now.atZoneSameInstant(zone).toLocalDateTime();
-        var runTime = LocalTime.parse(properties.getRunTime());
+        var runTime = LocalTime.parse(settings.dailyReportRunTime());
         var todayDue = localNow.toLocalDate().atTime(runTime).atZone(zone).toOffsetDateTime();
         if (!todayDue.isAfter(now)) {
             return todayDue;
         }
         return localNow.toLocalDate().minusDays(1).atTime(runTime).atZone(zone).toOffsetDateTime();
+    }
+
+    public boolean enabled() {
+        return automationSettingsService.settings().dailyReportEnabled();
+    }
+
+    public long checkIntervalMs() {
+        return automationSettingsService.settings().dailyReportCheckIntervalMs();
     }
 }

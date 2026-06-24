@@ -12,20 +12,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PlatformOpsRetentionService {
-    private final PlatformOpsRetentionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
     private final PlatformOpsDailyReportRepository dailyReportRepository;
     private final PlatformOpsFindingRepository findingRepository;
     private final PlatformOpsIncidentRepository incidentRepository;
     private final PlatformOpsRunRepository runRepository;
 
     public PlatformOpsRetentionService(
-            PlatformOpsRetentionProperties properties,
+            PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsDailyReportRepository dailyReportRepository,
             PlatformOpsFindingRepository findingRepository,
             PlatformOpsIncidentRepository incidentRepository,
             PlatformOpsRunRepository runRepository
     ) {
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
         this.dailyReportRepository = dailyReportRepository;
         this.findingRepository = findingRepository;
         this.incidentRepository = incidentRepository;
@@ -33,18 +33,19 @@ public class PlatformOpsRetentionService {
     }
 
     public boolean enabled() {
-        return properties.isEnabled();
+        return automationSettingsService.settings().retentionEnabled();
     }
 
     public long checkIntervalMs() {
-        return properties.safeCheckIntervalMs();
+        return automationSettingsService.settings().retentionCheckIntervalMs();
     }
 
     @Transactional
     public PlatformOpsRetentionResult purgeExpired(OffsetDateTime now) {
-        var retentionDays = properties.safeRetentionDays();
+        var settings = automationSettingsService.settings();
+        var retentionDays = settings.retentionDays();
         var cutoff = now.minusDays(retentionDays);
-        if (!properties.isEnabled()) {
+        if (!settings.retentionEnabled()) {
             return PlatformOpsRetentionResult.disabled(retentionDays, cutoff);
         }
 

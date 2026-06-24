@@ -29,7 +29,7 @@ public class PlatformOpsDetectionService {
             PlatformOpsIncidentStatus.ACKNOWLEDGED);
 
     private final List<PlatformOpsDetector> detectors;
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
     private final PlatformOpsRunRepository runRepository;
     private final PlatformOpsIncidentRepository incidentRepository;
     private final PlatformOpsFindingRepository findingRepository;
@@ -37,14 +37,14 @@ public class PlatformOpsDetectionService {
 
     public PlatformOpsDetectionService(
             List<PlatformOpsDetector> detectors,
-            PlatformOpsDetectionProperties properties,
+            PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsRunRepository runRepository,
             PlatformOpsIncidentRepository incidentRepository,
             PlatformOpsFindingRepository findingRepository,
             OperationEventService operationEventService
     ) {
         this.detectors = List.copyOf(detectors);
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
         this.runRepository = runRepository;
         this.incidentRepository = incidentRepository;
         this.findingRepository = findingRepository;
@@ -67,14 +67,14 @@ public class PlatformOpsDetectionService {
     public PlatformOpsDetectionSummary executeStuckDetection(Long runId) {
         var run = runRepository.findById(runId)
                 .orElseThrow(() -> new IllegalArgumentException("Platform ops run not found: " + runId));
-        return execute(run, OffsetDateTime.now(), PageRequest.of(0, Math.max(1, properties.getMaxDetectedItems())));
+        return execute(run, OffsetDateTime.now(), PageRequest.of(0, Math.max(1, automationSettingsService.settings().maxDetectedItems())));
     }
 
     @Transactional
     public PlatformOpsDetectionSummary detectStuck(Long startedByUserId) {
         var now = OffsetDateTime.now();
         var run = requestDetectionRun(PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK, startedByUserId, now);
-        return execute(run, now, PageRequest.of(0, Math.max(1, properties.getMaxDetectedItems())));
+        return execute(run, now, PageRequest.of(0, Math.max(1, automationSettingsService.settings().maxDetectedItems())));
     }
 
     @Transactional
@@ -116,13 +116,14 @@ public class PlatformOpsDetectionService {
             Long startedByUserId,
             OffsetDateTime now
     ) {
+        var settings = automationSettingsService.settings();
         return runRepository.save(new PlatformOpsRun(
                 triggerType,
                 startedByUserId,
                 Map.of(
                         "state", "REQUESTED",
                         "detectorCount", detectors.size(),
-                        "maxDetectedItems", Math.max(1, properties.getMaxDetectedItems())),
+                        "maxDetectedItems", Math.max(1, settings.maxDetectedItems())),
                 now));
     }
 

@@ -23,9 +23,6 @@ public class PlatformOpsRetentionMonitorStep extends Step {
 
     @Override
     protected StepResult onTick(StepContext ctx) {
-        if (!retentionService.enabled()) {
-            return StepResult.done();
-        }
         return switch (ctx.stepNo()) {
             case CHECK -> check(ctx);
             case WAIT -> waitUntilNextCheck(ctx);

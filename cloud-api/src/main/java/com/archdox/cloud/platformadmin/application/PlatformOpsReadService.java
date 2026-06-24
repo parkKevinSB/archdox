@@ -38,6 +38,9 @@ import com.archdox.cloud.platformadmin.dto.PlatformOfficeOpsResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformOpsSummaryResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformPhotoOpsResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformUserOpsResponse;
+import com.archdox.cloud.platformops.application.PlatformOpsAutomationSettingsService;
+import com.archdox.cloud.platformops.dto.PlatformOpsAutomationSettingsResponse;
+import com.archdox.cloud.platformops.dto.UpdatePlatformOpsAutomationSettingsRequest;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -70,6 +73,7 @@ public class PlatformOpsReadService {
     private final OperationEventRepository eventRepository;
     private final OperationEventService operationEventService;
     private final ServerRuntimeHealthService serverRuntimeHealthService;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
 
     public PlatformOpsReadService(
             PlatformAdminService platformAdminService,
@@ -83,7 +87,8 @@ public class PlatformOpsReadService {
             DocumentDeliveryRequestRepository deliveryRepository,
             OperationEventRepository eventRepository,
             OperationEventService operationEventService,
-            ServerRuntimeHealthService serverRuntimeHealthService
+            ServerRuntimeHealthService serverRuntimeHealthService,
+            PlatformOpsAutomationSettingsService automationSettingsService
     ) {
         this.platformAdminService = platformAdminService;
         this.userRepository = userRepository;
@@ -97,6 +102,7 @@ public class PlatformOpsReadService {
         this.eventRepository = eventRepository;
         this.operationEventService = operationEventService;
         this.serverRuntimeHealthService = serverRuntimeHealthService;
+        this.automationSettingsService = automationSettingsService;
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +137,21 @@ public class PlatformOpsReadService {
     ) {
         platformAdminService.requirePlatformAdmin(principal);
         return serverRuntimeHealthService.updateSettings(request, principal.userId());
+    }
+
+    @Transactional(readOnly = true)
+    public PlatformOpsAutomationSettingsResponse automationSettings(UserPrincipal principal) {
+        platformAdminService.requirePlatformAdmin(principal);
+        return automationSettingsService.settings();
+    }
+
+    @Transactional
+    public PlatformOpsAutomationSettingsResponse updateAutomationSettings(
+            UserPrincipal principal,
+            UpdatePlatformOpsAutomationSettingsRequest request
+    ) {
+        platformAdminService.requirePlatformAdmin(principal);
+        return automationSettingsService.updateSettings(request, principal.userId());
     }
 
     @Transactional(readOnly = true)

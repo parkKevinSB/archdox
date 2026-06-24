@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class StuckPhotoPickupDetector implements PlatformOpsDetector {
     private final PhotoRepository repository;
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
 
-    public StuckPhotoPickupDetector(PhotoRepository repository, PlatformOpsDetectionProperties properties) {
+    public StuckPhotoPickupDetector(PhotoRepository repository, PlatformOpsAutomationSettingsService automationSettingsService) {
         this.repository = repository;
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
     }
 
     @Override
@@ -25,7 +25,8 @@ public class StuckPhotoPickupDetector implements PlatformOpsDetector {
 
     @Override
     public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
-        var cutoff = context.now().minusMinutes(properties.getPhotoPickupStuckMinutes());
+        var settings = automationSettingsService.settings();
+        var cutoff = context.now().minusMinutes(settings.photoPickupStuckMinutes());
         return repository.findByStatusAndOriginalPickupStatusAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                         PhotoStatus.UPLOADED,
                         PhotoPickupStatus.PENDING,
@@ -37,7 +38,7 @@ public class StuckPhotoPickupDetector implements PlatformOpsDetector {
                     evidence.put("reportId", photo.reportId() == null ? "null" : photo.reportId());
                     evidence.put("uploadTarget", photo.uploadTarget().name());
                     evidence.put("updatedAt", photo.updatedAt().toString());
-                    evidence.put("thresholdMinutes", properties.getPhotoPickupStuckMinutes());
+                    evidence.put("thresholdMinutes", settings.photoPickupStuckMinutes());
                     return new PlatformOpsDetectionFinding(
                             photo.officeId(),
                             PlatformOpsFindingSeverity.WARN,

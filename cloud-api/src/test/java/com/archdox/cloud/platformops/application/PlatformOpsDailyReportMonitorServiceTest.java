@@ -21,7 +21,10 @@ class PlatformOpsDailyReportMonitorServiceTest {
     private final PlatformOpsRunRepository runRepository = mock(PlatformOpsRunRepository.class);
     private final PlatformOpsDailyReportService reportService = mock(PlatformOpsDailyReportService.class);
     private final PlatformOpsDailyReportMonitorService service = new PlatformOpsDailyReportMonitorService(
-            properties,
+            PlatformOpsAutomationSettingsTestSupport.service(
+                    new PlatformOpsDetectionProperties(),
+                    properties,
+                    new PlatformOpsRetentionProperties()),
             runRepository,
             reportService);
 

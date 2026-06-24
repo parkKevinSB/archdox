@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class StuckDocumentDeliveryDetector implements PlatformOpsDetector {
     private final DocumentDeliveryRequestRepository repository;
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
 
-    public StuckDocumentDeliveryDetector(DocumentDeliveryRequestRepository repository, PlatformOpsDetectionProperties properties) {
+    public StuckDocumentDeliveryDetector(DocumentDeliveryRequestRepository repository, PlatformOpsAutomationSettingsService automationSettingsService) {
         this.repository = repository;
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
     }
 
     @Override
@@ -24,7 +24,8 @@ public class StuckDocumentDeliveryDetector implements PlatformOpsDetector {
 
     @Override
     public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
-        var cutoff = context.now().minusMinutes(properties.getDeliveryStuckMinutes());
+        var settings = automationSettingsService.settings();
+        var cutoff = context.now().minusMinutes(settings.deliveryStuckMinutes());
         return repository.findByStatusInAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                         List.of(DocumentDeliveryStatus.REQUESTED, DocumentDeliveryStatus.SENDING),
                         cutoff,
@@ -36,7 +37,7 @@ public class StuckDocumentDeliveryDetector implements PlatformOpsDetector {
                     evidence.put("status", delivery.status().name());
                     evidence.put("agentCommandId", delivery.agentCommandId() == null ? "null" : delivery.agentCommandId());
                     evidence.put("updatedAt", delivery.updatedAt().toString());
-                    evidence.put("thresholdMinutes", properties.getDeliveryStuckMinutes());
+                    evidence.put("thresholdMinutes", settings.deliveryStuckMinutes());
                     return new PlatformOpsDetectionFinding(
                             delivery.officeId(),
                             PlatformOpsFindingSeverity.WARN,

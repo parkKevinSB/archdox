@@ -55,6 +55,7 @@ import type {
   PlatformHealthDetection,
   PlatformOfficeOps,
   PlatformOpsDailyReport,
+  PlatformOpsAutomationSettings,
   PlatformOpsFinding,
   PlatformOpsIncident,
   PlatformOpsRun,
@@ -601,6 +602,21 @@ export function updatePlatformServerRuntimeHealthSettings(
   }
 ) {
   return request<PlatformServerRuntimeHealth["settings"]>("/api/v1/platform-admin/ops/server-runtime/settings", {
+    token,
+    method: "PUT",
+    body
+  });
+}
+
+export function getPlatformOpsAutomationSettings(token: string) {
+  return request<PlatformOpsAutomationSettings>("/api/v1/platform-admin/ops/automation-settings", { token });
+}
+
+export function updatePlatformOpsAutomationSettings(
+  token: string,
+  body: Partial<PlatformOpsAutomationSettings>
+) {
+  return request<PlatformOpsAutomationSettings>("/api/v1/platform-admin/ops/automation-settings", {
     token,
     method: "PUT",
     body

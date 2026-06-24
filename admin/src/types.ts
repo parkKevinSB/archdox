@@ -570,6 +570,30 @@ export type PlatformServerRuntimeHealth = {
   settings: ServerRuntimeHealthSettings;
 };
 
+export type PlatformOpsAutomationSettings = {
+  detectionEnabled: boolean;
+  detectionCheckIntervalMs: number;
+  documentJobStuckMinutes: number;
+  agentCommandStuckMinutes: number;
+  photoPickupStuckMinutes: number;
+  deliveryStuckMinutes: number;
+  maxDetectedItems: number;
+  dailyReportEnabled: boolean;
+  dailyReportRunTime: string;
+  dailyReportZoneId: string;
+  dailyReportCheckIntervalMs: number;
+  dailyReportCatchUpGraceMinutes: number;
+  dailyReportAutoDiagnosisEnabled: boolean;
+  dailyReportAutoDiagnosisIncidentLimit: number;
+  dailyReportAutoDiagnosisMinSeverity: string;
+  dailyReportDirectory: string;
+  retentionEnabled: boolean;
+  retentionDays: number;
+  retentionCheckIntervalMs: number;
+  updatedByUserId?: number | null;
+  updatedAt?: string | null;
+};
+
 export type PlatformUserOps = {
   id: number;
   email: string;

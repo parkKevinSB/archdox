@@ -59,6 +59,12 @@ class PlatformOpsDetectionMonitorServiceTest {
     }
 
     private PlatformOpsDetectionMonitorService service() {
-        return new PlatformOpsDetectionMonitorService(properties, runRepository, detectionService);
+        return new PlatformOpsDetectionMonitorService(
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        properties,
+                        new PlatformOpsDailyReportProperties(),
+                        new PlatformOpsRetentionProperties()),
+                runRepository,
+                detectionService);
     }
 }

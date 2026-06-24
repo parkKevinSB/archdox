@@ -33,6 +33,9 @@ import com.archdox.cloud.platformops.application.PlatformOpsDailyReportPropertie
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportRunStore;
 import com.archdox.cloud.platformops.application.PlatformOpsDailyReportService;
 import com.archdox.cloud.platformops.application.PlatformOpsDiagnosisService;
+import com.archdox.cloud.platformops.application.PlatformOpsAutomationSettingsTestSupport;
+import com.archdox.cloud.platformops.application.PlatformOpsDetectionProperties;
+import com.archdox.cloud.platformops.application.PlatformOpsRetentionProperties;
 import com.archdox.cloud.platformops.domain.PlatformOpsDailyReport;
 import com.archdox.cloud.platformops.domain.PlatformOpsFinding;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSource;
@@ -106,7 +109,10 @@ class PlatformOpsDailyReportFakeAiHarnessFlowTest {
         var aiFindingSink = new PlatformOpsDailyReportFindingSink(runRepository, findingRepository);
         var service = new PlatformOpsDailyReportService(
                 platformAdminService,
-                properties,
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        new PlatformOpsDetectionProperties(),
+                        properties,
+                        new PlatformOpsRetentionProperties()),
                 runRepository,
                 incidentRepository,
                 findingRepository,

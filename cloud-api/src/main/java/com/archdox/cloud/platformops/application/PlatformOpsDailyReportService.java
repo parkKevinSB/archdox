@@ -68,7 +68,7 @@ public class PlatformOpsDailyReportService {
             PlatformOpsRunTriggerType.MANUAL_DIAGNOSIS);
 
     private final PlatformAdminService platformAdminService;
-    private final PlatformOpsDailyReportProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
     private final PlatformOpsRunRepository runRepository;
     private final PlatformOpsIncidentRepository incidentRepository;
     private final PlatformOpsFindingRepository findingRepository;
@@ -87,7 +87,7 @@ public class PlatformOpsDailyReportService {
 
     public PlatformOpsDailyReportService(
             PlatformAdminService platformAdminService,
-            PlatformOpsDailyReportProperties properties,
+            PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsRunRepository runRepository,
             PlatformOpsIncidentRepository incidentRepository,
             PlatformOpsFindingRepository findingRepository,
@@ -105,7 +105,7 @@ public class PlatformOpsDailyReportService {
             TraceListener aiHarnessTraceListener
     ) {
         this.platformAdminService = platformAdminService;
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
         this.runRepository = runRepository;
         this.incidentRepository = incidentRepository;
         this.findingRepository = findingRepository;
@@ -138,7 +138,8 @@ public class PlatformOpsDailyReportService {
     public List<PlatformOpsRun> requestAutoDiagnosesBeforeReport(Long runId) {
         var run = run(runId);
         var snapshot = new LinkedHashMap<String, Object>(run.inputSnapshotJson());
-        if (!properties.isAutoDiagnosisEnabled()) {
+        var settings = automationSettingsService.settings();
+        if (!settings.dailyReportAutoDiagnosisEnabled()) {
             snapshot.put("autoDiagnosis", autoDiagnosisSnapshot(
                     "SKIPPED",
                     "AUTO_DIAGNOSIS_DISABLED",
@@ -146,14 +147,14 @@ public class PlatformOpsDailyReportService {
                     List.of(),
                     List.of(),
                     0,
-                    autoDiagnosisMinSeverity()));
+                    autoDiagnosisMinSeverity(settings.dailyReportAutoDiagnosisMinSeverity())));
             run.replaceSnapshot(snapshot);
             return List.of();
         }
 
         var now = OffsetDateTime.now();
-        var limit = properties.safeAutoDiagnosisIncidentLimit();
-        var minSeverity = autoDiagnosisMinSeverity();
+        var limit = settings.dailyReportAutoDiagnosisIncidentLimit();
+        var minSeverity = autoDiagnosisMinSeverity(settings.dailyReportAutoDiagnosisMinSeverity());
         var incidentTargets = selectAutoDiagnosisTargets(limit, minSeverity);
         var diagnosisRuns = new ArrayList<PlatformOpsRun>();
         var systemRun = diagnosisService.requestAutoSystemDiagnosis(run.id(), now);
@@ -541,7 +542,7 @@ public class PlatformOpsDailyReportService {
 
     private Path writeReport(Long runId, Map<String, Object> snapshot, List<PlatformOpsFinding> findings) {
         try {
-            var directory = Path.of(properties.getReportDirectory()).toAbsolutePath().normalize();
+            var directory = Path.of(automationSettingsService.settings().dailyReportDirectory()).toAbsolutePath().normalize();
             Files.createDirectories(directory);
             var timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(offsetDateTime(snapshot.get("periodTo"), OffsetDateTime.now()));
             var path = directory.resolve("platform-ops-daily-" + timestamp + "-run-" + runId + ".md");
@@ -728,9 +729,9 @@ public class PlatformOpsDailyReportService {
                 .orElseThrow(() -> new NotFoundException("Platform ops run not found"));
     }
 
-    private PlatformOpsFindingSeverity autoDiagnosisMinSeverity() {
+    private PlatformOpsFindingSeverity autoDiagnosisMinSeverity(String configuredSeverity) {
         try {
-            return PlatformOpsFindingSeverity.valueOf(properties.getAutoDiagnosisMinSeverity());
+            return PlatformOpsFindingSeverity.valueOf(configuredSeverity);
         } catch (RuntimeException ex) {
             return PlatformOpsFindingSeverity.WARN;
         }

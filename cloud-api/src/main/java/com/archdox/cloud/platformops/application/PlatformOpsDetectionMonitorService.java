@@ -14,23 +14,23 @@ public class PlatformOpsDetectionMonitorService {
             PlatformOpsRunTriggerType.AUTO_DETECT_STUCK,
             PlatformOpsRunTriggerType.MANUAL_DETECT_STUCK);
 
-    private final PlatformOpsDetectionProperties properties;
+    private final PlatformOpsAutomationSettingsService automationSettingsService;
     private final PlatformOpsRunRepository runRepository;
     private final PlatformOpsDetectionService detectionService;
 
     public PlatformOpsDetectionMonitorService(
-            PlatformOpsDetectionProperties properties,
+            PlatformOpsAutomationSettingsService automationSettingsService,
             PlatformOpsRunRepository runRepository,
             PlatformOpsDetectionService detectionService
     ) {
-        this.properties = properties;
+        this.automationSettingsService = automationSettingsService;
         this.runRepository = runRepository;
         this.detectionService = detectionService;
     }
 
     @Transactional
     public PlatformOpsDetectionMonitorDecision checkAndRequestIfDue(OffsetDateTime now) {
-        if (!properties.isEnabled()) {
+        if (!enabled()) {
             return PlatformOpsDetectionMonitorDecision.skipped("MONITOR_DISABLED");
         }
         if (runRepository.existsByTriggerTypeInAndStatus(DETECTION_TRIGGER_TYPES, PlatformOpsRunStatus.RUNNING)) {
@@ -38,5 +38,13 @@ public class PlatformOpsDetectionMonitorService {
         }
         var run = detectionService.requestAutoStuckDetection(now);
         return PlatformOpsDetectionMonitorDecision.requested(run.id());
+    }
+
+    public boolean enabled() {
+        return automationSettingsService.settings().detectionEnabled();
+    }
+
+    public long checkIntervalMs() {
+        return automationSettingsService.settings().detectionCheckIntervalMs();
     }
 }

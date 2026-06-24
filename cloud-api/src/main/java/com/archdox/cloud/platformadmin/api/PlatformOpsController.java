@@ -21,6 +21,8 @@ import com.archdox.cloud.platformadmin.dto.PlatformHealthDetectionResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformOpsSummaryResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformPhotoOpsResponse;
 import com.archdox.cloud.platformadmin.dto.PlatformUserOpsResponse;
+import com.archdox.cloud.platformops.dto.PlatformOpsAutomationSettingsResponse;
+import com.archdox.cloud.platformops.dto.UpdatePlatformOpsAutomationSettingsRequest;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -58,6 +60,19 @@ public class PlatformOpsController {
             @RequestBody UpdateServerRuntimeHealthSettingsRequest request
     ) {
         return service.updateServerRuntimeSettings(principal(authentication), request);
+    }
+
+    @GetMapping("/automation-settings")
+    public PlatformOpsAutomationSettingsResponse automationSettings(Authentication authentication) {
+        return service.automationSettings(principal(authentication));
+    }
+
+    @PutMapping("/automation-settings")
+    public PlatformOpsAutomationSettingsResponse updateAutomationSettings(
+            Authentication authentication,
+            @RequestBody UpdatePlatformOpsAutomationSettingsRequest request
+    ) {
+        return service.updateAutomationSettings(principal(authentication), request);
     }
 
     @GetMapping("/users")

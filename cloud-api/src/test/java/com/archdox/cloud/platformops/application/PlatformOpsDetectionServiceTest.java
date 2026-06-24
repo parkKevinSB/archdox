@@ -35,7 +35,10 @@ class PlatformOpsDetectionServiceTest {
         var detector = new FixedDetector();
         var service = new PlatformOpsDetectionService(
                 List.of(detector),
-                properties,
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        properties,
+                        new PlatformOpsDailyReportProperties(),
+                        new PlatformOpsRetentionProperties()),
                 runRepository,
                 incidentRepository,
                 findingRepository,

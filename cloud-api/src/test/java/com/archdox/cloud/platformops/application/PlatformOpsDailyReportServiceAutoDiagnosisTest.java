@@ -111,7 +111,10 @@ class PlatformOpsDailyReportServiceAutoDiagnosisTest {
         properties.setAutoDiagnosisIncidentLimit(1);
         return new PlatformOpsDailyReportService(
                 mock(PlatformAdminService.class),
-                properties,
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        new PlatformOpsDetectionProperties(),
+                        properties,
+                        new PlatformOpsRetentionProperties()),
                 runRepository,
                 incidentRepository,
                 findingRepository,

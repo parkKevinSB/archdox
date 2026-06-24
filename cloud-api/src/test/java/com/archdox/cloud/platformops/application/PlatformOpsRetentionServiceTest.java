@@ -87,7 +87,10 @@ class PlatformOpsRetentionServiceTest {
 
     private PlatformOpsRetentionService service() {
         return new PlatformOpsRetentionService(
-                properties,
+                PlatformOpsAutomationSettingsTestSupport.service(
+                        new PlatformOpsDetectionProperties(),
+                        new PlatformOpsDailyReportProperties(),
+                        properties),
                 dailyReportRepository,
                 findingRepository,
                 incidentRepository,

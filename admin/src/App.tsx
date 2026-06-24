@@ -115,6 +115,7 @@ import {
   getPlatformOffices,
   getPlatformOfficeAiPolicies,
   getPlatformOpsDailyReports,
+  getPlatformOpsAutomationSettings,
   getPlatformOpsFindings,
   getPlatformOpsIncidents,
   getPlatformOpsRuns,
@@ -145,6 +146,7 @@ import {
   updatePlatformLegalDomainBinding,
   updatePlatformOfficeAiPolicy,
   updatePlatformServerRuntimeHealthSettings,
+  updatePlatformOpsAutomationSettings,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
   upsertProjectAssignment,
@@ -212,6 +214,7 @@ import type {
   PlatformHealthDetection,
   PlatformOfficeOps,
   PlatformOpsDailyReport,
+  PlatformOpsAutomationSettings,
   PlatformOpsFinding,
   PlatformOpsIncident,
   PlatformOpsRun,
@@ -258,6 +261,7 @@ type ViewKey =
   | "platform-worker-approvals"
   | "platform-flower-runtime"
   | "platform-server-runtime"
+  | "platform-automation"
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
@@ -288,6 +292,7 @@ type PlatformViewKey = Extract<
   | "platform-worker-approvals"
   | "platform-flower-runtime"
   | "platform-server-runtime"
+  | "platform-automation"
   | "platform-events"
 >;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-budgets" | "ai-policies" | "ai-observer">;
@@ -342,6 +347,7 @@ type PlatformOpsData = {
   workerApprovals: WorkerApprovalRequest[];
   flowerRuntimeDump: FlowerRuntimeDump | null;
   serverRuntime: PlatformServerRuntimeHealth | null;
+  opsAutomationSettings: PlatformOpsAutomationSettings | null;
   aiProviders: AiProviderCredential[];
   aiHarnessPolicies: AiHarnessPolicy[];
   officeAiPolicies: OfficeAiPolicy[];
@@ -418,6 +424,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   workerApprovals: [],
   flowerRuntimeDump: null,
   serverRuntime: null,
+  opsAutomationSettings: null,
   aiProviders: [],
   aiHarnessPolicies: [],
   officeAiPolicies: [],
@@ -463,7 +470,8 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-worker-governance", label: "Worker Action Registry" },
   { key: "platform-worker-approvals", label: "Worker 승인" },
   { key: "platform-flower-runtime", label: "Flower Runtime" },
-  { key: "platform-server-runtime", label: "서버 리소스" }
+  { key: "platform-server-runtime", label: "서버 리소스" },
+  { key: "platform-automation", label: "운영 자동화" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -995,6 +1003,12 @@ export default function App() {
         next.flowerRuntimeDump = await getPlatformFlowerRuntimeDump(token);
       } else if (view === "platform-server-runtime") {
         next.serverRuntime = await getPlatformServerRuntimeHealth(token);
+      } else if (view === "platform-automation") {
+        const [opsAutomationSettings, opsDailyReports] = await Promise.all([
+          getPlatformOpsAutomationSettings(token),
+          getPlatformOpsDailyReports(token, 20)
+        ]);
+        Object.assign(next, { opsAutomationSettings, opsDailyReports });
       } else if (view === "ai-overview") {
         const [
           aiProviders,
@@ -1113,6 +1127,24 @@ export default function App() {
       setNotice("서버 리소스 관측 설정을 저장했습니다.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "서버 리소스 관측 설정을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateOpsAutomationSettings(body: Partial<PlatformOpsAutomationSettings>) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const opsAutomationSettings = await updatePlatformOpsAutomationSettings(auth.accessToken, body);
+      const opsDailyReports = await getPlatformOpsDailyReports(auth.accessToken, 20);
+      setPlatformData((current) => ({ ...current, opsAutomationSettings, opsDailyReports }));
+      setNotice("운영 자동화 설정을 저장했습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 자동화 설정을 저장하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -2170,6 +2202,7 @@ export default function App() {
               onApproveWorkerApproval={handleApproveWorkerApproval}
               onRejectWorkerApproval={handleRejectWorkerApproval}
               onUpdateServerRuntimeSettings={handleUpdateServerRuntimeSettings}
+              onUpdateOpsAutomationSettings={handleUpdateOpsAutomationSettings}
             />
           )}
           {isAiView(activeView) && (
@@ -5492,7 +5525,8 @@ function PlatformView({
   onDiagnoseIncident,
   onApproveWorkerApproval,
   onRejectWorkerApproval,
-  onUpdateServerRuntimeSettings
+  onUpdateServerRuntimeSettings,
+  onUpdateOpsAutomationSettings
 }: {
   view: PlatformViewKey;
   accessToken: string;
@@ -5548,6 +5582,7 @@ function PlatformView({
     jvmHeapWarnPercent: number;
     eventCooldownMs: number;
   }) => Promise<void>;
+  onUpdateOpsAutomationSettings: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
 }) {
   const summary = data.summary;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
@@ -5581,6 +5616,7 @@ function PlatformView({
   const showWorkerApprovals = view === "platform-worker-approvals";
   const showFlowerRuntime = view === "platform-flower-runtime";
   const showServerRuntime = view === "platform-server-runtime";
+  const showAutomation = view === "platform-automation";
   const showEvents = view === "platform-events";
 
   return (
@@ -5696,6 +5732,15 @@ function PlatformView({
           busy={loading}
           runtime={data.serverRuntime}
           onSave={onUpdateServerRuntimeSettings}
+        />
+      ) : null}
+
+      {showAutomation ? (
+        <PlatformOpsAutomationPanel
+          busy={loading}
+          reports={data.opsDailyReports}
+          settings={data.opsAutomationSettings}
+          onSave={onUpdateOpsAutomationSettings}
         />
       ) : null}
 
@@ -6044,6 +6089,362 @@ function WorkerGovernancePanel({ summary }: { summary: WorkerGovernanceSummary |
           ])}
         />
       </Panel>
+    </div>
+  );
+}
+
+function PlatformOpsAutomationPanel({
+  busy,
+  settings,
+  reports,
+  onSave
+}: {
+  busy: boolean;
+  settings: PlatformOpsAutomationSettings | null;
+  reports: PlatformOpsDailyReport[];
+  onSave: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    detectionEnabled: false,
+    detectionCheckIntervalSeconds: "300",
+    documentJobStuckMinutes: "30",
+    agentCommandStuckMinutes: "15",
+    photoPickupStuckMinutes: "30",
+    deliveryStuckMinutes: "15",
+    maxDetectedItems: "100",
+    dailyReportEnabled: false,
+    dailyReportRunTime: "00:00",
+    dailyReportZoneId: "Asia/Seoul",
+    dailyReportCheckIntervalSeconds: "60",
+    dailyReportCatchUpGraceMinutes: "180",
+    dailyReportAutoDiagnosisEnabled: true,
+    dailyReportAutoDiagnosisIncidentLimit: "5",
+    dailyReportAutoDiagnosisMinSeverity: "WARN",
+    dailyReportDirectory: "build/ops-reports",
+    retentionEnabled: true,
+    retentionDays: "30",
+    retentionCheckIntervalMinutes: "60"
+  });
+
+  useEffect(() => {
+    if (!settings) {
+      return;
+    }
+    setForm({
+      detectionEnabled: settings.detectionEnabled,
+      detectionCheckIntervalSeconds: String(Math.round(settings.detectionCheckIntervalMs / 1000)),
+      documentJobStuckMinutes: String(settings.documentJobStuckMinutes),
+      agentCommandStuckMinutes: String(settings.agentCommandStuckMinutes),
+      photoPickupStuckMinutes: String(settings.photoPickupStuckMinutes),
+      deliveryStuckMinutes: String(settings.deliveryStuckMinutes),
+      maxDetectedItems: String(settings.maxDetectedItems),
+      dailyReportEnabled: settings.dailyReportEnabled,
+      dailyReportRunTime: settings.dailyReportRunTime,
+      dailyReportZoneId: settings.dailyReportZoneId,
+      dailyReportCheckIntervalSeconds: String(Math.round(settings.dailyReportCheckIntervalMs / 1000)),
+      dailyReportCatchUpGraceMinutes: String(settings.dailyReportCatchUpGraceMinutes),
+      dailyReportAutoDiagnosisEnabled: settings.dailyReportAutoDiagnosisEnabled,
+      dailyReportAutoDiagnosisIncidentLimit: String(settings.dailyReportAutoDiagnosisIncidentLimit),
+      dailyReportAutoDiagnosisMinSeverity: settings.dailyReportAutoDiagnosisMinSeverity,
+      dailyReportDirectory: settings.dailyReportDirectory,
+      retentionEnabled: settings.retentionEnabled,
+      retentionDays: String(settings.retentionDays),
+      retentionCheckIntervalMinutes: String(Math.round(settings.retentionCheckIntervalMs / 60_000))
+    });
+  }, [settings]);
+
+  function update(field: keyof typeof form, value: string | boolean) {
+    setForm((current) => ({ ...current, [field]: value } as typeof current));
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onSave({
+      detectionEnabled: form.detectionEnabled,
+      detectionCheckIntervalMs: Math.max(60, Number(form.detectionCheckIntervalSeconds || 0)) * 1000,
+      documentJobStuckMinutes: Number(form.documentJobStuckMinutes),
+      agentCommandStuckMinutes: Number(form.agentCommandStuckMinutes),
+      photoPickupStuckMinutes: Number(form.photoPickupStuckMinutes),
+      deliveryStuckMinutes: Number(form.deliveryStuckMinutes),
+      maxDetectedItems: Number(form.maxDetectedItems),
+      dailyReportEnabled: form.dailyReportEnabled,
+      dailyReportRunTime: form.dailyReportRunTime,
+      dailyReportZoneId: form.dailyReportZoneId,
+      dailyReportCheckIntervalMs: Math.max(60, Number(form.dailyReportCheckIntervalSeconds || 0)) * 1000,
+      dailyReportCatchUpGraceMinutes: Number(form.dailyReportCatchUpGraceMinutes),
+      dailyReportAutoDiagnosisEnabled: form.dailyReportAutoDiagnosisEnabled,
+      dailyReportAutoDiagnosisIncidentLimit: Number(form.dailyReportAutoDiagnosisIncidentLimit),
+      dailyReportAutoDiagnosisMinSeverity: form.dailyReportAutoDiagnosisMinSeverity,
+      dailyReportDirectory: form.dailyReportDirectory.trim(),
+      retentionEnabled: form.retentionEnabled,
+      retentionDays: Number(form.retentionDays),
+      retentionCheckIntervalMs: Math.max(1, Number(form.retentionCheckIntervalMinutes || 0)) * 60_000
+    });
+  }
+
+  if (!settings) {
+    return (
+      <Panel title="운영 자동화 설정" icon={<Activity size={18} />}>
+        <EmptyState message="운영 자동화 설정을 불러오지 못했습니다." />
+      </Panel>
+    );
+  }
+
+  const latestReport = reports[0] ?? null;
+
+  return (
+    <div className="view-stack">
+      <Panel
+        title="운영 자동화 설정"
+        icon={<Activity size={18} />}
+        action={<span className="panel-context">{settings.updatedAt ? `마지막 변경 ${formatDate(settings.updatedAt)}` : "기본값 사용 중"}</span>}
+      >
+        <div className="metric-grid compact">
+          <MetricCard
+            icon={<Gauge size={20} />}
+            label="감지 센서"
+            value={settings.detectionEnabled ? "켜짐" : "꺼짐"}
+            detail={`${Math.round(settings.detectionCheckIntervalMs / 1000)}초마다 stuck event 감지`}
+            tone={settings.detectionEnabled ? "green" : "slate"}
+          />
+          <MetricCard
+            icon={<Clock3 size={20} />}
+            label="일일 리포트"
+            value={settings.dailyReportEnabled ? settings.dailyReportRunTime : "꺼짐"}
+            detail={`${settings.dailyReportZoneId} / 자동 진단 ${settings.dailyReportAutoDiagnosisEnabled ? "켜짐" : "꺼짐"}`}
+            tone={settings.dailyReportEnabled ? "blue" : "slate"}
+          />
+          <MetricCard
+            icon={<ShieldCheck size={20} />}
+            label="자동 진단"
+            value={`${settings.dailyReportAutoDiagnosisIncidentLimit}건`}
+            detail={`${settings.dailyReportAutoDiagnosisMinSeverity} 이상 대표 incident`}
+            tone={settings.dailyReportAutoDiagnosisEnabled ? "amber" : "slate"}
+          />
+          <MetricCard
+            icon={<HardDrive size={20} />}
+            label="보관 정리"
+            value={settings.retentionEnabled ? `${settings.retentionDays}일` : "꺼짐"}
+            detail={`${Math.round(settings.retentionCheckIntervalMs / 60_000)}분마다 정리 확인`}
+            tone={settings.retentionEnabled ? "green" : "slate"}
+          />
+        </div>
+        <InlineNotice message="설정은 DB에 저장되고, monitoring flow가 다음 tick에서 읽어 반영합니다. 서버 재시작 없이 감지, 일일 리포트, 보관 정리 동작을 조정할 수 있습니다." />
+      </Panel>
+
+      <div className="dashboard-grid">
+        <Panel title="운영 자동화 값" icon={<Command size={18} />}>
+          <form className="server-runtime-settings-form" onSubmit={submit}>
+            <label className="toggle-row">
+              <input
+                checked={form.detectionEnabled}
+                onChange={(event) => update("detectionEnabled", event.target.checked)}
+                type="checkbox"
+              />
+              감지 센서 자동 실행
+            </label>
+            <label>
+              감지 주기(초)
+              <input
+                min={60}
+                max={86400}
+                onChange={(event) => update("detectionCheckIntervalSeconds", event.target.value)}
+                type="number"
+                value={form.detectionCheckIntervalSeconds}
+              />
+            </label>
+            <label>
+              문서 생성 stuck 기준(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("documentJobStuckMinutes", event.target.value)}
+                type="number"
+                value={form.documentJobStuckMinutes}
+              />
+            </label>
+            <label>
+              Agent 명령 stuck 기준(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("agentCommandStuckMinutes", event.target.value)}
+                type="number"
+                value={form.agentCommandStuckMinutes}
+              />
+            </label>
+            <label>
+              사진 수거 stuck 기준(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("photoPickupStuckMinutes", event.target.value)}
+                type="number"
+                value={form.photoPickupStuckMinutes}
+              />
+            </label>
+            <label>
+              문서 전달 stuck 기준(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("deliveryStuckMinutes", event.target.value)}
+                type="number"
+                value={form.deliveryStuckMinutes}
+              />
+            </label>
+            <label>
+              1회 감지 최대 건수
+              <input
+                min={1}
+                max={500}
+                onChange={(event) => update("maxDetectedItems", event.target.value)}
+                type="number"
+                value={form.maxDetectedItems}
+              />
+            </label>
+
+            <label className="toggle-row">
+              <input
+                checked={form.dailyReportEnabled}
+                onChange={(event) => update("dailyReportEnabled", event.target.checked)}
+                type="checkbox"
+              />
+              일일 운영 리포트 자동 생성
+            </label>
+            <label>
+              리포트 생성 시각
+              <input
+                onChange={(event) => update("dailyReportRunTime", event.target.value)}
+                type="time"
+                value={form.dailyReportRunTime}
+              />
+            </label>
+            <label>
+              시간대
+              <input
+                onChange={(event) => update("dailyReportZoneId", event.target.value)}
+                value={form.dailyReportZoneId}
+              />
+            </label>
+            <label>
+              리포트 체크 주기(초)
+              <input
+                min={60}
+                max={86400}
+                onChange={(event) => update("dailyReportCheckIntervalSeconds", event.target.value)}
+                type="number"
+                value={form.dailyReportCheckIntervalSeconds}
+              />
+            </label>
+            <label>
+              catch-up 허용 시간(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("dailyReportCatchUpGraceMinutes", event.target.value)}
+                type="number"
+                value={form.dailyReportCatchUpGraceMinutes}
+              />
+            </label>
+            <label className="toggle-row">
+              <input
+                checked={form.dailyReportAutoDiagnosisEnabled}
+                onChange={(event) => update("dailyReportAutoDiagnosisEnabled", event.target.checked)}
+                type="checkbox"
+              />
+              리포트 전 대표 incident 자동 진단
+            </label>
+            <label>
+              자동 진단 최대 incident
+              <input
+                min={0}
+                max={5}
+                onChange={(event) => update("dailyReportAutoDiagnosisIncidentLimit", event.target.value)}
+                type="number"
+                value={form.dailyReportAutoDiagnosisIncidentLimit}
+              />
+            </label>
+            <label>
+              자동 진단 최소 심각도
+              <select
+                onChange={(event) => update("dailyReportAutoDiagnosisMinSeverity", event.target.value)}
+                value={form.dailyReportAutoDiagnosisMinSeverity}
+              >
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </label>
+            <label>
+              리포트 저장 디렉터리
+              <input
+                onChange={(event) => update("dailyReportDirectory", event.target.value)}
+                value={form.dailyReportDirectory}
+              />
+            </label>
+
+            <label className="toggle-row">
+              <input
+                checked={form.retentionEnabled}
+                onChange={(event) => update("retentionEnabled", event.target.checked)}
+                type="checkbox"
+              />
+              운영 이슈/진단/리포트 보관 정리
+            </label>
+            <label>
+              보관 기간(일)
+              <input
+                min={1}
+                max={365}
+                onChange={(event) => update("retentionDays", event.target.value)}
+                type="number"
+                value={form.retentionDays}
+              />
+            </label>
+            <label>
+              보관 정리 확인 주기(분)
+              <input
+                min={1}
+                max={1440}
+                onChange={(event) => update("retentionCheckIntervalMinutes", event.target.value)}
+                type="number"
+                value={form.retentionCheckIntervalMinutes}
+              />
+            </label>
+
+            <button className="button primary" disabled={busy} type="submit">
+              {busy ? <Loader2 className="spin" size={16} /> : <CheckCircle2 size={16} />}
+              설정 저장
+            </button>
+          </form>
+        </Panel>
+
+        <Panel
+          title="최근 운영 리포트 파일"
+          icon={<FileText size={18} />}
+          count={reports.length}
+          action={latestReport?.reportPath ? <span className="panel-context">{fileNameFromPath(latestReport.reportPath)}</span> : null}
+        >
+          <Table
+            columns={["리포트", "파일", "기간", "상태", "신호"]}
+            empty="아직 생성된 운영 리포트가 없습니다."
+            rows={reports.slice(0, 20).map((report) => [
+              <CellTitle key="report" title={report.title} subtitle={`Run #${report.runId} / Report #${report.id}`} />,
+              <CellTitle
+                key="path"
+                title={fileNameFromPath(report.reportPath)}
+                subtitle={report.reportPath ?? "파일 경로 없음"}
+              />,
+              <CellTitle key="period" title={`${formatDate(report.periodFrom)} ~ ${formatDate(report.periodTo)}`} subtitle={`생성 ${formatDate(report.createdAt)}`} />,
+              <StatusBadge key="status" status={report.status} />,
+              `${report.pLikeSignals.length}P / ${report.iLikeSignals.length}I / ${report.dLikeSignals.length}D`
+            ])}
+          />
+          <InlineNotice message="운영 리포트는 서버 파일 시스템의 위 경로에 markdown 파일로 저장됩니다. 이 파일명을 기준으로 Codex에게 내용을 읽고 원인 분석을 맡길 수 있습니다." />
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -10861,6 +11262,14 @@ function filenameFromStorageRef(storageRef?: string | null) {
   }
   const normalized = storageRef.replace(/\\/g, "/");
   return normalized.split("/").filter(Boolean).at(-1) ?? null;
+}
+
+function fileNameFromPath(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+  const normalized = value.replace(/\\/g, "/");
+  return normalized.split("/").filter(Boolean).at(-1) ?? normalized;
 }
 
 function downloadBlob(blob: Blob, filename: string) {
