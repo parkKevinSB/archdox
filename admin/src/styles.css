@@ -2682,7 +2682,8 @@ button {
 }
 
 .server-runtime-settings-form input,
-.server-runtime-settings-form select {
+.server-runtime-settings-form select,
+.server-runtime-settings-form textarea {
   width: 100%;
   min-height: 38px;
   padding: 0 10px;
@@ -2693,10 +2694,20 @@ button {
   background: #ffffff;
 }
 
+.server-runtime-settings-form textarea {
+  padding: 9px 10px;
+  resize: vertical;
+}
+
 .server-runtime-settings-form input:focus,
-.server-runtime-settings-form select:focus {
+.server-runtime-settings-form select:focus,
+.server-runtime-settings-form textarea:focus {
   border-color: #2a7f70;
   box-shadow: 0 0 0 3px #d9eee9;
+}
+
+.server-runtime-settings-form .wide-field {
+  grid-column: 1 / -1;
 }
 
 .server-runtime-settings-form .toggle-row {

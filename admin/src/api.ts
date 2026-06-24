@@ -54,6 +54,7 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsControlProfile,
   PlatformOpsDailyReport,
   PlatformOpsAutomationSettings,
   PlatformOpsFinding,
@@ -736,6 +737,50 @@ export function getPlatformOpsDailyReports(token: string, limit = 20) {
   return request<PlatformOpsDailyReport[]>("/api/v1/platform-admin/ops/daily-reports", {
     token,
     query: { limit }
+  });
+}
+
+export function getPlatformOpsControlProfiles(token: string, limit = 100, status?: string) {
+  return request<PlatformOpsControlProfile[]>("/api/v1/platform-admin/ops/control-profiles", {
+    token,
+    query: { limit, status }
+  });
+}
+
+export function createPlatformOpsControlProfile(
+  token: string,
+  body: {
+    signalKind?: string;
+    scopeType?: string;
+    modelId?: string | null;
+    signalText: string;
+    severity?: string;
+    iWeight?: number;
+    sourceDailyReportId?: number | null;
+    notes?: string | null;
+  }
+) {
+  return request<PlatformOpsControlProfile>("/api/v1/platform-admin/ops/control-profiles", {
+    token,
+    method: "POST",
+    body
+  });
+}
+
+export function updatePlatformOpsControlProfile(
+  token: string,
+  profileId: number,
+  body: {
+    status?: string;
+    severity?: string;
+    iWeight?: number;
+    notes?: string | null;
+  }
+) {
+  return request<PlatformOpsControlProfile>(`/api/v1/platform-admin/ops/control-profiles/${profileId}`, {
+    token,
+    method: "PUT",
+    body
   });
 }
 

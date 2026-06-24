@@ -43,6 +43,7 @@ import {
   configureTokenRefresh,
   createEngineConnectBootstrap,
   createPlatformLegalDomainBinding,
+  createPlatformOpsControlProfile,
   createPlatformAiUserBudgetOverride,
   createPlatformAiWorkerEvaluationRun,
   createPlatformAiWorkerRuntimeEvaluationRun,
@@ -115,6 +116,7 @@ import {
   getPlatformOffices,
   getPlatformOfficeAiPolicies,
   getPlatformOpsDailyReports,
+  getPlatformOpsControlProfiles,
   getPlatformOpsAutomationSettings,
   getPlatformOpsFindings,
   getPlatformOpsIncidents,
@@ -146,6 +148,7 @@ import {
   updatePlatformLegalDomainBinding,
   updatePlatformOfficeAiPolicy,
   updatePlatformServerRuntimeHealthSettings,
+  updatePlatformOpsControlProfile,
   updatePlatformOpsAutomationSettings,
   updateOfficeMemberRole,
   updateOfficeConfigOverride,
@@ -213,6 +216,7 @@ import type {
   PlatformDocumentJobOps,
   PlatformHealthDetection,
   PlatformOfficeOps,
+  PlatformOpsControlProfile,
   PlatformOpsDailyReport,
   PlatformOpsAutomationSettings,
   PlatformOpsFinding,
@@ -262,6 +266,7 @@ type ViewKey =
   | "platform-flower-runtime"
   | "platform-server-runtime"
   | "platform-automation"
+  | "platform-pid-control"
   | "platform-events"
   | "ai-overview"
   | "ai-providers"
@@ -293,6 +298,7 @@ type PlatformViewKey = Extract<
   | "platform-flower-runtime"
   | "platform-server-runtime"
   | "platform-automation"
+  | "platform-pid-control"
   | "platform-events"
 >;
 type AiViewKey = Extract<ViewKey, "ai-overview" | "ai-providers" | "ai-harnesses" | "ai-evaluation" | "ai-budgets" | "ai-policies" | "ai-observer">;
@@ -332,6 +338,7 @@ type PlatformOpsData = {
   opsIncidents: PlatformOpsIncident[];
   opsFindings: PlatformOpsFinding[];
   opsDailyReports: PlatformOpsDailyReport[];
+  opsControlProfiles: PlatformOpsControlProfile[];
   legalSyncRuns: LegalSyncRun[];
   legalChangeSets: LegalChangeSet[];
   legalChangeDigests: LegalChangeDigest[];
@@ -381,6 +388,24 @@ type LegalDomainBindingPayload = {
   metadataJson?: Record<string, unknown>;
 };
 
+type OpsControlProfileCreatePayload = {
+  signalKind?: string;
+  scopeType?: string;
+  modelId?: string | null;
+  signalText: string;
+  severity?: string;
+  iWeight?: number;
+  sourceDailyReportId?: number | null;
+  notes?: string | null;
+};
+
+type OpsControlProfileUpdatePayload = {
+  status?: string;
+  severity?: string;
+  iWeight?: number;
+  notes?: string | null;
+};
+
 const AUTH_STORAGE_KEY = "archdox.admin.auth";
 const OFFICE_STORAGE_KEY = "archdox.admin.officeId";
 
@@ -409,6 +434,7 @@ const emptyPlatformOpsData: PlatformOpsData = {
   opsIncidents: [],
   opsFindings: [],
   opsDailyReports: [],
+  opsControlProfiles: [],
   legalSyncRuns: [],
   legalChangeSets: [],
   legalChangeDigests: [],
@@ -471,7 +497,8 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-worker-approvals", label: "Worker 승인" },
   { key: "platform-flower-runtime", label: "Flower Runtime" },
   { key: "platform-server-runtime", label: "서버 리소스" },
-  { key: "platform-automation", label: "운영 자동화" }
+  { key: "platform-automation", label: "운영 자동화" },
+  { key: "platform-pid-control", label: "PID 튜닝" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -1009,6 +1036,12 @@ export default function App() {
           getPlatformOpsDailyReports(token, 20)
         ]);
         Object.assign(next, { opsAutomationSettings, opsDailyReports });
+      } else if (view === "platform-pid-control") {
+        const [opsDailyReports, opsControlProfiles] = await Promise.all([
+          getPlatformOpsDailyReports(token, 30),
+          getPlatformOpsControlProfiles(token, 100)
+        ]);
+        Object.assign(next, { opsDailyReports, opsControlProfiles });
       } else if (view === "ai-overview") {
         const [
           aiProviders,
@@ -1145,6 +1178,45 @@ export default function App() {
       setNotice("운영 자동화 설정을 저장했습니다.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "운영 자동화 설정을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateOpsControlProfile(body: OpsControlProfileCreatePayload) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await createPlatformOpsControlProfile(auth.accessToken, body);
+      const [opsDailyReports, opsControlProfiles] = await Promise.all([
+        getPlatformOpsDailyReports(auth.accessToken, 30),
+        getPlatformOpsControlProfiles(auth.accessToken, 100)
+      ]);
+      setPlatformData((current) => ({ ...current, opsDailyReports, opsControlProfiles }));
+      setNotice("운영 제어 프로필을 저장했습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 제어 프로필을 저장하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateOpsControlProfile(profileId: number, body: OpsControlProfileUpdatePayload) {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePlatformOpsControlProfile(auth.accessToken, profileId, body);
+      const opsControlProfiles = await getPlatformOpsControlProfiles(auth.accessToken, 100);
+      setPlatformData((current) => ({ ...current, opsControlProfiles }));
+      setNotice("운영 제어 프로필을 갱신했습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 제어 프로필을 갱신하지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -2203,6 +2275,8 @@ export default function App() {
               onRejectWorkerApproval={handleRejectWorkerApproval}
               onUpdateServerRuntimeSettings={handleUpdateServerRuntimeSettings}
               onUpdateOpsAutomationSettings={handleUpdateOpsAutomationSettings}
+              onCreateOpsControlProfile={handleCreateOpsControlProfile}
+              onUpdateOpsControlProfile={handleUpdateOpsControlProfile}
             />
           )}
           {isAiView(activeView) && (
@@ -5526,7 +5600,9 @@ function PlatformView({
   onApproveWorkerApproval,
   onRejectWorkerApproval,
   onUpdateServerRuntimeSettings,
-  onUpdateOpsAutomationSettings
+  onUpdateOpsAutomationSettings,
+  onCreateOpsControlProfile,
+  onUpdateOpsControlProfile
 }: {
   view: PlatformViewKey;
   accessToken: string;
@@ -5583,6 +5659,8 @@ function PlatformView({
     eventCooldownMs: number;
   }) => Promise<void>;
   onUpdateOpsAutomationSettings: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
+  onCreateOpsControlProfile: (body: OpsControlProfileCreatePayload) => Promise<void>;
+  onUpdateOpsControlProfile: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
 }) {
   const summary = data.summary;
   const failedJobs = summary?.documentJobs.FAILED ?? 0;
@@ -5617,6 +5695,7 @@ function PlatformView({
   const showFlowerRuntime = view === "platform-flower-runtime";
   const showServerRuntime = view === "platform-server-runtime";
   const showAutomation = view === "platform-automation";
+  const showPidControl = view === "platform-pid-control";
   const showEvents = view === "platform-events";
 
   return (
@@ -5741,6 +5820,16 @@ function PlatformView({
           reports={data.opsDailyReports}
           settings={data.opsAutomationSettings}
           onSave={onUpdateOpsAutomationSettings}
+        />
+      ) : null}
+
+      {showPidControl ? (
+        <PlatformOpsPidTuningPanel
+          busy={loading}
+          reports={data.opsDailyReports}
+          profiles={data.opsControlProfiles}
+          onCreate={onCreateOpsControlProfile}
+          onUpdate={onUpdateOpsControlProfile}
         />
       ) : null}
 
@@ -8021,6 +8110,247 @@ function EngineApiKeyCreateForm({
         API Key 발급
       </button>
     </form>
+  );
+}
+
+function PlatformOpsPidTuningPanel({
+  busy,
+  reports,
+  profiles,
+  onCreate,
+  onUpdate
+}: {
+  busy: boolean;
+  reports: PlatformOpsDailyReport[];
+  profiles: PlatformOpsControlProfile[];
+  onCreate: (body: OpsControlProfileCreatePayload) => Promise<void>;
+  onUpdate: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
+}) {
+  const sortedReports = [...reports].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  const latest = sortedReports[0] ?? null;
+  const iSignals = latest?.iLikeSignals ?? [];
+  const activeProfiles = profiles.filter((profile) => profile.status === "ACTIVE");
+  const globalProfiles = activeProfiles.filter((profile) => profile.scopeType === "GLOBAL");
+  const modelProfiles = activeProfiles.filter((profile) => profile.scopeType === "MODEL");
+  const disabledProfiles = profiles.filter((profile) => profile.status !== "ACTIVE");
+  const [severity, setSeverity] = useState("WARN");
+  const [iWeight, setIWeight] = useState("1");
+  const [modelId, setModelId] = useState("openai-main:gpt-4.1-mini");
+  const [notes, setNotes] = useState("");
+  const [manualSignal, setManualSignal] = useState("");
+
+  const normalizedWeight = Number.parseFloat(iWeight);
+  const safeWeight = Number.isFinite(normalizedWeight) && normalizedWeight >= 0 ? normalizedWeight : 1;
+
+  async function applySignal(signalText: string, scopeType: "GLOBAL" | "MODEL") {
+    const trimmedSignal = signalText.trim();
+    const trimmedModel = modelId.trim();
+    if (!trimmedSignal) {
+      return;
+    }
+    if (scopeType === "MODEL" && !trimmedModel) {
+      return;
+    }
+    await onCreate({
+      signalKind: "I_LIKE",
+      scopeType,
+      modelId: scopeType === "MODEL" ? trimmedModel : null,
+      signalText: trimmedSignal,
+      severity,
+      iWeight: safeWeight,
+      sourceDailyReportId: latest?.id ?? null,
+      notes: notes.trim() || null
+    });
+  }
+
+  async function applyManual(scopeType: "GLOBAL" | "MODEL") {
+    await applySignal(manualSignal, scopeType);
+    setManualSignal("");
+  }
+
+  return (
+    <Panel
+      title="PID 튜닝"
+      icon={<Gauge size={18} />}
+      action={<span className="panel-context">사람 승인 기반 제어 프로필</span>}
+    >
+      <div className="ops-diagnosis-detail">
+        <InlineNotice message="P-like는 현재 상태, I-like는 반복·누적 경향, D-like는 급격한 변화 신호입니다. 이 화면은 자동 튜닝이 아니라 운영자가 I-like 신호를 공용 또는 모델별 제어 프로필로 채택하는 곳입니다." />
+        <div className="ops-detail-grid">
+          <MetricCard icon={<Gauge size={20} />} label="활성 공용값" value={globalProfiles.length} detail="GLOBAL I-like" tone="blue" />
+          <MetricCard icon={<KeyRound size={20} />} label="활성 모델값" value={modelProfiles.length} detail="MODEL I-like" tone="slate" />
+          <MetricCard icon={<Activity size={20} />} label="최근 I 신호" value={iSignals.length} detail={latest ? `Daily report #${latest.id}` : "최근 리포트 없음"} tone={iSignals.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="비활성 프로필" value={disabledProfiles.length} detail="보관된 튜닝값" tone={disabledProfiles.length > 0 ? "amber" : "green"} />
+        </div>
+
+        <div className="dashboard-grid">
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>채택 기준</strong>
+              <span>반복 신호를 어떤 강도로 누적할지 정합니다.</span>
+            </div>
+            <div className="server-runtime-settings-form">
+              <label>
+                심각도
+                <select value={severity} onChange={(event) => setSeverity(event.target.value)}>
+                  <option value="INFO">INFO</option>
+                  <option value="WARN">WARN</option>
+                  <option value="ERROR">ERROR</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </label>
+              <label>
+                I 값
+                <input
+                  min="0"
+                  step="0.1"
+                  type="number"
+                  value={iWeight}
+                  onChange={(event) => setIWeight(event.target.value)}
+                />
+              </label>
+              <label>
+                모델 기준값
+                <input
+                  placeholder="openai-main:gpt-4.1-mini"
+                  value={modelId}
+                  onChange={(event) => setModelId(event.target.value)}
+                />
+              </label>
+              <label>
+                운영 메모
+                <textarea
+                  rows={3}
+                  placeholder="왜 이 신호를 누적 기준으로 채택했는지 적습니다."
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </label>
+              <label className="wide-field">
+                수동 I-like 신호
+                <textarea
+                  rows={3}
+                  placeholder="반복적으로 관찰한 운영 패턴을 직접 입력할 수 있습니다."
+                  value={manualSignal}
+                  onChange={(event) => setManualSignal(event.target.value)}
+                />
+              </label>
+              <div className="member-actions wide-field">
+                <button
+                  className="button"
+                  disabled={busy || !manualSignal.trim()}
+                  onClick={() => applyManual("GLOBAL")}
+                  type="button"
+                >
+                  공용 기준으로 저장
+                </button>
+                <button
+                  className="button"
+                  disabled={busy || !manualSignal.trim() || !modelId.trim()}
+                  onClick={() => applyManual("MODEL")}
+                  type="button"
+                >
+                  모델 기준으로 저장
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="ops-snapshot-card">
+            <div className="ops-snapshot-heading">
+              <strong>최근 I-like 신호</strong>
+              <span>{latest ? `Daily report #${latest.id} · ${formatDate(latest.createdAt)}` : "최근 리포트 없음"}</span>
+            </div>
+            {iSignals.length === 0 ? (
+              <EmptyState message="최근 운영 리포트에 I-like 신호가 없습니다." />
+            ) : (
+              <div className="ops-snapshot-list">
+                {iSignals.slice(0, 8).map((signal, index) => (
+                  <div className="ops-snapshot-item" key={`${index}:${signal}`}>
+                    <span>{signal}</span>
+                    <div className="member-actions">
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => applySignal(signal, "GLOBAL")}
+                        type="button"
+                      >
+                        공용 채택
+                      </button>
+                      <button
+                        className="button"
+                        disabled={busy || !modelId.trim()}
+                        onClick={() => applySignal(signal, "MODEL")}
+                        type="button"
+                      >
+                        모델 채택
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Panel title="제어 프로필" icon={<ShieldCheck size={18} />} count={profiles.length}>
+          <Table
+            columns={["범위", "신호", "I 값", "관측", "상태", "작업"]}
+            empty="아직 채택된 PID 제어 프로필이 없습니다."
+            rows={profiles.map((profile) => [
+              <CellTitle
+                key="scope"
+                title={profile.scopeType === "MODEL" ? "모델별" : "공용"}
+                subtitle={profile.modelId || "GLOBAL"}
+              />,
+              <CellTitle
+                key="signal"
+                title={profile.signalText}
+                subtitle={`${displayLabel(profile.signalKind)} · ${displayLabel(profile.severity)}`}
+              />,
+              profile.iWeight,
+              <CellTitle
+                key="observed"
+                title={`${profile.hitCount}회`}
+                subtitle={`${formatDate(profile.firstObservedAt)} ~ ${formatDate(profile.lastObservedAt)}`}
+              />,
+              <StatusBadge key="status" status={profile.status} />,
+              <div className="member-actions" key="actions">
+                {profile.status === "ACTIVE" ? (
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={() => onUpdate(profile.id, {
+                      status: "DISABLED",
+                      severity: profile.severity,
+                      iWeight: profile.iWeight,
+                      notes: profile.notes ?? null
+                    })}
+                    type="button"
+                  >
+                    비활성화
+                  </button>
+                ) : (
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={() => onUpdate(profile.id, {
+                      status: "ACTIVE",
+                      severity: profile.severity,
+                      iWeight: profile.iWeight,
+                      notes: profile.notes ?? null
+                    })}
+                    type="button"
+                  >
+                    활성화
+                  </button>
+                )}
+              </div>
+            ])}
+          />
+        </Panel>
+      </div>
+    </Panel>
   );
 }
 

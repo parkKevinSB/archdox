@@ -766,6 +766,27 @@ export type PlatformOpsDailyReport = {
   createdAt: string;
 };
 
+export type PlatformOpsControlProfile = {
+  id: number;
+  signalKind: string;
+  scopeType: string;
+  modelId?: string | null;
+  signalKey: string;
+  signalText: string;
+  severity: string;
+  iWeight: number;
+  hitCount: number;
+  sourceDailyReportId?: number | null;
+  notes?: string | null;
+  status: string;
+  createdByUserId?: number | null;
+  updatedByUserId?: number | null;
+  firstObservedAt: string;
+  lastObservedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type LegalSyncRun = {
   id: number;
   triggerType: string;
