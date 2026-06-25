@@ -28,7 +28,7 @@ import {
   Wifi,
   XCircle
 } from "lucide-react";
-import { Component, ErrorInfo, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   acceptOfficeInvitation,
@@ -4315,36 +4315,6 @@ function Panel({
   );
 }
 
-class PanelErrorBoundary extends Component<
-  { title: string; children: ReactNode },
-  { error: string | null }
-> {
-  constructor(props: { title: string; children: ReactNode }) {
-    super(props);
-    this.state = { error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { error: error.message || "Unknown render error" };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Admin panel render failed", this.props.title, error, info.componentStack);
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <Panel title={this.props.title} icon={<AlertTriangle size={18} />}>
-          <InlineAlert message={`${this.props.title} 화면을 표시하지 못했습니다. 새로고침 후에도 반복되면 최근 Daily Report 데이터 형식을 확인해야 합니다.`} />
-          <p className="panel-context">{this.state.error}</p>
-        </Panel>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 function Table({ columns, rows, empty }: { columns: string[]; rows: ReactNode[][]; empty: string }) {
   return (
     <div className="table-wrap">
@@ -5881,17 +5851,15 @@ function PlatformView({
       ) : null}
 
       {showPidControl ? (
-        <PanelErrorBoundary title="운영 제어 신호">
-          <PlatformOpsPidTuningPanel
-            busy={loading}
-            reports={data.opsDailyReports}
-            profiles={data.opsControlProfiles}
-            onCreate={onCreateOpsControlProfile}
-            onUpdate={onUpdateOpsControlProfile}
-            onDelete={onDeleteOpsControlProfile}
-            onRunDetection={onDetectStuck}
-          />
-        </PanelErrorBoundary>
+        <PlatformOpsPidTuningPanel
+          busy={loading}
+          reports={data.opsDailyReports}
+          profiles={data.opsControlProfiles}
+          onCreate={onCreateOpsControlProfile}
+          onUpdate={onUpdateOpsControlProfile}
+          onDelete={onDeleteOpsControlProfile}
+          onRunDetection={onDetectStuck}
+        />
       ) : null}
 
       {showOverview || showIncidents ? (
