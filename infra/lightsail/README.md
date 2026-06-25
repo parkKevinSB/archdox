@@ -52,6 +52,12 @@ stack this can point at the bundled MinIO service; for production point
 `AGENT_S3_ENDPOINT`, `AGENT_S3_ACCESS_KEY`, and `AGENT_S3_SECRET_KEY` at the
 real AWS S3 or S3-compatible bucket.
 
+The Cloud API photo upload target is also `CLOUD_MEDIATED` in Lightsail. New
+original photos are uploaded into S3-compatible temporary storage and then
+picked up by the cloud-managed Agent into its configured S3-compatible storage
+profile. `API_LOCAL` is reserved for local development and short-lived test
+setups.
+
 Example provisioning request:
 
 ```bash

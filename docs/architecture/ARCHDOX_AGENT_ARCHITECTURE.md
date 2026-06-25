@@ -202,6 +202,12 @@ for `LOCAL_OFFICE` and local development only. Production cloud-managed Agents
 must persist document/photo state in AWS S3 or another S3-compatible object
 store.
 
+Cloud API uploads for cloud-managed users should use `CLOUD_MEDIATED`: the
+browser uploads originals to S3-compatible temporary storage, and the
+cloud-managed Agent picks them into its own S3-compatible storage profile.
+`API_LOCAL` is a development/test target, not the operating policy for
+cloud-managed users.
+
 Implemented Phase 9-1/9-2 behavior:
 
 - `LOCAL_FILE` and `NAS` are filesystem-backed and use the same safe logical-ref
