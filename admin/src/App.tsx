@@ -698,6 +698,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [commandStatus, setCommandStatus] = useState("ALL");
   const [documentStatus, setDocumentStatus] = useState("ALL");
   const [photoStatus, setPhotoStatus] = useState("ALL");
@@ -1192,6 +1193,7 @@ export default function App() {
     }
     setLoading(true);
     setError(null);
+    setNotice(null);
     try {
       await generatePlatformOpsDailyReport(auth.accessToken);
       const [opsRuns, opsDailyReports] = await Promise.all([
@@ -2229,6 +2231,7 @@ export default function App() {
         </header>
 
         {selectedOffice && !isPlatformScopedView(activeView) ? <OfficeStrip office={selectedOffice} /> : null}
+        {notice ? <InlineNotice message={notice} /> : null}
         {error ? <InlineAlert message={error} /> : null}
 
         <section className="content-stage">
