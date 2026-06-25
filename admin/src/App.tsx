@@ -8145,6 +8145,125 @@ type OpsSignalStat = {
   latestSeverity: string;
 };
 
+type OpsSignalMeta = {
+  title: string;
+  group: string;
+  description: string;
+  decision: string;
+  tone: "green" | "blue" | "amber" | "red" | "slate";
+};
+
+const OPS_PID_SIGNAL_META: Record<string, OpsSignalMeta> = {
+  failedOpsRunCount: {
+    title: "실패한 운영 Flow 수",
+    group: "운영 실행",
+    description: "운영 자동화 Flow가 실패한 횟수입니다. 재시작 영향과 실제 장애를 구분해서 봅니다.",
+    decision: "반복되거나 재시작과 무관하면 원인 분석 대상입니다.",
+    tone: "amber"
+  },
+  openIncidentCount: {
+    title: "열린 운영 이슈 수",
+    group: "이슈",
+    description: "아직 해소되지 않은 incident 총량입니다. 실제 활성 이슈와 오래된 잔여 이슈를 나눠 봐야 합니다.",
+    decision: "수치가 높아도 stale 이슈일 수 있으므로 이슈/진단 화면에서 실제 활성 여부를 확인합니다.",
+    tone: "amber"
+  },
+  operationEventCount: {
+    title: "운영 이벤트 수",
+    group: "이벤트",
+    description: "문서 생성, Agent, 사진, AI 호출 등 운영 로그로 투영된 이벤트 수입니다.",
+    decision: "갑자기 늘면 특정 기능에서 반복 실패나 재시도가 생겼는지 확인합니다.",
+    tone: "blue"
+  },
+  incidentBreakdown: {
+    title: "이슈 상태 분해",
+    group: "이슈",
+    description: "열린 이슈를 실제 활성, 오래된 잔여, 신규, 해소 건으로 나눠 본 값입니다.",
+    decision: "운영 판단은 총합보다 실제 활성 이슈와 신규 이슈를 우선합니다.",
+    tone: "blue"
+  },
+  failedOpsRunBreakdown: {
+    title: "실패 Flow 원인 분해",
+    group: "운영 실행",
+    description: "실패한 운영 Flow 중 재시작 영향과 실제 조치가 필요한 실패를 나눠 본 값입니다.",
+    decision: "재시작 영향은 장애로 과장하지 않고, actionable 실패만 추적합니다.",
+    tone: "blue"
+  },
+  photoPickup: {
+    title: "사진 원본 수거 상태",
+    group: "사진/Agent",
+    description: "업로드된 사진 중 원본 pickup이 아직 대기 중인 수량입니다.",
+    decision: "대기 수가 계속 남으면 Agent 연결, 원본 보관 정책, 삭제 상태를 확인합니다.",
+    tone: "amber"
+  },
+  "aiUsage.callCount": {
+    title: "AI 호출 수",
+    group: "AI 사용량",
+    description: "리포트 기간 동안 AI provider/harness 호출이 발생한 횟수입니다.",
+    decision: "호출 수가 갑자기 늘면 어떤 기능이 반복 호출 중인지 확인합니다.",
+    tone: "blue"
+  },
+  "aiUsage.topGroups": {
+    title: "AI 사용 상위 기능",
+    group: "AI 사용량",
+    description: "AI 호출이 가장 많이 발생한 기능 그룹입니다.",
+    decision: "특정 하네스나 기능에 호출이 몰리면 모델, 프롬프트, 재시도 정책을 봅니다.",
+    tone: "blue"
+  },
+  "aiUsage.failedCount": {
+    title: "AI 실패 호출 수",
+    group: "AI 안정성",
+    description: "AI 호출 중 실패한 횟수입니다.",
+    decision: "반복되면 provider 상태, quota, validation retry, timeout을 점검합니다.",
+    tone: "red"
+  },
+  "aiUsage.inputTokens": {
+    title: "AI 입력 토큰 사용량",
+    group: "AI 비용",
+    description: "프롬프트와 컨텍스트로 모델에 보낸 토큰량입니다.",
+    decision: "높게 반복되면 RAG 근거 수, trace 포함량, 프롬프트 크기를 줄입니다.",
+    tone: "amber"
+  },
+  "aiUsage.outputTokens": {
+    title: "AI 출력 토큰 사용량",
+    group: "AI 비용",
+    description: "모델이 응답으로 생성한 토큰량입니다.",
+    decision: "높게 반복되면 응답 스키마, 요약 길이, 재시도 횟수를 점검합니다.",
+    tone: "amber"
+  },
+  "aiUsage.succeededCount": {
+    title: "AI 성공 호출 수",
+    group: "AI 안정성",
+    description: "정상 완료된 AI 호출 횟수입니다.",
+    decision: "실패율과 함께 봐야 의미가 있습니다. 성공만 높으면 보통 관측용입니다.",
+    tone: "green"
+  },
+  "aiUsage.estimatedTotalCost": {
+    title: "AI 예상 비용",
+    group: "AI 비용",
+    description: "모델 단가 규칙을 기준으로 계산한 예상 비용입니다.",
+    decision: "반복 증가하면 하네스별 예산, 토큰 하드캡, 모델 라우팅을 조정합니다.",
+    tone: "amber"
+  },
+  engineUsage: {
+    title: "Engine/MCP 사용량",
+    group: "외부 API",
+    description: "Engine API 또는 MCP 호출 사용량입니다.",
+    decision: "외부 연동 사용량이 반복 증가하면 quota, scope, key별 사용량을 확인합니다.",
+    tone: "blue"
+  }
+};
+
+function opsSignalMeta(signal: string): OpsSignalMeta {
+  return OPS_PID_SIGNAL_META[signal] ?? {
+    title: displayLabel(signal),
+    group: "기타",
+    description: "운영 리포트가 감지한 원시 신호입니다. 반복 여부를 먼저 확인합니다.",
+    decision: "의미가 분명해지면 설명을 추가하거나 제어 프로필로 채택합니다.",
+    tone: "slate"
+  };
+}
+
 function buildOpsSignalStats(
   reports: PlatformOpsDailyReport[],
   selector: (report: PlatformOpsDailyReport) => string[]
@@ -8207,6 +8326,11 @@ function PlatformOpsPidTuningPanel({
   const modelProfiles = activeProfiles.filter((profile) => profile.scopeType === "MODEL");
   const disabledProfiles = visibleProfiles.filter((profile) => profile.status === "DISABLED");
   const repeatedISignals = iSignalStats.filter((signal) => signal.count > 1);
+  const watchSignals = [
+    ...repeatedISignals.map((signal) => ({ kind: "I" as const, stat: signal })),
+    ...pSignalStats.slice(0, 2).map((signal) => ({ kind: "P" as const, stat: signal })),
+    ...dSignalStats.slice(0, 2).map((signal) => ({ kind: "D" as const, stat: signal }))
+  ].slice(0, 5);
   const [severity, setSeverity] = useState("WARN");
   const [iWeight, setIWeight] = useState("1");
   const [modelId, setModelId] = useState("openai-main:gpt-4.1-mini");
@@ -8253,24 +8377,32 @@ function PlatformOpsPidTuningPanel({
       action={<span className="panel-context">사람 승인 기반 운영 제어값</span>}
     >
       <div className="ops-diagnosis-detail">
-        <InlineNotice message="P는 지금 보이는 상태, I는 반복되어 누적된 패턴, D는 최근 갑자기 변한 신호입니다. 이 화면에서는 AI가 자동으로 설정을 바꾸지 않고, 운영자가 반복 신호를 공용 또는 모델별 제어 프로필로 채택합니다." />
+        <InlineNotice message="이 화면은 AI가 자동으로 튜닝값을 바꾸는 곳이 아닙니다. 운영 리포트에서 나온 신호를 사람이 보고, 반복된 I 신호만 공용 또는 모델별 제어값으로 채택하는 관제 화면입니다." />
         <div className="ops-detail-grid">
-          <MetricCard icon={<Activity size={20} />} label="P 현재 신호" value={pSignalStats.length} detail="최근 30개 리포트 기준" tone={pSignalStats.length > 0 ? "amber" : "green"} />
-          <MetricCard icon={<Gauge size={20} />} label="I 반복 신호" value={iSignalStats.length} detail={`${repeatedISignals.length}개 반복`} tone={iSignalStats.length > 0 ? "blue" : "green"} />
-          <MetricCard icon={<Clock3 size={20} />} label="D 변화 신호" value={dSignalStats.length} detail="급격한 변화 후보" tone={dSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Activity size={20} />} label="P 현재 상태" value={pSignalStats.length} detail="오늘 보이는 운영 상태" tone={pSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Gauge size={20} />} label="I 반복 패턴" value={repeatedISignals.length} detail={`${iSignalStats.length}개 후보 중 반복`} tone={repeatedISignals.length > 0 ? "blue" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="D 변화 후보" value={dSignalStats.length} detail="갑자기 늘어난 신호" tone={dSignalStats.length > 0 ? "amber" : "green"} />
           <MetricCard icon={<ShieldCheck size={20} />} label="활성 제어값" value={activeProfiles.length} detail={`공용 ${globalProfiles.length} / 모델 ${modelProfiles.length}`} tone="slate" />
         </div>
+
+        <OpsPidDecisionSummary
+          latest={latest}
+          repeatedCount={repeatedISignals.length}
+          watchSignals={watchSignals}
+        />
 
         <div className="dashboard-grid">
           <OpsPidSignalStatsCard
             title="P 상태"
-            subtitle="현재 리포트들에서 바로 확인해야 할 운영 상태입니다."
+            subtitle="오늘 보이는 상태입니다. 보통은 채택하지 않고 현재 상황 확인에 씁니다."
+            kind="P"
             stats={pSignalStats}
             empty="최근 P 상태 신호가 없습니다."
           />
           <OpsPidSignalStatsCard
             title="I 반복 신호"
-            subtitle="반복 횟수를 보고 공용 또는 모델별 제어값으로 채택합니다."
+            subtitle="반복된 패턴입니다. 제어 프로필로 채택할 수 있는 핵심 대상입니다."
+            kind="I"
             stats={iSignalStats}
             empty="최근 I 반복 신호가 없습니다."
             busy={busy}
@@ -8279,7 +8411,8 @@ function PlatformOpsPidTuningPanel({
           />
           <OpsPidSignalStatsCard
             title="D 변화 신호"
-            subtitle="최근 갑자기 늘거나 악화된 변화 후보입니다."
+            subtitle="갑자기 늘어난 변화입니다. 반복되면 I 신호로 승격해 관리합니다."
+            kind="D"
             stats={dSignalStats}
             empty="최근 D 변화 신호가 없습니다."
           />
@@ -8451,6 +8584,7 @@ function PlatformOpsPidTuningPanel({
 function OpsPidSignalStatsCard({
   title,
   subtitle,
+  kind,
   stats,
   empty,
   busy = false,
@@ -8459,6 +8593,7 @@ function OpsPidSignalStatsCard({
 }: {
   title: string;
   subtitle: string;
+  kind: "P" | "I" | "D";
   stats: OpsSignalStat[];
   empty: string;
   busy?: boolean;
@@ -8476,35 +8611,113 @@ function OpsPidSignalStatsCard({
       ) : (
         <div className="ops-snapshot-list">
           {stats.slice(0, 8).map((stat) => (
-            <div className="ops-snapshot-item" key={`${title}:${stat.signal}`}>
-              <span>{stat.signal}</span>
-              <small>
-                최근 30개 리포트 중 {stat.count}회 · 마지막 Daily #{stat.latestReportId} · {formatDate(stat.latestReportCreatedAt)} · {displayLabel(stat.latestSeverity)}
-              </small>
-              {onApply ? (
-                <div className="member-actions">
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={() => onApply(stat.signal, "GLOBAL", stat.latestReportId)}
-                    type="button"
-                  >
-                    공용 채택
-                  </button>
-                  <button
-                    className="button"
-                    disabled={busy || !modelId?.trim()}
-                    onClick={() => onApply(stat.signal, "MODEL", stat.latestReportId)}
-                    type="button"
-                  >
-                    모델 채택
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <OpsPidSignalItem
+              busy={busy}
+              key={`${title}:${stat.signal}`}
+              kind={kind}
+              modelId={modelId}
+              onApply={onApply}
+              stat={stat}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function OpsPidDecisionSummary({
+  latest,
+  repeatedCount,
+  watchSignals
+}: {
+  latest: PlatformOpsDailyReport | null;
+  repeatedCount: number;
+  watchSignals: Array<{ kind: "P" | "I" | "D"; stat: OpsSignalStat }>;
+}) {
+  return (
+    <div className="ops-pid-summary">
+      <div className="ops-pid-summary-main">
+        <strong>{repeatedCount > 0 ? "반복 신호가 있어 검토가 필요합니다." : "아직 반복 튜닝 대상은 뚜렷하지 않습니다."}</strong>
+        <span>
+          {latest
+            ? `최근 Daily #${latest.id} 기준입니다. P는 현재 상태, I는 누적 패턴, D는 변화량입니다.`
+            : "운영 리포트가 생성되면 이곳에 판단 기준이 표시됩니다."}
+        </span>
+      </div>
+      <div className="ops-pid-summary-list">
+        {watchSignals.length === 0 ? (
+          <span>현재 우선 확인할 PID 신호가 없습니다.</span>
+        ) : (
+          watchSignals.map(({ kind, stat }) => {
+            const meta = opsSignalMeta(stat.signal);
+            return (
+              <div className={`ops-pid-chip ${meta.tone}`} key={`${kind}:${stat.signal}`}>
+                <strong>{kind}</strong>
+                <span>{meta.title}</span>
+                <small>{stat.count}회</small>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OpsPidSignalItem({
+  stat,
+  kind,
+  busy,
+  modelId,
+  onApply
+}: {
+  stat: OpsSignalStat;
+  kind: "P" | "I" | "D";
+  busy: boolean;
+  modelId?: string;
+  onApply?: (signalText: string, scopeType: "GLOBAL" | "MODEL", sourceDailyReportId?: number | null) => Promise<void>;
+}) {
+  const meta = opsSignalMeta(stat.signal);
+  const repeated = stat.count > 1;
+
+  return (
+    <div className={`ops-pid-signal-item ${meta.tone}`}>
+      <div className="ops-pid-signal-topline">
+        <div>
+          <strong>{meta.title}</strong>
+          <span>{meta.group} · {kind}-like · 원본 key: {stat.signal}</span>
+        </div>
+        <StatusBadge status={repeated ? "REPEATED" : "OBSERVED"} />
+      </div>
+      <p>{meta.description}</p>
+      <div className="ops-pid-signal-facts">
+        <span>최근 30개 리포트 중 {stat.count}회</span>
+        <span>마지막 Daily #{stat.latestReportId}</span>
+        <span>{formatDate(stat.latestReportCreatedAt)}</span>
+        <span>{displayLabel(stat.latestSeverity)}</span>
+      </div>
+      <div className="ops-pid-signal-decision">{meta.decision}</div>
+      {onApply ? (
+        <div className="member-actions">
+          <button
+            className="button"
+            disabled={busy}
+            onClick={() => onApply(stat.signal, "GLOBAL", stat.latestReportId)}
+            type="button"
+          >
+            공용 제어값으로 채택
+          </button>
+          <button
+            className="button"
+            disabled={busy || !modelId?.trim()}
+            onClick={() => onApply(stat.signal, "MODEL", stat.latestReportId)}
+            type="button"
+          >
+            모델별 제어값으로 채택
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
