@@ -21,6 +21,12 @@ The most important decision is:
 Cloud may temporarily receive files for mediation, but the office-owned original
 image should end up in the office ArchDox Agent/NAS storage.
 
+For cloud-only operation, the same ArchDox Agent runtime is still used. The
+difference is that the Agent is operated by ArchDox as `CLOUD_MANAGED` and its
+durable file store must be S3-compatible object storage. A production
+cloud-managed Agent must not treat the API server disk or container filesystem
+as the durable photo/document store.
+
 ## ArchDox Agent Connection Model
 
 The ArchDox Agent connects outbound to Cloud API through WebSocket.
@@ -72,10 +78,16 @@ from the Cloud API runtime.
 
 ### Original
 
-- Office plan: long-term storage in ArchDox Agent/NAS by default.
+- Office plan with local Agent: long-term storage in ArchDox Agent/NAS by
+  default.
 - Cloud: temporary only until ArchDox Agent confirms pickup.
-- Personal plan: cloud storage is allowed because there is no ArchDox Agent/NAS.
-- Personal original storage may become a paid/plan option.
+- Personal cloud-only plan: ArchDox-managed S3-compatible storage is allowed
+  because the user may not have a running local PC Agent.
+- Personal plan with local Agent: original storage may be local disk, NAS, or a
+  user-owned S3-compatible bucket configured through the Agent profile.
+- Personal original retention may become a paid/plan option. A short retention
+  window such as seven days is acceptable for cloud-only temporary originals
+  when the plan does not include long-term original retention.
 
 ### Working Image
 
@@ -160,8 +172,13 @@ Development/MVP-only target.
 Client → Cloud API → local development storage
 ```
 
-Use this for early API and UI development only. It is not the production office
-storage policy.
+Use this for local development, tests, and temporary MVP smoke paths only. It is
+not the production office or cloud-managed storage policy.
+
+`API_LOCAL` means the API server process stores the bytes through its configured
+local storage adapter. On a hosted server this is still server-local storage,
+not AWS S3. Do not rely on it for production originals, production document
+artifacts, or office retention.
 
 ### S3
 
@@ -174,9 +191,15 @@ Client → S3-compatible object storage
 Cloud API creates a photo row, returns a presigned upload URL, and stores only
 metadata and object keys.
 
+For cloud-only users, the production target should be S3-compatible object
+storage. The exact provider can be AWS S3, MinIO, R2, Wasabi, Naver Object
+Storage, or another compatible private object store, as long as ArchDox can
+presign, read, and delete according to policy.
+
 ### CLOUD_MEDIATED
 
-Default office target.
+Default local-office target and the normal handoff shape when originals must
+move from cloud temporary storage into an Agent-managed store.
 
 ```text
 Client → temporary object storage → ArchDox Agent pull → NAS/agent storage
@@ -184,6 +207,17 @@ Client → temporary object storage → ArchDox Agent pull → NAS/agent storage
 
 Cloud object storage is used as a temporary handoff area. The ArchDox Agent is
 notified through WebSocket.
+
+Use `CLOUD_MEDIATED` only when there is an Agent-side final store to pick into:
+
+- `LOCAL_OFFICE` with local disk or NAS
+- personal local Agent with local disk, NAS, or user-owned S3-compatible store
+- cloud-managed Agent picking from temporary upload storage into its durable
+  S3-compatible profile
+
+Do not create `PHOTO_PICKUP_STUCK` incidents for cloud-only flows that do not
+require Agent original pickup. Stuck pickup detection is meaningful only when
+the selected upload policy says an Agent must pick the original.
 
 ### ARCHDOX_AGENT_DIRECT
 
@@ -239,6 +273,22 @@ Photo upload still keeps its photo-specific storage adapter for upload intents,
 temporary original handoff, derivative generation, and Agent pickup policy.
 Future photo refactors should converge on the common `StorageService` boundary
 without losing those photo-domain rules.
+
+Office-managed S3-compatible profiles are a Cloud API control record, not a raw
+Agent config dump. The profile stores encrypted credentials and safe connection
+metadata. The admin UI should ask for the smallest understandable set:
+
+- storage type
+- bucket
+- prefix
+- region
+- endpoint only for MinIO/custom providers
+- access key and secret key
+
+Cloud validates the profile by writing, reading, and deleting a small test
+object. A verified profile can later be used by a cloud-managed Agent provision
+or reconfiguration action. Until that actuator exists, the profile is a prepared
+and tested storage target, not proof that an Agent is already using it.
 
 ## Personal External Drive Option
 
@@ -329,6 +379,16 @@ Implemented upload targets:
 - `API_LOCAL`: development default
 - `S3`: S3-compatible presigned PUT upload
 - `CLOUD_MEDIATED`: S3-compatible temporary original plus cloud working/thumbnail
+
+Implemented office storage profile management:
+
+- `GET /api/v1/office-ops/storage-profiles`
+- `POST /api/v1/office-ops/storage-profiles`
+- `POST /api/v1/office-ops/storage-profiles/{profileId}/test`
+- provider types: `AWS_S3`, `MINIO`, `CUSTOM_S3`
+- profile statuses: `DRAFT`, `VERIFIED`, `FAILED`, `DISABLED`
+- credentials are encrypted at rest and are not returned to the UI
+- connection test performs real object write/read/delete
 
 Implemented Agent command messages:
 
@@ -431,15 +491,24 @@ Next implementation targets:
 Development:
 API_LOCAL
 
-Personal plan:
-S3-compatible object storage for working image + thumbnail
-Original cloud storage optional by plan
+Personal cloud-only plan:
+Shared cloud-managed Agent pool + S3-compatible object storage
+Working image + thumbnail in object storage
+Original retention by plan, often temporary by default
 
-Office plan:
+Personal with local Agent:
+LOCAL_OFFICE deployment mode owned by the personal workspace
+LOCAL_FILE/NAS/user-owned S3-compatible storage
+
+Office with local runtime:
 CLOUD_MEDIATED by default
 Temporary cloud original only until ArchDox Agent pickup
 Long-term original in NAS/agent storage
 Cloud keeps metadata + thumbnail + optional working image
+
+Office cloud-managed:
+Cloud-managed Agent + verified office S3-compatible storage profile
+No durable API_LOCAL/container-local storage
 
 Advanced office option:
 ARCHDOX_AGENT_DIRECT only with LAN/tunnel/VPN connectivity

@@ -1,6 +1,6 @@
 ﻿# ArchDox Current State
 
-Last updated: 2026-06-12
+Last updated: 2026-06-25
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
@@ -72,6 +72,11 @@ These are development-only credentials.
   and permission foundations.
 - Photo asset foundations, S3-compatible storage direction, working image and
   thumbnail policy, and local/office storage policy.
+- Office storage profile management is implemented for S3-compatible targets.
+  Office admins can save AWS S3, MinIO, or custom S3-compatible profile
+  settings, store credentials encrypted, and run a real write/read/delete
+  connection test. This prepares cloud-managed Agent storage, but it does not
+  yet automatically start or reconfigure cloud Agent containers.
 - ArchDox Agent registration, WebSocket control channel, command ACK/COMPLETE
   events, duplicate session policy, heartbeat/stale-session handling, and
   command routing foundation.
@@ -513,6 +518,13 @@ artifacts.
 All ArchDox Agents share the same runtime concept. `LOCAL_OFFICE` and
 `CLOUD_MANAGED` are deployment/configuration modes, not separate product
 concepts.
+
+Cloud-managed Agents must use S3-compatible durable storage in production.
+`API_LOCAL` is a development/test storage target and must not be treated as the
+production store for cloud-only users, originals, or generated artifacts.
+Personal cloud-only users should use a shared cloud-managed Agent pool with
+object storage by default; personal or office users with a local runtime still
+use the same `archdox-agent` runtime paired to their workspace or office.
 
 Agent WebSocket is the control/event channel. Large artifacts and files should
 move through HTTP/object storage/storage adapters, not as large WebSocket binary

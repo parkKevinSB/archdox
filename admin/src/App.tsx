@@ -2569,39 +2569,6 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
 
   return (
     <div className="view-stack">
-      <Panel title="사용자 AI 한도 상향" icon={<UserPlus size={18} />} count={activeOverrides.length}>
-        <>
-          <AiUserBudgetOverrideForm
-            busy={busy}
-            offices={summary.offices}
-            users={users}
-            onSubmit={onCreateOverride}
-          />
-          <Table
-            columns={["사용자", "사무소", "한도", "월 예산", "만료", "사유", "작업"]}
-            empty="현재 적용 중인 사용자별 AI 한도 상향이 없습니다."
-            rows={activeOverrides.map((override) => [
-              <CellTitle key="user" title={override.userName ?? `User #${override.userId}`} subtitle={override.userEmail ?? `#${override.userId}`} />,
-              override.officeName ?? override.officeCode ?? `#${override.officeId}`,
-              `${override.dailyCallLimit ?? "-"} calls/day · ${override.monthlyTokenLimit ?? "-"} tokens/month`,
-              override.monthlyBudgetAmount == null ? "-" : `${override.budgetCurrency} ${formatMoney(override.monthlyBudgetAmount)}`,
-              formatDate(override.expiresAt),
-              override.reason,
-              <button
-                className="button compact"
-                disabled={busy}
-                key="disable"
-                onClick={() => onDisableOverride(override.id, "Disabled from AI budget usage screen.")}
-                type="button"
-              >
-                <XCircle size={14} />
-                해제
-              </button>
-            ])}
-          />
-        </>
-      </Panel>
-
       <div className="metric-grid">
         <MetricCard icon={<Server size={20} />} label="에이전트" value={summary?.agents.total ?? 0} detail={`${summary?.agents.byStatus.ONLINE ?? 0} 온라인`} tone="green" />
         <MetricCard icon={<Wifi size={20} />} label="활성 세션" value={summary?.activeAgentSessions ?? 0} detail="WebSocket 연결" tone="blue" />

@@ -1884,6 +1884,125 @@ Response `200`:
 Cloud validates the delivery office, artifact ownership, byte count when known,
 and SHA-256 when the artifact has a valid hash.
 
+## Office Storage Profiles
+
+Office storage profiles are office-admin controlled S3-compatible connection
+records. They prepare a storage target that can later be used by cloud-managed
+Agents or storage-related operations. They do not by themselves start an Agent
+or move existing files.
+
+All endpoints require:
+
+```text
+Authorization: Bearer <accessToken>
+X-Office-Id: <officeId>
+```
+
+Only an office owner/admin or platform admin may manage the active office's
+storage profiles.
+
+### GET `/api/v1/office-ops/storage-profiles`
+
+Returns storage profiles for the active office. Secret keys are never returned.
+
+Response `200`:
+
+```json
+[
+  {
+    "id": 1,
+    "officeId": 10,
+    "profileCode": "default",
+    "displayName": "Office S3 storage",
+    "providerType": "AWS_S3",
+    "status": "VERIFIED",
+    "endpoint": "",
+    "region": "ap-northeast-2",
+    "bucketName": "archdox-office-storage",
+    "objectPrefix": "office-10",
+    "pathStyleAccess": false,
+    "credentialsConfigured": true,
+    "accessKeyFingerprint": "sha256:...",
+    "maskedAccessKeyFingerprint": "sha256:...abcd12",
+    "credentialVersion": 1,
+    "lastTestedAt": "2026-06-25T22:00:00+09:00",
+    "lastTestStatus": "SUCCEEDED",
+    "lastTestMessage": "Connection test succeeded.",
+    "createdAt": "2026-06-25T21:55:00+09:00",
+    "updatedAt": "2026-06-25T22:00:00+09:00"
+  }
+]
+```
+
+Provider types:
+
+- `AWS_S3`
+- `MINIO`
+- `CUSTOM_S3`
+
+Profile statuses:
+
+- `DRAFT`: saved but not verified, or edited after verification
+- `VERIFIED`: last connection test succeeded
+- `FAILED`: last connection test failed
+- `DISABLED`: reserved for profiles that must not be used
+
+### POST `/api/v1/office-ops/storage-profiles`
+
+Creates or updates a storage profile. New profiles require both `accessKey` and
+`secretKey`. Existing profiles can update non-secret fields without resending
+credentials. Sending new credentials rotates the encrypted credential version.
+
+Request:
+
+```json
+{
+  "id": 1,
+  "profileCode": "default",
+  "displayName": "Office S3 storage",
+  "providerType": "AWS_S3",
+  "endpoint": "",
+  "region": "ap-northeast-2",
+  "bucketName": "archdox-office-storage",
+  "objectPrefix": "office-10",
+  "pathStyleAccess": false,
+  "accessKey": "AKIA...",
+  "secretKey": "secret-value"
+}
+```
+
+Response `200` returns the same shape as `GET`. Secret values are not returned.
+
+Editing provider, endpoint, region, bucket, prefix, path-style flag, or
+credentials resets the profile to `DRAFT` until the connection test succeeds
+again.
+
+### POST `/api/v1/office-ops/storage-profiles/{profileId}/test`
+
+Tests a storage profile by writing, reading, and deleting a small object in the
+configured bucket/prefix.
+
+Response `200`:
+
+```json
+{
+  "profileId": 1,
+  "status": "SUCCEEDED",
+  "message": "Connection test succeeded.",
+  "elapsedMs": 420,
+  "testedAt": "2026-06-25T22:01:00+09:00"
+}
+```
+
+Connection test statuses:
+
+- `SUCCEEDED`
+- `FAILED`
+
+The test result is stored back on the profile. A failed test does not delete the
+profile; it changes the profile status to `FAILED` and keeps the diagnostic
+message for the UI.
+
 ## ArchDox Agent Install Tokens
 
 ### POST `/api/v1/archdox-agents/install-tokens`
@@ -1942,6 +2061,12 @@ Platform-admin only. Provisions or rotates an Agent-specific device secret for a
 operator pairing an installed Agent, but the final connection contract is still
 the same: `agentId + deviceSecret`.
 
+This endpoint is the Agent credential provisioning boundary, not the full cloud
+container lifecycle manager. Production cloud-managed Agent startup should use a
+verified office storage profile. Inline `storageProfile` metadata in this
+contract is descriptive capability metadata and must not replace the office
+storage profile record that owns encrypted credentials and connection tests.
+
 Headers:
 
 ```text
@@ -1954,6 +2079,7 @@ Request:
 {
   "officeId": 10,
   "agentCode": "cloud-managed-1",
+  "storageProfileId": 1,
   "storageProfile": {
     "kind": "S3_COMPATIBLE",
     "managedBy": "ARCHDOX_CLOUD"
@@ -1973,6 +2099,7 @@ Response `201`:
   "status": "OFFLINE",
   "deviceSecret": "one-time-visible-device-secret",
   "pairedAt": "2026-06-25T12:00:00+09:00",
+  "storageProfileId": 1,
   "storageProfile": {
     "kind": "S3_COMPATIBLE",
     "managedBy": "ARCHDOX_CLOUD"

@@ -23,6 +23,11 @@ It can run in more than one deployment mode:
 - `CLOUD_MANAGED`: operated by ArchDox in cloud, usually backed by
   S3-compatible storage.
 
+There is only one Agent runtime. A personal user, an office, a cloud-managed
+container, and a locally installed office PC runtime all use the same
+`archdox-agent` command contract. The difference is provisioning, storage
+profile, isolation policy, and who operates the process.
+
 The document generation layer must stay the same across both modes:
 
 ```text
@@ -106,6 +111,37 @@ Naming recommendation:
 `AGENT_SHARED_SECRET` is disabled by default. It is only a temporary development
 fallback when Cloud API is explicitly configured with
 `AGENT_ALLOW_SHARED_SECRET_AUTH=true`.
+
+## Deployment Policy
+
+ArchDox should keep the user-facing product simple while preserving a precise
+runtime policy internally.
+
+| User / tenant shape | Recommended Agent mode | Storage policy | Notes |
+| --- | --- | --- | --- |
+| Personal cloud-only user | Shared `CLOUD_MANAGED` pool | ArchDox-managed S3-compatible storage | No local PC/NAS requirement. Originals may be temporary or plan-limited. |
+| Personal user with local PC Agent | `LOCAL_OFFICE` registered to the personal workspace | `LOCAL_FILE`, `NAS`, or user-owned S3-compatible storage | Same pairing contract as an office Agent. |
+| Small office without local runtime | Office-scoped `CLOUD_MANAGED` Agent or shared pool by plan | Verified office storage profile, normally S3-compatible | Start with managed cloud operation; move to local Agent later without changing report logic. |
+| Office with NAS/local server | `LOCAL_OFFICE` | `NAS` or `LOCAL_FILE` for originals/artifacts, cloud only for metadata and temporary handoff | Default privacy-oriented office plan. |
+| Enterprise isolated deployment | Separate ArchDox stack or separately provisioned cloud environment | Customer-specific storage and secrets | Do not model this as a new Agent mode. It is infrastructure isolation. |
+
+`CLOUD_DEDICATED` is not an Agent deployment mode in the canonical model. If a
+customer needs hard cloud isolation, provide a separate ArchDox environment or
+separately provisioned cloud infrastructure. The Agent still reports
+`CLOUD_MANAGED`.
+
+Policy decisions:
+
+- Do not create a new Agent product for personal users. Personal local runtime
+  is still `archdox-agent` with personal workspace ownership.
+- Do not infer storage from `agentCode` names such as `cloud-personal-main`.
+  Storage must come from a profile.
+- A cloud-managed production Agent must not persist originals, working images,
+  artifacts, or templates on the container local filesystem as the durable
+  store. Local filesystem storage is allowed only for local development,
+  transient caches, or explicitly disposable scratch space.
+- A locally installed Agent may store data on local disk, mapped drive, or NAS,
+  but Cloud API stores only logical refs and safe capability metadata.
 
 ## Storage Profile
 
@@ -207,6 +243,45 @@ browser uploads originals to S3-compatible temporary storage, and the
 cloud-managed Agent picks them into its own S3-compatible storage profile.
 `API_LOCAL` is a development/test target, not the operating policy for
 cloud-managed users.
+
+Office storage profiles are managed in Cloud API so an office admin can prepare
+S3-compatible storage before an Agent uses it. A storage profile records:
+
+- provider type: `AWS_S3`, `MINIO`, or `CUSTOM_S3`
+- endpoint when the provider is not plain AWS S3
+- region
+- bucket
+- logical object prefix
+- path-style access flag
+- encrypted access key and secret key
+- last connection test result
+
+The Cloud API connection test writes, reads, and deletes a small test object in
+the configured bucket/prefix. A syntactically valid access key is not enough.
+The profile is considered ready for cloud-managed Agent provisioning only after
+the test succeeds.
+
+Storage profile status:
+
+| Status | Meaning |
+| --- | --- |
+| `DRAFT` | Saved but not yet successfully tested, or edited after a previous test. |
+| `VERIFIED` | Last connection test succeeded. |
+| `FAILED` | Last connection test failed. |
+| `DISABLED` | Reserved for a profile that must not be used. |
+
+The profile management UI must stay simple. Show storage type, bucket, prefix,
+region, endpoint only when needed, and a connection-test result. Do not expose
+raw secret values after save. Re-entering keys is required only when rotating or
+changing credentials.
+
+Current implementation note:
+
+- Cloud API implements office storage profile CRUD and real S3-compatible
+  connection tests.
+- The verified profile is not yet the full Agent auto-provisioning actuator.
+  A later phase should bind a verified storage profile to cloud-managed Agent
+  start/rotate/reconfigure operations.
 
 Implemented Phase 9-1/9-2 behavior:
 
