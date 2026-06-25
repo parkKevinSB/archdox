@@ -5889,7 +5889,7 @@ function PlatformView({
             onCreate={onCreateOpsControlProfile}
             onUpdate={onUpdateOpsControlProfile}
             onDelete={onDeleteOpsControlProfile}
-            onRunDetection={onRunDetection}
+            onRunDetection={onDetectStuck}
           />
         </PanelErrorBoundary>
       ) : null}
