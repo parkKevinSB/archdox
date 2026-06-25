@@ -21,6 +21,9 @@ public class ArchDoxAgentProperties {
     private String installToken;
     private String deviceSecret;
     private String version = "0.0.1-dev";
+    private String protocolVersion = "2026-06-25";
+    private String launcherVersion = "embedded";
+    private String updateChannel = "stable";
     private long heartbeatIntervalMs = 30000;
     private long reconnectIntervalMs = 5000;
     private int websocketMaxTextMessageBufferBytes = 2 * 1024 * 1024;
@@ -132,6 +135,30 @@ public class ArchDoxAgentProperties {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public String getProtocolVersion() {
+        return protocolVersion;
+    }
+
+    public void setProtocolVersion(String protocolVersion) {
+        this.protocolVersion = protocolVersion;
+    }
+
+    public String getLauncherVersion() {
+        return launcherVersion;
+    }
+
+    public void setLauncherVersion(String launcherVersion) {
+        this.launcherVersion = launcherVersion;
+    }
+
+    public String getUpdateChannel() {
+        return updateChannel;
+    }
+
+    public void setUpdateChannel(String updateChannel) {
+        this.updateChannel = updateChannel;
     }
 
     public long getHeartbeatIntervalMs() {

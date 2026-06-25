@@ -108,6 +108,7 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
         if ("WELCOME".equals(inbound.type())) {
             log.info("Connected to ArchDox Cloud as ArchDox Agent {}", inbound.agentId());
             logAiPolicy(inbound.aiPolicy());
+            logCompatibility(inbound.compatibility());
             if (inbound.deviceSecret() != null && !inbound.deviceSecret().isBlank()) {
                 properties.setAgentId(inbound.agentId());
                 properties.setDeviceSecret(inbound.deviceSecret());
@@ -261,5 +262,16 @@ public class CloudAgentWebSocketClient extends TextWebSocketHandler {
                 aiPolicy.get("documentGenerationEnabled"),
                 aiPolicy.get("credentialDeliveryMode"),
                 aiPolicy.get("apiKeyDelivered"));
+    }
+
+    private void logCompatibility(java.util.Map<String, Object> compatibility) {
+        if (compatibility == null || compatibility.isEmpty()) {
+            return;
+        }
+        log.info(
+                "ArchDox Agent runtime compatibility: status={}, commandAllowed={}, reason={}",
+                compatibility.get("status"),
+                compatibility.get("commandAllowed"),
+                compatibility.get("reason"));
     }
 }

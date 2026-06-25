@@ -143,6 +143,7 @@ export type Agent = {
   inFlightCommandCount: number;
   failedCommandCount: number;
   capabilities: Record<string, unknown>;
+  compatibility: Record<string, unknown>;
   storageProfile: Record<string, unknown>;
   activeSessions: AgentSession[];
 };
@@ -671,6 +672,7 @@ export type PlatformAgentOps = {
   version?: string | null;
   lastSeenAt?: string | null;
   capabilities: Record<string, unknown>;
+  compatibility: Record<string, unknown>;
   storageProfile: Record<string, unknown>;
 };
 

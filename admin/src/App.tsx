@@ -2632,7 +2632,7 @@ function AgentsView({
             displayLabel(agent.deploymentMode),
             `${agent.activeSessionCount}`,
             `${agent.inFlightCommandCount} 진행 · ${agent.failedCommandCount} 실패`,
-            agent.version ?? "-",
+            <CellTitle key="version" title={agent.version ?? "-"} subtitle={agentCompatibilityStatus(agent)} />,
             formatDate(agent.lastSeenAt)
           ])}
         />
@@ -2654,6 +2654,12 @@ function AgentsView({
       </Panel>
     </div>
   );
+}
+
+function agentCompatibilityStatus(agent: Agent) {
+  const compatibility = agent.compatibility ?? {};
+  const status = compatibility.status;
+  return typeof status === "string" && status.trim().length > 0 ? status : "UNKNOWN";
 }
 
 const storageProviderOptions: Array<{ value: OfficeStorageProviderType; label: string; description: string }> = [

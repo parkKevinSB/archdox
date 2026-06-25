@@ -16,6 +16,10 @@ public class ArchDoxAgentProperties {
     private int websocketMaxBinaryMessageBufferBytes = 2 * 1024 * 1024;
     private int websocketSendTimeLimitMs = 10_000;
     private int websocketSendBufferSizeBytes = 4 * 1024 * 1024;
+    private String currentProtocolVersion = "2026-06-25";
+    private String minimumProtocolVersion = "2026-06-25";
+    private String minimumAgentVersion = "0.0.1-dev";
+    private String recommendedAgentVersion = "0.0.1-dev";
 
     public String getApiInstanceId() {
         return apiInstanceId;
@@ -91,6 +95,38 @@ public class ArchDoxAgentProperties {
         this.websocketSendBufferSizeBytes = websocketSendBufferSizeBytes;
     }
 
+    public String getCurrentProtocolVersion() {
+        return currentProtocolVersion;
+    }
+
+    public void setCurrentProtocolVersion(String currentProtocolVersion) {
+        this.currentProtocolVersion = currentProtocolVersion;
+    }
+
+    public String getMinimumProtocolVersion() {
+        return minimumProtocolVersion;
+    }
+
+    public void setMinimumProtocolVersion(String minimumProtocolVersion) {
+        this.minimumProtocolVersion = minimumProtocolVersion;
+    }
+
+    public String getMinimumAgentVersion() {
+        return minimumAgentVersion;
+    }
+
+    public void setMinimumAgentVersion(String minimumAgentVersion) {
+        this.minimumAgentVersion = minimumAgentVersion;
+    }
+
+    public String getRecommendedAgentVersion() {
+        return recommendedAgentVersion;
+    }
+
+    public void setRecommendedAgentVersion(String recommendedAgentVersion) {
+        this.recommendedAgentVersion = recommendedAgentVersion;
+    }
+
     public int safeInstallTokenTtlMinutes() {
         return Math.max(1, installTokenTtlMinutes);
     }
@@ -109,5 +145,25 @@ public class ArchDoxAgentProperties {
 
     public int safeWebsocketSendBufferSizeBytes() {
         return Math.max(256 * 1024, websocketSendBufferSizeBytes);
+    }
+
+    public String safeCurrentProtocolVersion() {
+        return nonBlank(currentProtocolVersion, "2026-06-25");
+    }
+
+    public String safeMinimumProtocolVersion() {
+        return nonBlank(minimumProtocolVersion, safeCurrentProtocolVersion());
+    }
+
+    public String safeMinimumAgentVersion() {
+        return nonBlank(minimumAgentVersion, "0.0.1-dev");
+    }
+
+    public String safeRecommendedAgentVersion() {
+        return nonBlank(recommendedAgentVersion, safeMinimumAgentVersion());
+    }
+
+    private String nonBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 }

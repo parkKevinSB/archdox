@@ -8,6 +8,7 @@ public record CloudInboundMessage(
         String authMode,
         String deviceSecret,
         Map<String, Object> aiPolicy,
+        Map<String, Object> compatibility,
         Long commandId,
         String commandType,
         Map<String, Object> payload,

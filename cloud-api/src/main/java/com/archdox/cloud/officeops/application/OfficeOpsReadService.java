@@ -231,6 +231,7 @@ public class OfficeOpsReadService {
                 commandRepository.countByAgentIdAndStatusIn(agent.id(), IN_FLIGHT_COMMAND_STATUSES),
                 commandRepository.countByAgentIdAndStatusIn(agent.id(), FAILED_COMMAND_STATUSES),
                 safeMap(agent.capabilitiesJson()),
+                compatibilityMap(agent.capabilitiesJson()),
                 safeMap(agent.storageProfileJson()),
                 activeSessions);
     }
@@ -246,6 +247,18 @@ public class OfficeOpsReadService {
                 session.lastSeenAt(),
                 session.disconnectedAt(),
                 session.disconnectReason());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> compatibilityMap(Map<String, Object> capabilities) {
+        if (capabilities == null) {
+            return Map.of();
+        }
+        var compatibility = capabilities.get("compatibility");
+        if (compatibility instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
     }
 
     private AgentCommandOpsResponse toCommandResponse(ArchDoxAgentCommand command) {

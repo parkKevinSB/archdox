@@ -28,6 +28,7 @@ public class ArchDoxAgentAuthenticationService {
     private final OfficeMembershipRepository membershipRepository;
     private final ArchDoxAgentProperties properties;
     private final ArchDoxAgentSecretHasher secretHasher;
+    private final ArchDoxAgentRuntimeCompatibilityService compatibilityService;
 
     public ArchDoxAgentAuthenticationService(
             ArchDoxAgentRepository agentRepository,
@@ -35,7 +36,8 @@ public class ArchDoxAgentAuthenticationService {
             OfficeRepository officeRepository,
             OfficeMembershipRepository membershipRepository,
             ArchDoxAgentProperties properties,
-            ArchDoxAgentSecretHasher secretHasher
+            ArchDoxAgentSecretHasher secretHasher,
+            ArchDoxAgentRuntimeCompatibilityService compatibilityService
     ) {
         this.agentRepository = agentRepository;
         this.installTokenRepository = installTokenRepository;
@@ -43,6 +45,7 @@ public class ArchDoxAgentAuthenticationService {
         this.membershipRepository = membershipRepository;
         this.properties = properties;
         this.secretHasher = secretHasher;
+        this.compatibilityService = compatibilityService;
     }
 
     @Transactional
@@ -155,14 +158,15 @@ public class ArchDoxAgentAuthenticationService {
         token.markUsed(now);
 
         var deviceSecret = secretHasher.generateSecret();
+        var compatibility = compatibilityService.evaluate(hello);
         agent.pairDeviceSecret(
                 secretHasher.hash(deviceSecret),
                 agent.deploymentMode(),
                 hello.version(),
-                hello.capabilities(),
+                compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
                 hello.storageProfile(),
                 now);
-        return new AgentConnection(agent, deviceSecret);
+        return new AgentConnection(agent, deviceSecret, compatibility);
     }
 
     private AgentConnection connectWithDeviceSecret(AgentHello hello) {
@@ -171,8 +175,14 @@ public class ArchDoxAgentAuthenticationService {
         }
         var agent = authenticateDevice(hello.agentId(), hello.deviceSecret());
         var requestedDeploymentMode = deploymentModeOrRegistered(agent, hello.deploymentMode());
-        agent.markOnline(requestedDeploymentMode, hello.version(), hello.capabilities(), hello.storageProfile(), OffsetDateTime.now());
-        return new AgentConnection(agent, null);
+        var compatibility = compatibilityService.evaluate(hello);
+        agent.markOnline(
+                requestedDeploymentMode,
+                hello.version(),
+                compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
+                hello.storageProfile(),
+                OffsetDateTime.now());
+        return new AgentConnection(agent, null, compatibility);
     }
 
     private AgentConnection connectWithSharedSecret(AgentHello hello) {
@@ -189,18 +199,24 @@ public class ArchDoxAgentAuthenticationService {
             throw new NotFoundException("Office not found");
         }
         var now = OffsetDateTime.now();
+        var compatibility = compatibilityService.evaluate(hello);
         var agent = agentRepository.findByOfficeIdAndAgentCode(hello.officeId(), hello.agentCode().trim())
                 .orElseGet(() -> agentRepository.save(new ArchDoxAgent(
                         hello.officeId(),
                         hello.agentCode().trim(),
                         deploymentMode(hello),
                         hello.version(),
-                        hello.capabilities(),
+                        compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
                         hello.storageProfile(),
                         now)));
-        agent.markOnline(deploymentMode(hello), hello.version(), hello.capabilities(), hello.storageProfile(), now);
+        agent.markOnline(
+                deploymentMode(hello),
+                hello.version(),
+                compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
+                hello.storageProfile(),
+                now);
         agent.markSharedSecretAuthenticated(now);
-        return new AgentConnection(agent, null);
+        return new AgentConnection(agent, null, compatibility);
     }
 
     private ArchDoxAgentAuthMode resolveAuthMode(AgentHello hello) {

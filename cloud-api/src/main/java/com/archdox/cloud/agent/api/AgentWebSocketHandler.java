@@ -92,8 +92,11 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         send(session, AgentOutboundMessage.welcome(
                 agent.id(),
                 connection.issuedDeviceSecret(),
-                aiPolicyManagementService.effectiveAgentPolicy(agent.officeId()).toMap()));
-        commandService.deliverPending(agent.id());
+                aiPolicyManagementService.effectiveAgentPolicy(agent.officeId()).toMap(),
+                connection.compatibility().toMap()));
+        if (connection.compatibility().commandAllowed()) {
+            commandService.deliverPending(agent.id());
+        }
     }
 
     private Long requireAgent(WebSocketSession session) {

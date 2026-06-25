@@ -304,7 +304,20 @@ public class PlatformOpsReadService {
                 agent.version(),
                 agent.lastSeenAt(),
                 safeMap(agent.capabilitiesJson()),
+                compatibilityMap(agent.capabilitiesJson()),
                 safeMap(agent.storageProfileJson()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> compatibilityMap(Map<String, Object> capabilities) {
+        if (capabilities == null) {
+            return Map.of();
+        }
+        var compatibility = capabilities.get("compatibility");
+        if (compatibility instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
     }
 
     private PlatformAgentCommandOpsResponse toCommand(ArchDoxAgentCommand command) {

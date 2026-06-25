@@ -14,6 +14,7 @@ public record PlatformAgentOpsResponse(
         String version,
         OffsetDateTime lastSeenAt,
         Map<String, Object> capabilities,
+        Map<String, Object> compatibility,
         Map<String, Object> storageProfile
 ) {
 }

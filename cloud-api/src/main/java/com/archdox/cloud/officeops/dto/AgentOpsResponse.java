@@ -23,6 +23,7 @@ public record AgentOpsResponse(
         long inFlightCommandCount,
         long failedCommandCount,
         Map<String, Object> capabilities,
+        Map<String, Object> compatibility,
         Map<String, Object> storageProfile,
         List<AgentSessionOpsResponse> activeSessions
 ) {

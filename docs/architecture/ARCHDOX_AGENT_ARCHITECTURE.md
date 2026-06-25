@@ -112,6 +112,57 @@ Naming recommendation:
 fallback when Cloud API is explicitly configured with
 `AGENT_ALLOW_SHARED_SECRET_AUTH=true`.
 
+## Runtime Compatibility And Updates
+
+Agent identity and Agent binary compatibility are separate concerns.
+Authentication answers "is this registered runtime allowed to connect?" Runtime
+compatibility answers "may Cloud route commands to this runtime?"
+
+Every `HELLO` must report:
+
+- `version`: ArchDox Agent runtime version.
+- `protocolVersion`: WebSocket command protocol version. Use ISO-date shaped
+  strings such as `2026-06-25` so ordering is stable.
+- `launcherVersion`: local Launcher/Updater version, or `embedded` when no
+  separate Launcher exists.
+- `updateChannel`: `stable`, `beta`, or another explicit release channel.
+- `capabilities`: command/output/storage capabilities.
+
+Cloud calculates a compatibility block and stores it in `capabilities_json`:
+
+```json
+{
+  "status": "OK|UPDATE_RECOMMENDED|UPDATE_REQUIRED",
+  "commandAllowed": true,
+  "updateRequired": false,
+  "reason": "Agent runtime is compatible."
+}
+```
+
+Command routing must use the Cloud-calculated `commandAllowed` flag. An Agent
+may stay visible as connected while `commandAllowed=false`, but Cloud must not
+send document, photo, or artifact commands to it.
+
+Local distribution should use a small Launcher/Updater around the same
+`archdox-agent` runtime:
+
+```text
+ArchDox Agent Launcher
+  -> checks compatibility
+  -> downloads signed runtime package when required
+  -> verifies checksum/signature
+  -> swaps runtime
+  -> restarts and rolls back on failure
+
+ArchDox Agent Runtime
+  -> connects to Cloud API
+  -> executes commands
+```
+
+Cloud-managed Agents use the same runtime compatibility contract, but updates
+are performed by deployment pipeline or container image replacement instead of
+self-updating from inside the container.
+
 ## Deployment Policy
 
 ArchDox should keep the user-facing product simple while preserving a precise

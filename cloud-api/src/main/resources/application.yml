@@ -204,6 +204,10 @@ archdox:
     allow-shared-secret-auth: ${AGENT_ALLOW_SHARED_SECRET_AUTH:false}
     websocket-max-text-message-buffer-bytes: ${AGENT_WS_MAX_TEXT_MESSAGE_BUFFER_BYTES:2097152}
     websocket-max-binary-message-buffer-bytes: ${AGENT_WS_MAX_BINARY_MESSAGE_BUFFER_BYTES:2097152}
+    current-protocol-version: ${AGENT_CURRENT_PROTOCOL_VERSION:2026-06-25}
+    minimum-protocol-version: ${AGENT_MINIMUM_PROTOCOL_VERSION:2026-06-25}
+    minimum-agent-version: ${AGENT_MINIMUM_VERSION:0.0.1-dev}
+    recommended-agent-version: ${AGENT_RECOMMENDED_VERSION:0.0.1-dev}
     connection-health:
       enabled: ${AGENT_CONNECTION_HEALTH_ENABLED:true}
       heartbeat-timeout-ms: ${AGENT_HEARTBEAT_TIMEOUT_MS:90000}

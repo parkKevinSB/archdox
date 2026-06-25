@@ -11,6 +11,9 @@ public record AgentHello(
         String installToken,
         String deviceSecret,
         String version,
+        String protocolVersion,
+        String launcherVersion,
+        String updateChannel,
         String deploymentMode,
         Map<String, Object> capabilities,
         Map<String, Object> storageProfile
@@ -26,6 +29,6 @@ public record AgentHello(
             String version,
             Map<String, Object> capabilities
     ) {
-        this(authMode, agentId, officeId, agentCode, token, installToken, deviceSecret, version, null, capabilities, Map.of());
+        this(authMode, agentId, officeId, agentCode, token, installToken, deviceSecret, version, null, null, null, null, capabilities, Map.of());
     }
 }

@@ -55,6 +55,7 @@ public class ArchDoxAgentCommandService {
     private final PhotoPickupService photoPickupService;
     private final ArchDoxAgentSessionRegistry sessionRegistry;
     private final ArchDoxAgentProperties properties;
+    private final ArchDoxAgentRuntimeCompatibilityService compatibilityService;
     private final EventBus eventBus;
     private final OperationEventService operationEventService;
     private final TransactionTemplate commandDeliveryTransactionTemplate;
@@ -68,6 +69,7 @@ public class ArchDoxAgentCommandService {
             PhotoPickupService photoPickupService,
             ArchDoxAgentSessionRegistry sessionRegistry,
             ArchDoxAgentProperties properties,
+            ArchDoxAgentRuntimeCompatibilityService compatibilityService,
             EventBus eventBus,
             OperationEventService operationEventService,
             PlatformTransactionManager transactionManager
@@ -80,6 +82,7 @@ public class ArchDoxAgentCommandService {
         this.photoPickupService = photoPickupService;
         this.sessionRegistry = sessionRegistry;
         this.properties = properties;
+        this.compatibilityService = compatibilityService;
         this.eventBus = eventBus;
         this.operationEventService = operationEventService;
         this.commandDeliveryTransactionTemplate = new TransactionTemplate(transactionManager);
@@ -98,16 +101,22 @@ public class ArchDoxAgentCommandService {
             throw new NotFoundException("Office not found");
         }
         var now = OffsetDateTime.now();
+        var compatibility = compatibilityService.evaluate(hello);
         var agent = agentRepository.findByOfficeIdAndAgentCode(hello.officeId(), hello.agentCode().trim())
                 .orElseGet(() -> agentRepository.save(new ArchDoxAgent(
                         hello.officeId(),
                         hello.agentCode().trim(),
                         deploymentMode(hello),
                         hello.version(),
-                        hello.capabilities(),
+                        compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
                         hello.storageProfile(),
                         now)));
-        agent.markOnline(deploymentMode(hello), hello.version(), hello.capabilities(), hello.storageProfile(), now);
+        agent.markOnline(
+                deploymentMode(hello),
+                hello.version(),
+                compatibilityService.capabilitiesWithCompatibility(hello, compatibility),
+                hello.storageProfile(),
+                now);
         return agent;
     }
 
@@ -515,6 +524,7 @@ public class ArchDoxAgentCommandService {
                 .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentSessionStatus.ACTIVE)
                 .stream()
                 .map(session -> session.agent())
+                .filter(compatibilityService::commandAllowed)
                 .findFirst();
         if (activeSessionAgent.isPresent()) {
             return activeSessionAgent;
@@ -522,11 +532,13 @@ public class ArchDoxAgentCommandService {
         var onlineAgent = agentRepository
                 .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentStatus.ONLINE)
                 .stream()
+                .filter(compatibilityService::commandAllowed)
                 .findFirst();
         if (onlineAgent.isPresent() || !allowLastKnownFallback) {
             return onlineAgent;
         }
-        return agentRepository.findFirstByOfficeIdOrderByLastSeenAtDesc(officeId);
+        return agentRepository.findFirstByOfficeIdOrderByLastSeenAtDesc(officeId)
+                .filter(compatibilityService::commandAllowed);
     }
 
     private Optional<ArchDoxAgent> selectDocumentRenderTargetAgent(Long officeId, OutputFormat outputFormat) {
@@ -534,6 +546,7 @@ public class ArchDoxAgentCommandService {
                 .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentSessionStatus.ACTIVE)
                 .stream()
                 .map(session -> session.agent())
+                .filter(compatibilityService::commandAllowed)
                 .filter(agent -> ArchDoxAgentCapabilities.supportsDocumentRender(agent, outputFormat))
                 .findFirst();
         if (activeSessionAgent.isPresent()) {
@@ -542,6 +555,7 @@ public class ArchDoxAgentCommandService {
         return agentRepository
                 .findByOfficeIdAndStatusOrderByLastSeenAtDesc(officeId, ArchDoxAgentStatus.ONLINE)
                 .stream()
+                .filter(compatibilityService::commandAllowed)
                 .filter(agent -> ArchDoxAgentCapabilities.supportsDocumentRender(agent, outputFormat))
                 .findFirst();
     }

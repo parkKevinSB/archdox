@@ -2156,6 +2156,9 @@ Registration/authentication rules:
   "agentCode": "office-main",
   "installToken": "one-time-install-token",
   "version": "0.0.1-dev",
+  "protocolVersion": "2026-06-25",
+  "launcherVersion": "embedded",
+  "updateChannel": "stable",
   "deploymentMode": "LOCAL_OFFICE",
   "capabilities": {
     "nas": false,
@@ -2182,7 +2185,13 @@ Cloud response:
   "type": "WELCOME",
   "agentId": 1,
   "authMode": "INSTALL_TOKEN",
-  "deviceSecret": "agent-device-secret-returned-once"
+  "deviceSecret": "agent-device-secret-returned-once",
+  "compatibility": {
+    "status": "OK",
+    "commandAllowed": true,
+    "updateRequired": false,
+    "reason": "Agent runtime is compatible."
+  }
 }
 ```
 
@@ -2198,6 +2207,9 @@ the install token.
   "agentId": 1,
   "deviceSecret": "agent-device-secret",
   "version": "0.0.1-dev",
+  "protocolVersion": "2026-06-25",
+  "launcherVersion": "embedded",
+  "updateChannel": "stable",
   "deploymentMode": "LOCAL_OFFICE",
   "capabilities": {
     "nas": true,
@@ -2223,9 +2235,22 @@ Cloud response:
 {
   "type": "WELCOME",
   "agentId": 1,
-  "authMode": "DEVICE_SECRET"
+  "authMode": "DEVICE_SECRET",
+  "compatibility": {
+    "status": "OK",
+    "commandAllowed": true,
+    "updateRequired": false,
+    "reason": "Agent runtime is compatible."
+  }
 }
 ```
+
+Cloud stores its compatibility decision under the Agent capability metadata and
+uses the same decision when selecting command targets. If `protocolVersion` is
+missing or older than `AGENT_MINIMUM_PROTOCOL_VERSION`, Cloud may keep the
+WebSocket visible but must not route document/photo/artifact commands to that
+Agent (`commandAllowed=false`). The local Launcher/Updater should use the
+`compatibility` block to decide whether a runtime update is required.
 
 Development fallback `authMode=SHARED_SECRET` keeps the previous
 `officeId + agentCode + token` shape only when explicitly allowed by Cloud

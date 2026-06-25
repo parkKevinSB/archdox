@@ -4,6 +4,7 @@ import com.archdox.cloud.agent.domain.ArchDoxAgent;
 
 public record AgentConnection(
         ArchDoxAgent agent,
-        String issuedDeviceSecret
+        String issuedDeviceSecret,
+        ArchDoxAgentRuntimeCompatibility compatibility
 ) {
 }
