@@ -644,7 +644,12 @@ class DocumentJobIntegrationTest {
                 "test",
                 Map.of(
                         "documentGeneration", true,
-                        "outputFormats", List.of("DOCX")),
+                        "outputFormats", List.of("DOCX"),
+                        "compatibility", Map.of(
+                                "status", "OK",
+                                "commandAllowed", true,
+                                "updateRequired", false,
+                                "reason", "Test Agent runtime is compatible.")),
                 Map.of("artifact", Map.of("kind",
                         deploymentMode == ArchDoxAgentDeploymentMode.CLOUD_MANAGED ? "S3_COMPATIBLE" : "LOCAL_FS")),
                 now));
@@ -702,6 +707,7 @@ class DocumentJobIntegrationTest {
                 null,
                 null,
                 null,
+                Map.of(),
                 command.id(),
                 command.commandType().name(),
                 renderPayload,

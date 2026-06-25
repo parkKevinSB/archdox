@@ -21,6 +21,7 @@ include("archdox-ai-harness")
 include("document-engine")
 include("domain-shared")
 include("archdox-agent")
+include("archdox-agent-launcher")
 
 include("bloom-core")
 project(":bloom-core").projectDir = file("libs/bloom/bloom-core")

@@ -208,6 +208,13 @@ archdox:
     minimum-protocol-version: ${AGENT_MINIMUM_PROTOCOL_VERSION:2026-06-25}
     minimum-agent-version: ${AGENT_MINIMUM_VERSION:0.0.1-dev}
     recommended-agent-version: ${AGENT_RECOMMENDED_VERSION:0.0.1-dev}
+    latest-agent-version: ${AGENT_LATEST_VERSION:0.0.1-dev}
+    minimum-launcher-version: ${AGENT_MINIMUM_LAUNCHER_VERSION:embedded}
+    recommended-launcher-version: ${AGENT_RECOMMENDED_LAUNCHER_VERSION:embedded}
+    runtime-package-download-url: ${AGENT_RUNTIME_PACKAGE_DOWNLOAD_URL:}
+    runtime-package-sha256: ${AGENT_RUNTIME_PACKAGE_SHA256:}
+    runtime-package-signature-url: ${AGENT_RUNTIME_PACKAGE_SIGNATURE_URL:}
+    runtime-release-notes-url: ${AGENT_RUNTIME_RELEASE_NOTES_URL:}
     connection-health:
       enabled: ${AGENT_CONNECTION_HEALTH_ENABLED:true}
       heartbeat-timeout-ms: ${AGENT_HEARTBEAT_TIMEOUT_MS:90000}

@@ -2252,6 +2252,43 @@ WebSocket visible but must not route document/photo/artifact commands to that
 Agent (`commandAllowed=false`). The local Launcher/Updater should use the
 `compatibility` block to decide whether a runtime update is required.
 
+### Agent Launcher -> Cloud: runtime manifest
+
+```text
+GET /api/v1/archdox-agents/runtime-manifest?channel=stable&platform=windows-x64
+```
+
+This endpoint is public because the local Launcher may need it before pairing.
+It returns version and package metadata only; it must not return office secrets,
+install tokens, device secrets, or storage credentials.
+
+Response:
+
+```json
+{
+  "channel": "stable",
+  "platform": "windows-x64",
+  "currentProtocolVersion": "2026-06-25",
+  "minimumProtocolVersion": "2026-06-25",
+  "minimumAgentVersion": "0.0.1-dev",
+  "recommendedAgentVersion": "0.0.1-dev",
+  "latestAgentVersion": "0.0.1-dev",
+  "minimumLauncherVersion": "embedded",
+  "recommendedLauncherVersion": "embedded",
+  "downloadAvailable": false,
+  "downloadUrl": null,
+  "sha256": null,
+  "signatureUrl": null,
+  "releaseNotesUrl": null,
+  "generatedAt": "2026-06-25T00:00:00Z"
+}
+```
+
+When `downloadAvailable=true`, the Launcher may download `downloadUrl` only
+after verifying `sha256` and, when configured, the package signature. Runtime
+replacement and rollback remain Launcher responsibilities, not Cloud API
+responsibilities.
+
 Development fallback `authMode=SHARED_SECRET` keeps the previous
 `officeId + agentCode + token` shape only when explicitly allowed by Cloud
 configuration. Production, AWS, and local server operations should keep it

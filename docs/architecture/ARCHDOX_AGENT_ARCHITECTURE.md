@@ -163,6 +163,15 @@ Cloud-managed Agents use the same runtime compatibility contract, but updates
 are performed by deployment pipeline or container image replacement instead of
 self-updating from inside the container.
 
+Current implementation status:
+
+- `cloud-api` exposes the runtime manifest endpoint with protocol/version and
+  optional package metadata.
+- `archdox-agent-launcher` reads that manifest and decides `OK`,
+  `UPDATE_RECOMMENDED`, or `UPDATE_REQUIRED`.
+- The launcher does not yet download, verify, replace, or roll back runtime
+  packages. Those steps are the next implementation phase.
+
 ## Deployment Policy
 
 ArchDox should keep the user-facing product simple while preserving a precise

@@ -37,13 +37,16 @@ class ArchDoxAgentAuthenticationServiceTest {
     private final OfficeMembershipRepository membershipRepository = mock(OfficeMembershipRepository.class);
     private final ArchDoxAgentProperties properties = new ArchDoxAgentProperties();
     private final ArchDoxAgentSecretHasher secretHasher = new ArchDoxAgentSecretHasher();
+    private final ArchDoxAgentRuntimeCompatibilityService runtimeCompatibilityService =
+            new ArchDoxAgentRuntimeCompatibilityService(properties);
     private final ArchDoxAgentAuthenticationService service = new ArchDoxAgentAuthenticationService(
             agentRepository,
             installTokenRepository,
             officeRepository,
             membershipRepository,
             properties,
-            secretHasher);
+            secretHasher,
+            runtimeCompatibilityService);
 
     @Test
     void issueInstallTokenStoresHashOnly() {
@@ -170,6 +173,9 @@ class ArchDoxAgentAuthenticationServiceTest {
                 null,
                 "correct",
                 "0.0.1",
+                "2026-06-25",
+                "embedded",
+                "stable",
                 "CLOUD_MANAGED",
                 Map.of(),
                 Map.of())));

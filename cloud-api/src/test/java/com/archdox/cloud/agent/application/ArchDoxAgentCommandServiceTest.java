@@ -258,6 +258,7 @@ class ArchDoxAgentCommandServiceTest {
                 mock(PhotoPickupService.class),
                 sessionRegistry,
                 properties,
+                new ArchDoxAgentRuntimeCompatibilityService(properties),
                 eventBus,
                 operationEvents,
                 transactionManager());
@@ -293,12 +294,18 @@ class ArchDoxAgentCommandServiceTest {
     }
 
     private ArchDoxAgent agent(Long id, String agentCode, Map<String, Object> capabilities, OffsetDateTime now) {
+        var compatibleCapabilities = new LinkedHashMap<String, Object>(capabilities);
+        compatibleCapabilities.put("compatibility", Map.of(
+                "status", "OK",
+                "commandAllowed", true,
+                "updateRequired", false,
+                "reason", "Test Agent runtime is compatible."));
         var agent = new ArchDoxAgent(
                 10L,
                 agentCode,
                 ArchDoxAgentDeploymentMode.LOCAL_OFFICE,
                 "1.0.0",
-                capabilities,
+                compatibleCapabilities,
                 Map.of("storageType", "NAS"),
                 now);
         ReflectionTestUtils.setField(agent, "id", id);

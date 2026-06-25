@@ -20,6 +20,13 @@ public class ArchDoxAgentProperties {
     private String minimumProtocolVersion = "2026-06-25";
     private String minimumAgentVersion = "0.0.1-dev";
     private String recommendedAgentVersion = "0.0.1-dev";
+    private String latestAgentVersion = "0.0.1-dev";
+    private String minimumLauncherVersion = "embedded";
+    private String recommendedLauncherVersion = "embedded";
+    private String runtimePackageDownloadUrl;
+    private String runtimePackageSha256;
+    private String runtimePackageSignatureUrl;
+    private String runtimeReleaseNotesUrl;
 
     public String getApiInstanceId() {
         return apiInstanceId;
@@ -127,6 +134,62 @@ public class ArchDoxAgentProperties {
         this.recommendedAgentVersion = recommendedAgentVersion;
     }
 
+    public String getLatestAgentVersion() {
+        return latestAgentVersion;
+    }
+
+    public void setLatestAgentVersion(String latestAgentVersion) {
+        this.latestAgentVersion = latestAgentVersion;
+    }
+
+    public String getMinimumLauncherVersion() {
+        return minimumLauncherVersion;
+    }
+
+    public void setMinimumLauncherVersion(String minimumLauncherVersion) {
+        this.minimumLauncherVersion = minimumLauncherVersion;
+    }
+
+    public String getRecommendedLauncherVersion() {
+        return recommendedLauncherVersion;
+    }
+
+    public void setRecommendedLauncherVersion(String recommendedLauncherVersion) {
+        this.recommendedLauncherVersion = recommendedLauncherVersion;
+    }
+
+    public String getRuntimePackageDownloadUrl() {
+        return runtimePackageDownloadUrl;
+    }
+
+    public void setRuntimePackageDownloadUrl(String runtimePackageDownloadUrl) {
+        this.runtimePackageDownloadUrl = runtimePackageDownloadUrl;
+    }
+
+    public String getRuntimePackageSha256() {
+        return runtimePackageSha256;
+    }
+
+    public void setRuntimePackageSha256(String runtimePackageSha256) {
+        this.runtimePackageSha256 = runtimePackageSha256;
+    }
+
+    public String getRuntimePackageSignatureUrl() {
+        return runtimePackageSignatureUrl;
+    }
+
+    public void setRuntimePackageSignatureUrl(String runtimePackageSignatureUrl) {
+        this.runtimePackageSignatureUrl = runtimePackageSignatureUrl;
+    }
+
+    public String getRuntimeReleaseNotesUrl() {
+        return runtimeReleaseNotesUrl;
+    }
+
+    public void setRuntimeReleaseNotesUrl(String runtimeReleaseNotesUrl) {
+        this.runtimeReleaseNotesUrl = runtimeReleaseNotesUrl;
+    }
+
     public int safeInstallTokenTtlMinutes() {
         return Math.max(1, installTokenTtlMinutes);
     }
@@ -163,7 +226,39 @@ public class ArchDoxAgentProperties {
         return nonBlank(recommendedAgentVersion, safeMinimumAgentVersion());
     }
 
+    public String safeLatestAgentVersion() {
+        return nonBlank(latestAgentVersion, safeRecommendedAgentVersion());
+    }
+
+    public String safeMinimumLauncherVersion() {
+        return nonBlank(minimumLauncherVersion, "embedded");
+    }
+
+    public String safeRecommendedLauncherVersion() {
+        return nonBlank(recommendedLauncherVersion, safeMinimumLauncherVersion());
+    }
+
+    public String optionalRuntimePackageDownloadUrl() {
+        return blankToNull(runtimePackageDownloadUrl);
+    }
+
+    public String optionalRuntimePackageSha256() {
+        return blankToNull(runtimePackageSha256);
+    }
+
+    public String optionalRuntimePackageSignatureUrl() {
+        return blankToNull(runtimePackageSignatureUrl);
+    }
+
+    public String optionalRuntimeReleaseNotesUrl() {
+        return blankToNull(runtimeReleaseNotesUrl);
+    }
+
     private String nonBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
