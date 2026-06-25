@@ -28,7 +28,7 @@ import {
   Wifi,
   XCircle
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Component, ErrorInfo, FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   acceptOfficeInvitation,
@@ -499,7 +499,7 @@ const platformNavItems: Array<{ key: PlatformViewKey; label: string }> = [
   { key: "platform-flower-runtime", label: "Flower Runtime" },
   { key: "platform-server-runtime", label: "서버 리소스" },
   { key: "platform-automation", label: "운영 자동화" },
-  { key: "platform-pid-control", label: "PID 튜닝" }
+  { key: "platform-pid-control", label: "운영 제어 신호" }
 ];
 
 const aiNavItems: Array<{ key: AiViewKey; label: string }> = [
@@ -4315,6 +4315,36 @@ function Panel({
   );
 }
 
+class PanelErrorBoundary extends Component<
+  { title: string; children: ReactNode },
+  { error: string | null }
+> {
+  constructor(props: { title: string; children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error: error.message || "Unknown render error" };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Admin panel render failed", this.props.title, error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <Panel title={this.props.title} icon={<AlertTriangle size={18} />}>
+          <InlineAlert message={`${this.props.title} 화면을 표시하지 못했습니다. 새로고침 후에도 반복되면 최근 Daily Report 데이터 형식을 확인해야 합니다.`} />
+          <p className="panel-context">{this.state.error}</p>
+        </Panel>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function Table({ columns, rows, empty }: { columns: string[]; rows: ReactNode[][]; empty: string }) {
   return (
     <div className="table-wrap">
@@ -5851,15 +5881,17 @@ function PlatformView({
       ) : null}
 
       {showPidControl ? (
-        <PlatformOpsPidTuningPanel
-          busy={loading}
-          reports={data.opsDailyReports}
-          profiles={data.opsControlProfiles}
-          onCreate={onCreateOpsControlProfile}
-          onUpdate={onUpdateOpsControlProfile}
-          onDelete={onDeleteOpsControlProfile}
-          onRunDetection={onRunDetection}
-        />
+        <PanelErrorBoundary title="운영 제어 신호">
+          <PlatformOpsPidTuningPanel
+            busy={loading}
+            reports={data.opsDailyReports}
+            profiles={data.opsControlProfiles}
+            onCreate={onCreateOpsControlProfile}
+            onUpdate={onUpdateOpsControlProfile}
+            onDelete={onDeleteOpsControlProfile}
+            onRunDetection={onRunDetection}
+          />
+        </PanelErrorBoundary>
       ) : null}
 
       {showOverview || showIncidents ? (
@@ -8376,12 +8408,12 @@ function PlatformOpsPidTuningPanel({
 
   return (
     <Panel
-      title="PID 튜닝"
+      title="운영 제어 신호"
       icon={<Gauge size={18} />}
-      action={<span className="panel-context">사람 승인 기반 운영 제어값</span>}
+      action={<span className="panel-context">관측값 · 조치 후보 · 수동 채택</span>}
     >
       <div className="ops-diagnosis-detail">
-        <InlineNotice message="이 화면은 AI가 자동으로 튜닝값을 바꾸는 곳이 아닙니다. 운영 리포트에서 나온 신호를 사람이 보고, 반복된 I 신호만 공용 또는 모델별 제어값으로 채택하는 관제 화면입니다." />
+        <InlineNotice message="현재 이 화면은 자동 제어기가 아니라 운영 리포트의 P/I/D형 신호를 조치 후보로 정리하는 관제 화면입니다. 실제 actuator 연결은 안전한 action 정책이 정의된 항목부터 단계적으로 붙입니다." />
         <div className="ops-detail-grid">
           <MetricCard icon={<Activity size={20} />} label="P 현재 상태" value={pSignalStats.length} detail="오늘 보이는 운영 상태" tone={pSignalStats.length > 0 ? "amber" : "green"} />
           <MetricCard icon={<Gauge size={20} />} label="I 반복 패턴" value={repeatedISignals.length} detail={`${iSignalStats.length}개 후보 중 반복`} tone={repeatedISignals.length > 0 ? "blue" : "green"} />
