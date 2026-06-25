@@ -58,6 +58,12 @@ The same runtime can be deployed in different modes:
 The deployment mode changes configuration and storage, not the identity of the
 runtime.
 
+`CLOUD_MANAGED` is not allowed to use `LOCAL_FILE` or `NAS` storage. It must
+configure `S3_COMPATIBLE` storage for original photos, working photos, document
+artifacts, and template cache. Local filesystem storage for a cloud-managed
+Agent is acceptable only in isolated development experiments, not in the runtime
+configuration used by ArchDox Cloud.
+
 ## Relationship To Other Modules
 
 ```text

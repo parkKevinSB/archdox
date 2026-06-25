@@ -44,6 +44,14 @@ Required `.env` values for the bundled MVP cloud-managed Agents:
 - `AGENT_INWOO_ID`
 - `AGENT_INWOO_DEVICE_SECRET`
 
+Cloud-managed Agents must use object storage. `LOCAL_FILE` and `NAS` storage
+profiles are for development or locally installed Agents only. The Lightsail
+compose file configures cloud-managed Agents with `S3_COMPATIBLE` storage for
+originals, working photos, generated artifacts, and template cache. For the MVP
+stack this can point at the bundled MinIO service; for production point
+`AGENT_S3_ENDPOINT`, `AGENT_S3_ACCESS_KEY`, and `AGENT_S3_SECRET_KEY` at the
+real AWS S3 or S3-compatible bucket.
+
 Example provisioning request:
 
 ```bash

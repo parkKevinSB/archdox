@@ -191,7 +191,16 @@ archdox:
       artifact:
         kind: S3_COMPATIBLE
         bucket: archdox-artifacts
+      template:
+        kind: S3_COMPATIBLE
+        bucket: archdox-template-cache
 ```
+
+`CLOUD_MANAGED` runtimes must not use `LOCAL_FILE` or `NAS` for originals,
+working photos, generated artifacts, or template cache. Those storage kinds are
+for `LOCAL_OFFICE` and local development only. Production cloud-managed Agents
+must persist document/photo state in AWS S3 or another S3-compatible object
+store.
 
 Implemented Phase 9-1/9-2 behavior:
 
