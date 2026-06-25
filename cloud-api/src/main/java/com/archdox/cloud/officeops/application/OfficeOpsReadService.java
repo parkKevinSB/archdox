@@ -17,11 +17,7 @@ import com.archdox.cloud.document.domain.DocumentJobStatus;
 import com.archdox.cloud.document.infra.DocumentArtifactRepository;
 import com.archdox.cloud.document.infra.DocumentDeliveryRequestRepository;
 import com.archdox.cloud.document.infra.DocumentJobRepository;
-import com.archdox.cloud.global.api.ForbiddenException;
 import com.archdox.cloud.global.security.UserPrincipal;
-import com.archdox.cloud.office.application.OfficeContext;
-import com.archdox.cloud.office.infra.OfficeMembershipRepository;
-import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.officeops.dto.AgentCommandOpsResponse;
 import com.archdox.cloud.officeops.dto.AgentOpsResponse;
 import com.archdox.cloud.officeops.dto.AgentSessionOpsResponse;
@@ -38,8 +34,6 @@ import com.archdox.cloud.photo.domain.PhotoPickupStatus;
 import com.archdox.cloud.photo.domain.PhotoStatus;
 import com.archdox.cloud.photo.infra.PhotoAssetRepository;
 import com.archdox.cloud.photo.infra.PhotoRepository;
-import com.archdox.shared.MembershipRole;
-import com.archdox.shared.MembershipStatus;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,8 +58,7 @@ public class OfficeOpsReadService {
             ArchDoxAgentCommandStatus.FAILED,
             ArchDoxAgentCommandStatus.EXPIRED);
 
-    private final OfficeMembershipRepository membershipRepository;
-    private final PlatformAdminService platformAdminService;
+    private final OfficeAdminAccessService officeAdminAccessService;
     private final ArchDoxAgentRepository agentRepository;
     private final ArchDoxAgentSessionRepository sessionRepository;
     private final ArchDoxAgentCommandRepository commandRepository;
@@ -76,8 +69,7 @@ public class OfficeOpsReadService {
     private final DocumentDeliveryRequestRepository deliveryRepository;
 
     public OfficeOpsReadService(
-            OfficeMembershipRepository membershipRepository,
-            PlatformAdminService platformAdminService,
+            OfficeAdminAccessService officeAdminAccessService,
             ArchDoxAgentRepository agentRepository,
             ArchDoxAgentSessionRepository sessionRepository,
             ArchDoxAgentCommandRepository commandRepository,
@@ -87,8 +79,7 @@ public class OfficeOpsReadService {
             PhotoAssetRepository photoAssetRepository,
             DocumentDeliveryRequestRepository deliveryRepository
     ) {
-        this.membershipRepository = membershipRepository;
-        this.platformAdminService = platformAdminService;
+        this.officeAdminAccessService = officeAdminAccessService;
         this.agentRepository = agentRepository;
         this.sessionRepository = sessionRepository;
         this.commandRepository = commandRepository;
@@ -216,19 +207,7 @@ public class OfficeOpsReadService {
     }
 
     private Long requireOfficeAdmin(UserPrincipal principal) {
-        var officeId = OfficeContext.requireCurrentOfficeId();
-        if (platformAdminService.isPlatformAdmin(principal)) {
-            return officeId;
-        }
-        var membership = membershipRepository.findByUserIdAndOfficeIdAndStatus(
-                        principal.userId(),
-                        officeId,
-                        MembershipStatus.ACTIVE)
-                .orElseThrow(() -> new ForbiddenException("Office membership required"));
-        if (membership.role() != MembershipRole.OWNER && membership.role() != MembershipRole.ADMIN) {
-            throw new ForbiddenException("Office admin role required");
-        }
-        return officeId;
+        return officeAdminAccessService.requireOfficeAdmin(principal);
     }
 
     private AgentOpsResponse toAgentResponse(ArchDoxAgent agent) {

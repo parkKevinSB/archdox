@@ -93,6 +93,9 @@ archdox:
       execution:
         threads: ${ARCHDOX_AI_MODEL_GATEWAY_THREADS:8}
         queue-capacity: ${ARCHDOX_AI_MODEL_GATEWAY_QUEUE_CAPACITY:200}
+  office-storage:
+    credentials:
+      master-key: ${ARCHDOX_OFFICE_STORAGE_CREDENTIAL_MASTER_KEY:}
   jwt:
     secret: ${JWT_SECRET:dev-only-change-this-secret-for-archdox-local-256-bit}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}

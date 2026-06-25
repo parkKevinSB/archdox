@@ -9,6 +9,9 @@ archdox:
     dev-bootstrap:
       enabled: ${ARCHDOX_AI_DEV_BOOTSTRAP_ENABLED:true}
       attach-to-existing-offices: ${ARCHDOX_AI_DEV_BOOTSTRAP_ATTACH_OFFICES:true}
+  office-storage:
+    credentials:
+      master-key: ${ARCHDOX_OFFICE_STORAGE_CREDENTIAL_MASTER_KEY:dev-only-archdox-office-storage-key-change-me}
   storage:
     active: LOCAL_FILE
     local-file:

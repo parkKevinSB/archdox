@@ -67,6 +67,9 @@ import type {
   PlatformUserOps,
   OfficeAiPolicy,
   Photo,
+  OfficeStorageConnectionTestResult,
+  OfficeStorageProfile,
+  OfficeStorageProfileRequest,
   Project,
   ProjectAssignment,
   ProjectAssignmentRole,
@@ -298,6 +301,27 @@ export function getSummary(token: string, officeId: number) {
 
 export function getAgents(token: string, officeId: number, limit = 50) {
   return request<Agent[]>("/api/v1/office-ops/agents", { token, officeId, query: { limit } });
+}
+
+export function getOfficeStorageProfiles(token: string, officeId: number) {
+  return request<OfficeStorageProfile[]>("/api/v1/office-ops/storage-profiles", { token, officeId });
+}
+
+export function saveOfficeStorageProfile(token: string, officeId: number, body: OfficeStorageProfileRequest) {
+  return request<OfficeStorageProfile>("/api/v1/office-ops/storage-profiles", {
+    token,
+    officeId,
+    method: "POST",
+    body
+  });
+}
+
+export function testOfficeStorageProfile(token: string, officeId: number, profileId: number) {
+  return request<OfficeStorageConnectionTestResult>(`/api/v1/office-ops/storage-profiles/${profileId}/test`, {
+    token,
+    officeId,
+    method: "POST"
+  });
 }
 
 export function getAgentSessions(token: string, officeId: number, limit = 50) {

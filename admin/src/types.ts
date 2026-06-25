@@ -147,6 +147,57 @@ export type Agent = {
   activeSessions: AgentSession[];
 };
 
+export type OfficeStorageProviderType = "AWS_S3" | "MINIO" | "CUSTOM_S3";
+
+export type OfficeStorageProfileStatus = "DRAFT" | "VERIFIED" | "FAILED" | "DISABLED";
+
+export type OfficeStorageConnectionTestStatus = "SUCCEEDED" | "FAILED";
+
+export type OfficeStorageProfile = {
+  id: number;
+  officeId: number;
+  profileCode: string;
+  displayName: string;
+  providerType: OfficeStorageProviderType;
+  status: OfficeStorageProfileStatus;
+  endpoint?: string | null;
+  region: string;
+  bucketName: string;
+  objectPrefix?: string | null;
+  pathStyleAccess: boolean;
+  credentialsConfigured: boolean;
+  accessKeyFingerprint?: string | null;
+  maskedAccessKeyFingerprint?: string | null;
+  credentialVersion: number;
+  lastTestedAt?: string | null;
+  lastTestStatus?: string | null;
+  lastTestMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OfficeStorageProfileRequest = {
+  id?: number | null;
+  profileCode?: string | null;
+  displayName?: string | null;
+  providerType: OfficeStorageProviderType;
+  endpoint?: string | null;
+  region?: string | null;
+  bucketName: string;
+  objectPrefix?: string | null;
+  pathStyleAccess?: boolean | null;
+  accessKey?: string | null;
+  secretKey?: string | null;
+};
+
+export type OfficeStorageConnectionTestResult = {
+  profileId: number;
+  status: OfficeStorageConnectionTestStatus;
+  message: string;
+  elapsedMs: number;
+  testedAt: string;
+};
+
 export type AgentCommand = {
   id: number;
   agentId: number;

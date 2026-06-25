@@ -2561,6 +2561,45 @@ button {
   padding: 16px;
 }
 
+.storage-profile-panel {
+  gap: 14px;
+}
+
+.storage-profile-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.storage-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.storage-test-result {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.storage-test-result.success {
+  color: #126451;
+  background: #dff5ef;
+}
+
+.storage-test-result.failed {
+  color: #9a3412;
+  background: #fee9d5;
+}
+
 .ai-harness-manager {
   display: grid;
   grid-template-columns: minmax(260px, 0.42fr) minmax(420px, 1fr);

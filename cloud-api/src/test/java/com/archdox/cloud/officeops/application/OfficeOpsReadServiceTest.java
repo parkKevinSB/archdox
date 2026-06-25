@@ -38,10 +38,11 @@ class OfficeOpsReadServiceTest {
     private final PhotoRepository photoRepository = mock(PhotoRepository.class);
     private final PhotoAssetRepository photoAssetRepository = mock(PhotoAssetRepository.class);
     private final DocumentDeliveryRequestRepository deliveryRepository = mock(DocumentDeliveryRequestRepository.class);
+    private final OfficeAdminAccessService officeAdminAccessService =
+            new OfficeAdminAccessService(membershipRepository, platformAdminService);
 
     private final OfficeOpsReadService service = new OfficeOpsReadService(
-            membershipRepository,
-            platformAdminService,
+            officeAdminAccessService,
             agentRepository,
             sessionRepository,
             commandRepository,

@@ -69,6 +69,7 @@ import {
   getAgentCommands,
   getAgentSessions,
   getAgents,
+  getOfficeStorageProfiles,
   getDocumentTemplateFields,
   getDocumentTemplateRevisions,
   getDocumentTemplates,
@@ -140,8 +141,10 @@ import {
   revokePlatformEngineApiKey,
   runPlatformMcpLiveSmoke,
   searchPlatformLegalCorpus,
+  saveOfficeStorageProfile,
   signup,
   startPlatformLegalOpenDataSync,
+  testOfficeStorageProfile,
   testPlatformAiProvider,
   updateProject,
   updatePlatformAiObservationMode,
@@ -205,6 +208,10 @@ import type {
   MeResponse,
   MembershipRole,
   Office,
+  OfficeStorageConnectionTestResult,
+  OfficeStorageProfile,
+  OfficeStorageProfileRequest,
+  OfficeStorageProviderType,
   OfficeInvitation,
   OfficeMember,
   OfficeConfigOverride,
@@ -318,6 +325,7 @@ type AdminState = {
 type OpsData = {
   summary: OfficeOpsSummary | null;
   agents: Agent[];
+  storageProfiles: OfficeStorageProfile[];
   sessions: AgentSession[];
   commands: AgentCommand[];
   documents: DocumentJob[];
@@ -414,6 +422,7 @@ const OFFICE_STORAGE_KEY = "archdox.admin.officeId";
 const emptyOpsData: OpsData = {
   summary: null,
   agents: [],
+  storageProfiles: [],
   sessions: [],
   commands: [],
   documents: [],
@@ -909,9 +918,10 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [summary, agents, sessions, commands, documents, photos, deliveries, events] = await Promise.all([
+      const [summary, agents, storageProfiles, sessions, commands, documents, photos, deliveries, events] = await Promise.all([
         getSummary(auth.accessToken, selectedOfficeId),
         getAgents(auth.accessToken, selectedOfficeId, 100),
+        getOfficeStorageProfiles(auth.accessToken, selectedOfficeId),
         getAgentSessions(auth.accessToken, selectedOfficeId, 100),
         getAgentCommands(auth.accessToken, selectedOfficeId, 100),
         getDocumentJobs(auth.accessToken, selectedOfficeId, 100),
@@ -919,7 +929,7 @@ export default function App() {
         getDocumentDeliveries(auth.accessToken, selectedOfficeId, 100),
         getOperationEvents(auth.accessToken, selectedOfficeId, 100)
       ]);
-      setOpsData({ summary, agents, sessions, commands, documents, photos, deliveries, events });
+      setOpsData({ summary, agents, storageProfiles, sessions, commands, documents, photos, deliveries, events });
     } catch (err) {
       setError(err instanceof Error ? err.message : "운영 데이터를 불러오지 못했습니다.");
     } finally {
@@ -2236,7 +2246,16 @@ export default function App() {
 
         <section className="content-stage">
           {activeView === "dashboard" && <Dashboard data={opsData} loading={loading} />}
-          {activeView === "agents" && <AgentsView agents={opsData.agents} sessions={opsData.sessions} />}
+          {activeView === "agents" && auth && selectedOfficeId && (
+            <AgentsView
+              agents={opsData.agents}
+              storageProfiles={opsData.storageProfiles}
+              sessions={opsData.sessions}
+              token={auth.accessToken}
+              officeId={selectedOfficeId}
+              onMutated={refresh}
+            />
+          )}
           {activeView === "commands" && (
             <CommandsView
               commands={filterByStatus(opsData.commands, commandStatus)}
@@ -2613,9 +2632,29 @@ function Dashboard({ data, loading }: { data: OpsData; loading: boolean }) {
   );
 }
 
-function AgentsView({ agents, sessions }: { agents: Agent[]; sessions: AgentSession[] }) {
+function AgentsView({
+  agents,
+  storageProfiles,
+  sessions,
+  token,
+  officeId,
+  onMutated
+}: {
+  agents: Agent[];
+  storageProfiles: OfficeStorageProfile[];
+  sessions: AgentSession[];
+  token: string;
+  officeId: number;
+  onMutated: () => void | Promise<void>;
+}) {
   return (
     <div className="view-stack">
+      <OfficeStorageProfilesPanel
+        profiles={storageProfiles}
+        token={token}
+        officeId={officeId}
+        onMutated={onMutated}
+      />
       <Panel title="에이전트 목록" icon={<Server size={18} />} count={agents.length}>
         <Table
           columns={["에이전트", "상태", "모드", "세션", "명령", "버전", "최근 접속"]}
@@ -2647,6 +2686,237 @@ function AgentsView({ agents, sessions }: { agents: Agent[]; sessions: AgentSess
         />
       </Panel>
     </div>
+  );
+}
+
+const storageProviderOptions: Array<{ value: OfficeStorageProviderType; label: string; description: string }> = [
+  { value: "AWS_S3", label: "AWS S3", description: "운영 권장" },
+  { value: "MINIO", label: "MinIO", description: "개발/사내 S3 호환" },
+  { value: "CUSTOM_S3", label: "S3 호환", description: "직접 입력" }
+];
+
+function OfficeStorageProfilesPanel({
+  profiles,
+  token,
+  officeId,
+  onMutated
+}: {
+  profiles: OfficeStorageProfile[];
+  token: string;
+  officeId: number;
+  onMutated: () => void | Promise<void>;
+}) {
+  const primaryProfile = profiles[0] ?? null;
+  const [form, setForm] = useState<OfficeStorageProfileRequest>(() => storageFormFromProfile(primaryProfile));
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<OfficeStorageConnectionTestResult | null>(null);
+
+  useEffect(() => {
+    setForm(storageFormFromProfile(primaryProfile));
+    setTestResult(null);
+  }, [primaryProfile?.id, primaryProfile?.updatedAt]);
+
+  const provider = form.providerType ?? "AWS_S3";
+  const endpointRequired = provider !== "AWS_S3";
+  const verifiedProfile = profiles.find((profile) => profile.status === "VERIFIED") ?? null;
+
+  function update(field: keyof OfficeStorageProfileRequest, value: string | boolean) {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === "providerType") {
+        const providerType = value as OfficeStorageProviderType;
+        next.pathStyleAccess = providerType !== "AWS_S3";
+        if (providerType === "AWS_S3") {
+          next.endpoint = "";
+        }
+      }
+      return next;
+    });
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy("save");
+    setNotice(null);
+    setError(null);
+    try {
+      const saved = await saveOfficeStorageProfile(token, officeId, {
+        ...form,
+        profileCode: form.profileCode || "default",
+        displayName: form.displayName || storageProviderLabel(form.providerType ?? "AWS_S3"),
+        accessKey: normalizeFormValue(form.accessKey ?? undefined),
+        secretKey: normalizeFormValue(form.secretKey ?? undefined)
+      });
+      setForm(storageFormFromProfile(saved));
+      setNotice("저장소 설정을 저장했습니다. 연결 테스트를 실행해 주세요.");
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장소 설정을 저장하지 못했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runConnectionTest() {
+    if (!primaryProfile?.id) {
+      setError("먼저 저장소 설정을 저장해 주세요.");
+      return;
+    }
+    setBusy("test");
+    setNotice(null);
+    setError(null);
+    try {
+      const result = await testOfficeStorageProfile(token, officeId, primaryProfile.id);
+      setTestResult(result);
+      setNotice(result.status === "SUCCEEDED" ? "저장소 연결 테스트에 성공했습니다." : "저장소 연결 테스트에 실패했습니다.");
+      await onMutated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장소 연결 테스트를 실행하지 못했습니다.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Panel
+      title="저장소 연결"
+      icon={<HardDrive size={18} />}
+      count={profiles.length}
+      action={verifiedProfile ? <span className="status-badge green">검증됨</span> : <span className="panel-context">Cloud Agent 준비</span>}
+    >
+      <div className="config-panel-body storage-profile-panel">
+        {notice ? <InlineNotice message={notice} /> : null}
+        {error ? <InlineAlert message={error} /> : null}
+        <div className="metric-grid compact">
+          <MetricCard
+            icon={<HardDrive size={18} />}
+            label="저장소 상태"
+            value={primaryProfile ? storageProfileStatusLabel(primaryProfile.status) : "미설정"}
+            detail={primaryProfile?.lastTestedAt ? `마지막 테스트 ${formatDate(primaryProfile.lastTestedAt)}` : "연결 테스트 전"}
+            tone={primaryProfile?.status === "VERIFIED" ? "green" : primaryProfile?.status === "FAILED" ? "red" : "amber"}
+          />
+          <MetricCard
+            icon={<KeyRound size={18} />}
+            label="접근 키"
+            value={primaryProfile?.credentialsConfigured ? "저장됨" : "없음"}
+            detail={primaryProfile?.maskedAccessKeyFingerprint ?? "키는 화면에 표시하지 않습니다"}
+            tone={primaryProfile?.credentialsConfigured ? "green" : "slate"}
+          />
+          <MetricCard
+            icon={<Server size={18} />}
+            label="대상 버킷"
+            value={primaryProfile?.bucketName || form.bucketName || "-"}
+            detail={primaryProfile?.objectPrefix ? `prefix ${primaryProfile.objectPrefix}` : "prefix 없음"}
+            tone="blue"
+          />
+        </div>
+
+        <form className="ai-policy-form storage-profile-form" onSubmit={submit}>
+          <label>
+            저장소 유형
+            <select
+              value={provider}
+              onChange={(event) => update("providerType", event.target.value as OfficeStorageProviderType)}
+            >
+              {storageProviderOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} · {option.description}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            표시 이름
+            <input
+              value={form.displayName ?? ""}
+              onChange={(event) => update("displayName", event.target.value)}
+              placeholder={storageProviderLabel(provider)}
+            />
+          </label>
+          <label>
+            리전
+            <input
+              value={form.region ?? ""}
+              onChange={(event) => update("region", event.target.value)}
+              placeholder="ap-northeast-2"
+            />
+          </label>
+          {endpointRequired ? (
+            <label className="wide">
+              Endpoint
+              <input
+                value={form.endpoint ?? ""}
+                onChange={(event) => update("endpoint", event.target.value)}
+                placeholder="https://s3.example.com"
+              />
+            </label>
+          ) : null}
+          <label>
+            버킷
+            <input
+              required
+              value={form.bucketName}
+              onChange={(event) => update("bucketName", event.target.value)}
+              placeholder="archdox-office-storage"
+            />
+          </label>
+          <label>
+            폴더 prefix
+            <input
+              value={form.objectPrefix ?? ""}
+              onChange={(event) => update("objectPrefix", event.target.value)}
+              placeholder="office-1"
+            />
+          </label>
+          <label>
+            Access key
+            <input
+              autoComplete="off"
+              value={form.accessKey ?? ""}
+              onChange={(event) => update("accessKey", event.target.value)}
+              placeholder={primaryProfile?.credentialsConfigured ? "변경할 때만 입력" : "Access key 입력"}
+            />
+          </label>
+          <label>
+            Secret key
+            <input
+              autoComplete="off"
+              type="password"
+              value={form.secretKey ?? ""}
+              onChange={(event) => update("secretKey", event.target.value)}
+              placeholder={primaryProfile?.credentialsConfigured ? "변경할 때만 입력" : "Secret key 입력"}
+            />
+          </label>
+          {endpointRequired ? (
+            <label className="toggle-row wide">
+              <input
+                checked={Boolean(form.pathStyleAccess)}
+                onChange={(event) => update("pathStyleAccess", event.target.checked)}
+                type="checkbox"
+              />
+              S3 호환 path-style 접근 사용
+            </label>
+          ) : null}
+          <div className="storage-profile-actions wide">
+            <button className="button primary" disabled={Boolean(busy)} type="submit">
+              {busy === "save" ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+              저장
+            </button>
+            <button className="button" disabled={Boolean(busy) || !primaryProfile?.id} onClick={runConnectionTest} type="button">
+              {busy === "test" ? <Loader2 className="spin" size={15} /> : <Wifi size={15} />}
+              연결 테스트
+            </button>
+            {testResult ? (
+              <span className={`storage-test-result ${testResult.status === "SUCCEEDED" ? "success" : "failed"}`}>
+                {testResult.status === "SUCCEEDED" ? "성공" : "실패"} · {testResult.elapsedMs}ms
+              </span>
+            ) : null}
+          </div>
+        </form>
+      </div>
+    </Panel>
   );
 }
 
@@ -12033,8 +12303,57 @@ function normalizeProjectForm(form: ProjectFormRequest): ProjectFormRequest {
   };
 }
 
+function storageFormFromProfile(profile?: OfficeStorageProfile | null): OfficeStorageProfileRequest {
+  if (!profile) {
+    return {
+      profileCode: "default",
+      displayName: "사무소 S3 저장소",
+      providerType: "AWS_S3",
+      endpoint: "",
+      region: "ap-northeast-2",
+      bucketName: "",
+      objectPrefix: "",
+      pathStyleAccess: false,
+      accessKey: "",
+      secretKey: ""
+    };
+  }
+  return {
+    id: profile.id,
+    profileCode: profile.profileCode,
+    displayName: profile.displayName,
+    providerType: profile.providerType,
+    endpoint: profile.endpoint ?? "",
+    region: profile.region,
+    bucketName: profile.bucketName,
+    objectPrefix: profile.objectPrefix ?? "",
+    pathStyleAccess: profile.pathStyleAccess,
+    accessKey: "",
+    secretKey: ""
+  };
+}
+
+function storageProviderLabel(providerType: OfficeStorageProviderType) {
+  const labels: Record<OfficeStorageProviderType, string> = {
+    AWS_S3: "AWS S3",
+    MINIO: "MinIO",
+    CUSTOM_S3: "S3 호환 저장소"
+  };
+  return labels[providerType] ?? providerType;
+}
+
+function storageProfileStatusLabel(status: OfficeStorageProfile["status"]) {
+  const labels: Record<OfficeStorageProfile["status"], string> = {
+    DRAFT: "테스트 전",
+    VERIFIED: "검증됨",
+    FAILED: "연결 실패",
+    DISABLED: "비활성"
+  };
+  return labels[status] ?? status;
+}
+
 function statusTone(status: string) {
-  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED", "PASS", "OK"].includes(status)) {
+  if (["ONLINE", "ACTIVE", "RUNNING", "COMPLETED", "GENERATED", "UPLOADED", "PICKED_UP", "OWNER", "ADMIN", "INFO", "PUBLISHED", "ACCEPTED", "RESOLVED", "APPROVED", "APPLIED", "PASS", "OK", "VERIFIED", "SUCCEEDED"].includes(status)) {
     return "green";
   }
   if (["CREATED", "READY", "PAUSED", "REQUESTED", "PENDING", "PENDING_UPLOAD", "DELIVERED", "ACKED", "SENDING", "GENERATING", "WARN", "DRAFT", "OPEN", "MEDIUM", "LOW", "NEEDS_HUMAN_REVIEW"].includes(status)) {
@@ -12126,7 +12445,10 @@ function serverHealthTone(status?: string | null): "green" | "blue" | "amber" | 
   return "slate";
 }
 
-function normalizeFormValue(value: string) {
+function normalizeFormValue(value?: string | null) {
+  if (value === undefined || value === null) {
+    return null;
+  }
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
 }

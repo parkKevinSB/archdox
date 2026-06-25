@@ -7,6 +7,9 @@ archdox:
   ai:
     credentials:
       master-key: ${ARCHDOX_AI_CREDENTIAL_MASTER_KEY:}
+  office-storage:
+    credentials:
+      master-key: ${ARCHDOX_OFFICE_STORAGE_CREDENTIAL_MASTER_KEY:}
   storage:
     active: S3_COMPATIBLE
     s3-compatible:
