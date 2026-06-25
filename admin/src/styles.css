@@ -1540,6 +1540,90 @@ button {
   color: #334541;
 }
 
+.ops-p-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-p-action-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d8e1df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ops-p-action-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-p-action-heading div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-p-action-heading strong {
+  color: #172623;
+  font-size: 14px;
+}
+
+.ops-p-action-heading span,
+.ops-p-action-card p,
+.ops-p-action-next span {
+  color: #60736f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ops-p-action-card p {
+  margin: 0;
+}
+
+.ops-p-action-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.ops-p-action-facts div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f6faf9;
+}
+
+.ops-p-action-facts dt {
+  color: #758683;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ops-p-action-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #23322f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ops-p-action-next {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-p-action-next strong {
+  color: #354743;
+  font-size: 12px;
+}
+
 .metric-icon {
   display: grid;
   width: 32px;
@@ -3930,6 +4014,10 @@ tbody tr:hover {
   }
 
   .ops-pid-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-p-action-grid {
     grid-template-columns: 1fr;
   }
 

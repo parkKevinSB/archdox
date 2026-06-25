@@ -59,6 +59,8 @@ public final class OpsDailyReportPromptBuilder implements PromptBuilder<OpsDaily
                 - Treat failedOpsRunBreakdown.restartRelated as deployment/restart impact, not as an application outage by itself.
                 - Prefer incidentBreakdown.realActive over raw openIncidentCount when deciding whether operators must act now.
                 - Treat incidentBreakdown.stale as cleanup/noise candidates unless fresh evidence proves they are still active.
+                - pControlActions are deterministic, allowed P-like action candidates. Prefer these when recommending immediate P-like operator actions.
+                - Do not invent automatic repair actions outside pControlActions.
                 - If evidence is insufficient, say so and recommend human review.
                 """;
         var user = """

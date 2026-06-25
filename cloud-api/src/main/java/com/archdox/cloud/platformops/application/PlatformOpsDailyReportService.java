@@ -458,6 +458,7 @@ public class PlatformOpsDailyReportService {
                         "resourceId", nullable(event.resourceId()),
                         "createdAt", event.createdAt().toString()))
                 .toList());
+        snapshot.put("pControlActions", pControlActions(snapshot));
         snapshot.put("deterministicSignals", deterministicSignals(snapshot));
         snapshot.put("redactionPolicy", redactionPolicy());
         return snapshot;
@@ -593,6 +594,7 @@ public class PlatformOpsDailyReportService {
                         "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
                         "failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"),
                         "photoPickup", snapshot.get("photoPickup"),
+                        "pControlActions", snapshot.get("pControlActions"),
                         "aiHarnessStatus", snapshot.get("aiHarnessStatus")),
                 "Review the daily report and decide whether any suggested action should be submitted as a separate controlled action.",
                 now);
@@ -624,7 +626,8 @@ public class PlatformOpsDailyReportService {
                 Map.of(
                         "runId", run.id(),
                         "aiHarnessStatus", snapshot.getOrDefault("aiHarnessStatus", ""),
-                        "deterministicSignals", snapshot.getOrDefault("deterministicSignals", List.of())),
+                        "deterministicSignals", snapshot.getOrDefault("deterministicSignals", List.of()),
+                        "pControlActions", snapshot.getOrDefault("pControlActions", List.of())),
                 now);
     }
 
@@ -665,6 +668,7 @@ public class PlatformOpsDailyReportService {
         appendSignalSection(builder, "I-like Accumulated Signals", signalList(findings, "iLikeAccumulatedSignals"));
         appendSignalSection(builder, "D-like Trend Signals", signalList(findings, "dLikeTrendSignals"));
         appendSignalSection(builder, "Recommendations", signalList(findings, "recommendations"));
+        appendActionSection(builder, actionList(snapshot));
 
         builder.append("\n## AI Findings\n\n");
         var aiFindings = findings.stream()
@@ -710,6 +714,25 @@ public class PlatformOpsDailyReportService {
         }
     }
 
+    private void appendActionSection(StringBuilder builder, List<Map<String, Object>> actions) {
+        builder.append("\n## P-like Control Action Candidates\n\n");
+        if (actions.isEmpty()) {
+            builder.append("- No P-like control action candidate was generated.\n");
+            return;
+        }
+        for (var action : actions) {
+            builder.append("- [")
+                    .append(action.getOrDefault("executionMode", "MANUAL_REVIEW"))
+                    .append("] ")
+                    .append(action.getOrDefault("title", action.getOrDefault("code", "Action candidate")))
+                    .append(" - ")
+                    .append(action.getOrDefault("reason", "Review this P-like signal."))
+                    .append('\n');
+            builder.append("  - Signal: ").append(action.getOrDefault("signalKey", "-")).append('\n');
+            builder.append("  - Expected effect: ").append(action.getOrDefault("expectedEffect", "-")).append('\n');
+        }
+    }
+
     private void appendMap(StringBuilder builder, Map<String, Object> source, List<String> keys) {
         for (var key : keys) {
             builder.append("- ").append(key).append(": ").append(source.getOrDefault(key, 0)).append('\n');
@@ -734,7 +757,8 @@ public class PlatformOpsDailyReportService {
                         "periodTo", snapshot.get("periodTo"),
                         "openIncidentCount", snapshot.get("openIncidentCount"),
                         "incidentBreakdown", snapshot.get("incidentBreakdown"),
-                        "failedOpsRunCount", snapshot.get("failedOpsRunCount")));
+                        "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
+                        "pControlActions", snapshot.get("pControlActions")));
     }
 
     private void recordReportEvent(
@@ -764,6 +788,7 @@ public class PlatformOpsDailyReportService {
                         "failedOpsRunCount", snapshot.get("failedOpsRunCount"),
                         "failedOpsRunBreakdown", snapshot.get("failedOpsRunBreakdown"),
                         "photoPickup", snapshot.get("photoPickup"),
+                        "pControlActions", snapshot.get("pControlActions"),
                         "aiHarnessStatus", snapshot.get("aiHarnessStatus")));
     }
 
@@ -997,6 +1022,140 @@ public class PlatformOpsDailyReportService {
         return Map.of("pLike", pLike, "iLike", iLike, "dLike", dLike);
     }
 
+    private List<Map<String, Object>> pControlActions(Map<String, Object> snapshot) {
+        var actions = new ArrayList<Map<String, Object>>();
+        var incidentBreakdown = childMap(snapshot, "incidentBreakdown");
+        var failedOpsRunBreakdown = childMap(snapshot, "failedOpsRunBreakdown");
+        var photoPickup = childMap(snapshot, "photoPickup");
+
+        var realActiveIncidents = numeric(incidentBreakdown.get("realActive"));
+        if (realActiveIncidents > 0) {
+            actions.add(actionCandidate(
+                    "REVIEW_ACTIVE_INCIDENTS",
+                    "활성 운영 이슈 확인",
+                    "openIncidentCount",
+                    realActiveIncidents,
+                    "MANUAL_REVIEW",
+                    "LOW",
+                    "최근 리포트 기간에 다시 감지된 incident가 있습니다.",
+                    "이슈/진단 화면에서 실제 활성 incident를 확인하고 필요한 경우 incident diagnosis를 실행합니다.",
+                    "활성 incident가 사용자가 체감하는 문제인지, 자동 해소 대상인지, 사람 조치가 필요한지 분리합니다.",
+                    "platform-ops-incidents",
+                    null));
+        }
+
+        var staleIncidents = numeric(incidentBreakdown.get("stale"));
+        if (staleIncidents > 0) {
+            actions.add(actionCandidate(
+                    "RUN_DETECTION_FOR_STALE_INCIDENTS",
+                    "오래된 이슈 재감지",
+                    "incidentBreakdown.stale",
+                    staleIncidents,
+                    "MANUAL_FLOW",
+                    "LOW",
+                    "열려 있지만 최근 리포트 기간에 다시 감지되지 않은 incident가 남아 있습니다.",
+                    "운영 감지를 다시 실행해 더 이상 문제가 아닌 incident를 자동 해소 대상으로 확인합니다.",
+                    "stale incident가 계속 열린 채로 남아 운영 리포트를 과장하는 일을 줄입니다.",
+                    "platform-ops-detection",
+                    "detectPlatformStuckHealth"));
+        }
+
+        var actionableFailedRuns = numeric(failedOpsRunBreakdown.get("actionable"));
+        if (actionableFailedRuns > 0) {
+            actions.add(actionCandidate(
+                    "REVIEW_ACTIONABLE_FAILED_OPS_RUNS",
+                    "실패 운영 Flow 확인",
+                    "failedOpsRunBreakdown.actionable",
+                    actionableFailedRuns,
+                    "MANUAL_REVIEW",
+                    "LOW",
+                    "재시작 영향으로 분류되지 않은 운영 Flow 실패가 있습니다.",
+                    "운영 자동화 화면에서 실패 run의 failureCode와 snapshot을 확인합니다.",
+                    "배포 영향이 아닌 실제 실행 실패를 찾아 다음 flow 재시도 또는 코드 수정 대상으로 분리합니다.",
+                    "platform-ops-automation",
+                    null));
+        }
+
+        var restartRelatedRuns = numeric(failedOpsRunBreakdown.get("restartRelated"));
+        if (restartRelatedRuns > 0) {
+            actions.add(actionCandidate(
+                    "OBSERVE_RESTART_RELATED_FAILURES",
+                    "재시작 영향 실패 관찰",
+                    "failedOpsRunBreakdown.restartRelated",
+                    restartRelatedRuns,
+                    "OBSERVE",
+                    "INFO",
+                    "배포 또는 서버 재시작 영향으로 분류된 운영 Flow 실패가 있습니다.",
+                    "같은 실패가 재시작 이후에도 반복되는지 다음 리포트에서 확인합니다.",
+                    "배포 노이즈를 장애로 과장하지 않고, 반복될 때만 조치 대상으로 올립니다.",
+                    "platform-ops-automation",
+                    null));
+        }
+
+        var pendingPhotoPickup = numeric(photoPickup.get("uploadedPendingOriginalPickup"));
+        if (pendingPhotoPickup > 0) {
+            actions.add(actionCandidate(
+                    "RUN_DETECTION_FOR_PHOTO_PICKUP",
+                    "사진 원본 수거 상태 재감지",
+                    "photoPickup.uploadedPendingOriginalPickup",
+                    pendingPhotoPickup,
+                    "MANUAL_FLOW",
+                    "LOW",
+                    "업로드된 사진 중 원본 pickup이 아직 대기 중인 항목이 있습니다.",
+                    "운영 감지를 다시 실행해 삭제/완료/비업로드 상태로 바뀐 사진 이슈를 자동 해소하고 실제 stuck 항목만 남깁니다.",
+                    "PHOTO_PICKUP_STUCK 오탐을 줄이고, 실제 Agent pickup 지연만 운영자가 보게 합니다.",
+                    "platform-ops-detection",
+                    "detectPlatformStuckHealth"));
+        }
+
+        var errorEvents = severityCount(snapshot, "ERROR", "CRITICAL");
+        if (errorEvents > 0) {
+            actions.add(actionCandidate(
+                    "REVIEW_ERROR_OPERATION_EVENTS",
+                    "오류 운영 이벤트 확인",
+                    "operationEventsBySeverity.ERROR",
+                    errorEvents,
+                    "MANUAL_REVIEW",
+                    "LOW",
+                    "리포트 기간에 오류 또는 긴급 운영 이벤트가 기록되었습니다.",
+                    "이벤트/로그 화면에서 workflowType, resourceType, eventType 기준으로 반복 원인을 확인합니다.",
+                    "단순 이벤트 총량이 아니라 실제 오류 이벤트가 사용자 영향으로 이어지는지 판단합니다.",
+                    "platform-ops-events",
+                    null));
+        }
+
+        return actions;
+    }
+
+    private Map<String, Object> actionCandidate(
+            String code,
+            String title,
+            String signalKey,
+            long signalValue,
+            String executionMode,
+            String riskLevel,
+            String reason,
+            String operatorAction,
+            String expectedEffect,
+            String uiTarget,
+            String existingAdminAction
+    ) {
+        var action = new LinkedHashMap<String, Object>();
+        action.put("code", code);
+        action.put("title", title);
+        action.put("signalKey", signalKey);
+        action.put("signalValue", signalValue);
+        action.put("executionMode", executionMode);
+        action.put("riskLevel", riskLevel);
+        action.put("allowed", true);
+        action.put("reason", reason);
+        action.put("operatorAction", operatorAction);
+        action.put("expectedEffect", expectedEffect);
+        action.put("uiTarget", uiTarget);
+        action.put("existingAdminAction", nullable(existingAdminAction));
+        return action;
+    }
+
     private Map<String, Object> controlBoundary() {
         return Map.of(
                 "l2Orchestration", "Flower platform-ops flow owns request, wait, timeout, and recovery state.",
@@ -1022,6 +1181,47 @@ public class PlatformOpsDailyReportService {
             return (Map<String, Object>) map;
         }
         return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> actionList(Map<String, Object> snapshot) {
+        var value = snapshot.get("pControlActions");
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> (Map<String, Object>) item)
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private long severityCount(Map<String, Object> snapshot, String... severities) {
+        var value = snapshot.get("operationEventsBySeverity");
+        if (!(value instanceof List<?> values)) {
+            return 0;
+        }
+        var severitySet = List.of(severities);
+        return values.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> (Map<String, Object>) item)
+                .filter(item -> severitySet.contains(String.valueOf(item.get("severity"))))
+                .mapToLong(item -> numeric(item.get("count")))
+                .sum();
+    }
+
+    private long numeric(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private String deterministicSummary(Map<String, Object> snapshot) {

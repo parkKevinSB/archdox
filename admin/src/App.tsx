@@ -5858,6 +5858,7 @@ function PlatformView({
           onCreate={onCreateOpsControlProfile}
           onUpdate={onUpdateOpsControlProfile}
           onDelete={onDeleteOpsControlProfile}
+          onRunDetection={onRunDetection}
         />
       ) : null}
 
@@ -8306,7 +8307,8 @@ function PlatformOpsPidTuningPanel({
   profiles,
   onCreate,
   onUpdate,
-  onDelete
+  onDelete,
+  onRunDetection
 }: {
   busy: boolean;
   reports: PlatformOpsDailyReport[];
@@ -8314,6 +8316,7 @@ function PlatformOpsPidTuningPanel({
   onCreate: (body: OpsControlProfileCreatePayload) => Promise<void>;
   onUpdate: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
   onDelete: (profileId: number) => Promise<void>;
+  onRunDetection: () => Promise<void>;
 }) {
   const sortedReports = [...reports].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
   const latest = sortedReports[0] ?? null;
@@ -8326,6 +8329,7 @@ function PlatformOpsPidTuningPanel({
   const modelProfiles = activeProfiles.filter((profile) => profile.scopeType === "MODEL");
   const disabledProfiles = visibleProfiles.filter((profile) => profile.status === "DISABLED");
   const repeatedISignals = iSignalStats.filter((signal) => signal.count > 1);
+  const pControlActions = asObjectArray(latest?.evidence?.pControlActions);
   const watchSignals = [
     ...repeatedISignals.map((signal) => ({ kind: "I" as const, stat: signal })),
     ...pSignalStats.slice(0, 2).map((signal) => ({ kind: "P" as const, stat: signal })),
@@ -8389,6 +8393,12 @@ function PlatformOpsPidTuningPanel({
           latest={latest}
           repeatedCount={repeatedISignals.length}
           watchSignals={watchSignals}
+        />
+
+        <OpsPidActionCandidatesCard
+          actions={pControlActions}
+          busy={busy}
+          onRunDetection={onRunDetection}
         />
 
         <div className="dashboard-grid">
@@ -8661,6 +8671,77 @@ function OpsPidDecisionSummary({
           })
         )}
       </div>
+    </div>
+  );
+}
+
+function OpsPidActionCandidatesCard({
+  actions,
+  busy,
+  onRunDetection
+}: {
+  actions: Record<string, unknown>[];
+  busy: boolean;
+  onRunDetection: () => Promise<void>;
+}) {
+  return (
+    <div className="ops-snapshot-card">
+      <div className="ops-snapshot-heading">
+        <strong>P 조치 후보</strong>
+        <span>현재 오차에 대해 허용된 안전 조치만 표시합니다.</span>
+      </div>
+      {actions.length === 0 ? (
+        <EmptyState message="최근 리포트에서 실행할 P 조치 후보가 없습니다." />
+      ) : (
+        <div className="ops-p-action-grid">
+          {actions.map((action) => {
+            const code = stringValue(action.code) || "P_CONTROL_ACTION";
+            const executable = stringValue(action.existingAdminAction) === "detectPlatformStuckHealth";
+            return (
+              <div className="ops-p-action-card" key={code}>
+                <div className="ops-p-action-heading">
+                  <div>
+                    <strong>{stringValue(action.title) || displayLabel(code)}</strong>
+                    <span>
+                      {stringValue(action.executionMode) || "MANUAL_REVIEW"} · {stringValue(action.riskLevel) || "LOW"}
+                    </span>
+                  </div>
+                  <StatusBadge status={executable ? "READY" : "REVIEW"} />
+                </div>
+                <p>{stringValue(action.reason) || "현재 P 신호에 대한 운영자 확인이 필요합니다."}</p>
+                <dl className="ops-p-action-facts">
+                  <div>
+                    <dt>신호</dt>
+                    <dd>{stringValue(action.signalKey) || "-"}</dd>
+                  </div>
+                  <div>
+                    <dt>값</dt>
+                    <dd>{stringValue(action.signalValue) || "0"}</dd>
+                  </div>
+                  <div>
+                    <dt>화면</dt>
+                    <dd>{stringValue(action.uiTarget) || "-"}</dd>
+                  </div>
+                </dl>
+                <div className="ops-p-action-next">
+                  <strong>조치</strong>
+                  <span>{stringValue(action.operatorAction) || "관련 운영 화면에서 원인을 확인합니다."}</span>
+                </div>
+                <div className="ops-p-action-next">
+                  <strong>기대 효과</strong>
+                  <span>{stringValue(action.expectedEffect) || "현재 오차가 줄었는지 다음 리포트에서 확인합니다."}</span>
+                </div>
+                {executable ? (
+                  <button className="button primary" disabled={busy} onClick={onRunDetection} type="button">
+                    {busy ? <Loader2 className="spin" size={16} /> : <Activity size={16} />}
+                    운영 감지 실행
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
