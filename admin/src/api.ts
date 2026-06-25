@@ -740,6 +740,13 @@ export function getPlatformOpsDailyReports(token: string, limit = 20) {
   });
 }
 
+export function generatePlatformOpsDailyReport(token: string) {
+  return request<PlatformOpsRun>("/api/v1/platform-admin/ops/daily-reports/generate", {
+    token,
+    method: "POST"
+  });
+}
+
 export function getPlatformOpsControlProfiles(token: string, limit = 100, status?: string) {
   return request<PlatformOpsControlProfile[]>("/api/v1/platform-admin/ops/control-profiles", {
     token,

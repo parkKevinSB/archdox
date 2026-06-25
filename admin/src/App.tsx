@@ -65,6 +65,7 @@ import {
   disablePlatformAiUserBudgetOverride,
   downloadDocumentTemplateRevisionContent,
   generatePlatformLegalDigestAiDraft,
+  generatePlatformOpsDailyReport,
   getAgentCommands,
   getAgentSessions,
   getAgents,
@@ -1185,6 +1186,27 @@ export default function App() {
     }
   }
 
+  async function handleGenerateOpsDailyReport() {
+    if (!auth || !platformAdmin) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await generatePlatformOpsDailyReport(auth.accessToken);
+      const [opsRuns, opsDailyReports] = await Promise.all([
+        getPlatformOpsRuns(auth.accessToken, 20),
+        getPlatformOpsDailyReports(auth.accessToken, 30)
+      ]);
+      setPlatformData((current) => ({ ...current, opsRuns, opsDailyReports }));
+      setNotice("운영 리포트 생성을 요청했습니다. Flow가 완료되면 최신 리포트와 제어 신호가 갱신됩니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "운영 리포트 생성을 요청하지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleCreateOpsControlProfile(body: OpsControlProfileCreatePayload) {
     if (!auth || !platformAdmin) {
       return;
@@ -2299,6 +2321,7 @@ export default function App() {
               onRejectWorkerApproval={handleRejectWorkerApproval}
               onUpdateServerRuntimeSettings={handleUpdateServerRuntimeSettings}
               onUpdateOpsAutomationSettings={handleUpdateOpsAutomationSettings}
+              onGenerateOpsDailyReport={handleGenerateOpsDailyReport}
               onCreateOpsControlProfile={handleCreateOpsControlProfile}
               onUpdateOpsControlProfile={handleUpdateOpsControlProfile}
               onDeleteOpsControlProfile={handleDeleteOpsControlProfile}
@@ -5626,6 +5649,7 @@ function PlatformView({
   onRejectWorkerApproval,
   onUpdateServerRuntimeSettings,
   onUpdateOpsAutomationSettings,
+  onGenerateOpsDailyReport,
   onCreateOpsControlProfile,
   onUpdateOpsControlProfile,
   onDeleteOpsControlProfile
@@ -5685,6 +5709,7 @@ function PlatformView({
     eventCooldownMs: number;
   }) => Promise<void>;
   onUpdateOpsAutomationSettings: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
+  onGenerateOpsDailyReport: () => Promise<void>;
   onCreateOpsControlProfile: (body: OpsControlProfileCreatePayload) => Promise<void>;
   onUpdateOpsControlProfile: (profileId: number, body: OpsControlProfileUpdatePayload) => Promise<void>;
   onDeleteOpsControlProfile: (profileId: number) => Promise<void>;
@@ -5847,6 +5872,7 @@ function PlatformView({
           reports={data.opsDailyReports}
           settings={data.opsAutomationSettings}
           onSave={onUpdateOpsAutomationSettings}
+          onGenerateDailyReport={onGenerateOpsDailyReport}
         />
       ) : null}
 
@@ -6211,12 +6237,14 @@ function PlatformOpsAutomationPanel({
   busy,
   settings,
   reports,
-  onSave
+  onSave,
+  onGenerateDailyReport
 }: {
   busy: boolean;
   settings: PlatformOpsAutomationSettings | null;
   reports: PlatformOpsDailyReport[];
   onSave: (body: Partial<PlatformOpsAutomationSettings>) => Promise<void>;
+  onGenerateDailyReport: () => Promise<void>;
 }) {
   const [form, setForm] = useState({
     detectionEnabled: false,
@@ -6311,7 +6339,15 @@ function PlatformOpsAutomationPanel({
       <Panel
         title="운영 자동화 설정"
         icon={<Activity size={18} />}
-        action={<span className="panel-context">{settings.updatedAt ? `마지막 변경 ${formatDate(settings.updatedAt)}` : "기본값 사용 중"}</span>}
+        action={
+          <div className="member-actions">
+            <span className="panel-context">{settings.updatedAt ? `마지막 변경 ${formatDate(settings.updatedAt)}` : "기본값 사용 중"}</span>
+            <button className="button" disabled={busy} onClick={onGenerateDailyReport} type="button">
+              {busy ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
+              지금 리포트 생성
+            </button>
+          </div>
+        }
       >
         <div className="metric-grid compact">
           <MetricCard
@@ -8301,6 +8337,20 @@ function buildOpsSignalStats(
     .map(({ latestTime: _latestTime, ...stat }) => stat);
 }
 
+function opsSignalKindLabel(kind: "P" | "I" | "D") {
+  if (kind === "P") {
+    return "현재 문제";
+  }
+  if (kind === "I") {
+    return "반복 추세";
+  }
+  return "변화 징후";
+}
+
+function hasOwnField(source: Record<string, unknown> | null | undefined, field: string) {
+  return Boolean(source && Object.prototype.hasOwnProperty.call(source, field));
+}
+
 function PlatformOpsPidTuningPanel({
   busy,
   reports,
@@ -8381,11 +8431,11 @@ function PlatformOpsPidTuningPanel({
       action={<span className="panel-context">관측값 · 조치 후보 · 수동 채택</span>}
     >
       <div className="ops-diagnosis-detail">
-        <InlineNotice message="현재 이 화면은 자동 제어기가 아니라 운영 리포트의 P/I/D형 신호를 조치 후보로 정리하는 관제 화면입니다. 실제 actuator 연결은 안전한 action 정책이 정의된 항목부터 단계적으로 붙입니다." />
+        <InlineNotice message="현재 이 화면은 자동 제어기가 아니라 운영 리포트의 현재 문제, 반복 추세, 변화 징후를 조치 후보로 정리하는 관제 화면입니다. 실제 actuator 연결은 안전한 action 정책이 정의된 항목부터 단계적으로 붙입니다." />
         <div className="ops-detail-grid">
-          <MetricCard icon={<Activity size={20} />} label="P 현재 상태" value={pSignalStats.length} detail="오늘 보이는 운영 상태" tone={pSignalStats.length > 0 ? "amber" : "green"} />
-          <MetricCard icon={<Gauge size={20} />} label="I 반복 패턴" value={repeatedISignals.length} detail={`${iSignalStats.length}개 후보 중 반복`} tone={repeatedISignals.length > 0 ? "blue" : "green"} />
-          <MetricCard icon={<Clock3 size={20} />} label="D 변화 후보" value={dSignalStats.length} detail="갑자기 늘어난 신호" tone={dSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Activity size={20} />} label="현재 문제" value={pSignalStats.length} detail="오늘 보이는 운영 상태" tone={pSignalStats.length > 0 ? "amber" : "green"} />
+          <MetricCard icon={<Gauge size={20} />} label="반복 추세" value={repeatedISignals.length} detail={`${iSignalStats.length}개 후보 중 반복`} tone={repeatedISignals.length > 0 ? "blue" : "green"} />
+          <MetricCard icon={<Clock3 size={20} />} label="변화 징후" value={dSignalStats.length} detail="갑자기 늘어난 신호" tone={dSignalStats.length > 0 ? "amber" : "green"} />
           <MetricCard icon={<ShieldCheck size={20} />} label="활성 제어값" value={activeProfiles.length} detail={`공용 ${globalProfiles.length} / 모델 ${modelProfiles.length}`} tone="slate" />
         </div>
 
@@ -8395,22 +8445,31 @@ function PlatformOpsPidTuningPanel({
           watchSignals={watchSignals}
         />
 
+        <OpsControlOperatorSummary
+          actions={pControlActions}
+          dSignals={dSignalStats}
+          iSignals={repeatedISignals}
+          latest={latest}
+          pSignals={pSignalStats}
+        />
+
         <OpsPidActionCandidatesCard
           actions={pControlActions}
           busy={busy}
+          latest={latest}
           onRunDetection={onRunDetection}
         />
 
         <div className="dashboard-grid">
           <OpsPidSignalStatsCard
-            title="P 상태"
+            title="현재 문제"
             subtitle="오늘 보이는 상태입니다. 보통은 채택하지 않고 현재 상황 확인에 씁니다."
             kind="P"
             stats={pSignalStats}
-            empty="최근 P 상태 신호가 없습니다."
+            empty="최근 현재 문제 신호가 없습니다."
           />
           <OpsPidSignalStatsCard
-            title="I 반복 신호"
+            title="반복 추세"
             subtitle="반복된 패턴입니다. 제어 프로필로 채택할 수 있는 핵심 대상입니다."
             kind="I"
             stats={iSignalStats}
@@ -8420,7 +8479,7 @@ function PlatformOpsPidTuningPanel({
             onApply={applySignal}
           />
           <OpsPidSignalStatsCard
-            title="D 변화 신호"
+            title="변화 징후"
             subtitle="갑자기 늘어난 변화입니다. 반복되면 I 신호로 승격해 관리합니다."
             kind="D"
             stats={dSignalStats}
@@ -8527,7 +8586,7 @@ function PlatformOpsPidTuningPanel({
         <Panel title="제어 프로필" icon={<ShieldCheck size={18} />} count={visibleProfiles.length}>
           <Table
             columns={["범위", "신호", "I 가중치", "관측", "상태", "작업"]}
-            empty="아직 채택된 PID 제어 프로필이 없습니다."
+            empty="아직 채택된 운영 제어 프로필이 없습니다."
             rows={visibleProfiles.map((profile) => [
               <CellTitle
                 key="scope"
@@ -8636,6 +8695,75 @@ function OpsPidSignalStatsCard({
   );
 }
 
+function OpsControlOperatorSummary({
+  latest,
+  pSignals,
+  iSignals,
+  dSignals,
+  actions
+}: {
+  latest: PlatformOpsDailyReport | null;
+  pSignals: OpsSignalStat[];
+  iSignals: OpsSignalStat[];
+  dSignals: OpsSignalStat[];
+  actions: Record<string, unknown>[];
+}) {
+  const topP = pSignals[0] ?? null;
+  const topI = iSignals[0] ?? null;
+  const topD = dSignals[0] ?? null;
+  const firstAction = actions[0] ?? null;
+  const hasActionField = hasOwnField(latest?.evidence, "pControlActions");
+
+  return (
+    <div className="ops-control-brief-grid">
+      <div className="ops-control-brief-card amber">
+        <span>현재 문제</span>
+        <strong>{topP ? opsSignalMeta(topP.signal).title : "당장 눈에 띄는 문제 없음"}</strong>
+        <p>
+          {topP
+            ? `${opsSignalMeta(topP.signal).description} 최근 30개 리포트 중 ${topP.count}회 관측됐습니다.`
+            : "현재 리포트 기준으로 즉시 확인할 P 상태 신호가 없습니다."}
+        </p>
+      </div>
+      <div className="ops-control-brief-card blue">
+        <span>반복 추세</span>
+        <strong>{topI ? opsSignalMeta(topI.signal).title : "반복 패턴 없음"}</strong>
+        <p>
+          {topI
+            ? `${opsSignalMeta(topI.signal).decision} 반복 관측 ${topI.count}회입니다.`
+            : "아직 제어 프로필로 채택할 만큼 반복된 I 신호가 없습니다."}
+        </p>
+      </div>
+      <div className="ops-control-brief-card slate">
+        <span>변화 징후</span>
+        <strong>{topD ? opsSignalMeta(topD.signal).title : "급변 신호 없음"}</strong>
+        <p>
+          {topD
+            ? `${opsSignalMeta(topD.signal).description} 다음 리포트에서도 반복되는지 확인합니다.`
+            : "긴 기간 기준선이 더 쌓이면 변화율 판단이 더 정교해집니다."}
+        </p>
+      </div>
+      <div className="ops-control-brief-card green">
+        <span>추천 조치</span>
+        <strong>
+          {firstAction
+            ? stringValue(firstAction.title) || "조치 후보 확인"
+            : hasActionField
+              ? "지금 실행할 조치 없음"
+              : "새 운영 리포트 생성 필요"}
+        </strong>
+        <p>
+          {firstAction
+            ? stringValue(firstAction.operatorAction) || "아래 P 조치 후보에서 세부 내용을 확인합니다."
+            : hasActionField
+              ? "최신 리포트에는 안전하게 실행할 P 조치 후보가 없습니다."
+              : "현재 최신 리포트는 조치 후보 필드가 없는 이전 포맷입니다. 운영 자동화에서 지금 리포트를 생성하면 후보가 채워집니다."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function OpsPidDecisionSummary({
   latest,
   repeatedCount,
@@ -8648,16 +8776,16 @@ function OpsPidDecisionSummary({
   return (
     <div className="ops-pid-summary">
       <div className="ops-pid-summary-main">
-        <strong>{repeatedCount > 0 ? "반복 신호가 있어 검토가 필요합니다." : "아직 반복 튜닝 대상은 뚜렷하지 않습니다."}</strong>
+        <strong>{repeatedCount > 0 ? "반복 추세가 있어 검토가 필요합니다." : "아직 반복 제어 대상은 뚜렷하지 않습니다."}</strong>
         <span>
           {latest
-            ? `최근 Daily #${latest.id} 기준입니다. P는 현재 상태, I는 누적 패턴, D는 변화량입니다.`
+            ? `최근 Daily #${latest.id} 기준입니다. 현재 문제, 반복 추세, 변화 징후를 분리해서 봅니다.`
             : "운영 리포트가 생성되면 이곳에 판단 기준이 표시됩니다."}
         </span>
       </div>
       <div className="ops-pid-summary-list">
         {watchSignals.length === 0 ? (
-          <span>현재 우선 확인할 PID 신호가 없습니다.</span>
+          <span>현재 우선 확인할 운영 제어 신호가 없습니다.</span>
         ) : (
           watchSignals.map(({ kind, stat }) => {
             const meta = opsSignalMeta(stat.signal);
@@ -8675,68 +8803,152 @@ function OpsPidDecisionSummary({
   );
 }
 
+function opsActionStageMeta(action: Record<string, unknown>) {
+  const mode = stringValue(action.executionMode).toUpperCase();
+  const executable = stringValue(action.existingAdminAction) === "detectPlatformStuckHealth";
+  if (mode === "OBSERVE") {
+    return {
+      key: "OBSERVE",
+      label: "관측만",
+      description: "지금은 실행하지 않고 다음 리포트에서 반복 여부만 봅니다.",
+      status: "OBSERVE",
+      tone: "slate"
+    };
+  }
+  if (mode.includes("APPROVAL")) {
+    return {
+      key: "APPROVAL",
+      label: "승인 필요",
+      description: "실행 전 사람 승인과 감사 로그가 필요합니다.",
+      status: "APPROVAL",
+      tone: "amber"
+    };
+  }
+  if (mode.includes("AUTO")) {
+    return {
+      key: "AUTO",
+      label: "자동 가능 후보",
+      description: "나중에 정책과 actuator가 붙으면 자동화할 수 있는 후보입니다.",
+      status: "AUTO",
+      tone: "green"
+    };
+  }
+  if (mode === "MANUAL_FLOW" || executable) {
+    return {
+      key: "MANUAL_FLOW",
+      label: "수동 실행",
+      description: "관리자가 버튼으로 안전한 기존 Flow를 실행합니다.",
+      status: executable ? "READY" : "MANUAL",
+      tone: "blue"
+    };
+  }
+  return {
+    key: "MANUAL_REVIEW",
+    label: "확인 필요",
+    description: "관련 화면에서 원인을 확인한 뒤 다음 조치를 정합니다.",
+    status: "REVIEW",
+    tone: "amber"
+  };
+}
+
 function OpsPidActionCandidatesCard({
   actions,
   busy,
+  latest,
   onRunDetection
 }: {
   actions: Record<string, unknown>[];
   busy: boolean;
+  latest: PlatformOpsDailyReport | null;
   onRunDetection: () => Promise<void>;
 }) {
+  const hasActionField = hasOwnField(latest?.evidence, "pControlActions");
+  const stageOrder = ["MANUAL_FLOW", "MANUAL_REVIEW", "APPROVAL", "AUTO", "OBSERVE"];
+  const groupedActions = stageOrder
+    .map((stage) => ({
+      stage,
+      actions: actions.filter((action) => opsActionStageMeta(action).key === stage)
+    }))
+    .filter((group) => group.actions.length > 0);
+
   return (
     <div className="ops-snapshot-card">
       <div className="ops-snapshot-heading">
-        <strong>P 조치 후보</strong>
-        <span>현재 오차에 대해 허용된 안전 조치만 표시합니다.</span>
+        <strong>추천 조치 후보</strong>
+        <span>현재 문제에 대해 허용된 안전 조치만 표시합니다.</span>
       </div>
       {actions.length === 0 ? (
-        <EmptyState message="최근 리포트에서 실행할 P 조치 후보가 없습니다." />
+        <EmptyState
+          message={
+            latest
+              ? hasActionField
+                ? "최근 리포트에는 실행할 조치 후보가 없습니다."
+                : `Daily #${latest.id}는 조치 후보 기능 추가 전 리포트입니다. 운영 자동화에서 지금 리포트를 생성하면 후보가 표시됩니다.`
+              : "아직 Daily Report가 없습니다. 운영 자동화에서 지금 리포트를 생성해 주세요."
+          }
+        />
       ) : (
-        <div className="ops-p-action-grid">
-          {actions.map((action) => {
-            const code = stringValue(action.code) || "P_CONTROL_ACTION";
-            const executable = stringValue(action.existingAdminAction) === "detectPlatformStuckHealth";
+        <div className="ops-action-stage-list">
+          {groupedActions.map((group) => {
+            const firstMeta = opsActionStageMeta(group.actions[0]);
             return (
-              <div className="ops-p-action-card" key={code}>
-                <div className="ops-p-action-heading">
+              <div className={`ops-action-stage ${firstMeta.tone}`} key={group.stage}>
+                <div className="ops-action-stage-heading">
                   <div>
-                    <strong>{stringValue(action.title) || displayLabel(code)}</strong>
-                    <span>
-                      {stringValue(action.executionMode) || "MANUAL_REVIEW"} · {stringValue(action.riskLevel) || "LOW"}
-                    </span>
+                    <strong>{firstMeta.label}</strong>
+                    <span>{firstMeta.description}</span>
                   </div>
-                  <StatusBadge status={executable ? "READY" : "REVIEW"} />
+                  <span className="count-pill">{group.actions.length}</span>
                 </div>
-                <p>{stringValue(action.reason) || "현재 P 신호에 대한 운영자 확인이 필요합니다."}</p>
-                <dl className="ops-p-action-facts">
-                  <div>
-                    <dt>신호</dt>
-                    <dd>{stringValue(action.signalKey) || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt>값</dt>
-                    <dd>{stringValue(action.signalValue) || "0"}</dd>
-                  </div>
-                  <div>
-                    <dt>화면</dt>
-                    <dd>{stringValue(action.uiTarget) || "-"}</dd>
-                  </div>
-                </dl>
-                <div className="ops-p-action-next">
-                  <strong>조치</strong>
-                  <span>{stringValue(action.operatorAction) || "관련 운영 화면에서 원인을 확인합니다."}</span>
+                <div className="ops-p-action-grid">
+                  {group.actions.map((action) => {
+                    const code = stringValue(action.code) || "P_CONTROL_ACTION";
+                    const meta = opsActionStageMeta(action);
+                    const executable = stringValue(action.existingAdminAction) === "detectPlatformStuckHealth";
+                    return (
+                      <div className="ops-p-action-card" key={code}>
+                        <div className="ops-p-action-heading">
+                          <div>
+                            <strong>{stringValue(action.title) || displayLabel(code)}</strong>
+                            <span>
+                              {meta.label} · {stringValue(action.riskLevel) || "LOW"}
+                            </span>
+                          </div>
+                          <StatusBadge status={meta.status} />
+                        </div>
+                        <p>{stringValue(action.reason) || "현재 P 신호에 대한 운영자 확인이 필요합니다."}</p>
+                        <dl className="ops-p-action-facts">
+                          <div>
+                            <dt>신호</dt>
+                            <dd>{stringValue(action.signalKey) || "-"}</dd>
+                          </div>
+                          <div>
+                            <dt>값</dt>
+                            <dd>{stringValue(action.signalValue) || "0"}</dd>
+                          </div>
+                          <div>
+                            <dt>화면</dt>
+                            <dd>{stringValue(action.uiTarget) || "-"}</dd>
+                          </div>
+                        </dl>
+                        <div className="ops-p-action-next">
+                          <strong>조치</strong>
+                          <span>{stringValue(action.operatorAction) || "관련 운영 화면에서 원인을 확인합니다."}</span>
+                        </div>
+                        <div className="ops-p-action-next">
+                          <strong>기대 효과</strong>
+                          <span>{stringValue(action.expectedEffect) || "현재 오차가 줄었는지 다음 리포트에서 확인합니다."}</span>
+                        </div>
+                        {executable ? (
+                          <button className="button primary" disabled={busy} onClick={onRunDetection} type="button">
+                            {busy ? <Loader2 className="spin" size={16} /> : <Activity size={16} />}
+                            운영 감지 실행
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="ops-p-action-next">
-                  <strong>기대 효과</strong>
-                  <span>{stringValue(action.expectedEffect) || "현재 오차가 줄었는지 다음 리포트에서 확인합니다."}</span>
-                </div>
-                {executable ? (
-                  <button className="button primary" disabled={busy} onClick={onRunDetection} type="button">
-                    {busy ? <Loader2 className="spin" size={16} /> : <Activity size={16} />}
-                    운영 감지 실행
-                  </button>
-                ) : null}
               </div>
             );
           })}
@@ -8767,7 +8979,7 @@ function OpsPidSignalItem({
       <div className="ops-pid-signal-topline">
         <div>
           <strong>{meta.title}</strong>
-          <span>{meta.group} · {kind}-like · 원본 key: {stat.signal}</span>
+          <span>{meta.group} · {opsSignalKindLabel(kind)} · 원본 key: {stat.signal}</span>
         </div>
         <StatusBadge status={repeated ? "REPEATED" : "OBSERVED"} />
       </div>

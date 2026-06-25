@@ -1540,6 +1540,114 @@ button {
   color: #334541;
 }
 
+.ops-control-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-control-brief-card {
+  display: grid;
+  gap: 7px;
+  min-height: 132px;
+  padding: 14px;
+  border: 1px solid #dbe5e2;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ops-control-brief-card span {
+  color: #657874;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ops-control-brief-card strong {
+  color: #152421;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.ops-control-brief-card p {
+  margin: 0;
+  color: #5d716d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ops-control-brief-card.green {
+  border-left-color: #2f9d78;
+}
+
+.ops-control-brief-card.blue {
+  border-left-color: #3f7fbf;
+}
+
+.ops-control-brief-card.amber {
+  border-left-color: #c48618;
+}
+
+.ops-control-brief-card.slate {
+  border-left-color: #71808a;
+}
+
+.ops-action-stage-list {
+  display: grid;
+  gap: 14px;
+}
+
+.ops-action-stage {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8e1df;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.ops-action-stage.green {
+  border-left-color: #2f9d78;
+}
+
+.ops-action-stage.blue {
+  border-left-color: #3f7fbf;
+}
+
+.ops-action-stage.amber {
+  border-left-color: #c48618;
+}
+
+.ops-action-stage.slate {
+  border-left-color: #71808a;
+}
+
+.ops-action-stage-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-action-stage-heading div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-action-stage-heading strong {
+  color: #182824;
+  font-size: 14px;
+}
+
+.ops-action-stage-heading span {
+  color: #60736f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .ops-p-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4017,6 +4125,10 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .ops-control-brief-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .ops-p-action-grid {
     grid-template-columns: 1fr;
   }
@@ -4105,6 +4217,15 @@ tbody tr:hover {
 
   .brand strong {
     font-size: 14px;
+  }
+
+  .ops-control-brief-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-action-stage-heading,
+  .ops-p-action-heading {
+    display: grid;
   }
 
   .brand span {
