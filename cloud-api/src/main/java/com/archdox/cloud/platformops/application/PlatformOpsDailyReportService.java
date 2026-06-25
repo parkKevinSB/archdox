@@ -14,6 +14,7 @@ import com.archdox.cloud.operation.domain.OperationEventSeverity;
 import com.archdox.cloud.operation.infra.OperationEventRepository;
 import com.archdox.cloud.photo.domain.PhotoPickupStatus;
 import com.archdox.cloud.photo.domain.PhotoStatus;
+import com.archdox.cloud.photo.domain.PhotoUploadTarget;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.platformadmin.application.PlatformAdminService;
 import com.archdox.cloud.platformops.domain.PlatformOpsDailyReport;
@@ -525,11 +526,12 @@ public class PlatformOpsDailyReportService {
 
     private Map<String, Object> photoPickupSnapshot() {
         var snapshot = new LinkedHashMap<String, Object>();
-        snapshot.put("uploadedPendingOriginalPickup", photoRepository.countByStatusAndOriginalPickupStatus(
+        snapshot.put("uploadedPendingOriginalPickup", photoRepository.countByStatusAndOriginalPickupStatusAndUploadTarget(
                 PhotoStatus.UPLOADED,
-                PhotoPickupStatus.PENDING));
+                PhotoPickupStatus.PENDING,
+                PhotoUploadTarget.CLOUD_MEDIATED));
         snapshot.put("allPendingOriginalPickup", photoRepository.countByOriginalPickupStatus(PhotoPickupStatus.PENDING));
-        snapshot.put("note", "uploadedPendingOriginalPickup is the real photo original pickup backlog candidate.");
+        snapshot.put("note", "uploadedPendingOriginalPickup counts CLOUD_MEDIATED photos that require local agent original pickup.");
         return snapshot;
     }
 

@@ -145,7 +145,7 @@ public class PhotoService {
                 request.gpsLng(),
                 now);
         var saved = photoRepository.save(photo);
-        if (!includeOriginal) {
+        if (!includeOriginal || uploadTarget != PhotoUploadTarget.CLOUD_MEDIATED) {
             saved.markOriginalPickupNotRequired(now);
         }
         var assets = createAssets(saved, refs, mimeType, request.bytes(), hash, includeOriginal, uploadTarget, adapter, now);

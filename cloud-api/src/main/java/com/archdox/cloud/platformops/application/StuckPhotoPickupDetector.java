@@ -2,6 +2,7 @@ package com.archdox.cloud.platformops.application;
 
 import com.archdox.cloud.photo.domain.PhotoPickupStatus;
 import com.archdox.cloud.photo.domain.PhotoStatus;
+import com.archdox.cloud.photo.domain.PhotoUploadTarget;
 import com.archdox.cloud.photo.infra.PhotoRepository;
 import com.archdox.cloud.platformops.domain.PlatformOpsFindingSeverity;
 import com.archdox.cloud.platformops.domain.PlatformOpsIncident;
@@ -30,9 +31,10 @@ public class StuckPhotoPickupDetector implements PlatformOpsDetector {
     public List<PlatformOpsDetectionFinding> detect(PlatformOpsDetectionContext context) {
         var settings = automationSettingsService.settings();
         var cutoff = context.now().minusMinutes(settings.photoPickupStuckMinutes());
-        return repository.findByStatusAndOriginalPickupStatusAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+        return repository.findByStatusAndOriginalPickupStatusAndUploadTargetAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                         PhotoStatus.UPLOADED,
                         PhotoPickupStatus.PENDING,
+                        PhotoUploadTarget.CLOUD_MEDIATED,
                         cutoff,
                         context.page())
                 .stream()
@@ -107,6 +109,13 @@ public class StuckPhotoPickupDetector implements PlatformOpsDetector {
             return Optional.of(resolution(
                     "PHOTO_PICKUP_STUCK_RESOLVED_PICKUP_NOT_PENDING",
                     "Photo pickup incident was resolved because original pickup is no longer pending.",
+                    evidence));
+        }
+        if (current.uploadTarget() != PhotoUploadTarget.CLOUD_MEDIATED) {
+            evidence.put("uploadTarget", current.uploadTarget().name());
+            return Optional.of(resolution(
+                    "PHOTO_PICKUP_STUCK_RESOLVED_PICKUP_NOT_REQUIRED",
+                    "Photo pickup incident was resolved because this photo upload target does not require local agent pickup.",
                     evidence));
         }
         if (current.originalTemporaryDeletedAt() != null) {

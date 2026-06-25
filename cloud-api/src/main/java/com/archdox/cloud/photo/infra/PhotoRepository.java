@@ -27,9 +27,10 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
             PhotoPickupStatus originalPickupStatus,
             PhotoUploadTarget uploadTarget);
 
-    List<Photo> findByStatusAndOriginalPickupStatusAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+    List<Photo> findByStatusAndOriginalPickupStatusAndUploadTargetAndUpdatedAtBeforeOrderByUpdatedAtAsc(
             PhotoStatus status,
             PhotoPickupStatus originalPickupStatus,
+            PhotoUploadTarget uploadTarget,
             OffsetDateTime updatedBefore,
             Pageable pageable);
 
@@ -46,6 +47,11 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     long countByStatus(PhotoStatus status);
 
     long countByStatusAndOriginalPickupStatus(PhotoStatus status, PhotoPickupStatus originalPickupStatus);
+
+    long countByStatusAndOriginalPickupStatusAndUploadTarget(
+            PhotoStatus status,
+            PhotoPickupStatus originalPickupStatus,
+            PhotoUploadTarget uploadTarget);
 
     long countByOriginalPickupStatus(PhotoPickupStatus status);
 
