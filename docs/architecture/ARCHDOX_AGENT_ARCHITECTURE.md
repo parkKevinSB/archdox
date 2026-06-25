@@ -345,6 +345,11 @@ Agent connection health is controlled by Cloud API Flower orchestration.
   non-retryable `DocumentRenderCommandFailedEvent` with
   `ARCHDOX_AGENT_DISCONNECTED`, and the document generation Flower flow marks
   the current document job/report failed.
+- Disconnected WebSocket session history is operational telemetry, not a
+  business audit record. The same monitor keeps only the latest 30
+  `DISCONNECTED` sessions per office by default
+  (`AGENT_SESSION_RETAINED_DISCONNECTED_PER_OFFICE`). `ACTIVE` sessions are
+  never pruned by this retention rule.
 
 Flower owns the periodic decision. It does not own WebSocket objects. The
 in-memory session registry is only asked to close a local socket when the stale

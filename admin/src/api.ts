@@ -324,7 +324,7 @@ export function testOfficeStorageProfile(token: string, officeId: number, profil
   });
 }
 
-export function getAgentSessions(token: string, officeId: number, limit = 50) {
+export function getAgentSessions(token: string, officeId: number, limit = 30) {
   return request<AgentSession[]>("/api/v1/office-ops/agent-sessions", { token, officeId, query: { limit } });
 }
 

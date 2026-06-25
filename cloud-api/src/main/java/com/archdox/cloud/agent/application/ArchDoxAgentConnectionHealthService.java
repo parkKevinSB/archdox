@@ -63,6 +63,12 @@ public class ArchDoxAgentConnectionHealthService {
         return staleSessions.size();
     }
 
+    @Transactional
+    public int pruneDisconnectedSessionHistory() {
+        return sessionRepository.deleteDisconnectedSessionsBeyondRecentPerOffice(
+                properties.safeRetainedDisconnectedSessionsPerOffice());
+    }
+
     @Transactional(readOnly = true)
     public boolean hasActiveSession(Long agentId) {
         return agentId != null

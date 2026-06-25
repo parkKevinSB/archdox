@@ -210,6 +210,7 @@ archdox:
       check-interval-ms: ${AGENT_CONNECTION_HEALTH_CHECK_INTERVAL_MS:10000}
       worker-interval-ms: ${AGENT_CONNECTION_HEALTH_WORKER_INTERVAL_MS:1000}
       max-sessions-per-check: ${AGENT_CONNECTION_HEALTH_MAX_SESSIONS_PER_CHECK:200}
+      retained-disconnected-sessions-per-office: ${AGENT_SESSION_RETAINED_DISCONNECTED_PER_OFFICE:30}
   photos:
     pickup:
       max-attempts: ${PHOTO_PICKUP_MAX_ATTEMPTS:5}

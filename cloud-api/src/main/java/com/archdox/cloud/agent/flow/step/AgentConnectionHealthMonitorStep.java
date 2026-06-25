@@ -40,6 +40,7 @@ public class AgentConnectionHealthMonitorStep extends Step {
     private StepResult check(StepContext ctx) {
         try {
             healthService.disconnectHeartbeatTimedOutSessions();
+            healthService.pruneDisconnectedSessionHistory();
         } catch (Exception ex) {
             log.warn("ArchDox Agent connection health check failed", ex);
         }

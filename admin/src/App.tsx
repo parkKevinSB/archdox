@@ -922,7 +922,7 @@ export default function App() {
         getSummary(auth.accessToken, selectedOfficeId),
         getAgents(auth.accessToken, selectedOfficeId, 100),
         getOfficeStorageProfiles(auth.accessToken, selectedOfficeId),
-        getAgentSessions(auth.accessToken, selectedOfficeId, 100),
+        getAgentSessions(auth.accessToken, selectedOfficeId, 30),
         getAgentCommands(auth.accessToken, selectedOfficeId, 100),
         getDocumentJobs(auth.accessToken, selectedOfficeId, 100),
         getPhotos(auth.accessToken, selectedOfficeId, 100),

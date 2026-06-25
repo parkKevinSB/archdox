@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ArchDoxAgentSessionRepository extends JpaRepository<ArchDoxAgentSession, Long> {
     Optional<ArchDoxAgentSession> findByApiInstanceIdAndWebsocketSessionId(
@@ -93,4 +94,23 @@ public interface ArchDoxAgentSessionRepository extends JpaRepository<ArchDoxAgen
             ArchDoxAgentSessionStatus status,
             OffsetDateTime disconnectedAt,
             String disconnectReason);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            delete from archdox_agent_sessions
+            where id in (
+                select id
+                from (
+                    select id,
+                           row_number() over (
+                               partition by office_id
+                               order by last_seen_at desc, id desc
+                           ) as rn
+                    from archdox_agent_sessions
+                    where status = 'DISCONNECTED'
+                ) ranked
+                where ranked.rn > :keepPerOffice
+            )
+            """, nativeQuery = true)
+    int deleteDisconnectedSessionsBeyondRecentPerOffice(@Param("keepPerOffice") int keepPerOffice);
 }

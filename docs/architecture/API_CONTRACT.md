@@ -2995,9 +2995,11 @@ summaries and command counts.
 
 Query parameters:
 
-- `limit`
+- `limit` (UI default: 30)
 
-Returns recent ArchDox Agent WebSocket sessions for the current office.
+Returns recent ArchDox Agent WebSocket sessions for the current office. Cloud
+retains only the latest 30 disconnected sessions per office by default, while
+active sessions are preserved.
 
 ### GET `/api/v1/office-ops/agent-commands`
 

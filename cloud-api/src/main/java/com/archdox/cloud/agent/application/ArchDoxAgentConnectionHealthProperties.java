@@ -11,6 +11,7 @@ public class ArchDoxAgentConnectionHealthProperties {
     private long checkIntervalMs = 10_000;
     private long workerIntervalMs = 1_000;
     private int maxSessionsPerCheck = 200;
+    private int retainedDisconnectedSessionsPerOffice = 30;
 
     public boolean isEnabled() {
         return enabled;
@@ -52,6 +53,14 @@ public class ArchDoxAgentConnectionHealthProperties {
         this.maxSessionsPerCheck = maxSessionsPerCheck;
     }
 
+    public int getRetainedDisconnectedSessionsPerOffice() {
+        return retainedDisconnectedSessionsPerOffice;
+    }
+
+    public void setRetainedDisconnectedSessionsPerOffice(int retainedDisconnectedSessionsPerOffice) {
+        this.retainedDisconnectedSessionsPerOffice = retainedDisconnectedSessionsPerOffice;
+    }
+
     public long safeHeartbeatTimeoutMs() {
         return Math.max(1_000, heartbeatTimeoutMs);
     }
@@ -66,5 +75,9 @@ public class ArchDoxAgentConnectionHealthProperties {
 
     public int safeMaxSessionsPerCheck() {
         return Math.max(1, maxSessionsPerCheck);
+    }
+
+    public int safeRetainedDisconnectedSessionsPerOffice() {
+        return Math.max(1, retainedDisconnectedSessionsPerOffice);
     }
 }
