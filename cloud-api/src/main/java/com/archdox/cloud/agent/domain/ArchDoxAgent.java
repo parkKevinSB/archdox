@@ -159,6 +159,22 @@ public class ArchDoxAgent {
         markAuthenticated(now);
     }
 
+    public void provisionDeviceSecret(
+            String deviceSecretHash,
+            ArchDoxAgentDeploymentMode deploymentMode,
+            Map<String, Object> storageProfile,
+            OffsetDateTime now
+    ) {
+        this.deviceSecretHash = deviceSecretHash;
+        this.authMode = ArchDoxAgentAuthMode.DEVICE_SECRET;
+        this.deploymentMode = deploymentMode == null ? ArchDoxAgentDeploymentMode.CLOUD_MANAGED : deploymentMode;
+        this.storageProfileJson = storageProfile == null ? Map.of() : storageProfile;
+        this.status = ArchDoxAgentStatus.OFFLINE;
+        this.pairedAt = now;
+        this.lastAuthenticatedAt = null;
+        this.updatedAt = now;
+    }
+
     public void pairDeviceSecret(String deviceSecretHash, String version, Map<String, Object> capabilities, OffsetDateTime now) {
         pairDeviceSecret(
                 deviceSecretHash,

@@ -31,6 +31,31 @@ The test seed currently assumes:
 
 Do not commit real `.env` files or seeded passwords.
 
+Cloud-managed Agents use the same Agent authentication contract as
+office-installed Agents. Do not run them with `AGENT_AUTH_MODE=SHARED_SECRET`.
+Provision an Agent-specific device secret through the platform-admin API, store
+only the returned `agentId` and raw `deviceSecret` in the deployment secret
+store, and run the container with `AGENT_AUTH_MODE=DEVICE_SECRET`.
+
+Required `.env` values for the bundled MVP cloud-managed Agents:
+
+- `AGENT_PERSONAL_ID`
+- `AGENT_PERSONAL_DEVICE_SECRET`
+- `AGENT_INWOO_ID`
+- `AGENT_INWOO_DEVICE_SECRET`
+
+Example provisioning request:
+
+```bash
+curl -X POST https://api.archdox.co.kr/api/v1/platform-admin/agents/cloud-managed/provision-device-secret \
+  -H "Authorization: Bearer $PLATFORM_ADMIN_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"officeId":1,"agentCode":"cloud-personal-main"}'
+```
+
+The response includes `deviceSecret` exactly once. If it is lost, provision a
+new one and update the deployment secret before restarting the Agent.
+
 For domain deployment, set:
 
 - `ARCHDOX_CORS_ALLOWED_ORIGINS=https://archdox.co.kr,https://www.archdox.co.kr,https://app.archdox.co.kr,https://admin.archdox.co.kr,https://api.archdox.co.kr`

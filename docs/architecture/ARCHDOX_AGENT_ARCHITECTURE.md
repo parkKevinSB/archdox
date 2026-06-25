@@ -84,6 +84,19 @@ The registered deployment mode is authoritative. A paired Agent cannot switch
 from `LOCAL_OFFICE` to `CLOUD_MANAGED`, or the reverse, just by changing local
 config. Register a separate Agent code for that.
 
+`CLOUD_MANAGED` Agents follow the same authentication contract. The difference
+is who performs provisioning:
+
+- `LOCAL_OFFICE`: an office or personal workspace operator copies the one-time
+  install token into the locally installed Agent UI/config.
+- `CLOUD_MANAGED`: a platform admin provisions the Agent-specific device secret
+  and stores `AGENT_ID` plus `AGENT_DEVICE_SECRET` in the deployment secret
+  store for the managed container.
+
+Cloud-managed containers must still reconnect with `DEVICE_SECRET`. They must
+not use `SHARED_SECRET` as a production shortcut. `SHARED_SECRET` remains a
+development-only fallback when Cloud API explicitly enables it.
+
 Naming recommendation:
 
 - office PC/NAS main runtime: `office-main`

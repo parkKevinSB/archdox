@@ -1935,6 +1935,56 @@ Response `201`:
 The raw `token` is returned only once. Cloud stores only its hash and the
 registered Agent id it was issued for.
 
+### POST `/api/v1/platform-admin/agents/cloud-managed/provision-device-secret`
+
+Platform-admin only. Provisions or rotates an Agent-specific device secret for a
+`CLOUD_MANAGED` Agent. This is the managed-container equivalent of a local
+operator pairing an installed Agent, but the final connection contract is still
+the same: `agentId + deviceSecret`.
+
+Headers:
+
+```text
+Authorization: Bearer <platformAdminAccessToken>
+```
+
+Request:
+
+```json
+{
+  "officeId": 10,
+  "agentCode": "cloud-managed-1",
+  "storageProfile": {
+    "kind": "S3_COMPATIBLE",
+    "managedBy": "ARCHDOX_CLOUD"
+  }
+}
+```
+
+Response `201`:
+
+```json
+{
+  "officeId": 10,
+  "agentId": 1,
+  "agentCode": "cloud-managed-1",
+  "deploymentMode": "CLOUD_MANAGED",
+  "authMode": "DEVICE_SECRET",
+  "status": "OFFLINE",
+  "deviceSecret": "one-time-visible-device-secret",
+  "pairedAt": "2026-06-25T12:00:00+09:00",
+  "storageProfile": {
+    "kind": "S3_COMPATIBLE",
+    "managedBy": "ARCHDOX_CLOUD"
+  }
+}
+```
+
+The raw `deviceSecret` is returned only once and must be stored in the deployment
+secret store. Cloud-managed containers must run with `AGENT_AUTH_MODE=DEVICE_SECRET`,
+`AGENT_ID`, and `AGENT_DEVICE_SECRET`; they must not use the shared-secret
+development fallback.
+
 ## ArchDox Agent WebSocket
 
 The ArchDox Agent connects outbound to Cloud API.
