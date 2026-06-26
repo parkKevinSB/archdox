@@ -18,6 +18,7 @@ public class ArchDoxAgentLauncher {
     private static final int EXIT_MANIFEST_FAILED = 30;
     private static final int EXIT_INSTALL_FAILED = 40;
     private static final int EXIT_START_FAILED = 50;
+    private static final int EXIT_STOP_FAILED = 60;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AgentUpdatePlanner planner = new AgentUpdatePlanner();
@@ -31,6 +32,9 @@ public class ArchDoxAgentLauncher {
 
     int run(String[] args) throws Exception {
         var config = LauncherConfig.from(args);
+        if (config.isLocalControlCommand()) {
+            return runLocalControl(config);
+        }
         var manifest = fetchManifest(config);
         var decision = planner.decide(
                 manifest,
@@ -38,9 +42,15 @@ public class ArchDoxAgentLauncher {
                 config.currentProtocolVersion(),
                 config.currentLauncherVersion());
         var installResult = installIfRequested(config, manifest, decision);
-        var startResult = startIfRequested(config);
-        printResult(config, manifest, decision, installResult, startResult);
-        return exitCode(decision, installResult, startResult);
+        printResult(
+                config,
+                manifest,
+                decision,
+                installResult,
+                AgentRuntimeStartResult.notAttempted("Runtime start was not requested."),
+                null,
+                null);
+        return exitCode(decision, installResult, AgentRuntimeStartResult.notAttempted("Runtime start was not requested."), null);
     }
 
     private AgentRuntimeManifest fetchManifest(LauncherConfig config) throws Exception {
@@ -61,9 +71,12 @@ public class ArchDoxAgentLauncher {
             AgentRuntimeManifest manifest,
             AgentUpdateDecision decision,
             AgentRuntimeInstallResult installResult,
-            AgentRuntimeStartResult startResult
+            AgentRuntimeStartResult startResult,
+            AgentRuntimeStopResult stopResult,
+            AgentRuntimeStatusResult statusResult
     ) throws Exception {
         var result = new LauncherResult(
+                config.launcherCommand(),
                 config.cloudApiBaseUrl(),
                 config.channel(),
                 config.platform(),
@@ -77,7 +90,9 @@ public class ArchDoxAgentLauncher {
                 manifest,
                 decision,
                 installResult,
-                startResult);
+                startResult,
+                stopResult,
+                statusResult);
         System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result));
     }
 
@@ -106,10 +121,48 @@ public class ArchDoxAgentLauncher {
         }
     }
 
-    private AgentRuntimeStartResult startIfRequested(LauncherConfig config) {
-        if (!config.startRuntime()) {
-            return AgentRuntimeStartResult.notAttempted("Runtime start was not requested.");
+    private int runLocalControl(LauncherConfig config) throws Exception {
+        var command = config.launcherCommand();
+        var startResult = AgentRuntimeStartResult.notAttempted("Runtime start was not requested.");
+        AgentRuntimeStopResult stopResult = null;
+        AgentRuntimeStatusResult statusResult = null;
+        if ("status".equals(command)) {
+            statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
+        } else if ("stop".equals(command)) {
+            stopResult = supervisor.stop(config.workDir());
+            statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
+        } else if ("start".equals(command)) {
+            startResult = startRuntime(config);
+            statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
+        } else if ("restart".equals(command)) {
+            stopResult = supervisor.stop(config.workDir());
+            startResult = startRuntime(config);
+            statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
+        } else if ("supervise".equals(command)) {
+            startResult = supervisor.supervise(
+                    config.installDir(),
+                    config.workDir(),
+                    config.runtimeCommand(),
+                    URI.create(config.runtimeHealthUrl()),
+                    Duration.ofSeconds(config.startupTimeoutSeconds()),
+                    config.rollbackOnStartFailure(),
+                    Duration.ofSeconds(config.monitorIntervalSeconds()),
+                    config.maxRestarts(),
+                    Map.of());
+            statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
         }
+        printResult(
+                config,
+                null,
+                null,
+                AgentRuntimeInstallResult.notAttempted("Runtime update was not requested."),
+                startResult,
+                stopResult,
+                statusResult);
+        return exitCode(null, AgentRuntimeInstallResult.notAttempted("Runtime update was not requested."), startResult, stopResult);
+    }
+
+    private AgentRuntimeStartResult startRuntime(LauncherConfig config) {
         try {
             return supervisor.start(
                     config.installDir(),
@@ -127,7 +180,8 @@ public class ArchDoxAgentLauncher {
     private int exitCode(
             AgentUpdateDecision decision,
             AgentRuntimeInstallResult installResult,
-            AgentRuntimeStartResult startResult
+            AgentRuntimeStartResult startResult,
+            AgentRuntimeStopResult stopResult
     ) {
         if ("FAILED".equals(installResult.status())) {
             return EXIT_INSTALL_FAILED;
@@ -135,22 +189,26 @@ public class ArchDoxAgentLauncher {
         if ("FAILED".equals(startResult.status())) {
             return EXIT_START_FAILED;
         }
+        if (stopResult != null && "FAILED".equals(stopResult.status())) {
+            return EXIT_STOP_FAILED;
+        }
         if (installResult.installed()) {
             return EXIT_OK;
         }
-        if ("UPDATE_REQUIRED".equals(decision.status())) {
+        if (decision != null && "UPDATE_REQUIRED".equals(decision.status())) {
             return EXIT_UPDATE_REQUIRED;
         }
-        if ("UPDATE_RECOMMENDED".equals(decision.status())) {
+        if (decision != null && "UPDATE_RECOMMENDED".equals(decision.status())) {
             return EXIT_UPDATE_RECOMMENDED;
         }
-        if ("MANIFEST_UNAVAILABLE".equals(decision.status())) {
+        if (decision != null && "MANIFEST_UNAVAILABLE".equals(decision.status())) {
             return EXIT_MANIFEST_FAILED;
         }
         return EXIT_OK;
     }
 
     record LauncherConfig(
+            String launcherCommand,
             String cloudApiBaseUrl,
             String channel,
             String platform,
@@ -165,10 +223,17 @@ public class ArchDoxAgentLauncher {
             String runtimeCommand,
             String runtimeHealthUrl,
             long startupTimeoutSeconds,
-            boolean rollbackOnStartFailure
+            boolean rollbackOnStartFailure,
+            long monitorIntervalSeconds,
+            long maxRestarts
     ) {
         static LauncherConfig from(String[] args) {
+            var startRuntime = booleanOption(args, "--start-runtime", env("ARCHDOX_AGENT_START_RUNTIME", "false"));
+            var command = normalizedCommand(option(args, "--launcher-command", env(
+                    "ARCHDOX_AGENT_LAUNCHER_COMMAND",
+                    startRuntime ? "start" : "check")));
             return new LauncherConfig(
+                    command,
                     option(args, "--cloud-api-base-url", env("ARCHDOX_CLOUD_API_BASE_URL", "http://localhost:8080")),
                     option(args, "--channel", env("ARCHDOX_AGENT_UPDATE_CHANNEL", "stable")),
                     option(args, "--platform", env("ARCHDOX_AGENT_PLATFORM", "windows-x64")),
@@ -176,7 +241,7 @@ public class ArchDoxAgentLauncher {
                     option(args, "--protocol-version", env("ARCHDOX_AGENT_PROTOCOL_VERSION", "2026-06-25")),
                     option(args, "--launcher-version", env("ARCHDOX_AGENT_LAUNCHER_VERSION", "embedded")),
                     booleanOption(args, "--apply-update", env("ARCHDOX_AGENT_APPLY_UPDATE", "false")),
-                    booleanOption(args, "--start-runtime", env("ARCHDOX_AGENT_START_RUNTIME", "false")),
+                    startRuntime,
                     pathOption(args, "--install-dir", env(
                             "ARCHDOX_AGENT_INSTALL_DIR",
                             Path.of(System.getProperty("user.home"), ".archdox", "agent-runtime").toString())),
@@ -195,7 +260,20 @@ public class ArchDoxAgentLauncher {
                             "60")),
                     booleanOption(args, "--rollback-on-start-failure", env(
                             "ARCHDOX_AGENT_ROLLBACK_ON_START_FAILURE",
-                            "true")));
+                            "true")),
+                    longOption(args, "--monitor-interval-seconds", env(
+                            "ARCHDOX_AGENT_MONITOR_INTERVAL_SECONDS",
+                            "15")),
+                    longOption(args, "--max-restarts", env(
+                            "ARCHDOX_AGENT_MAX_RESTARTS",
+                            "0")));
+        }
+
+        boolean isLocalControlCommand() {
+            return switch (launcherCommand) {
+                case "start", "stop", "restart", "status", "supervise" -> true;
+                default -> false;
+            };
         }
 
         URI manifestUri() {
@@ -247,6 +325,14 @@ public class ArchDoxAgentLauncher {
             }
         }
 
+        private static String normalizedCommand(String value) {
+            var command = value == null || value.isBlank() ? "check" : value.trim().toLowerCase();
+            return switch (command) {
+                case "check", "start", "stop", "restart", "status", "supervise" -> command;
+                default -> throw new IllegalArgumentException("Unsupported launcher command: " + value);
+            };
+        }
+
         private static String env(String key, String fallback) {
             var value = System.getenv(key);
             return value == null || value.isBlank() ? fallback : value.trim();
@@ -258,6 +344,7 @@ public class ArchDoxAgentLauncher {
     }
 
     record LauncherResult(
+            String launcherCommand,
             String cloudApiBaseUrl,
             String channel,
             String platform,
@@ -271,7 +358,9 @@ public class ArchDoxAgentLauncher {
             AgentRuntimeManifest manifest,
             AgentUpdateDecision decision,
             AgentRuntimeInstallResult update,
-            AgentRuntimeStartResult runtime
+            AgentRuntimeStartResult runtime,
+            AgentRuntimeStopResult stop,
+            AgentRuntimeStatusResult status
     ) {
     }
 }

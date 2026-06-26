@@ -4,6 +4,8 @@
 ArchDox Agent runtime.
 
 It is not the document/photo execution runtime. That remains `archdox-agent`.
+This module is intentionally separate from `archdox-agent`; it has no Spring
+Boot runtime dependency and can manage the Agent process from the outside.
 
 ## Current Phase
 
@@ -31,6 +33,7 @@ Runtime process start is also opt-in.
 | `30` | Manifest lookup failed. |
 | `40` | Runtime package installation failed. |
 | `50` | Runtime process start or health check failed. |
+| `60` | Runtime process stop failed. |
 
 ## Example
 
@@ -94,10 +97,36 @@ The Cloud endpoint is:
 GET /api/v1/archdox-agents/runtime-manifest?channel=stable&platform=windows-x64
 ```
 
+## Local Runtime Commands
+
+Use `--launcher-command` for local runtime control:
+
+```bash
+--launcher-command check      # default: read manifest, optionally install
+--launcher-command status     # read local pid/state and health
+--launcher-command start      # start current runtime and verify health
+--launcher-command stop       # stop recorded runtime pid/process tree
+--launcher-command restart    # stop then start
+--launcher-command supervise  # keep checking health and restart when needed
+```
+
+`status` and `stop` are local-only commands. They do not call Cloud API.
+
+The launcher writes local control files under `--work-dir`:
+
+```text
+agent.pid
+launcher-state.json
+logs/agent-runtime.out.log
+logs/agent-runtime.err.log
+```
+
+`supervise` is a long-running command. It checks health every
+`--monitor-interval-seconds` and restarts the runtime when the process is gone
+or health is not confirmed. `--max-restarts 0` means no fixed restart limit.
+
 ## Next Phase
 
 The next launcher phase should add:
 
-- long-running process supervision loop
-- graceful stop/restart commands
 - OS service integration for Windows/Linux

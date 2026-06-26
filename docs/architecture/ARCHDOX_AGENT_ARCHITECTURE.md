@@ -159,6 +159,11 @@ ArchDox Agent Runtime
   -> executes commands
 ```
 
+`archdox-agent-launcher` is a separate Gradle module from `archdox-agent`.
+It is a small Java CLI, not the document/photo runtime and not a Spring Boot
+application. This separation lets the launcher update, start, stop, and roll
+back the runtime from outside the runtime process.
+
 Cloud-managed Agents use the same runtime compatibility contract, but updates
 are performed by deployment pipeline or container image replacement instead of
 self-updating from inside the container.
@@ -176,9 +181,11 @@ Current implementation status:
 - When `--start-runtime` is explicitly set, the launcher starts the `current`
   runtime, checks the configured health endpoint, and rolls back `previous` to
   `current` if startup health verification fails.
-- The launcher does not yet run as a long-lived OS service supervisor. Long
-  running process supervision, graceful stop/restart commands, and Windows/Linux
-  service integration are the next implementation phase.
+- The launcher supports local `status`, `stop`, `start`, `restart`, and
+  long-running `supervise` commands. `status` and `stop` are local-only commands
+  and do not call Cloud API.
+- The launcher does not yet install itself as a Windows/Linux service. OS
+  service integration is the next implementation phase.
 
 ## Deployment Policy
 

@@ -35,18 +35,22 @@ class AgentRuntimeSupervisorTest {
                     Duration.ofSeconds(10),
                     true,
                     Map.of());
+
+            assertThat(result.status()).isEqualTo("STARTED");
+            assertThat(result.started()).isTrue();
+            assertThat(result.healthConfirmed()).isTrue();
+            assertThat(result.pid()).isNotNull();
+
+            var status = supervisor.status(tempDir.resolve("work"), URI.create("http://127.0.0.1:" + port + "/actuator/health"));
+            assertThat(status.status()).isEqualTo("RUNNING");
+            assertThat(status.pidAlive()).isTrue();
         } finally {
             server.stop(0);
         }
 
-        assertThat(result.status()).isEqualTo("STARTED");
-        assertThat(result.started()).isTrue();
-        assertThat(result.healthConfirmed()).isTrue();
-        assertThat(result.pid()).isNotNull();
-        ProcessHandle.of(result.pid()).ifPresent(handle -> {
-            handle.destroyForcibly();
-            handle.onExit().join();
-        });
+        var stop = supervisor.stop(tempDir.resolve("work"));
+        assertThat(stop.status()).isEqualTo("STOPPED");
+        assertThat(stop.stopped()).isTrue();
     }
 
     @Test
