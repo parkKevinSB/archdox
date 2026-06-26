@@ -2736,6 +2736,100 @@ body.downloads-page .secondary-action {
   }
 }
 
+body.downloads-page .downloads-docs-hero h1 {
+  max-width: 820px;
+  font-size: clamp(2.35rem, 4.6vw, 3.85rem);
+  line-height: 1.12;
+}
+
+body.downloads-page .downloads-docs-hero p {
+  max-width: 720px;
+}
+
+body.downloads-page .downloads-docs-hero {
+  padding-top: 68px;
+  padding-bottom: 48px;
+}
+
+body.downloads-page .docs-section {
+  padding-top: 64px;
+  padding-bottom: 64px;
+}
+
+body.downloads-page .downloads-release-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr) minmax(0, 1fr);
+}
+
+body.downloads-page .downloads-release-card {
+  border-left: 4px solid #1d5d51;
+}
+
+body.downloads-page .downloads-status-panel {
+  align-content: start;
+}
+
+body.downloads-page .downloads-status-panel p {
+  margin: 0;
+}
+
+body.downloads-page .downloads-detail-list {
+  display: grid;
+  gap: 0;
+  margin: 4px 0 0;
+  border-top: 1px solid #d8e1df;
+}
+
+body.downloads-page .downloads-detail-list > div {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border-bottom: 1px solid #d8e1df;
+  padding: 10px 0;
+}
+
+body.downloads-page .downloads-detail-list dt {
+  color: #60746f;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+body.downloads-page .downloads-detail-list dd {
+  margin: 0;
+  color: #14201f;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+body.downloads-page .download-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+}
+
+body.downloads-page .downloads-flow-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1080px) {
+  body.downloads-page .downloads-release-grid,
+  body.downloads-page .downloads-flow-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  body.downloads-page .downloads-detail-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  body.downloads-page .download-card-actions {
+    flex-direction: column;
+  }
+}
+
 .mcp-hero {
   position: relative;
   display: grid;

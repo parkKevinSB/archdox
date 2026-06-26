@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="ArchDox Agent Launcher를 내려받고, 로컬 또는 사무소 관리형 Agent를 ArchDox 계정에 연결하는 안내입니다."
+      content="ArchDox Agent 런처를 내려받고 현장 PC, 사무소 PC, NAS 또는 클라우드 저장소와 연결하는 안내입니다."
     />
     <title>Downloads | ArchDox</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body class="developer-docs mcp-docs downloads-page">
-    <header class="site-header mcp-header downloads-header">
-      <a class="brand mcp-brand downloads-brand" href="/" aria-label="ArchDox home">
+  <body class="developer-docs developer-overview-docs downloads-page">
+    <header class="site-header docs-header">
+      <a class="brand" href="/" aria-label="ArchDox home">
         <span class="brand-mark">AD</span>
         <span>archdoX</span>
       </a>
-      <nav class="top-nav mcp-nav downloads-nav" aria-label="Primary navigation">
+      <nav class="top-nav" aria-label="Primary navigation">
         <a href="/">Platform</a>
         <a href="/developers/">Developers</a>
         <a href="/downloads/" aria-current="page">Downloads</a>
@@ -27,153 +27,133 @@
     </header>
 
     <main>
-      <section class="downloads-hero">
-        <div class="downloads-hero-field" aria-hidden="true"></div>
-        <div class="downloads-copy">
-          <p class="downloads-eyebrow">ArchDox Agent</p>
-          <h1>ArchDox Agent로 문서 생성 환경을 연결합니다.</h1>
-          <p>
-            런처는 Agent runtime을 내려받고 버전 호환성을 확인합니다. 계정 연결과 저장소 설정은
-            로그인 후 발급되는 연결 토큰과 장치 secret으로 안전하게 분리됩니다.
-          </p>
-          <div class="hero-actions downloads-actions">
-            <a id="launcherDownloadHero" class="primary-action disabled-link" href="#" aria-disabled="true">Windows 런처 준비 중</a>
-            <a class="secondary-action" href="https://app.archdox.co.kr/login">로그인 후 연결 설정</a>
-          </div>
-          <div class="download-signal-row" aria-label="Agent setup highlights">
-            <span>자동 업데이트</span>
-            <span>로컬/NAS/S3 저장소</span>
-            <span>토큰 기반 연결</span>
-          </div>
+      <section class="docs-hero downloads-docs-hero">
+        <p class="eyebrow">ArchDox 다운로드</p>
+        <h1>ArchDox Agent 설치 파일을 내려받습니다.</h1>
+        <p>
+          Agent는 감리 문서 생성과 사진·문서 보관을 담당합니다. 설치 파일은 공개되어 있지만,
+          실제 계정 연결과 저장소 설정은 로그인 후 발급되는 연결 토큰으로 처리합니다.
+        </p>
+        <div class="hero-actions">
+          <a id="launcherDownloadHero" class="primary-action disabled-link" href="#" aria-disabled="true">Windows 런처 준비 중</a>
+          <a class="secondary-action" href="https://app.archdox.co.kr/login">로그인 후 연결 설정</a>
         </div>
-
-        <aside class="download-status-card" aria-label="Agent launcher release status">
-          <div class="download-status-top">
-            <span id="launcherStatusPill">확인 중</span>
-            <strong>Windows Launcher</strong>
-          </div>
-          <div class="download-release-summary">
-            <span>Latest release</span>
-            <strong id="launcherVersion">확인 중</strong>
-            <p id="launcherStatusText">Cloud API에서 최신 런처 manifest를 읽고 있습니다.</p>
-          </div>
-          <dl>
-            <div>
-              <dt>Channel</dt>
-              <dd id="launcherChannel">stable</dd>
-            </div>
-            <div>
-              <dt>Platform</dt>
-              <dd id="launcherPlatform">windows-x64</dd>
-            </div>
-            <div>
-              <dt>Checksum</dt>
-              <dd id="launcherSha">확인 중</dd>
-            </div>
-          </dl>
-          <div class="download-card-trace" aria-hidden="true">
-            <span>Download</span>
-            <i></i>
-            <span>Connect</span>
-            <i></i>
-            <span>Generate</span>
-          </div>
-        </aside>
       </section>
 
-      <section class="downloads-section">
-        <div class="downloads-section-head">
-          <p class="downloads-eyebrow">Recommended Setup</p>
-          <h2>사용자는 런처만 설치하고, Agent runtime은 런처가 관리합니다.</h2>
-          <p>
-            다운로드 파일은 공개되어 있어도 괜찮습니다. 실제 사무소 연결, 저장소 선택, 문서 생성 권한은
-            로그인 앱에서 발급되는 연결 토큰과 서버 정책으로 통제합니다.
-          </p>
+      <section class="docs-section">
+        <div class="section-head">
+          <p class="eyebrow">현재 배포</p>
+          <h2>지금 받을 수 있는 설치 파일입니다.</h2>
+          <p>일반 사용자는 런처만 설치하면 됩니다. 필요한 실행 파일은 런처가 내려받고 업데이트합니다.</p>
         </div>
 
-        <div class="download-card-grid">
-          <article class="download-card featured">
-            <span>사용 가능</span>
-            <h3>Windows x64 Launcher</h3>
-            <p>일반 현장 PC와 개인 Windows 작업 환경용 기본 패키지입니다.</p>
+        <div class="docs-card-grid downloads-release-grid">
+          <article class="downloads-release-card">
+            <span>권장</span>
+            <h3>Windows 런처</h3>
+            <p>현장 PC, 사무소 PC, 개인 Windows 작업 환경에서 사용하는 기본 설치 파일입니다.</p>
             <div class="download-card-actions">
               <a id="launcherDownloadCard" class="primary-action disabled-link" href="#" aria-disabled="true">다운로드 준비 중</a>
               <a class="secondary-action" href="#install-flow">설치 흐름 보기</a>
             </div>
           </article>
-          <article class="download-card">
-            <span>예정</span>
-            <h3>macOS</h3>
-            <p>macOS 런처 패키지는 Agent runtime 안정화 후 같은 manifest 계약으로 제공합니다.</p>
-            <button disabled type="button">준비 중</button>
+
+          <article class="downloads-status-panel" aria-label="현재 런처 배포 상태">
+            <span id="launcherStatusPill">확인 중</span>
+            <h3>배포 상태</h3>
+            <p id="launcherStatusText">최신 런처 정보를 확인하고 있습니다.</p>
+            <dl class="downloads-detail-list">
+              <div>
+                <dt>버전</dt>
+                <dd id="launcherVersion">확인 중</dd>
+              </div>
+              <div>
+              <dt>배포</dt>
+                <dd id="launcherChannel">안정 채널</dd>
+              </div>
+              <div>
+              <dt>대상</dt>
+                <dd id="launcherPlatform">Windows 64비트</dd>
+              </div>
+              <div>
+              <dt>무결성</dt>
+                <dd id="launcherSha">확인 중</dd>
+              </div>
+            </dl>
           </article>
-          <article class="download-card">
-            <span>예정</span>
-            <h3>Linux</h3>
-            <p>서버나 NAS 인접 환경에서 운영할 수 있는 Linux 패키지입니다.</p>
-            <button disabled type="button">준비 중</button>
+
+          <article>
+            <span>연결</span>
+            <h3>앱에서 계정 연결</h3>
+            <p>
+              설치 후 ArchDox 앱에서 개인 또는 사무소 작업공간을 선택하고 연결 토큰을 발급합니다.
+              아무 Agent나 계정에 붙지 못하도록 장치 단위로 승인합니다.
+            </p>
           </article>
         </div>
       </section>
 
-      <section class="downloads-section downloads-band" id="install-flow">
-        <div class="downloads-section-head">
-          <p class="downloads-eyebrow">Install Flow</p>
-          <h2>설치는 짧게, 권한 연결은 로그인 앱에서 명확하게 처리합니다.</h2>
+      <section class="docs-section light-band" id="install-flow">
+        <div class="section-head">
+          <p class="eyebrow">설치 흐름</p>
+          <h2>다운로드와 계정 연결은 분리합니다.</h2>
         </div>
-        <div class="download-flow">
+        <div class="developer-product-list downloads-flow-list">
+          <a href="/downloads/">
+            <strong>1. 런처 다운로드</strong>
+            <span>공개 페이지에서 Windows 런처를 내려받습니다.</span>
+          </a>
+          <a href="https://app.archdox.co.kr/login">
+            <strong>2. 앱 로그인</strong>
+            <span>개인 또는 사무소 작업공간을 선택하고 연결 토큰을 발급합니다.</span>
+          </a>
+          <a href="https://app.archdox.co.kr/login">
+            <strong>3. 저장소 설정</strong>
+            <span>로컬 폴더, NAS, S3 호환 저장소 중 Agent가 사용할 위치를 정합니다.</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="docs-section">
+        <div class="section-head">
+          <p class="eyebrow">저장소</p>
+          <h2>Agent는 하나지만 저장소 정책은 설치 방식에 따라 다릅니다.</h2>
+        </div>
+        <div class="docs-card-grid">
           <article>
-            <span>01</span>
-            <h3>런처 다운로드</h3>
-            <p>공개 다운로드 페이지에서 OS에 맞는 런처를 내려받습니다.</p>
+            <span>로컬</span>
+            <h3>개인·사무소 PC</h3>
+            <p>PC 폴더나 NAS에 프로젝트, 현장, 리포트 단위로 사진과 생성 문서를 보관합니다.</p>
           </article>
           <article>
-            <span>02</span>
-            <h3>앱 로그인</h3>
-            <p>ArchDox 앱에서 개인 또는 사무소 작업공간을 선택합니다.</p>
+            <span>클라우드</span>
+            <h3>클라우드 관리형 Agent</h3>
+            <p>ArchDox가 관리하는 Agent가 S3 호환 저장소를 사용해 문서 생성과 보관을 처리합니다.</p>
           </article>
           <article>
-            <span>03</span>
-            <h3>연결 토큰 발급</h3>
-            <p>사무소와 장치가 연결될 수 있도록 일회성 토큰을 발급합니다.</p>
-          </article>
-          <article>
-            <span>04</span>
-            <h3>저장소 선택</h3>
-            <p>로컬 폴더, NAS, S3 호환 저장소 중 Agent가 사용할 위치를 정합니다.</p>
+            <span>배포 파일</span>
+            <h3>설치 파일 저장소</h3>
+            <p>런처와 runtime zip은 공개 다운로드 저장소에 두고, 고객 데이터 저장소와 분리합니다.</p>
           </article>
         </div>
       </section>
 
-      <section class="downloads-split">
+      <section class="cta-band">
         <div>
-          <p class="downloads-eyebrow">Storage Policy</p>
-          <h2>Agent는 하나지만 저장소 정책은 배포 방식에 따라 다릅니다.</h2>
-          <p>
-            개인 PC에 설치하면 로컬 폴더나 NAS를 쓸 수 있고, ArchDox가 관리하는 클라우드 Agent는
-            S3 호환 저장소를 사용합니다. 운영 배포에서는 문서/사진 저장소와 런처 배포 버킷을 분리합니다.
-          </p>
+          <p class="eyebrow">Start</p>
+          <h2>먼저 런처를 설치한 뒤 앱에서 연결하세요.</h2>
+          <p>설치 파일 다운로드와 실제 계정 연결은 분리되어 있습니다. 연결 권한은 로그인 후 발급되는 토큰으로 확인합니다.</p>
         </div>
-        <div class="storage-mode-list">
-          <article>
-            <strong>Local Office Agent</strong>
-            <span>사무소 PC, NAS, 로컬 폴더 중심 운영</span>
-          </article>
-          <article>
-            <strong>Cloud Managed Agent</strong>
-            <span>ArchDox 서버에서 구동, S3 호환 저장소 사용</span>
-          </article>
-          <article>
-            <strong>Release Downloads</strong>
-            <span>런처/Runtime zip만 공개 다운로드 버킷에 보관</span>
-          </article>
+        <div class="cta-actions">
+          <a id="launcherDownloadFooter" class="primary-action disabled-link" href="#" aria-disabled="true">Windows 런처 준비 중</a>
+          <a class="secondary-action" href="https://app.archdox.co.kr/login">앱 로그인</a>
         </div>
       </section>
     </main>
 
-    <footer class="site-footer downloads-footer">
+    <footer class="site-footer">
       <span>archdoX</span>
-      <p>다운로드는 공개, 계정 연결은 로그인 후 승인과 장치 secret으로 통제합니다.</p>
+      <p>다운로드는 공개하고, 계정 연결과 저장소 권한은 로그인 후 통제합니다.</p>
     </footer>
 
     <script>
@@ -183,6 +163,7 @@
       const elements = {
         hero: document.getElementById("launcherDownloadHero"),
         card: document.getElementById("launcherDownloadCard"),
+        footer: document.getElementById("launcherDownloadFooter"),
         pill: document.getElementById("launcherStatusPill"),
         channel: document.getElementById("launcherChannel"),
         platform: document.getElementById("launcherPlatform"),
@@ -191,8 +172,12 @@
         text: document.getElementById("launcherStatusText")
       };
 
+      function downloadLinks() {
+        return [elements.hero, elements.card, elements.footer].filter(Boolean);
+      }
+
       function setLoginFallback(message) {
-        for (const link of [elements.hero, elements.card]) {
+        for (const link of downloadLinks()) {
           link.classList.remove("disabled-link");
           link.removeAttribute("aria-disabled");
           link.href = "https://app.archdox.co.kr/login";
@@ -203,21 +188,21 @@
       function setReady(manifest) {
         const version = manifest.latestLauncherVersion || manifest.recommendedLauncherVersion || "latest";
         const sha = manifest.sha256 ? `${manifest.sha256.slice(0, 12)}...` : "미제공";
-        elements.channel.textContent = manifest.channel || "stable";
-        elements.platform.textContent = manifest.platform || "windows-x64";
+        elements.channel.textContent = manifest.channel === "stable" ? "안정 채널" : manifest.channel || "stable";
+        elements.platform.textContent = manifest.platform === "windows-x64" ? "Windows 64비트" : manifest.platform || "windows-x64";
         elements.version.textContent = version;
         elements.sha.textContent = sha;
 
         if (!manifest.downloadAvailable || !manifest.downloadUrl) {
           elements.pill.textContent = "준비 중";
-          elements.text.textContent = "런처 파일 또는 checksum 설정이 아직 완료되지 않았습니다.";
+          elements.text.textContent = "아직 공개 다운로드 파일이 준비되지 않았습니다. 앱에서 상태를 확인해 주세요.";
           setLoginFallback("앱에서 다운로드 확인");
           return;
         }
 
         elements.pill.textContent = "다운로드 가능";
-        elements.text.textContent = "최신 런처 manifest가 확인되었습니다. 설치 후 앱에서 계정을 연결하세요.";
-        for (const link of [elements.hero, elements.card]) {
+        elements.text.textContent = "최신 Windows 런처를 받을 수 있습니다. 설치 후 앱에서 계정을 연결하세요.";
+        for (const link of downloadLinks()) {
           link.classList.remove("disabled-link");
           link.removeAttribute("aria-disabled");
           link.href = manifest.downloadUrl;
@@ -237,7 +222,7 @@
           elements.pill.textContent = "확인 필요";
           elements.version.textContent = "앱에서 확인";
           elements.sha.textContent = "앱에서 확인";
-          elements.text.textContent = "현재 공개 manifest를 읽을 수 없습니다. 로그인 후 앱에서 다운로드 상태를 확인하세요.";
+          elements.text.textContent = "현재 공개 다운로드 정보를 읽을 수 없습니다. 로그인 후 앱에서 다운로드 상태를 확인하세요.";
           setLoginFallback("앱에서 다운로드 확인");
         });
     </script>
