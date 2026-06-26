@@ -31,14 +31,19 @@
         <div class="downloads-hero-field" aria-hidden="true"></div>
         <div class="downloads-copy">
           <p class="downloads-eyebrow">ArchDox Agent</p>
-          <h1>ArchDox Agent를 설치하고 문서 생성 환경을 연결합니다.</h1>
+          <h1>ArchDox Agent로 문서 생성 환경을 연결합니다.</h1>
           <p>
-            런처는 문서 생성, 사진 보관, Agent 업데이트를 담당합니다.
-            실제 계정 연결과 사무소 권한은 로그인 후 발급되는 연결 토큰과 장치 secret으로 보호됩니다.
+            런처는 Agent runtime을 내려받고 버전 호환성을 확인합니다. 계정 연결과 저장소 설정은
+            로그인 후 발급되는 연결 토큰과 장치 secret으로 안전하게 분리됩니다.
           </p>
           <div class="hero-actions downloads-actions">
             <a id="launcherDownloadHero" class="primary-action disabled-link" href="#" aria-disabled="true">Windows 런처 준비 중</a>
             <a class="secondary-action" href="https://app.archdox.co.kr/login">로그인 후 연결 설정</a>
+          </div>
+          <div class="download-signal-row" aria-label="Agent setup highlights">
+            <span>자동 업데이트</span>
+            <span>로컬/NAS/S3 저장소</span>
+            <span>토큰 기반 연결</span>
           </div>
         </div>
 
@@ -47,35 +52,42 @@
             <span id="launcherStatusPill">확인 중</span>
             <strong>Windows Launcher</strong>
           </div>
+          <div class="download-release-summary">
+            <span>Latest release</span>
+            <strong id="launcherVersion">확인 중</strong>
+            <p id="launcherStatusText">Cloud API에서 최신 런처 manifest를 읽고 있습니다.</p>
+          </div>
           <dl>
             <div>
-              <dt>채널</dt>
+              <dt>Channel</dt>
               <dd id="launcherChannel">stable</dd>
             </div>
             <div>
-              <dt>플랫폼</dt>
+              <dt>Platform</dt>
               <dd id="launcherPlatform">windows-x64</dd>
             </div>
             <div>
-              <dt>최신 버전</dt>
-              <dd id="launcherVersion">확인 중</dd>
-            </div>
-            <div>
-              <dt>무결성</dt>
+              <dt>Checksum</dt>
               <dd id="launcherSha">확인 중</dd>
             </div>
           </dl>
-          <p id="launcherStatusText">Cloud API에서 최신 런처 manifest를 읽고 있습니다.</p>
+          <div class="download-card-trace" aria-hidden="true">
+            <span>Download</span>
+            <i></i>
+            <span>Connect</span>
+            <i></i>
+            <span>Generate</span>
+          </div>
         </aside>
       </section>
 
       <section class="downloads-section">
         <div class="downloads-section-head">
-          <p class="downloads-eyebrow">Recommended</p>
-          <h2>먼저 런처를 설치하세요.</h2>
+          <p class="downloads-eyebrow">Recommended Setup</p>
+          <h2>사용자는 런처만 설치하고, Agent runtime은 런처가 관리합니다.</h2>
           <p>
-            런처는 Agent runtime을 내려받고, 버전 호환성을 확인하고, 필요한 경우 업데이트합니다.
-            사용자는 런처만 유지하면 되고 Agent runtime zip을 직접 관리하지 않습니다.
+            다운로드 파일은 공개되어 있어도 괜찮습니다. 실제 사무소 연결, 저장소 선택, 문서 생성 권한은
+            로그인 앱에서 발급되는 연결 토큰과 서버 정책으로 통제합니다.
           </p>
         </div>
 
@@ -107,7 +119,7 @@
       <section class="downloads-section downloads-band" id="install-flow">
         <div class="downloads-section-head">
           <p class="downloads-eyebrow">Install Flow</p>
-          <h2>다운로드와 계정 연결은 분리합니다.</h2>
+          <h2>설치는 짧게, 권한 연결은 로그인 앱에서 명확하게 처리합니다.</h2>
         </div>
         <div class="download-flow">
           <article>
