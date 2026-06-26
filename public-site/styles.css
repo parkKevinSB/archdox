@@ -2290,12 +2290,14 @@ body.downloads-page .downloads-nav .nav-login {
 .downloads-hero {
   position: relative;
   display: grid;
-  min-height: calc(100vh - 76px);
-  grid-template-columns: minmax(0, 0.96fr) minmax(360px, 0.72fr);
-  gap: 54px;
+  max-width: 1220px;
+  min-height: 620px;
+  grid-template-columns: minmax(0, 0.98fr) minmax(340px, 0.72fr);
+  gap: 42px;
   align-items: center;
   overflow: hidden;
-  padding: 82px 46px 76px;
+  margin: 0 auto;
+  padding: 72px 46px;
   background:
     radial-gradient(circle at 82% 18%, rgba(29, 93, 81, 0.14), transparent 28%),
     linear-gradient(135deg, #f6f8f7 0%, #eef2f4 60%, #e6eeee 100%);
@@ -2321,12 +2323,12 @@ body.downloads-page .downloads-nav .nav-login {
 }
 
 .downloads-copy {
-  max-width: 800px;
-  padding-left: max(0px, calc((100vw - 1220px) / 2));
+  max-width: 700px;
+  padding-left: 0;
 }
 
 .downloads-eyebrow {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   color: #1d5d51;
   font-size: 0.78rem;
   font-weight: 900;
@@ -2335,10 +2337,11 @@ body.downloads-page .downloads-nav .nav-login {
 }
 
 .downloads-copy h1 {
+  max-width: 720px;
   color: #14201f;
-  font-size: clamp(2.65rem, 5vw, 4.6rem);
-  font-weight: 680;
-  line-height: 1.06;
+  font-size: clamp(2.25rem, 4vw, 3.65rem);
+  font-weight: 700;
+  line-height: 1.12;
   word-break: keep-all;
 }
 
@@ -2354,9 +2357,9 @@ body.downloads-page .downloads-nav .nav-login {
 }
 
 .downloads-copy > p {
-  max-width: 720px;
-  margin: 28px 0 0;
-  font-size: clamp(1.08rem, 1.42vw, 1.3rem);
+  max-width: 660px;
+  margin: 22px 0 0;
+  font-size: clamp(1.02rem, 1.22vw, 1.18rem);
 }
 
 .downloads-actions .primary-action,
@@ -2386,11 +2389,12 @@ body.downloads-page .secondary-action {
   display: grid;
   gap: 18px;
   align-self: center;
-  border: 1px solid #d8e1df;
+  overflow: hidden;
+  border: 1px solid #2d4642;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  padding: 24px;
-  box-shadow: 0 28px 70px rgba(20, 32, 31, 0.16);
+  background: #11201e;
+  padding: 0 0 20px;
+  box-shadow: 0 28px 70px rgba(20, 32, 31, 0.24);
 }
 
 .download-status-top {
@@ -2398,6 +2402,10 @@ body.downloads-page .secondary-action {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  min-height: 58px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #172322;
+  padding: 0 18px;
 }
 
 .download-status-top span,
@@ -2416,14 +2424,18 @@ body.downloads-page .secondary-action {
 }
 
 .download-status-top strong {
-  color: #14201f;
+  overflow: hidden;
+  color: #dffaf1;
   font-size: 1.08rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .download-status-card dl {
   display: grid;
   gap: 8px;
   margin: 0;
+  padding: 0 20px;
 }
 
 .download-status-card dl > div {
@@ -2431,27 +2443,32 @@ body.downloads-page .secondary-action {
   grid-template-columns: 100px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
-  border-top: 1px solid #e1e8e6;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 10px;
 }
 
+.download-status-card dl > div:first-child {
+  border-top: 0;
+}
+
 .download-status-card dt {
-  color: #60746f;
+  color: #9fb5b0;
   font-size: 0.82rem;
   font-weight: 900;
 }
 
 .download-status-card dd {
   margin: 0;
-  color: #14201f;
+  color: #f3fbf8;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
 
 .download-status-card p {
   margin: 0;
-  color: #60746f;
+  color: #9fb5b0;
   line-height: 1.65;
+  padding: 0 20px;
 }
 
 .downloads-section,
@@ -2463,8 +2480,8 @@ body.downloads-page .secondary-action {
 }
 
 .downloads-section {
-  padding-top: 80px;
-  padding-bottom: 80px;
+  padding-top: 72px;
+  padding-bottom: 72px;
 }
 
 .downloads-band {
@@ -2504,7 +2521,7 @@ body.downloads-page .secondary-action {
   border: 1px solid #d8e1df;
   border-radius: 8px;
   background: #ffffff;
-  padding: 22px;
+  padding: 20px;
   box-shadow: 0 14px 34px rgba(20, 32, 31, 0.06);
 }
 
@@ -2551,8 +2568,8 @@ body.downloads-page .secondary-action {
   grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1fr);
   gap: 42px;
   align-items: start;
-  padding-top: 80px;
-  padding-bottom: 96px;
+  padding-top: 72px;
+  padding-bottom: 88px;
 }
 
 .storage-mode-list {
@@ -2627,7 +2644,8 @@ body.downloads-page .secondary-action {
   }
 
   .downloads-copy h1 {
-    font-size: clamp(2.24rem, 11vw, 3.2rem);
+    font-size: clamp(2rem, 9vw, 2.72rem);
+    line-height: 1.16;
   }
 
   .downloads-copy > p {
