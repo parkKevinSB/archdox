@@ -12,7 +12,20 @@ http:// {
 
 archdox.co.kr {
 	encode zstd gzip
-	reverse_proxy web:80
+
+	handle /releases/* {
+		header {
+			X-Content-Type-Options nosniff
+			Cache-Control "public, max-age=300"
+		}
+
+		rewrite * /{$ARCHDOX_RELEASE_BUCKET:archdox-releases}{uri}
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
 }
 
 www.archdox.co.kr {

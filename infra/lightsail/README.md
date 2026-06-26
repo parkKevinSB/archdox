@@ -79,7 +79,14 @@ The Caddy route:
 ```text
 downloads.archdox.co.kr/releases/...
   -> minio:9000/<ARCHDOX_RELEASE_BUCKET>/releases/...
+
+archdox.co.kr/releases/...
+  -> minio:9000/<ARCHDOX_RELEASE_BUCKET>/releases/...
 ```
+
+`downloads.archdox.co.kr` is the long-term dedicated download host. The
+`archdox.co.kr/releases/...` route is kept as the MVP fallback so downloads work
+before the dedicated DNS record is created.
 
 Cloud API should be configured with:
 
