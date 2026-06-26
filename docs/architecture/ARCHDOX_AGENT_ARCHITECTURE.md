@@ -173,9 +173,12 @@ Current implementation status:
   the launcher downloads the package, verifies SHA-256, optionally verifies an
   Ed25519 signature, extracts to staging, and swaps `current`/`previous` runtime
   directories.
-- The launcher does not yet supervise or restart the Agent runtime process.
-  Runtime process supervision and rollback after failed process start are the
-  next implementation phase.
+- When `--start-runtime` is explicitly set, the launcher starts the `current`
+  runtime, checks the configured health endpoint, and rolls back `previous` to
+  `current` if startup health verification fails.
+- The launcher does not yet run as a long-lived OS service supervisor. Long
+  running process supervision, graceful stop/restart commands, and Windows/Linux
+  service integration are the next implementation phase.
 
 ## Deployment Policy
 

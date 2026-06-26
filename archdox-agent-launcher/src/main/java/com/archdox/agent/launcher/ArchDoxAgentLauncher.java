@@ -9,6 +9,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 public class ArchDoxAgentLauncher {
     private static final int EXIT_OK = 0;
@@ -16,10 +17,12 @@ public class ArchDoxAgentLauncher {
     private static final int EXIT_UPDATE_REQUIRED = 20;
     private static final int EXIT_MANIFEST_FAILED = 30;
     private static final int EXIT_INSTALL_FAILED = 40;
+    private static final int EXIT_START_FAILED = 50;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AgentUpdatePlanner planner = new AgentUpdatePlanner();
     private final AgentRuntimeInstaller installer = new AgentRuntimeInstaller();
+    private final AgentRuntimeSupervisor supervisor = new AgentRuntimeSupervisor();
 
     public static void main(String[] args) throws Exception {
         var launcher = new ArchDoxAgentLauncher();
@@ -35,8 +38,9 @@ public class ArchDoxAgentLauncher {
                 config.currentProtocolVersion(),
                 config.currentLauncherVersion());
         var installResult = installIfRequested(config, manifest, decision);
-        printResult(config, manifest, decision, installResult);
-        return exitCode(decision, installResult);
+        var startResult = startIfRequested(config);
+        printResult(config, manifest, decision, installResult, startResult);
+        return exitCode(decision, installResult, startResult);
     }
 
     private AgentRuntimeManifest fetchManifest(LauncherConfig config) throws Exception {
@@ -56,7 +60,8 @@ public class ArchDoxAgentLauncher {
             LauncherConfig config,
             AgentRuntimeManifest manifest,
             AgentUpdateDecision decision,
-            AgentRuntimeInstallResult installResult
+            AgentRuntimeInstallResult installResult,
+            AgentRuntimeStartResult startResult
     ) throws Exception {
         var result = new LauncherResult(
                 config.cloudApiBaseUrl(),
@@ -66,11 +71,13 @@ public class ArchDoxAgentLauncher {
                 config.currentProtocolVersion(),
                 config.currentLauncherVersion(),
                 config.applyUpdate(),
+                config.startRuntime(),
                 config.installDir().toAbsolutePath().toString(),
                 config.workDir().toAbsolutePath().toString(),
                 manifest,
                 decision,
-                installResult);
+                installResult,
+                startResult);
         System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(result));
     }
 
@@ -99,9 +106,34 @@ public class ArchDoxAgentLauncher {
         }
     }
 
-    private int exitCode(AgentUpdateDecision decision, AgentRuntimeInstallResult installResult) {
+    private AgentRuntimeStartResult startIfRequested(LauncherConfig config) {
+        if (!config.startRuntime()) {
+            return AgentRuntimeStartResult.notAttempted("Runtime start was not requested.");
+        }
+        try {
+            return supervisor.start(
+                    config.installDir(),
+                    config.workDir(),
+                    config.runtimeCommand(),
+                    URI.create(config.runtimeHealthUrl()),
+                    Duration.ofSeconds(config.startupTimeoutSeconds()),
+                    config.rollbackOnStartFailure(),
+                    Map.of());
+        } catch (Exception ex) {
+            return AgentRuntimeStartResult.failed(ex.getMessage(), false, false);
+        }
+    }
+
+    private int exitCode(
+            AgentUpdateDecision decision,
+            AgentRuntimeInstallResult installResult,
+            AgentRuntimeStartResult startResult
+    ) {
         if ("FAILED".equals(installResult.status())) {
             return EXIT_INSTALL_FAILED;
+        }
+        if ("FAILED".equals(startResult.status())) {
+            return EXIT_START_FAILED;
         }
         if (installResult.installed()) {
             return EXIT_OK;
@@ -126,9 +158,14 @@ public class ArchDoxAgentLauncher {
             String currentProtocolVersion,
             String currentLauncherVersion,
             boolean applyUpdate,
+            boolean startRuntime,
             Path installDir,
             Path workDir,
-            Path signaturePublicKeyPath
+            Path signaturePublicKeyPath,
+            String runtimeCommand,
+            String runtimeHealthUrl,
+            long startupTimeoutSeconds,
+            boolean rollbackOnStartFailure
     ) {
         static LauncherConfig from(String[] args) {
             return new LauncherConfig(
@@ -139,6 +176,7 @@ public class ArchDoxAgentLauncher {
                     option(args, "--protocol-version", env("ARCHDOX_AGENT_PROTOCOL_VERSION", "2026-06-25")),
                     option(args, "--launcher-version", env("ARCHDOX_AGENT_LAUNCHER_VERSION", "embedded")),
                     booleanOption(args, "--apply-update", env("ARCHDOX_AGENT_APPLY_UPDATE", "false")),
+                    booleanOption(args, "--start-runtime", env("ARCHDOX_AGENT_START_RUNTIME", "false")),
                     pathOption(args, "--install-dir", env(
                             "ARCHDOX_AGENT_INSTALL_DIR",
                             Path.of(System.getProperty("user.home"), ".archdox", "agent-runtime").toString())),
@@ -147,7 +185,17 @@ public class ArchDoxAgentLauncher {
                             Path.of(System.getProperty("user.home"), ".archdox", "agent-launcher").toString())),
                     optionalPathOption(args, "--signature-public-key-path", env(
                             "ARCHDOX_AGENT_UPDATE_PUBLIC_KEY_PATH",
-                            "")));
+                            "")),
+                    option(args, "--runtime-command", env("ARCHDOX_AGENT_RUNTIME_COMMAND", "")),
+                    option(args, "--runtime-health-url", env(
+                            "ARCHDOX_AGENT_RUNTIME_HEALTH_URL",
+                            "http://127.0.0.1:18080/actuator/health")),
+                    longOption(args, "--startup-timeout-seconds", env(
+                            "ARCHDOX_AGENT_STARTUP_TIMEOUT_SECONDS",
+                            "60")),
+                    booleanOption(args, "--rollback-on-start-failure", env(
+                            "ARCHDOX_AGENT_ROLLBACK_ON_START_FAILURE",
+                            "true")));
         }
 
         URI manifestUri() {
@@ -191,6 +239,14 @@ public class ArchDoxAgentLauncher {
             return value == null || value.isBlank() ? null : Path.of(value).toAbsolutePath().normalize();
         }
 
+        private static long longOption(String[] args, String key, String fallback) {
+            try {
+                return Math.max(1L, Long.parseLong(option(args, key, fallback)));
+            } catch (NumberFormatException ex) {
+                return 60L;
+            }
+        }
+
         private static String env(String key, String fallback) {
             var value = System.getenv(key);
             return value == null || value.isBlank() ? fallback : value.trim();
@@ -209,11 +265,13 @@ public class ArchDoxAgentLauncher {
             String currentProtocolVersion,
             String currentLauncherVersion,
             boolean applyUpdate,
+            boolean startRuntime,
             String installDir,
             String workDir,
             AgentRuntimeManifest manifest,
             AgentUpdateDecision decision,
-            AgentRuntimeInstallResult update
+            AgentRuntimeInstallResult update,
+            AgentRuntimeStartResult runtime
     ) {
     }
 }
