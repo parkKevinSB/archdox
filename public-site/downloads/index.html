@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ArchDox Agent Launcher를 내려받고, 로컬 또는 사무소 관리형 Agent를 ArchDox 계정에 연결하는 안내입니다."
+    />
+    <title>Downloads | ArchDox</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="downloads-page">
+    <header class="site-header downloads-header">
+      <a class="brand downloads-brand" href="/" aria-label="ArchDox home">
+        <span class="brand-mark">AD</span>
+        <span>archdoX</span>
+      </a>
+      <nav class="top-nav downloads-nav" aria-label="Primary navigation">
+        <a href="/">Platform</a>
+        <a href="/developers/">Developers</a>
+        <a href="/downloads/" aria-current="page">Downloads</a>
+        <a href="/developers/mcp/">MCP Guide</a>
+        <a class="nav-login" href="https://app.archdox.co.kr/login">앱 로그인</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="downloads-hero">
+        <div class="downloads-hero-field" aria-hidden="true"></div>
+        <div class="downloads-copy">
+          <p class="downloads-eyebrow">ArchDox Agent</p>
+          <h1>문서 생성과 사진 보관을 담당하는 ArchDox Agent를 설치합니다.</h1>
+          <p>
+            다운로드 파일은 공개되어 있어도 괜찮습니다. 실제 계정 연결, 사무소 권한,
+            저장소 설정은 로그인 후 발급되는 연결 토큰과 장치 secret으로 보호됩니다.
+          </p>
+          <div class="hero-actions downloads-actions">
+            <a id="launcherDownloadHero" class="primary-action disabled-link" href="#" aria-disabled="true">Windows 런처 준비 중</a>
+            <a class="secondary-action" href="https://app.archdox.co.kr/login">로그인 후 연결 설정</a>
+          </div>
+        </div>
+
+        <aside class="download-status-card" aria-label="Agent launcher release status">
+          <div class="download-status-top">
+            <span id="launcherStatusPill">확인 중</span>
+            <strong>Agent Launcher</strong>
+          </div>
+          <dl>
+            <div>
+              <dt>채널</dt>
+              <dd id="launcherChannel">stable</dd>
+            </div>
+            <div>
+              <dt>플랫폼</dt>
+              <dd id="launcherPlatform">windows-x64</dd>
+            </div>
+            <div>
+              <dt>최신 버전</dt>
+              <dd id="launcherVersion">확인 중</dd>
+            </div>
+            <div>
+              <dt>무결성</dt>
+              <dd id="launcherSha">확인 중</dd>
+            </div>
+          </dl>
+          <p id="launcherStatusText">Cloud API에서 최신 런처 manifest를 읽고 있습니다.</p>
+        </aside>
+      </section>
+
+      <section class="downloads-section">
+        <div class="downloads-section-head">
+          <p class="downloads-eyebrow">Recommended</p>
+          <h2>먼저 런처를 설치하세요.</h2>
+          <p>
+            런처는 Agent runtime을 내려받고, 버전 호환성을 확인하고, 필요한 경우 업데이트합니다.
+            사용자는 런처만 유지하면 되고 Agent runtime zip을 직접 관리하지 않습니다.
+          </p>
+        </div>
+
+        <div class="download-card-grid">
+          <article class="download-card featured">
+            <span>사용 가능</span>
+            <h3>Windows x64 Launcher</h3>
+            <p>일반 현장 PC와 개인 Windows 작업 환경용 기본 패키지입니다.</p>
+            <div class="download-card-actions">
+              <a id="launcherDownloadCard" class="primary-action disabled-link" href="#" aria-disabled="true">다운로드 준비 중</a>
+              <a class="secondary-action" href="#install-flow">설치 흐름 보기</a>
+            </div>
+          </article>
+          <article class="download-card">
+            <span>예정</span>
+            <h3>macOS</h3>
+            <p>macOS 런처 패키지는 Agent runtime 안정화 후 같은 manifest 계약으로 제공합니다.</p>
+            <button disabled type="button">준비 중</button>
+          </article>
+          <article class="download-card">
+            <span>예정</span>
+            <h3>Linux</h3>
+            <p>서버나 NAS 인접 환경에서 운영할 수 있는 Linux 패키지입니다.</p>
+            <button disabled type="button">준비 중</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="downloads-section downloads-band" id="install-flow">
+        <div class="downloads-section-head">
+          <p class="downloads-eyebrow">Install Flow</p>
+          <h2>다운로드와 계정 연결은 분리합니다.</h2>
+        </div>
+        <div class="download-flow">
+          <article>
+            <span>01</span>
+            <h3>런처 다운로드</h3>
+            <p>공개 다운로드 페이지에서 OS에 맞는 런처를 내려받습니다.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>앱 로그인</h3>
+            <p>ArchDox 앱에서 개인 또는 사무소 작업공간을 선택합니다.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>연결 토큰 발급</h3>
+            <p>사무소와 장치가 연결될 수 있도록 일회성 토큰을 발급합니다.</p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>저장소 선택</h3>
+            <p>로컬 폴더, NAS, S3 호환 저장소 중 Agent가 사용할 위치를 정합니다.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="downloads-split">
+        <div>
+          <p class="downloads-eyebrow">Storage Policy</p>
+          <h2>Agent는 하나지만 저장소 정책은 배포 방식에 따라 다릅니다.</h2>
+          <p>
+            개인 PC에 설치하면 로컬 폴더나 NAS를 쓸 수 있고, ArchDox가 관리하는 클라우드 Agent는
+            S3 호환 저장소를 사용합니다. 운영 배포에서는 문서/사진 저장소와 런처 배포 버킷을 분리합니다.
+          </p>
+        </div>
+        <div class="storage-mode-list">
+          <article>
+            <strong>Local Office Agent</strong>
+            <span>사무소 PC, NAS, 로컬 폴더 중심 운영</span>
+          </article>
+          <article>
+            <strong>Cloud Managed Agent</strong>
+            <span>ArchDox 서버에서 구동, S3 호환 저장소 사용</span>
+          </article>
+          <article>
+            <strong>Release Downloads</strong>
+            <span>런처/Runtime zip만 공개 다운로드 버킷에 보관</span>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer downloads-footer">
+      <span>archdoX</span>
+      <p>다운로드는 공개, 계정 연결은 로그인 후 승인과 장치 secret으로 통제합니다.</p>
+    </footer>
+
+    <script>
+      const API_BASE_URL = "https://api.archdox.co.kr";
+      const launcherManifestUrl = `${API_BASE_URL}/api/v1/archdox-agents/launcher-manifest?channel=stable&platform=windows-x64`;
+
+      const elements = {
+        hero: document.getElementById("launcherDownloadHero"),
+        card: document.getElementById("launcherDownloadCard"),
+        pill: document.getElementById("launcherStatusPill"),
+        channel: document.getElementById("launcherChannel"),
+        platform: document.getElementById("launcherPlatform"),
+        version: document.getElementById("launcherVersion"),
+        sha: document.getElementById("launcherSha"),
+        text: document.getElementById("launcherStatusText")
+      };
+
+      function setLoginFallback(message) {
+        for (const link of [elements.hero, elements.card]) {
+          link.classList.remove("disabled-link");
+          link.removeAttribute("aria-disabled");
+          link.href = "https://app.archdox.co.kr/login";
+          link.textContent = message;
+        }
+      }
+
+      function setReady(manifest) {
+        const version = manifest.latestLauncherVersion || manifest.recommendedLauncherVersion || "latest";
+        const sha = manifest.sha256 ? `${manifest.sha256.slice(0, 12)}...` : "미제공";
+        elements.channel.textContent = manifest.channel || "stable";
+        elements.platform.textContent = manifest.platform || "windows-x64";
+        elements.version.textContent = version;
+        elements.sha.textContent = sha;
+
+        if (!manifest.downloadAvailable || !manifest.downloadUrl) {
+          elements.pill.textContent = "준비 중";
+          elements.text.textContent = "런처 파일 또는 checksum 설정이 아직 완료되지 않았습니다.";
+          setLoginFallback("앱에서 다운로드 확인");
+          return;
+        }
+
+        elements.pill.textContent = "다운로드 가능";
+        elements.text.textContent = "최신 런처 manifest가 확인되었습니다. 설치 후 앱에서 계정을 연결하세요.";
+        for (const link of [elements.hero, elements.card]) {
+          link.classList.remove("disabled-link");
+          link.removeAttribute("aria-disabled");
+          link.href = manifest.downloadUrl;
+          link.textContent = `Windows 런처 ${version} 다운로드`;
+        }
+      }
+
+      fetch(launcherManifestUrl)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`manifest ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(setReady)
+        .catch(() => {
+          elements.pill.textContent = "확인 필요";
+          elements.version.textContent = "앱에서 확인";
+          elements.sha.textContent = "앱에서 확인";
+          elements.text.textContent = "현재 공개 manifest를 읽을 수 없습니다. 로그인 후 앱에서 다운로드 상태를 확인하세요.";
+          setLoginFallback("앱에서 다운로드 확인");
+        });
+    </script>
+  </body>
+</html>
