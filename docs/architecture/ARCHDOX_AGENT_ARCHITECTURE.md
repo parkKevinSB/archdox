@@ -169,8 +169,13 @@ Current implementation status:
   optional package metadata.
 - `archdox-agent-launcher` reads that manifest and decides `OK`,
   `UPDATE_RECOMMENDED`, or `UPDATE_REQUIRED`.
-- The launcher does not yet download, verify, replace, or roll back runtime
-  packages. Those steps are the next implementation phase.
+- When `--apply-update` is explicitly set and the manifest includes a package,
+  the launcher downloads the package, verifies SHA-256, optionally verifies an
+  Ed25519 signature, extracts to staging, and swaps `current`/`previous` runtime
+  directories.
+- The launcher does not yet supervise or restart the Agent runtime process.
+  Runtime process supervision and rollback after failed process start are the
+  next implementation phase.
 
 ## Deployment Policy
 
