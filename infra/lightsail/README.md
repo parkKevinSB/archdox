@@ -20,6 +20,7 @@ Host routing:
 - `admin.archdox.co.kr`: office/platform admin app.
 - `api.archdox.co.kr`: Cloud API boundary for external clients, mobile apps, health checks, and future Engine API users.
 - `mcp.archdox.co.kr`: MCP Gateway host. `/api/v1/mcp` proxies to Cloud API; other paths redirect to the public MCP developer guide.
+- `downloads.archdox.co.kr`: public read-only Agent launcher/runtime release downloads.
 
 All hosts can point to the same Lightsail static IP in MVP.
 
@@ -57,6 +58,63 @@ original photos are uploaded into S3-compatible temporary storage and then
 picked up by the cloud-managed Agent into its configured S3-compatible storage
 profile. `API_LOCAL` is reserved for local development and short-lived test
 setups.
+
+## Agent Release Downloads
+
+The MVP release store uses the bundled MinIO instance on the same Lightsail
+host. This is intentionally temporary and can later move to AWS S3, CloudFront,
+or another S3-compatible provider without changing the Launcher contract.
+
+Use separate buckets:
+
+- `ARCHDOX_S3_BUCKET`: private application/photo/document object storage.
+- `ARCHDOX_RELEASE_BUCKET`: public read-only Agent release packages.
+
+The compose `minio-init` service creates both buckets and sets anonymous
+download only on `ARCHDOX_RELEASE_BUCKET`. Do not make the application bucket
+public.
+
+The Caddy route:
+
+```text
+downloads.archdox.co.kr/releases/...
+  -> minio:9000/<ARCHDOX_RELEASE_BUCKET>/releases/...
+```
+
+Cloud API should be configured with:
+
+```text
+AGENT_RELEASE_PUBLIC_BASE_URL=https://downloads.archdox.co.kr
+AGENT_RELEASE_OBJECT_PREFIX=releases
+```
+
+Build local release packages:
+
+```bash
+./gradlew :archdox-agent-launcher:launcherPackageSha256 \
+  -ParchdoxVersion=0.0.1 \
+  -ParchdoxReleaseChannel=stable \
+  -ParchdoxPlatform=windows-x64
+
+./gradlew :archdox-agent:agentRuntimePackageSha256 \
+  -ParchdoxVersion=0.0.1 \
+  -ParchdoxReleaseChannel=stable \
+  -ParchdoxPlatform=windows-x64
+```
+
+Upload the generated `build/archdox-releases` tree to the MinIO release bucket
+under the `releases/` prefix. After upload, set the corresponding
+`AGENT_LAUNCHER_PACKAGE_SHA256` and `AGENT_RUNTIME_PACKAGE_SHA256` values from
+the generated `.sha256` files. The manifest endpoints then return downloadable
+URLs such as:
+
+```text
+https://downloads.archdox.co.kr/releases/agent-launcher/stable/windows-x64/0.0.1/archdox-agent-launcher-windows-x64-0.0.1.zip
+https://downloads.archdox.co.kr/releases/agent-runtime/stable/windows-x64/0.0.1/archdox-agent-runtime-windows-x64-0.0.1.zip
+```
+
+When moving to real S3/CloudFront later, keep the object layout or override the
+package URL settings. No Launcher code change should be required.
 
 Example provisioning request:
 

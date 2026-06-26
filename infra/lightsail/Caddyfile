@@ -2,7 +2,7 @@
 	auto_https disable_redirects
 }
 
-http://archdox.co.kr, http://www.archdox.co.kr, http://app.archdox.co.kr, http://admin.archdox.co.kr, http://api.archdox.co.kr, http://mcp.archdox.co.kr {
+http://archdox.co.kr, http://www.archdox.co.kr, http://app.archdox.co.kr, http://admin.archdox.co.kr, http://api.archdox.co.kr, http://mcp.archdox.co.kr, http://downloads.archdox.co.kr {
 	redir https://{host}{uri} 308
 }
 
@@ -44,4 +44,16 @@ mcp.archdox.co.kr {
 	handle {
 		redir https://archdox.co.kr/developers/mcp/ 302
 	}
+}
+
+downloads.archdox.co.kr {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Cache-Control "public, max-age=300"
+	}
+
+	rewrite * /{$ARCHDOX_RELEASE_BUCKET:archdox-releases}{uri}
+	reverse_proxy minio:9000
 }

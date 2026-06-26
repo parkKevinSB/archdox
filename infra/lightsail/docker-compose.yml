@@ -30,10 +30,13 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       ARCHDOX_S3_BUCKET: ${ARCHDOX_S3_BUCKET}
+      ARCHDOX_RELEASE_BUCKET: ${ARCHDOX_RELEASE_BUCKET:-archdox-releases}
     entrypoint: >
       /bin/sh -c "
       until /usr/bin/mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD; do sleep 2; done;
       /usr/bin/mc mb -p local/$$ARCHDOX_S3_BUCKET || true;
+      /usr/bin/mc mb -p local/$$ARCHDOX_RELEASE_BUCKET || true;
+      /usr/bin/mc anonymous set download local/$$ARCHDOX_RELEASE_BUCKET || true;
       exit 0;
       "
 
@@ -214,9 +217,12 @@ services:
     restart: unless-stopped
     depends_on:
       - web
+      - minio
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      ARCHDOX_RELEASE_BUCKET: ${ARCHDOX_RELEASE_BUCKET:-archdox-releases}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - archdox-caddy-data:/data
