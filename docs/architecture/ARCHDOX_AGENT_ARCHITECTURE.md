@@ -137,6 +137,7 @@ Cloud API exposes:
 
 ```text
 GET /api/v1/system/version
+GET /api/v1/archdox-agents/launcher-manifest?channel=stable&platform=windows-x64
 GET /api/v1/archdox-agents/runtime-manifest?channel=stable&platform=windows-x64
 ```
 
@@ -146,6 +147,35 @@ recommended launcher versions; and protocol bounds. If no explicit Agent
 version policy is configured, Cloud API falls back to the current build version.
 Production deployment should still set the Agent package URLs and policy
 versions explicitly when publishing a signed Agent runtime package.
+
+Release package ownership:
+
+```text
+Gradle/CI
+  -> builds archdox-agent-launcher package
+  -> builds archdox-agent-runtime package
+  -> writes .sha256 files
+  -> uploads files to S3, MinIO, CDN, or another release download storage
+
+Cloud API
+  -> returns launcher/runtime manifest
+  -> points to the release storage URL
+  -> does not build packages on demand
+
+Browser / Launcher
+  -> downloads package from release storage
+  -> verifies sha256/signature before use
+```
+
+The default release URL shape is:
+
+```text
+{AGENT_RELEASE_PUBLIC_BASE_URL}/{AGENT_RELEASE_OBJECT_PREFIX}/agent-launcher/{channel}/{platform}/{version}/archdox-agent-launcher-{platform}-{version}.zip
+{AGENT_RELEASE_PUBLIC_BASE_URL}/{AGENT_RELEASE_OBJECT_PREFIX}/agent-runtime/{channel}/{platform}/{version}/archdox-agent-runtime-{platform}-{version}.zip
+```
+
+Explicit package URLs can override the generated URL when a provider has a
+different object layout.
 
 Every `HELLO` must report:
 
@@ -201,6 +231,7 @@ Current implementation status:
 
 - `cloud-api` exposes the runtime manifest endpoint with protocol/version and
   optional package metadata.
+- `cloud-api` exposes the launcher manifest endpoint for browser download UI.
 - `archdox-agent-launcher` reads that manifest and decides `OK`,
   `UPDATE_RECOMMENDED`, or `UPDATE_REQUIRED`.
 - `archdox-agent` reads its own generated build metadata when `AGENT_VERSION`

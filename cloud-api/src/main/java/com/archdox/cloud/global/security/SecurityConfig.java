@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/office-invitations/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/system/version").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/archdox-agents/launcher-manifest").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/archdox-agents/runtime-manifest").permitAll()
                         .requestMatchers("/agent/ws").permitAll()
                         .requestMatchers("/agent/api/**").permitAll()

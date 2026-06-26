@@ -25,6 +25,7 @@ public class ArchDoxAgentProperties {
     private String latestAgentVersion;
     private String minimumLauncherVersion = "embedded";
     private String recommendedLauncherVersion = "embedded";
+    private String latestLauncherVersion;
     private String runtimePackageDownloadUrl;
     private String runtimePackageSha256;
     private String runtimePackageSignatureUrl;
@@ -160,6 +161,14 @@ public class ArchDoxAgentProperties {
         this.recommendedLauncherVersion = recommendedLauncherVersion;
     }
 
+    public String getLatestLauncherVersion() {
+        return latestLauncherVersion;
+    }
+
+    public void setLatestLauncherVersion(String latestLauncherVersion) {
+        this.latestLauncherVersion = latestLauncherVersion;
+    }
+
     public String getRuntimePackageDownloadUrl() {
         return runtimePackageDownloadUrl;
     }
@@ -238,6 +247,10 @@ public class ArchDoxAgentProperties {
 
     public String safeRecommendedLauncherVersion() {
         return nonBlank(recommendedLauncherVersion, safeMinimumLauncherVersion());
+    }
+
+    public String safeLatestLauncherVersion() {
+        return nonBlank(latestLauncherVersion, safeRecommendedLauncherVersion());
     }
 
     public String optionalRuntimePackageDownloadUrl() {

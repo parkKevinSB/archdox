@@ -109,10 +109,41 @@ The Cloud API build identity can also be checked through:
 GET /api/v1/system/version
 ```
 
+The browser download UI should read:
+
+```text
+GET /api/v1/archdox-agents/launcher-manifest?channel=stable&platform=windows-x64
+```
+
 The runtime manifest includes Cloud API build metadata plus the Agent runtime
 version policy: minimum, recommended, latest, protocol bounds, and launcher
 version bounds. The launcher ignores unknown manifest fields so Cloud can add
 observability metadata without breaking older launchers.
+
+Cloud API does not create packages at request time. Build/release automation
+creates the packages, uploads them to release storage, and configures Cloud API
+with a public release base URL or explicit package URLs.
+
+Package tasks:
+
+```bash
+./gradlew :archdox-agent-launcher:launcherPackageSha256 \
+  -ParchdoxVersion=0.0.1 \
+  -ParchdoxReleaseChannel=stable \
+  -ParchdoxPlatform=windows-x64
+
+./gradlew :archdox-agent:agentRuntimePackageSha256 \
+  -ParchdoxVersion=0.0.1 \
+  -ParchdoxReleaseChannel=stable \
+  -ParchdoxPlatform=windows-x64
+```
+
+The generated files are placed under:
+
+```text
+build/archdox-releases/agent-launcher/<channel>/<platform>/<version>/
+build/archdox-releases/agent-runtime/<channel>/<platform>/<version>/
+```
 
 ## Local Runtime Commands
 

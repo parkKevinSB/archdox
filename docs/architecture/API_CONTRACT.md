@@ -2266,21 +2266,25 @@ Response:
 
 ```json
 {
+  "manifestVersion": "2026-06-26",
   "channel": "stable",
   "platform": "windows-x64",
+  "cloudApiVersion": "0.0.1",
+  "cloudApiGitCommit": "abc123def456",
+  "cloudApiBuildTime": "2026-06-26T00:00:00Z",
   "currentProtocolVersion": "2026-06-25",
   "minimumProtocolVersion": "2026-06-25",
-  "minimumAgentVersion": "0.0.1-dev",
-  "recommendedAgentVersion": "0.0.1-dev",
-  "latestAgentVersion": "0.0.1-dev",
-  "minimumLauncherVersion": "embedded",
-  "recommendedLauncherVersion": "embedded",
-  "downloadAvailable": false,
-  "downloadUrl": null,
-  "sha256": null,
+  "minimumAgentVersion": "0.0.1",
+  "recommendedAgentVersion": "0.0.1",
+  "latestAgentVersion": "0.0.1",
+  "minimumLauncherVersion": "0.0.1",
+  "recommendedLauncherVersion": "0.0.1",
+  "downloadAvailable": true,
+  "downloadUrl": "https://downloads.archdox.co.kr/releases/agent-runtime/stable/windows-x64/0.0.1/archdox-agent-runtime-windows-x64-0.0.1.zip",
+  "sha256": "abc123...",
   "signatureUrl": null,
   "releaseNotesUrl": null,
-  "generatedAt": "2026-06-25T00:00:00Z"
+  "generatedAt": "2026-06-26T00:00:00Z"
 }
 ```
 
@@ -2288,6 +2292,46 @@ When `downloadAvailable=true`, the Launcher may download `downloadUrl` only
 after verifying `sha256` and, when configured, the package signature. Runtime
 replacement and rollback remain Launcher responsibilities, not Cloud API
 responsibilities.
+
+Cloud API does not build packages when this endpoint is called. Release
+packages are created by Gradle/CI, uploaded to S3, MinIO, CDN, or another
+download storage, and then exposed through the configured release base URL or
+an explicit package URL.
+
+### Browser -> Cloud: Agent Launcher manifest
+
+```text
+GET /api/v1/archdox-agents/launcher-manifest?channel=stable&platform=windows-x64
+```
+
+This endpoint is public because a user may need to download the launcher before
+pairing an Agent. It returns launcher package metadata only.
+
+Response:
+
+```json
+{
+  "manifestVersion": "2026-06-26",
+  "channel": "stable",
+  "platform": "windows-x64",
+  "cloudApiVersion": "0.0.1",
+  "cloudApiGitCommit": "abc123def456",
+  "cloudApiBuildTime": "2026-06-26T00:00:00Z",
+  "minimumLauncherVersion": "0.0.1",
+  "recommendedLauncherVersion": "0.0.1",
+  "latestLauncherVersion": "0.0.1",
+  "downloadAvailable": true,
+  "downloadUrl": "https://downloads.archdox.co.kr/releases/agent-launcher/stable/windows-x64/0.0.1/archdox-agent-launcher-windows-x64-0.0.1.zip",
+  "sha256": "abc123...",
+  "signatureUrl": null,
+  "releaseNotesUrl": null,
+  "generatedAt": "2026-06-26T00:00:00Z"
+}
+```
+
+The web app should call this endpoint when the user clicks the Agent download
+button, then download the returned URL directly from the release storage. The
+pairing token flow is separate and remains authenticated.
 
 Development fallback `authMode=SHARED_SECRET` keeps the previous
 `officeId + agentCode + token` shape only when explicitly allowed by Cloud

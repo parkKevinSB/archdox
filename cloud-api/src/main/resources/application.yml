@@ -211,10 +211,20 @@ archdox:
     latest-agent-version: ${AGENT_LATEST_VERSION:}
     minimum-launcher-version: ${AGENT_MINIMUM_LAUNCHER_VERSION:embedded}
     recommended-launcher-version: ${AGENT_RECOMMENDED_LAUNCHER_VERSION:embedded}
+    latest-launcher-version: ${AGENT_LATEST_LAUNCHER_VERSION:}
     runtime-package-download-url: ${AGENT_RUNTIME_PACKAGE_DOWNLOAD_URL:}
     runtime-package-sha256: ${AGENT_RUNTIME_PACKAGE_SHA256:}
     runtime-package-signature-url: ${AGENT_RUNTIME_PACKAGE_SIGNATURE_URL:}
     runtime-release-notes-url: ${AGENT_RUNTIME_RELEASE_NOTES_URL:}
+    release:
+      public-base-url: ${AGENT_RELEASE_PUBLIC_BASE_URL:}
+      object-prefix: ${AGENT_RELEASE_OBJECT_PREFIX:releases}
+      runtime-path-template: ${AGENT_RELEASE_RUNTIME_PATH_TEMPLATE:agent-runtime/{channel}/{platform}/{version}/archdox-agent-runtime-{platform}-{version}.zip}
+      launcher-path-template: ${AGENT_RELEASE_LAUNCHER_PATH_TEMPLATE:agent-launcher/{channel}/{platform}/{version}/archdox-agent-launcher-{platform}-{version}.zip}
+      launcher-package-download-url: ${AGENT_LAUNCHER_PACKAGE_DOWNLOAD_URL:}
+      launcher-package-sha256: ${AGENT_LAUNCHER_PACKAGE_SHA256:}
+      launcher-package-signature-url: ${AGENT_LAUNCHER_PACKAGE_SIGNATURE_URL:}
+      launcher-release-notes-url: ${AGENT_LAUNCHER_RELEASE_NOTES_URL:}
     connection-health:
       enabled: ${AGENT_CONNECTION_HEALTH_ENABLED:true}
       heartbeat-timeout-ms: ${AGENT_HEARTBEAT_TIMEOUT_MS:90000}

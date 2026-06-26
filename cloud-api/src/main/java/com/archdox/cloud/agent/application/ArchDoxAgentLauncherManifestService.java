@@ -1,56 +1,55 @@
 package com.archdox.cloud.agent.application;
 
-import com.archdox.cloud.agent.dto.ArchDoxAgentRuntimeManifestResponse;
+import com.archdox.cloud.agent.dto.ArchDoxAgentLauncherManifestResponse;
 import com.archdox.cloud.system.application.ArchDoxCloudBuildInfoService;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ArchDoxAgentRuntimeManifestService {
-    private final ArchDoxAgentProperties properties;
+public class ArchDoxAgentLauncherManifestService {
+    private final ArchDoxAgentProperties agentProperties;
+    private final ArchDoxAgentReleaseProperties releaseProperties;
     private final ArchDoxAgentReleaseUrlFactory releaseUrlFactory;
     private final ArchDoxCloudBuildInfoService buildInfoService;
 
-    public ArchDoxAgentRuntimeManifestService(
-            ArchDoxAgentProperties properties,
+    public ArchDoxAgentLauncherManifestService(
+            ArchDoxAgentProperties agentProperties,
+            ArchDoxAgentReleaseProperties releaseProperties,
             ArchDoxAgentReleaseUrlFactory releaseUrlFactory,
             ArchDoxCloudBuildInfoService buildInfoService
     ) {
-        this.properties = properties;
+        this.agentProperties = agentProperties;
+        this.releaseProperties = releaseProperties;
         this.releaseUrlFactory = releaseUrlFactory;
         this.buildInfoService = buildInfoService;
     }
 
-    public ArchDoxAgentRuntimeManifestResponse manifest(String channel, String platform) {
+    public ArchDoxAgentLauncherManifestResponse manifest(String channel, String platform) {
         var safeChannel = normalized(channel, "stable");
         var safePlatform = normalized(platform, "windows-x64");
-        var latestAgentVersion = properties.safeLatestAgentVersion();
-        var downloadUrl = properties.optionalRuntimePackageDownloadUrl();
+        var latestLauncherVersion = agentProperties.safeLatestLauncherVersion();
+        var downloadUrl = releaseProperties.optionalLauncherPackageDownloadUrl();
         if (downloadUrl == null) {
-            downloadUrl = releaseUrlFactory.runtimePackageUrl(safeChannel, safePlatform, latestAgentVersion);
+            downloadUrl = releaseUrlFactory.launcherPackageUrl(safeChannel, safePlatform, latestLauncherVersion);
         }
-        var sha256 = properties.optionalRuntimePackageSha256();
+        var sha256 = releaseProperties.optionalLauncherPackageSha256();
         var build = buildInfoService.current();
-        return new ArchDoxAgentRuntimeManifestResponse(
+        return new ArchDoxAgentLauncherManifestResponse(
                 "2026-06-26",
                 safeChannel,
                 safePlatform,
                 build.version(),
                 build.gitCommit(),
                 build.buildTime(),
-                properties.safeCurrentProtocolVersion(),
-                properties.safeMinimumProtocolVersion(),
-                properties.safeMinimumAgentVersion(),
-                properties.safeRecommendedAgentVersion(),
-                latestAgentVersion,
-                properties.safeMinimumLauncherVersion(),
-                properties.safeRecommendedLauncherVersion(),
+                agentProperties.safeMinimumLauncherVersion(),
+                agentProperties.safeRecommendedLauncherVersion(),
+                latestLauncherVersion,
                 downloadUrl != null && sha256 != null,
                 downloadUrl,
                 sha256,
-                properties.optionalRuntimePackageSignatureUrl(),
-                properties.optionalRuntimeReleaseNotesUrl(),
+                releaseProperties.optionalLauncherPackageSignatureUrl(),
+                releaseProperties.optionalLauncherReleaseNotesUrl(),
                 OffsetDateTime.now());
     }
 
