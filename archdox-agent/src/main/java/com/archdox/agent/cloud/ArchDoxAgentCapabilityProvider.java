@@ -42,6 +42,12 @@ public class ArchDoxAgentCapabilityProvider {
         capabilities.put("documentArtifactDelivery", true);
         capabilities.put("pdfExport", pdfExportAvailable);
         capabilities.put("outputFormats", outputFormats);
+        capabilities.put("build", Map.of(
+                "module", properties.buildInfo().module(),
+                "version", properties.buildInfo().version(),
+                "gitCommit", properties.buildInfo().gitCommit(),
+                "gitBranch", properties.buildInfo().gitBranch(),
+                "buildTime", properties.buildInfo().buildTime()));
         capabilities.put("converters", Map.of(
                 "libreOffice", pdfExportAvailable));
         capabilities.put("converterDetails", Map.of(

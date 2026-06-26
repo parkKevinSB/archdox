@@ -1,6 +1,7 @@
 package com.archdox.agent.cloud;
 
 import com.archdox.agent.storage.AgentStorageTargetProfile;
+import com.archdox.shared.version.ArchDoxBuildInfo;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "archdox.agent")
 public class ArchDoxAgentProperties {
+    private final ArchDoxBuildInfo buildInfo = ArchDoxBuildInfo.load("archdox-agent", "0.0.1-SNAPSHOT");
     private String cloudWsUrl = "ws://localhost:8080/agent/ws";
     private String cloudHttpBaseUrl = "http://localhost:8080";
     private boolean enabled;
@@ -20,7 +22,7 @@ public class ArchDoxAgentProperties {
     private String token = "dev-agent-secret-change-me";
     private String installToken;
     private String deviceSecret;
-    private String version = "0.0.1-dev";
+    private String version;
     private String protocolVersion = "2026-06-25";
     private String launcherVersion = "embedded";
     private String updateChannel = "stable";
@@ -130,11 +132,15 @@ public class ArchDoxAgentProperties {
     }
 
     public String getVersion() {
-        return version;
+        return nonBlank(version, buildInfo.version());
     }
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public ArchDoxBuildInfo buildInfo() {
+        return buildInfo;
     }
 
     public String getProtocolVersion() {
@@ -159,6 +165,10 @@ public class ArchDoxAgentProperties {
 
     public void setUpdateChannel(String updateChannel) {
         this.updateChannel = updateChannel;
+    }
+
+    private String nonBlank(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     public long getHeartbeatIntervalMs() {

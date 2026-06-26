@@ -23,6 +23,12 @@ Runtime installation is opt-in. The launcher does not silently replace the
 runtime when it is only checking compatibility.
 Runtime process start is also opt-in.
 
+The launcher has its own build identity. Gradle writes
+`META-INF/archdox/archdox-agent-launcher-build.properties` into the launcher
+distribution, and the launcher uses that value as the default
+`--launcher-version`. `embedded` is now reserved for Agent runtimes started
+without the separate launcher.
+
 ## Exit Codes
 
 | Code | Meaning |
@@ -96,6 +102,17 @@ The Cloud endpoint is:
 ```text
 GET /api/v1/archdox-agents/runtime-manifest?channel=stable&platform=windows-x64
 ```
+
+The Cloud API build identity can also be checked through:
+
+```text
+GET /api/v1/system/version
+```
+
+The runtime manifest includes Cloud API build metadata plus the Agent runtime
+version policy: minimum, recommended, latest, protocol bounds, and launcher
+version bounds. The launcher ignores unknown manifest fields so Cloud can add
+observability metadata without breaking older launchers.
 
 ## Local Runtime Commands
 

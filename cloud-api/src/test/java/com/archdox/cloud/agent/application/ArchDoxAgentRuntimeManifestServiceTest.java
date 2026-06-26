@@ -2,16 +2,19 @@ package com.archdox.cloud.agent.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.archdox.cloud.system.application.ArchDoxCloudBuildInfoService;
 import org.junit.jupiter.api.Test;
 
 class ArchDoxAgentRuntimeManifestServiceTest {
     @Test
     void blankPackageMetadataDoesNotEnableDownload() {
         var properties = new ArchDoxAgentProperties();
-        var service = new ArchDoxAgentRuntimeManifestService(properties);
+        var service = new ArchDoxAgentRuntimeManifestService(properties, new ArchDoxCloudBuildInfoService());
 
         var manifest = service.manifest("stable", "windows-x64");
 
+        assertThat(manifest.manifestVersion()).isEqualTo("2026-06-26");
+        assertThat(manifest.cloudApiVersion()).isNotBlank();
         assertThat(manifest.downloadAvailable()).isFalse();
         assertThat(manifest.downloadUrl()).isNull();
         assertThat(manifest.sha256()).isNull();
@@ -22,7 +25,7 @@ class ArchDoxAgentRuntimeManifestServiceTest {
         var properties = new ArchDoxAgentProperties();
         properties.setRuntimePackageDownloadUrl("https://downloads.archdox.co.kr/agent.zip");
         properties.setRuntimePackageSha256("abc123");
-        var service = new ArchDoxAgentRuntimeManifestService(properties);
+        var service = new ArchDoxAgentRuntimeManifestService(properties, new ArchDoxCloudBuildInfoService());
 
         var manifest = service.manifest("STABLE", "WINDOWS-X64");
 

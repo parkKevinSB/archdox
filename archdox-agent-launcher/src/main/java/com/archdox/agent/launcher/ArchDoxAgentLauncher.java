@@ -1,6 +1,7 @@
 package com.archdox.agent.launcher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -20,10 +21,12 @@ public class ArchDoxAgentLauncher {
     private static final int EXIT_START_FAILED = 50;
     private static final int EXIT_STOP_FAILED = 60;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private final AgentUpdatePlanner planner = new AgentUpdatePlanner();
     private final AgentRuntimeInstaller installer = new AgentRuntimeInstaller();
     private final AgentRuntimeSupervisor supervisor = new AgentRuntimeSupervisor();
+    private final LauncherBuildInfo buildInfo = LauncherBuildInfo.current();
 
     public static void main(String[] args) throws Exception {
         var launcher = new ArchDoxAgentLauncher();
@@ -77,6 +80,7 @@ public class ArchDoxAgentLauncher {
     ) throws Exception {
         var result = new LauncherResult(
                 config.launcherCommand(),
+                buildInfo,
                 config.cloudApiBaseUrl(),
                 config.channel(),
                 config.platform(),
@@ -148,7 +152,7 @@ public class ArchDoxAgentLauncher {
                     config.rollbackOnStartFailure(),
                     Duration.ofSeconds(config.monitorIntervalSeconds()),
                     config.maxRestarts(),
-                    Map.of());
+                    runtimeEnvironment(config));
             statusResult = supervisor.status(config.workDir(), URI.create(config.runtimeHealthUrl()));
         }
         printResult(
@@ -171,10 +175,16 @@ public class ArchDoxAgentLauncher {
                     URI.create(config.runtimeHealthUrl()),
                     Duration.ofSeconds(config.startupTimeoutSeconds()),
                     config.rollbackOnStartFailure(),
-                    Map.of());
+                    runtimeEnvironment(config));
         } catch (Exception ex) {
             return AgentRuntimeStartResult.failed(ex.getMessage(), false, false);
         }
+    }
+
+    private Map<String, String> runtimeEnvironment(LauncherConfig config) {
+        return Map.of(
+                "AGENT_LAUNCHER_VERSION", config.currentLauncherVersion(),
+                "AGENT_UPDATE_CHANNEL", config.channel());
     }
 
     private int exitCode(
@@ -237,9 +247,11 @@ public class ArchDoxAgentLauncher {
                     option(args, "--cloud-api-base-url", env("ARCHDOX_CLOUD_API_BASE_URL", "http://localhost:8080")),
                     option(args, "--channel", env("ARCHDOX_AGENT_UPDATE_CHANNEL", "stable")),
                     option(args, "--platform", env("ARCHDOX_AGENT_PLATFORM", "windows-x64")),
-                    option(args, "--agent-version", env("ARCHDOX_AGENT_VERSION", "0.0.1-dev")),
+                    option(args, "--agent-version", env("ARCHDOX_AGENT_VERSION", "0.0.1-SNAPSHOT")),
                     option(args, "--protocol-version", env("ARCHDOX_AGENT_PROTOCOL_VERSION", "2026-06-25")),
-                    option(args, "--launcher-version", env("ARCHDOX_AGENT_LAUNCHER_VERSION", "embedded")),
+                    option(args, "--launcher-version", env(
+                            "ARCHDOX_AGENT_LAUNCHER_VERSION",
+                            LauncherBuildInfo.current().version())),
                     booleanOption(args, "--apply-update", env("ARCHDOX_AGENT_APPLY_UPDATE", "false")),
                     startRuntime,
                     pathOption(args, "--install-dir", env(
@@ -345,6 +357,7 @@ public class ArchDoxAgentLauncher {
 
     record LauncherResult(
             String launcherCommand,
+            LauncherBuildInfo launcherBuild,
             String cloudApiBaseUrl,
             String channel,
             String platform,

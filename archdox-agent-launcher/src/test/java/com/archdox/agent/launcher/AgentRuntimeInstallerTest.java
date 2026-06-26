@@ -72,8 +72,12 @@ class AgentRuntimeInstallerTest {
 
     private AgentRuntimeManifest manifest(URI packageUri, String sha256) {
         return new AgentRuntimeManifest(
+                "2026-06-26",
                 "stable",
                 "windows-x64",
+                "0.0.1-SNAPSHOT",
+                "test-commit",
+                "2026-06-26T00:00:00Z",
                 "2026-06-25",
                 "2026-06-25",
                 "1.2.3",

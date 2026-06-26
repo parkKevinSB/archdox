@@ -1,3 +1,6 @@
+import java.time.Instant
+import org.gradle.api.tasks.SourceSetContainer
+
 plugins {
     java
     id("org.springframework.boot") version "3.5.14" apply false
@@ -6,7 +9,10 @@ plugins {
 
 allprojects {
     group = "com.archdox"
-    version = "0.0.1-SNAPSHOT"
+    version = providers.gradleProperty("archdoxVersion")
+        .orElse(providers.environmentVariable("ARCHDOX_VERSION"))
+        .orElse("0.0.1-SNAPSHOT")
+        .get()
 }
 
 subprojects {
@@ -20,6 +26,49 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+    }
+
+    val generatedBuildInfoDir = layout.buildDirectory.dir("generated/archdox-build-info")
+    val generateArchDoxBuildInfo by tasks.registering {
+        val outputFile = generatedBuildInfoDir.map { it.file("META-INF/archdox/${project.name}-build.properties") }
+        outputs.file(outputFile)
+        doLast {
+            val file = outputFile.get().asFile
+            file.parentFile.mkdirs()
+            file.writeText(
+                """
+                module=${project.name}
+                version=${project.version}
+                git.commit=${gitOutput("rev-parse", "--short=12", "HEAD")}
+                git.branch=${gitOutput("rev-parse", "--abbrev-ref", "HEAD")}
+                build.time=${Instant.now()}
+                """.trimIndent()
+            )
+        }
+    }
+
+    extensions.configure<SourceSetContainer>("sourceSets") {
+        named("main") {
+            resources.srcDir(generatedBuildInfoDir)
+        }
+    }
+
+    tasks.named("processResources") {
+        dependsOn(generateArchDoxBuildInfo)
+    }
+}
+
+fun gitOutput(vararg args: String): String {
+    return try {
+        val process = ProcessBuilder(listOf("git", *args))
+            .directory(rootDir)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        process.waitFor()
+        output.trim().ifBlank { "unknown" }
+    } catch (_: Exception) {
+        "unknown"
     }
 }
 

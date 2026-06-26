@@ -3,8 +3,12 @@ package com.archdox.cloud.agent.dto;
 import java.time.OffsetDateTime;
 
 public record ArchDoxAgentRuntimeManifestResponse(
+        String manifestVersion,
         String channel,
         String platform,
+        String cloudApiVersion,
+        String cloudApiGitCommit,
+        String cloudApiBuildTime,
         String currentProtocolVersion,
         String minimumProtocolVersion,
         String minimumAgentVersion,

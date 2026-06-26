@@ -1,8 +1,12 @@
 package com.archdox.agent.launcher;
 
 public record AgentRuntimeManifest(
+        String manifestVersion,
         String channel,
         String platform,
+        String cloudApiVersion,
+        String cloudApiGitCommit,
+        String cloudApiBuildTime,
         String currentProtocolVersion,
         String minimumProtocolVersion,
         String minimumAgentVersion,

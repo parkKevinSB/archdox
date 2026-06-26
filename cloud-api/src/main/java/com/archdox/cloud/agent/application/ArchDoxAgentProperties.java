@@ -1,5 +1,6 @@
 package com.archdox.cloud.agent.application;
 
+import com.archdox.shared.version.ArchDoxBuildInfo;
 import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "archdox.agent")
 public class ArchDoxAgentProperties {
+    private final ArchDoxBuildInfo buildInfo = ArchDoxBuildInfo.load("cloud-api", "0.0.1-SNAPSHOT");
     private String apiInstanceId = "cloud-api-" + UUID.randomUUID();
     private String sharedSecret = "dev-agent-secret-change-me";
     private int commandTtlMinutes = 60;
@@ -18,9 +20,9 @@ public class ArchDoxAgentProperties {
     private int websocketSendBufferSizeBytes = 4 * 1024 * 1024;
     private String currentProtocolVersion = "2026-06-25";
     private String minimumProtocolVersion = "2026-06-25";
-    private String minimumAgentVersion = "0.0.1-dev";
-    private String recommendedAgentVersion = "0.0.1-dev";
-    private String latestAgentVersion = "0.0.1-dev";
+    private String minimumAgentVersion;
+    private String recommendedAgentVersion;
+    private String latestAgentVersion;
     private String minimumLauncherVersion = "embedded";
     private String recommendedLauncherVersion = "embedded";
     private String runtimePackageDownloadUrl;
@@ -219,7 +221,7 @@ public class ArchDoxAgentProperties {
     }
 
     public String safeMinimumAgentVersion() {
-        return nonBlank(minimumAgentVersion, "0.0.1-dev");
+        return nonBlank(minimumAgentVersion, buildInfo.version());
     }
 
     public String safeRecommendedAgentVersion() {

@@ -206,9 +206,9 @@ archdox:
     websocket-max-binary-message-buffer-bytes: ${AGENT_WS_MAX_BINARY_MESSAGE_BUFFER_BYTES:2097152}
     current-protocol-version: ${AGENT_CURRENT_PROTOCOL_VERSION:2026-06-25}
     minimum-protocol-version: ${AGENT_MINIMUM_PROTOCOL_VERSION:2026-06-25}
-    minimum-agent-version: ${AGENT_MINIMUM_VERSION:0.0.1-dev}
-    recommended-agent-version: ${AGENT_RECOMMENDED_VERSION:0.0.1-dev}
-    latest-agent-version: ${AGENT_LATEST_VERSION:0.0.1-dev}
+    minimum-agent-version: ${AGENT_MINIMUM_VERSION:}
+    recommended-agent-version: ${AGENT_RECOMMENDED_VERSION:}
+    latest-agent-version: ${AGENT_LATEST_VERSION:}
     minimum-launcher-version: ${AGENT_MINIMUM_LAUNCHER_VERSION:embedded}
     recommended-launcher-version: ${AGENT_RECOMMENDED_LAUNCHER_VERSION:embedded}
     runtime-package-download-url: ${AGENT_RUNTIME_PACKAGE_DOWNLOAD_URL:}

@@ -118,6 +118,35 @@ Agent identity and Agent binary compatibility are separate concerns.
 Authentication answers "is this registered runtime allowed to connect?" Runtime
 compatibility answers "may Cloud route commands to this runtime?"
 
+Version management has three separate values:
+
+- Cloud API build version: identifies the currently running API server binary.
+- Agent runtime version: identifies the `archdox-agent` command execution
+  runtime.
+- Agent protocol version: identifies the WebSocket command contract. This is
+  intentionally separate from binary version so a patch release can keep the
+  same command protocol.
+
+All Gradle modules use the root project version by default. Build pipelines may
+override it with `-ParchdoxVersion=...` or `ARCHDOX_VERSION=...`. Each module
+emits `META-INF/archdox/<module>-build.properties` with module, version, git
+commit, branch, and build time. This build metadata is operational identity, not
+business data.
+
+Cloud API exposes:
+
+```text
+GET /api/v1/system/version
+GET /api/v1/archdox-agents/runtime-manifest?channel=stable&platform=windows-x64
+```
+
+The runtime manifest includes the Cloud API build version/commit and the Agent
+runtime policy: minimum, recommended, and latest runtime versions; minimum and
+recommended launcher versions; and protocol bounds. If no explicit Agent
+version policy is configured, Cloud API falls back to the current build version.
+Production deployment should still set the Agent package URLs and policy
+versions explicitly when publishing a signed Agent runtime package.
+
 Every `HELLO` must report:
 
 - `version`: ArchDox Agent runtime version.
@@ -174,6 +203,11 @@ Current implementation status:
   optional package metadata.
 - `archdox-agent-launcher` reads that manifest and decides `OK`,
   `UPDATE_RECOMMENDED`, or `UPDATE_REQUIRED`.
+- `archdox-agent` reads its own generated build metadata when `AGENT_VERSION`
+  is not explicitly configured, and sends that version in `HELLO` and
+  `HEARTBEAT`.
+- `archdox-agent-launcher` reads its own generated build metadata and uses it
+  as the default launcher version instead of the old `embedded` marker.
 - When `--apply-update` is explicitly set and the manifest includes a package,
   the launcher downloads the package, verifies SHA-256, optionally verifies an
   Ed25519 signature, extracts to staging, and swaps `current`/`previous` runtime
