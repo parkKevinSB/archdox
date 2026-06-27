@@ -56,6 +56,24 @@ class ReportPreflightFindingClassifierTest {
         assertThat(ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding)).isTrue();
     }
 
+    @Test
+    void legalPassBlockerRequiresResolution() {
+        var now = OffsetDateTime.parse("2026-06-10T09:00:00+09:00");
+        var finding = finding(
+                "LEGAL_REVIEW",
+                "PASS_BLOCKED_NO_BUSINESS_ITEM_ANCHOR",
+                "HIGH",
+                Map.of("category", "APPLICABILITY", "approvalRequired", "true"));
+
+        assertThat(ReportPreflightFindingClassifier.requiresResolutionForGeneration(finding)).isTrue();
+        assertThat(ReportPreflightFindingClassifier.shouldAutoResolveOnCreate(finding)).isFalse();
+
+        ReportPreflightFindingClassifier.autoResolveOnCreate(finding, 7L, now);
+
+        assertThat(finding.resolutionStatus()).isEqualTo(ReportPreflightFindingResolutionStatus.OPEN);
+        assertThat(finding.resolvedAt()).isNull();
+    }
+
     private ReportPreflightReviewFinding finding(
             String source,
             String code,

@@ -2354,15 +2354,22 @@ const LEGAL_REVIEW_RESULT_CODES = new Set([
 
 const LEGAL_REVIEW_DISPLAY_ONLY_CODES = new Set([
   "LEGAL_REVIEW_PASSED",
+  "LEGAL_REVIEW_NEEDS_HUMAN_REVIEW",
+  "LEGAL_REVIEW_BLOCKED",
+  "LEGAL_REVIEW_INSUFFICIENT_CONTEXT",
   "LEGAL_REVIEW_SKIPPED"
 ]);
 
-function isPreflightFindingCoveredByLegalSummary(finding: ReportPreflightReviewFindingResponse) {
-  const category = finding.attributes?.category ?? "";
+function isDisplayOnlyLegalFinding(finding: ReportPreflightReviewFindingResponse) {
   if (finding.code === "LEGAL_EVIDENCE_CONTEXT_USED") {
     return true;
   }
-  if (finding.source === "LEGAL_REVIEW" && LEGAL_REVIEW_DISPLAY_ONLY_CODES.has(finding.code)) {
+  return finding.source === "LEGAL_REVIEW" && LEGAL_REVIEW_DISPLAY_ONLY_CODES.has(finding.code);
+}
+
+function isPreflightFindingCoveredByLegalSummary(finding: ReportPreflightReviewFindingResponse) {
+  const category = finding.attributes?.category ?? "";
+  if (isDisplayOnlyLegalFinding(finding)) {
     return true;
   }
   return finding.severity === "INFO"
@@ -2834,14 +2841,14 @@ function requiresPreflightFindingAction(finding: ReportPreflightReviewFindingRes
   if (finding.resolutionStatus !== "OPEN") {
     return false;
   }
-  if (finding.attributes?.approvalRequired === "true") {
-    return true;
-  }
-  if (finding.source === "LEGAL_REVIEW") {
+  if (isDisplayOnlyLegalFinding(finding)) {
     return false;
   }
   if (isBlockingFinding(finding)) {
     return true;
+  }
+  if (finding.source === "LEGAL_REVIEW") {
+    return false;
   }
   if (finding.source !== "DETERMINISTIC") {
     return true;
