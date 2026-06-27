@@ -1,5 +1,6 @@
 import java.nio.file.Files
 import java.security.MessageDigest
+import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.Zip
 
 plugins {
@@ -23,17 +24,42 @@ val archdoxReleasePlatform = providers.gradleProperty("archdoxPlatform")
     .orElse(providers.environmentVariable("ARCHDOX_RELEASE_PLATFORM"))
     .orElse("windows-x64")
 
+val launcherRuntimeImageDir = layout.buildDirectory.dir(archdoxReleasePlatform.map { "runtime-image/$it" })
+
+tasks.register<Exec>("launcherRuntimeImage") {
+    group = "distribution"
+    description = "Creates a small Java runtime image bundled with the Agent Launcher package."
+    outputs.dir(launcherRuntimeImageDir)
+    doFirst {
+        delete(launcherRuntimeImageDir)
+    }
+    commandLine(
+        "jlink",
+        "--add-modules",
+        "java.se,jdk.crypto.ec",
+        "--strip-debug",
+        "--no-header-files",
+        "--no-man-pages",
+        "--output",
+        launcherRuntimeImageDir.get().asFile.absolutePath
+    )
+}
+
 tasks.register<Zip>("launcherPackage") {
     val channel = archdoxReleaseChannel.get()
     val platform = archdoxReleasePlatform.get()
     group = "distribution"
     description = "Packages the ArchDox Agent Launcher for release distribution."
     dependsOn("installDist")
+    dependsOn("launcherRuntimeImage")
     archiveFileName.set("archdox-agent-launcher-$platform-${project.version}.zip")
     destinationDirectory.set(rootProject.layout.buildDirectory.dir(
         "archdox-releases/agent-launcher/$channel/$platform/${project.version}"))
     into("archdox-agent-launcher") {
         from(layout.buildDirectory.dir("install/archdox-agent-launcher"))
+        into("jre") {
+            from(launcherRuntimeImageDir)
+        }
     }
 }
 

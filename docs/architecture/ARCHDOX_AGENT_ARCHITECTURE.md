@@ -249,10 +249,12 @@ Current implementation status:
 - The launcher supports local `status`, `stop`, `start`, `restart`, and
   long-running `supervise` commands. `status` and `stop` are local-only commands
   and do not call Cloud API.
-- The launcher package includes Windows helper scripts that install/update the
-  runtime and register a current-user scheduled task. This is the first
-  user-friendly auto-start path. A full installer wizard, tray UI, and
-  Windows/Linux service integration remain later phases.
+- The Windows launcher package includes a small bundled Java runtime, top-level
+  `Install ArchDox Agent.bat` / `Remove ArchDox Agent.bat` helpers, and
+  PowerShell scripts that install/update the runtime and register a current-user
+  scheduled task. This is the first user-friendly auto-start path. A full
+  EXE/MSI installer wizard, tray UI, and Windows/Linux service integration
+  remain later phases.
 
 ## Deployment Policy
 

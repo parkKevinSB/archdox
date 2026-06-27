@@ -19,7 +19,9 @@ The launcher currently performs the first safe step only:
 6. Roll back to the previous runtime when startup health check fails.
 7. Register a Windows logon scheduled task for the local user when the
    packaged PowerShell helper is used.
-8. Return a distinct exit code.
+8. Bundle a small Java runtime image in the Windows launcher package so users
+   do not need to install Java separately.
+9. Return a distinct exit code.
 
 Runtime installation is opt-in. The launcher does not silently replace the
 runtime when it is only checking compatibility.
@@ -179,13 +181,20 @@ or health is not confirmed. `--max-restarts 0` means no fixed restart limit.
 ## Windows User Auto Start
 
 The release package includes Windows helper scripts under `windows/`.
+It also includes top-level double-click helpers:
+
+```text
+Install ArchDox Agent.bat
+Remove ArchDox Agent.bat
+README-WINDOWS.txt
+jre/
+```
 
 For a normal Windows user installation:
 
-```powershell
-cd C:\ArchDox\agent-launcher\archdox-agent-launcher\windows
-Set-ExecutionPolicy -Scope Process Bypass -Force
-.\install-archdox-agent-task.ps1 -RunNow
+```text
+1. Extract the zip package.
+2. Double-click Install ArchDox Agent.bat.
 ```
 
 The install helper:
@@ -194,7 +203,7 @@ The install helper:
 2. Runs the launcher with `--apply-update --force-install`.
 3. Writes `launcher-task.json` under the launcher work directory.
 4. Registers a current-user Windows scheduled task named `ArchDox Agent`.
-5. Starts the task immediately when `-RunNow` is passed.
+5. Starts the task immediately.
 
 The scheduled task runs `run-archdox-agent-supervisor.ps1`, which starts the
 launcher in `supervise` mode. This means the Agent starts again after Windows
@@ -203,8 +212,8 @@ cannot be confirmed.
 
 To remove the scheduled task:
 
-```powershell
-.\uninstall-archdox-agent-task.ps1
+```text
+Double-click Remove ArchDox Agent.bat.
 ```
 
 ## Next Phase

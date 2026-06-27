@@ -18,12 +18,17 @@ $ErrorActionPreference = "Stop"
 $distributionRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 $launcher = Join-Path $distributionRoot "bin\archdox-agent-launcher.bat"
 $runner = Join-Path $PSScriptRoot "run-archdox-agent-supervisor.ps1"
+$bundledJavaHome = Join-Path $distributionRoot "jre"
 
 if (-not (Test-Path -LiteralPath $launcher)) {
     throw "ArchDox Agent launcher was not found: $launcher"
 }
 if (-not (Test-Path -LiteralPath $runner)) {
     throw "ArchDox Agent task runner was not found: $runner"
+}
+if (Test-Path -LiteralPath (Join-Path $bundledJavaHome "bin\java.exe")) {
+    $env:JAVA_HOME = $bundledJavaHome
+    $env:PATH = (Join-Path $bundledJavaHome "bin") + ";" + $env:PATH
 }
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
