@@ -54,7 +54,7 @@
             <p>현장 PC, 사무소 PC, 개인 Windows 작업 환경에서 사용하는 기본 설치 파일입니다.</p>
             <div class="download-card-actions">
               <a id="launcherDownloadCard" class="primary-action disabled-link" href="#" aria-disabled="true">다운로드 준비 중</a>
-              <a class="secondary-action" href="#install-flow">설치 흐름 보기</a>
+              <a class="secondary-action" href="#local-install-guide">설치 가이드 보기</a>
             </div>
           </article>
 
@@ -68,15 +68,15 @@
                 <dd id="launcherVersion">확인 중</dd>
               </div>
               <div>
-              <dt>배포</dt>
+                <dt>배포</dt>
                 <dd id="launcherChannel">안정 채널</dd>
               </div>
               <div>
-              <dt>대상</dt>
+                <dt>대상</dt>
                 <dd id="launcherPlatform">Windows 64비트</dd>
               </div>
               <div>
-              <dt>무결성</dt>
+                <dt>무결성</dt>
                 <dd id="launcherSha">확인 중</dd>
               </div>
             </dl>
@@ -111,6 +111,66 @@
             <strong>3. 저장소 설정</strong>
             <span>로컬 폴더, NAS, S3 호환 저장소 중 Agent가 사용할 위치를 정합니다.</span>
           </a>
+        </div>
+      </section>
+
+      <section class="docs-section" id="local-install-guide">
+        <div class="section-head">
+          <p class="eyebrow">개인 PC 설치 가이드</p>
+          <h2>Windows PC에서 먼저 실행 확인까지 진행합니다.</h2>
+          <p>
+            현재 배포는 설치 마법사가 아니라 명령 실행형 런처입니다. 아래 순서대로 진행하면 런처가
+            필요한 Agent 실행 파일을 내려받고, 로컬 PC에서 Agent 상태를 확인할 수 있습니다.
+          </p>
+        </div>
+
+        <div class="downloads-guide-layout">
+          <article class="downloads-guide-card">
+            <span>1</span>
+            <h3>다운로드한 zip 압축을 풉니다.</h3>
+            <p>예시는 <code>C:\ArchDox</code> 아래에 런처를 두는 기준입니다.</p>
+            <pre><code>mkdir C:\ArchDox
+Expand-Archive .\archdox-agent-launcher-windows-x64-0.0.1.zip C:\ArchDox\agent-launcher -Force
+cd C:\ArchDox\agent-launcher\archdox-agent-launcher\bin</code></pre>
+          </article>
+
+          <article class="downloads-guide-card">
+            <span>2</span>
+            <h3>Agent 실행 파일을 설치합니다.</h3>
+            <p>런처가 ArchDox 서버에서 Agent 실행 파일을 내려받고 무결성을 확인합니다.</p>
+            <pre><code>.\archdox-agent-launcher.bat `
+  --cloud-api-base-url https://api.archdox.co.kr `
+  --apply-update `
+  --install-dir C:\ArchDox\agent-runtime `
+  --work-dir C:\ArchDox\agent-launcher-work</code></pre>
+          </article>
+
+          <article class="downloads-guide-card">
+            <span>3</span>
+            <h3>Agent를 시작합니다.</h3>
+            <p>시작 후 로컬 상태 확인 주소가 `UP`이면 Agent가 실행 중입니다.</p>
+            <pre><code>.\archdox-agent-launcher.bat `
+  --cloud-api-base-url https://api.archdox.co.kr `
+  --launcher-command start `
+  --install-dir C:\ArchDox\agent-runtime `
+  --work-dir C:\ArchDox\agent-launcher-work `
+  --runtime-health-url http://127.0.0.1:18080/actuator/health</code></pre>
+          </article>
+
+          <article class="downloads-guide-card">
+            <span>4</span>
+            <h3>상태를 확인합니다.</h3>
+            <p>브라우저에서 아래 주소를 열었을 때 `UP`이 보이면 로컬 Agent가 살아 있습니다.</p>
+            <pre><code>http://127.0.0.1:18080/actuator/health</code></pre>
+          </article>
+        </div>
+
+        <div class="downloads-guide-note">
+          <strong>계정 연결은 앱에서 진행합니다.</strong>
+          <span>
+            설치 파일 실행과 실제 계정 연결은 분리되어 있습니다. 앱에서 개인 또는 사무소 작업공간을 선택하고,
+            연결 토큰과 저장소 위치를 설정해야 문서 생성 작업에 사용할 수 있습니다.
+          </span>
         </div>
       </section>
 
