@@ -249,8 +249,10 @@ Current implementation status:
 - The launcher supports local `status`, `stop`, `start`, `restart`, and
   long-running `supervise` commands. `status` and `stop` are local-only commands
   and do not call Cloud API.
-- The launcher does not yet install itself as a Windows/Linux service. OS
-  service integration is the next implementation phase.
+- The launcher package includes Windows helper scripts that install/update the
+  runtime and register a current-user scheduled task. This is the first
+  user-friendly auto-start path. A full installer wizard, tray UI, and
+  Windows/Linux service integration remain later phases.
 
 ## Deployment Policy
 

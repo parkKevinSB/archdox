@@ -117,10 +117,10 @@
       <section class="docs-section" id="local-install-guide">
         <div class="section-head">
           <p class="eyebrow">개인 PC 설치 가이드</p>
-          <h2>Windows PC에서 먼저 실행 확인까지 진행합니다.</h2>
+          <h2>한 번 등록하면 Windows 로그인 때 자동으로 실행됩니다.</h2>
           <p>
-            현재 배포는 설치 마법사가 아니라 명령 실행형 런처입니다. 아래 순서대로 진행하면 런처가
-            필요한 Agent 실행 파일을 내려받고, 로컬 PC에서 Agent 상태를 확인할 수 있습니다.
+            현재 배포는 설치 마법사 전 단계의 런처 방식입니다. 그래도 매번 직접 실행할 필요는 없도록
+            Windows 작업 스케줄러에 ArchDox Agent를 등록하는 스크립트를 함께 제공합니다.
           </p>
         </div>
 
@@ -128,48 +128,42 @@
           <article class="downloads-guide-card">
             <span>1</span>
             <h3>다운로드한 zip 압축을 풉니다.</h3>
-            <p>예시는 <code>C:\ArchDox</code> 아래에 런처를 두는 기준입니다.</p>
+            <p>예시는 <code>C:\ArchDox</code> 아래에 런처를 두는 기준입니다. 다른 폴더에 풀어도 됩니다.</p>
             <pre><code>mkdir C:\ArchDox
 Expand-Archive .\archdox-agent-launcher-windows-x64-0.0.1.zip C:\ArchDox\agent-launcher -Force
-cd C:\ArchDox\agent-launcher\archdox-agent-launcher\bin</code></pre>
+cd C:\ArchDox\agent-launcher\archdox-agent-launcher\windows</code></pre>
           </article>
 
           <article class="downloads-guide-card">
             <span>2</span>
-            <h3>Agent 실행 파일을 설치합니다.</h3>
-            <p>런처가 ArchDox 서버에서 Agent 실행 파일을 내려받고 무결성을 확인합니다.</p>
-            <pre><code>.\archdox-agent-launcher.bat `
-  --cloud-api-base-url https://api.archdox.co.kr `
-  --apply-update `
-  --install-dir C:\ArchDox\agent-runtime `
-  --work-dir C:\ArchDox\agent-launcher-work</code></pre>
+            <h3>자동 실행을 등록합니다.</h3>
+            <p>스크립트가 Agent 실행 파일을 내려받고, Windows 로그인 시 자동으로 실행되도록 등록합니다.</p>
+            <pre><code>Set-ExecutionPolicy -Scope Process Bypass -Force
+.\install-archdox-agent-task.ps1 -RunNow</code></pre>
           </article>
 
           <article class="downloads-guide-card">
             <span>3</span>
-            <h3>Agent를 시작합니다.</h3>
-            <p>시작 후 로컬 상태 확인 주소가 `UP`이면 Agent가 실행 중입니다.</p>
-            <pre><code>.\archdox-agent-launcher.bat `
-  --cloud-api-base-url https://api.archdox.co.kr `
-  --launcher-command start `
-  --install-dir C:\ArchDox\agent-runtime `
-  --work-dir C:\ArchDox\agent-launcher-work `
-  --runtime-health-url http://127.0.0.1:18080/actuator/health</code></pre>
+            <h3>재부팅 후에도 자동 실행됩니다.</h3>
+            <p>PC를 껐다 켜도 Windows 로그인 후 작업 스케줄러가 Agent를 다시 실행합니다.</p>
+            <pre><code>Get-ScheduledTask -TaskName "ArchDox Agent"
+Start-ScheduledTask -TaskName "ArchDox Agent"</code></pre>
           </article>
 
           <article class="downloads-guide-card">
             <span>4</span>
-            <h3>상태를 확인합니다.</h3>
-            <p>브라우저에서 아래 주소를 열었을 때 `UP`이 보이면 로컬 Agent가 살아 있습니다.</p>
+            <h3>상태 확인과 제거도 가능합니다.</h3>
+            <p>브라우저에서 `UP`이 보이면 실행 중입니다. 자동 실행을 끄려면 제거 스크립트를 실행합니다.</p>
             <pre><code>http://127.0.0.1:18080/actuator/health</code></pre>
+            <pre><code>.\uninstall-archdox-agent-task.ps1</code></pre>
           </article>
         </div>
 
         <div class="downloads-guide-note">
-          <strong>계정 연결은 앱에서 진행합니다.</strong>
+          <strong>일반 사용자는 이 흐름만 따르면 됩니다.</strong>
           <span>
-            설치 파일 실행과 실제 계정 연결은 분리되어 있습니다. 앱에서 개인 또는 사무소 작업공간을 선택하고,
-            연결 토큰과 저장소 위치를 설정해야 문서 생성 작업에 사용할 수 있습니다.
+            지금은 설치 마법사 UI가 아니라 스크립트 기반 자동 시작입니다. 다음 단계에서는 이 과정을
+            설치 프로그램과 로컬 설정 화면으로 감싸서 더 쉽게 만들 예정입니다.
           </span>
         </div>
       </section>

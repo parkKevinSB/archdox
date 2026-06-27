@@ -12,6 +12,8 @@ out/
 
 node_modules/
 dist/
+!archdox-agent-launcher/src/dist/
+!archdox-agent-launcher/src/dist/**
 
 *.log
 *.err.log

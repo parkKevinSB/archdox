@@ -88,6 +88,7 @@ public class ArchDoxAgentLauncher {
                 config.currentProtocolVersion(),
                 config.currentLauncherVersion(),
                 config.applyUpdate(),
+                config.forceInstall(),
                 config.startRuntime(),
                 config.installDir().toAbsolutePath().toString(),
                 config.workDir().toAbsolutePath().toString(),
@@ -106,13 +107,19 @@ public class ArchDoxAgentLauncher {
             AgentUpdateDecision decision
     ) {
         if (!decision.runtimeUpdateRequired() && !decision.runtimeUpdateRecommended()) {
-            return AgentRuntimeInstallResult.notAttempted("Runtime update is not needed.");
+            if (!config.forceInstall()) {
+                return AgentRuntimeInstallResult.notAttempted("Runtime update is not needed.");
+            }
         }
         if (!decision.canDownloadRuntime()) {
-            return AgentRuntimeInstallResult.skipped("Runtime update is needed, but manifest has no downloadable package.");
+            return AgentRuntimeInstallResult.skipped(config.forceInstall()
+                    ? "Runtime force install was requested, but manifest has no downloadable package."
+                    : "Runtime update is needed, but manifest has no downloadable package.");
         }
         if (!config.applyUpdate()) {
-            return AgentRuntimeInstallResult.skipped("Runtime update is available. Run with --apply-update to install it.");
+            return AgentRuntimeInstallResult.skipped(config.forceInstall()
+                    ? "Runtime force install was requested. Run with --apply-update to install it."
+                    : "Runtime update is available. Run with --apply-update to install it.");
         }
         try {
             return installer.install(
@@ -183,6 +190,7 @@ public class ArchDoxAgentLauncher {
 
     private Map<String, String> runtimeEnvironment(LauncherConfig config) {
         return Map.of(
+                "CLOUD_API_BASE_URL", config.cloudApiBaseUrl(),
                 "AGENT_LAUNCHER_VERSION", config.currentLauncherVersion(),
                 "AGENT_UPDATE_CHANNEL", config.channel());
     }
@@ -226,6 +234,7 @@ public class ArchDoxAgentLauncher {
             String currentProtocolVersion,
             String currentLauncherVersion,
             boolean applyUpdate,
+            boolean forceInstall,
             boolean startRuntime,
             Path installDir,
             Path workDir,
@@ -253,6 +262,7 @@ public class ArchDoxAgentLauncher {
                             "ARCHDOX_AGENT_LAUNCHER_VERSION",
                             LauncherBuildInfo.current().version())),
                     booleanOption(args, "--apply-update", env("ARCHDOX_AGENT_APPLY_UPDATE", "false")),
+                    booleanOption(args, "--force-install", env("ARCHDOX_AGENT_FORCE_INSTALL", "false")),
                     startRuntime,
                     pathOption(args, "--install-dir", env(
                             "ARCHDOX_AGENT_INSTALL_DIR",
@@ -365,6 +375,7 @@ public class ArchDoxAgentLauncher {
             String currentProtocolVersion,
             String currentLauncherVersion,
             boolean applyUpdate,
+            boolean forceInstall,
             boolean startRuntime,
             String installDir,
             String workDir,

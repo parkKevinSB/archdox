@@ -17,7 +17,9 @@ The launcher currently performs the first safe step only:
 4. When explicitly requested, download and install a verified runtime package.
 5. When explicitly requested, start the installed runtime and verify health.
 6. Roll back to the previous runtime when startup health check fails.
-7. Return a distinct exit code.
+7. Register a Windows logon scheduled task for the local user when the
+   packaged PowerShell helper is used.
+8. Return a distinct exit code.
 
 Runtime installation is opt-in. The launcher does not silently replace the
 runtime when it is only checking compatibility.
@@ -59,6 +61,7 @@ To install a downloadable update:
 ./gradlew :archdox-agent-launcher:run --args="\
   --cloud-api-base-url https://api.archdox.co.kr \
   --apply-update \
+  --force-install \
   --install-dir /opt/archdox/agent-runtime \
   --work-dir /var/lib/archdox/agent-launcher"
 ```
@@ -173,8 +176,41 @@ logs/agent-runtime.err.log
 `--monitor-interval-seconds` and restarts the runtime when the process is gone
 or health is not confirmed. `--max-restarts 0` means no fixed restart limit.
 
+## Windows User Auto Start
+
+The release package includes Windows helper scripts under `windows/`.
+
+For a normal Windows user installation:
+
+```powershell
+cd C:\ArchDox\agent-launcher\archdox-agent-launcher\windows
+Set-ExecutionPolicy -Scope Process Bypass -Force
+.\install-archdox-agent-task.ps1 -RunNow
+```
+
+The install helper:
+
+1. Creates local runtime, work, and storage directories.
+2. Runs the launcher with `--apply-update --force-install`.
+3. Writes `launcher-task.json` under the launcher work directory.
+4. Registers a current-user Windows scheduled task named `ArchDox Agent`.
+5. Starts the task immediately when `-RunNow` is passed.
+
+The scheduled task runs `run-archdox-agent-supervisor.ps1`, which starts the
+launcher in `supervise` mode. This means the Agent starts again after Windows
+logon and is restarted when the local runtime process disappears or health
+cannot be confirmed.
+
+To remove the scheduled task:
+
+```powershell
+.\uninstall-archdox-agent-task.ps1
+```
+
 ## Next Phase
 
 The next launcher phase should add:
 
-- OS service integration for Windows/Linux
+- A user-facing installer wizard and tray/settings UI.
+- Windows service integration for office/server installations.
+- Linux service integration.
