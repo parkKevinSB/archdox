@@ -3,12 +3,16 @@ package com.archdox.cloud.photo.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.archdox.cloud.photo.domain.Photo;
 import com.archdox.cloud.photo.domain.PhotoAsset;
 import com.archdox.cloud.photo.domain.PhotoAssetType;
+import com.archdox.cloud.photo.domain.PhotoCaptureKind;
 import com.archdox.cloud.photo.domain.PhotoStorageKind;
+import com.archdox.cloud.photo.domain.PhotoUploadTarget;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class S3CompatiblePhotoStorageAdapterTest {
     @Test
@@ -41,6 +45,58 @@ class S3CompatiblePhotoStorageAdapterTest {
         assertEquals("PUT", instruction.method());
         assertEquals("image/jpeg", instruction.headers().get("Content-Type"));
         assertTrue(instruction.url().contains("offices/10/reports/1000/photos/1/working.jpg"));
+    }
+
+    @Test
+    void createsApiMediatedPutInstructionForTemporaryOriginal() {
+        var properties = new PhotoStorageProperties();
+        properties.getS3().setEndpoint("http://localhost:9000");
+        properties.getS3().setBucket("archdox");
+        properties.getS3().setAccessKey("test-access-key");
+        properties.getS3().setSecretKey("test-secret-key");
+        properties.getS3().setRegion("ap-northeast-2");
+        var adapter = new S3CompatiblePhotoStorageAdapter(properties);
+        var photo = new Photo(
+                10L,
+                100L,
+                1000L,
+                "DAILY_LOG",
+                null,
+                PhotoCaptureKind.UPLOAD,
+                "image/jpeg",
+                1000L,
+                "sha256:abc",
+                PhotoStorageKind.S3,
+                "offices/10/reports/1000/photos/1/working.jpg",
+                "offices/10/reports/1000/photos/1/thumbnail.webp",
+                PhotoUploadTarget.CLOUD_MEDIATED,
+                1L,
+                null,
+                null,
+                null,
+                OffsetDateTime.now());
+        ReflectionTestUtils.setField(photo, "id", 123L);
+        var asset = new PhotoAsset(
+                photo,
+                PhotoAssetType.ORIGINAL,
+                PhotoStorageKind.S3_TEMP,
+                "offices/10/reports/1000/photos/1/original.jpg",
+                "image/jpeg",
+                1000L,
+                "sha256:abc",
+                true,
+                OffsetDateTime.now());
+
+        var instructions = adapter.createUploadInstructions(
+                photo,
+                List.of(asset),
+                OffsetDateTime.now().plusMinutes(5));
+
+        assertEquals(1, instructions.size());
+        var instruction = instructions.get(0);
+        assertEquals("PUT", instruction.method());
+        assertEquals("/api/v1/photos/123/content/ORIGINAL", instruction.url());
+        assertTrue(instruction.headers().isEmpty());
     }
 
     @Test

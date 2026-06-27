@@ -73,7 +73,7 @@ public class S3CompatiblePhotoStorageAdapter implements PhotoStorageAdapter {
         try (var presigner = presigner()) {
             Duration signatureTtl = ttl;
             return assets.stream()
-                    .map(asset -> presignedPut(presigner, asset, signatureTtl, expiresAt))
+                    .map(asset -> uploadInstruction(presigner, photo, asset, signatureTtl, expiresAt))
                     .toList();
         }
     }
@@ -179,6 +179,37 @@ public class S3CompatiblePhotoStorageAdapter implements PhotoStorageAdapter {
                 presigned.url().toString(),
                 Map.of(),
                 Map.of("Content-Type", asset.mimeType()),
+                null,
+                expiresAt);
+    }
+
+    private PhotoUploadInstructionResponse uploadInstruction(
+            S3Presigner presigner,
+            Photo photo,
+            PhotoAsset asset,
+            Duration ttl,
+            OffsetDateTime expiresAt
+    ) {
+        if (asset.storageKind() == PhotoStorageKind.S3_TEMP && asset.assetType() == PhotoAssetType.ORIGINAL) {
+            return apiMediatedPut(photo, asset, expiresAt);
+        }
+        return presignedPut(presigner, asset, ttl, expiresAt);
+    }
+
+    private PhotoUploadInstructionResponse apiMediatedPut(
+            Photo photo,
+            PhotoAsset asset,
+            OffsetDateTime expiresAt
+    ) {
+        if (photo == null || photo.id() == null) {
+            throw new IllegalArgumentException("Photo id is required for mediated S3 upload");
+        }
+        return new PhotoUploadInstructionResponse(
+                uploadKind(asset.assetType()),
+                "PUT",
+                "/api/v1/photos/%d/content/%s".formatted(photo.id(), uploadKind(asset.assetType())),
+                Map.of(),
+                Map.of(),
                 null,
                 expiresAt);
     }

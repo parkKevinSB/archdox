@@ -276,7 +276,7 @@ public class PhotoService {
             throw new BadRequestException("Photo content cannot be uploaded in status " + photo.status());
         }
         var asset = requireAsset(photo, assetType(kind));
-        if (asset.storageKind() != PhotoStorageKind.API_LOCAL) {
+        if (!supportsApiContentUpload(asset)) {
             throw new BadRequestException("Use the returned upload URL for storage kind " + asset.storageKind());
         }
         storageAdapterResolver.forStorageKind(asset.storageKind()).storeContent(asset, contentLength, input);
@@ -393,6 +393,12 @@ public class PhotoService {
         var officeId = OfficeContext.requireCurrentOfficeId();
         return photoRepository.findByIdAndOfficeId(photoId, officeId)
                 .orElseThrow(() -> new NotFoundException("Photo not found"));
+    }
+
+    private boolean supportsApiContentUpload(PhotoAsset asset) {
+        return asset.storageKind() == PhotoStorageKind.API_LOCAL
+                || (asset.storageKind() == PhotoStorageKind.S3_TEMP
+                        && asset.assetType() == PhotoAssetType.ORIGINAL);
     }
 
     private void expireStalePendingUploads(Long officeId, Long reportId, OffsetDateTime now) {
