@@ -1,6 +1,6 @@
 ﻿# ArchDox Current State
 
-Last updated: 2026-06-25
+Last updated: 2026-06-27
 
 This file is a short operational snapshot. It is not a replacement for the
 architecture documents. Keep it current after major phase completions so AI
@@ -14,6 +14,12 @@ Document governance is now explicit:
   reference status.
 - New AI-assisted work should read those files before topic-specific design
   documents.
+
+Latest handoff note:
+
+- `docs/development/HANDOFF_2026-06-27.md` captures the current implementation
+  handoff for a fresh Codex session after the Agent installer/downloads phase.
+  It is L3 context only; verify details against code and L0/L1 documents.
 
 ## Platform Position
 

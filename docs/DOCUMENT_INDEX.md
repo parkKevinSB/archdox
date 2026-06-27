@@ -78,6 +78,7 @@ all canonical files.
 | Document | Level | Status | Role |
 | --- | --- | --- | --- |
 | `docs/ai-harness/IMPLEMENTATION_ROADMAP.md` | L3 | roadmap | Planned AI harness implementation direction. Verify against code before using. |
+| `docs/development/HANDOFF_2026-06-27.md` | L3 | active-handoff | Current implementation handoff for a new Codex session. Context only; verify against code and L0/L1 docs. |
 | `docs/old/initial-design/README.md` | L3 | superseded | Index for archived initial Korean design notes. Historical record only; do not use for implementation. |
 
 ## Current Superseded Documents
