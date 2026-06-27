@@ -480,9 +480,12 @@ public class DocxTemplateDocumentEngine implements DocumentEngine {
         if (title.isBlank()) {
             return "";
         }
+        if (parentRow.isEmpty()) {
+            return title;
+        }
         var result = dailyChecklistResultLabel(valueOrBlank(parentRow.get("result")));
         if (result.isBlank()) {
-            return title;
+            return "";
         }
         var referenceNote = valueOrBlank(parentRow.get("referenceNote")).trim();
         var actionNote = valueOrBlank(parentRow.get("actionNote")).trim();

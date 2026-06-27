@@ -176,9 +176,12 @@ public final class DailySupervisionContentFormatter {
         if (title.isBlank()) {
             return "";
         }
+        if (parentRow.isEmpty()) {
+            return title;
+        }
         var result = normalizeResult(text(parentRow.get("result")));
         if (!isInspectedResult(result)) {
-            return title;
+            return "";
         }
         var parts = new ArrayList<String>();
         parts.add(title);
@@ -203,7 +206,7 @@ public final class DailySupervisionContentFormatter {
         }
         var result = normalizeResult(text(parentRow, "result"));
         if (!isInspectedResult(result)) {
-            return title;
+            return "";
         }
         var parts = new ArrayList<String>();
         parts.add(title);
@@ -258,11 +261,31 @@ public final class DailySupervisionContentFormatter {
     }
 
     private static boolean isSameRow(Map<String, Object> row, Map<String, Object> target) {
-        return !target.isEmpty() && row == target;
+        if (row.isEmpty() || target.isEmpty()) {
+            return false;
+        }
+        var rowCode = text(row.get("code"));
+        var targetCode = text(target.get("code"));
+        if (!rowCode.isBlank() && rowCode.equals(targetCode)) {
+            return true;
+        }
+        var rowLabel = text(row.get("label"));
+        var targetLabel = text(target.get("label"));
+        return !rowLabel.isBlank() && rowLabel.equals(targetLabel);
     }
 
     private static boolean isSameRow(JsonNode row, JsonNode target) {
-        return target != null && row == target;
+        if (target == null || target.isMissingNode() || target.isNull()) {
+            return false;
+        }
+        var rowCode = text(row, "code");
+        var targetCode = text(target, "code");
+        if (!rowCode.isBlank() && rowCode.equals(targetCode)) {
+            return true;
+        }
+        var rowLabel = text(row, "label");
+        var targetLabel = text(target, "label");
+        return !rowLabel.isBlank() && rowLabel.equals(targetLabel);
     }
 
     private static String formatRow(JsonNode row) {

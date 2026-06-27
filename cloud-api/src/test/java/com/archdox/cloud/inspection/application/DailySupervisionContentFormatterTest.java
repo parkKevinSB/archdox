@@ -8,52 +8,53 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DailySupervisionContentFormatterTest {
+    private static final String COMPLIANT = "\uC801\uD569";
+    private static final String NON_COMPLIANT = "\uBD80\uC801\uD569";
+    private static final String ACTION_NOTE = "\uC870\uCE58\uC0AC\uD56D";
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void parentChecklistResultIsRenderedOnTitleLine() {
         var entry = Map.<String, Object>of(
                 "inspectionItemCode", "RC_REBAR_CONFIRMATION",
-                "inspectionItemName", "철근배근의 확인사항",
+                "inspectionItemName", "Rebar confirmation",
                 "checklistRows", List.of(
                         Map.of(
                                 "code", "RC_REBAR_CONFIRMATION",
-                                "label", "철근배근의 확인사항",
+                                "label", "Rebar confirmation",
                                 "result", "COMPLIANT"),
                         Map.of(
                                 "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                "label", "개수, 철근지름, 피치 확인",
+                                "label", "Count, diameter, and pitch confirmed",
                                 "result", "COMPLIANT"),
                         Map.of(
                                 "code", "RC_REBAR_ANCHORAGE",
-                                "label", "정착길이와 굽힘정착 깊이 확인",
+                                "label", "Anchorage length confirmed",
                                 "result", "NOT_APPLICABLE")));
 
         assertThat(DailySupervisionContentFormatter.formatEntry(entry))
-                .isEqualTo("""
-                        철근배근의 확인사항 / 적합
-                        - 개수, 철근지름, 피치 확인 / 적합""");
+                .isEqualTo("Rebar confirmation / " + COMPLIANT
+                        + "\n- Count, diameter, and pitch confirmed / " + COMPLIANT);
     }
 
     @Test
-    void notApplicableParentKeepsTitleWithoutStatus() {
+    void notApplicableParentOmitsTitleWhenChildRowsRender() {
         var entry = Map.<String, Object>of(
                 "inspectionItemCode", "RC_REBAR_CONFIRMATION",
-                "inspectionItemName", "철근배근의 확인사항",
+                "inspectionItemName", "Rebar confirmation",
                 "checklistRows", List.of(
                         Map.of(
                                 "code", "RC_REBAR_CONFIRMATION",
-                                "label", "철근배근의 확인사항",
+                                "label", "Rebar confirmation",
                                 "result", "NOT_APPLICABLE"),
                         Map.of(
                                 "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                "label", "개수, 철근지름, 피치 확인",
+                                "label", "Count, diameter, and pitch confirmed",
                                 "result", "COMPLIANT")));
 
         assertThat(DailySupervisionContentFormatter.formatEntry(entry))
-                .isEqualTo("""
-                        철근배근의 확인사항
-                        - 개수, 철근지름, 피치 확인 / 적합""");
+                .isEqualTo("- Count, diameter, and pitch confirmed / " + COMPLIANT);
     }
 
     @Test
@@ -61,35 +62,36 @@ class DailySupervisionContentFormatterTest {
         var entry = objectMapper.readTree("""
                 {
                   "inspectionItemCode": "RC_REBAR_CONFIRMATION",
-                  "inspectionItemName": "철근배근의 확인사항",
+                  "inspectionItemName": "Rebar confirmation",
                   "checklistRows": [
                     {
                       "code": "RC_REBAR_CONFIRMATION",
-                      "label": "철근배근의 확인사항",
+                      "label": "Rebar confirmation",
                       "result": "NON_COMPLIANT",
-                      "actionNote": "피치 조정 후 재확인"
+                      "actionNote": "Adjust spacing and recheck"
                     }
                   ]
                 }
                 """);
 
         assertThat(DailySupervisionContentFormatter.formatEntry(entry))
-                .isEqualTo("철근배근의 확인사항 / 부적합 / 조치사항: 피치 조정 후 재확인");
+                .isEqualTo("Rebar confirmation / " + NON_COMPLIANT
+                        + " / " + ACTION_NOTE + ": Adjust spacing and recheck");
     }
 
     @Test
     void notApplicableOnlyRowsAreNotRendered() {
         var entry = Map.<String, Object>of(
                 "inspectionItemCode", "RC_REBAR_CONFIRMATION",
-                "inspectionItemName", "철근배근의 확인사항",
+                "inspectionItemName", "Rebar confirmation",
                 "checklistRows", List.of(
                         Map.of(
                                 "code", "RC_REBAR_CONFIRMATION",
-                                "label", "철근배근의 확인사항",
+                                "label", "Rebar confirmation",
                                 "result", "NOT_APPLICABLE"),
                         Map.of(
                                 "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
-                                "label", "개수, 철근지름, 피치 확인",
+                                "label", "Count, diameter, and pitch confirmed",
                                 "result", "NOT_APPLICABLE")));
 
         assertThat(DailySupervisionContentFormatter.formatEntry(entry)).isBlank();

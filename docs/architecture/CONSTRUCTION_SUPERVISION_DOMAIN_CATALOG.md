@@ -297,6 +297,14 @@ Checklist rows are the official or ArchDox-normalized 감리내용 units under t
 검사항목. Row-level `result`, `referenceNote`, `actionNote`, and `photoIds` are
 the source data.
 
+Generated daily-log prose should avoid repeating the inspection item when the
+inspection item is also represented as a parent checklist row. If that parent
+row has an inspected result (`COMPLIANT` or `NON_COMPLIANT`), render it as the
+parent line and render selected child rows below it. If the parent row is
+`NOT_APPLICABLE` or otherwise unselected, do not repeat the inspection item text
+in the generated content; render only selected child row lines. A
+`documentNarrativeText` override remains stronger than generated prose.
+
 ## Domain Asset Strategy
 
 The current catalog is code-managed so the team can quickly reshape the

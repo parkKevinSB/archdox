@@ -1609,8 +1609,11 @@ function buildSupervisionContent(entry: DailySupervisionEntry) {
 }
 
 function checklistTitleContent(title: string, parentRow?: DailyChecklistRow) {
-  if (!parentRow || (parentRow.result !== "COMPLIANT" && parentRow.result !== "NON_COMPLIANT")) {
+  if (!parentRow) {
     return title;
+  }
+  if (parentRow.result !== "COMPLIANT" && parentRow.result !== "NON_COMPLIANT") {
+    return "";
   }
   const parts = [title];
   const result = resultLabel(parentRow.result);

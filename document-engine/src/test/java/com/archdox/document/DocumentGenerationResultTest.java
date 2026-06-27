@@ -430,6 +430,54 @@ class DocumentGenerationResultTest {
     }
 
     @Test
+    void officialDailyLogPreviewOmitsUnselectedParentChecklistTitleFromContent() {
+        var renderer = new HtmlPreviewDocumentRenderer();
+
+        var artifact = renderer.render(new DocumentGenerationRequest(
+                "job-official-preview-2",
+                "office-1",
+                "report-official-preview-2",
+                new TemplateSpec("KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2", 1, "templates/daily.docx", "{}", "{}"),
+                officialDailyLogParentNotSelectedPayload(),
+                List.of(),
+                OutputFormat.HTML));
+
+        var html = new String(artifact.content(), StandardCharsets.UTF_8);
+        assertTrue(html.contains("Parent inspection item"));
+        assertTrue(html.contains("Child checklist detail"));
+        assertEquals(1, countOccurrences(html, "Parent inspection item"));
+    }
+
+    @Test
+    void officialDailyLogDocxOmitsUnselectedParentChecklistTitleFromContent() throws Exception {
+        var engine = new DocxTemplateDocumentEngine(
+                spec -> BundledDocumentTemplates.read(spec.storageRef()),
+                new SimpleDocumentEngine());
+
+        var result = engine.generate(new DocumentGenerationRequest(
+                "job-official-docx-2",
+                "office-1",
+                "report-official-docx-2",
+                new TemplateSpec(
+                        "KOREAN_CONSTRUCTION_DAILY_SUPERVISION_LOG_APPENDIX_2",
+                        1,
+                        "templates/korean/korean-construction-daily-supervision-log-appendix-2.docx",
+                        "{}",
+                        "{}",
+                        null,
+                        true),
+                officialDailyLogParentNotSelectedPayload(),
+                List.of(),
+                OutputFormat.DOCX));
+
+        assertEquals(GenerationStatus.COMPLETED, result.status());
+        var documentXml = documentXml(result.artifacts().get(0).content());
+        assertTrue(documentXml.contains("Parent inspection item"));
+        assertTrue(documentXml.contains("Child checklist detail"));
+        assertEquals(1, countOccurrences(documentXml, "Parent inspection item"));
+    }
+
+    @Test
     void docxTemplateEngineDoesNotAppendSignatureForGenericDocumentWithoutPlaceholder() throws Exception {
         var template = docx("Project: ${projectName}");
         var engine = new DocxTemplateDocumentEngine(
@@ -920,6 +968,37 @@ class DocumentGenerationResultTest {
                                                         Map.of(
                                                                 "code", "RC_REBAR_COUNT_DIAMETER_PITCH",
                                                                 "label", "개수, 철근지름, 피치 확인",
+                                                                "result", "COMPLIANT")))))))))));
+    }
+
+    private Map<String, Object> officialDailyLogParentNotSelectedPayload() {
+        return Map.of(
+                "report", Map.of("reportType", "CONSTRUCTION_DAILY_SUPERVISION_LOG"),
+                "templateFields", Map.of(
+                        "constructionName", "Daily log parent selection test",
+                        "inspectionDate", "2026-06-24",
+                        "weather", "Clear",
+                        "chiefSupervisorName", "Chief",
+                        "architectAssistantName", "Assistant",
+                        "specialNotes", "None",
+                        "issueAndAction", "None"),
+                "steps", Map.of(
+                        "DAILY_LOG", Map.of("payload", Map.of(
+                                "dailyItems", Map.of("groups", List.of(Map.of(
+                                        "tradeName", "Concrete work",
+                                        "processName", "Rebar assembly",
+                                        "floor", "1F",
+                                        "entries", List.of(Map.of(
+                                                "inspectionItemCode", "PARENT_ITEM",
+                                                "inspectionItemName", "Parent inspection item",
+                                                "checklistRows", List.of(
+                                                        Map.of(
+                                                                "code", "PARENT_ITEM",
+                                                                "label", "Parent inspection item",
+                                                                "result", "NOT_APPLICABLE"),
+                                                        Map.of(
+                                                                "code", "CHILD_ITEM",
+                                                                "label", "Child checklist detail",
                                                                 "result", "COMPLIANT")))))))))));
     }
 
