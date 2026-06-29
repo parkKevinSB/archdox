@@ -13,6 +13,9 @@ import io.github.parkkevinsb.flower.ai.harness.model.AiModelCallStatus;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelRequest;
 import io.github.parkkevinsb.flower.ai.harness.model.AiModelResponse;
 import io.github.parkkevinsb.flower.ai.harness.prompt.RenderedPrompt;
+import io.github.parkkevinsb.flower.ai.harness.provider.openaicompatible.OpenAiCompatibleGatewayConfig;
+import io.github.parkkevinsb.flower.ai.harness.provider.openaicompatible.OpenAiCompatibleModelGateway;
+import io.github.parkkevinsb.flower.ai.harness.provider.openaicompatible.OpenAiCompatibleOptions;
 import io.github.parkkevinsb.flower.ai.harness.springai.SpringAiModelGateway;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -135,11 +138,12 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
     public AiModelCall submit(AiModelRequest request) {
         var callId = "archdox-ai-" + UUID.randomUUID();
         observationBufferService.observeSubmitted(callId, request, OffsetDateTime.now());
-        var providerFutureRef = new AtomicReference<CompletableFuture<?>>();
+        var cancelProviderRef = new AtomicReference<Runnable>(() -> {
+        });
         CompletableFuture<AiModelResponse> future;
         try {
             future = CompletableFuture.supplyAsync(
-                            () -> callProviderAsync(callId, request, providerFutureRef),
+                            () -> callProviderAsync(callId, request, cancelProviderRef),
                             aiModelGatewayExecutor)
                     .thenCompose(Function.identity());
         } catch (RejectedExecutionException ex) {
@@ -152,24 +156,16 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         var timedFuture = future.orTimeout(request.timeout().toMillis(), TimeUnit.MILLISECONDS);
         timedFuture.whenComplete((response, error) -> {
             if (isTimeout(error)) {
-                var providerFuture = providerFutureRef.get();
-                if (providerFuture != null) {
-                    providerFuture.cancel(true);
-                }
+                cancelProviderRef.get().run();
             }
         });
-        return new ArchDoxAiModelCall(callId, timedFuture, () -> {
-            var providerFuture = providerFutureRef.get();
-            if (providerFuture != null) {
-                providerFuture.cancel(true);
-            }
-        });
+        return new ArchDoxAiModelCall(callId, timedFuture, () -> cancelProviderRef.get().run());
     }
 
     private CompletableFuture<AiModelResponse> callProviderAsync(
             String callId,
             AiModelRequest request,
-            AtomicReference<CompletableFuture<?>> providerFutureRef
+            AtomicReference<Runnable> cancelProviderRef
     ) {
         var requestedAt = OffsetDateTime.now();
         AiProviderCredential provider = null;
@@ -183,7 +179,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             }
             if (springAiAdapterProperties.supports(request.modelId().provider())) {
                 provider = providerRepository.findByProviderCode(request.modelId().provider()).orElse(null);
-                return callSpringAiAdapterAsync(callId, provider, request, requestedAt, providerFutureRef);
+                return callSpringAiAdapterAsync(callId, provider, request, requestedAt, cancelProviderRef);
             }
             provider = providerRepository.findByProviderCode(request.modelId().provider())
                     .orElseThrow(() -> new GatewayException("No AI provider credential for provider code: "
@@ -192,18 +188,18 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                 throw new GatewayException("AI provider credential is not active: " + provider.providerCode());
             }
             return switch (provider.providerType()) {
-                case OPENAI, CUSTOM_HTTP -> callOpenAiCompatibleAsync(
+                case OPENAI, CUSTOM_HTTP -> callOpenAiCompatibleAdapterAsync(
                         callId,
                         provider,
                         request,
                         requestedAt,
-                        providerFutureRef);
+                        cancelProviderRef);
                 case OLLAMA -> callOllamaAsync(
                         callId,
                         provider,
                         request,
                         requestedAt,
-                        providerFutureRef);
+                        cancelProviderRef);
                 case GEMINI, ANTHROPIC -> throw new GatewayException(
                         "AI provider type is registered but not executable yet: " + provider.providerType().name()
                                 + ". Use CUSTOM_HTTP for OpenAI-compatible gateways.");
@@ -220,18 +216,16 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             AiProviderCredential provider,
             AiModelRequest request,
             OffsetDateTime requestedAt,
-            AtomicReference<CompletableFuture<?>> providerFutureRef
+            AtomicReference<Runnable> cancelProviderRef
     ) {
         try {
             var gateway = springAiModelGateway.orElseThrow(() -> new GatewayException(
                     "Spring AI adapter is enabled but SpringAiModelGateway is not configured"));
             var call = gateway.submit(withSpringAiModelOption(request));
             var future = new CompletableFuture<AiModelResponse>();
-            providerFutureRef.set(future);
-            future.whenComplete((response, error) -> {
-                if (future.isCancelled()) {
-                    call.cancel();
-                }
+            cancelProviderRef.set(() -> {
+                call.cancel();
+                future.cancel(true);
             });
             pollSpringAiAdapter(call, future, System.nanoTime() + request.timeout().toNanos());
             return future.handle((response, error) -> {
@@ -259,6 +253,15 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             CompletableFuture<AiModelResponse> resultFuture,
             long deadlineNanos
     ) {
+        pollProviderAdapter("Spring AI", call, resultFuture, deadlineNanos);
+    }
+
+    private void pollProviderAdapter(
+            String adapterName,
+            AiModelCall call,
+            CompletableFuture<AiModelResponse> resultFuture,
+            long deadlineNanos
+    ) {
         if (resultFuture.isDone()) {
             return;
         }
@@ -270,35 +273,36 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             }
             if (status == AiModelCallStatus.FAILED) {
                 resultFuture.completeExceptionally(new GatewayException(
-                        "Spring AI model call failed: " + call.callId(),
+                        adapterName + " model call failed: " + call.callId(),
                         call.error()));
                 return;
             }
             if (status == AiModelCallStatus.CANCELLED) {
                 resultFuture.completeExceptionally(new GatewayException(
-                        "Spring AI model call was cancelled: " + call.callId()));
+                        adapterName + " model call was cancelled: " + call.callId()));
                 return;
             }
             if (System.nanoTime() >= deadlineNanos) {
                 call.cancel();
                 resultFuture.completeExceptionally(new GatewayException(
-                        "Spring AI model call timed out: " + call.callId()));
+                        adapterName + " model call timed out: " + call.callId()));
                 return;
             }
-            scheduleSpringAiPoll(call, resultFuture, deadlineNanos);
+            scheduleProviderAdapterPoll(adapterName, call, resultFuture, deadlineNanos);
         } catch (RuntimeException ex) {
             resultFuture.completeExceptionally(ex);
         }
     }
 
-    private void scheduleSpringAiPoll(
+    private void scheduleProviderAdapterPoll(
+            String adapterName,
             AiModelCall call,
             CompletableFuture<AiModelResponse> resultFuture,
             long deadlineNanos
     ) {
         try {
             CompletableFuture.runAsync(
-                    () -> pollSpringAiAdapter(call, resultFuture, deadlineNanos),
+                    () -> pollProviderAdapter(adapterName, call, resultFuture, deadlineNanos),
                     CompletableFuture.delayedExecutor(
                             springAiAdapterProperties.safePollIntervalMs(),
                             TimeUnit.MILLISECONDS,
@@ -306,7 +310,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                     .exceptionally(error -> {
                         if (!resultFuture.isDone()) {
                             resultFuture.completeExceptionally(providerFailure(
-                                    "Spring AI model polling failed: " + call.callId(),
+                                    adapterName + " model polling failed: " + call.callId(),
                                     error));
                         }
                         return null;
@@ -324,102 +328,45 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         return request.withOptions(request.options().with("model", request.modelId().name()));
     }
 
-    private CompletableFuture<AiModelResponse> callOpenAiCompatibleAsync(
+    private CompletableFuture<AiModelResponse> callOpenAiCompatibleAdapterAsync(
             String callId,
             AiProviderCredential provider,
             AiModelRequest request,
             OffsetDateTime requestedAt,
-            AtomicReference<CompletableFuture<?>> providerFutureRef
+            AtomicReference<Runnable> cancelProviderRef
     ) {
-        var startedAt = System.nanoTime();
         try {
-            var body = new LinkedHashMap<String, Object>();
-            body.put("model", request.modelId().name());
-            body.put("messages", promptMessages(request.prompt()));
-            body.put("temperature", numberOption(request, "temperature").orElse(0.1));
-            option(request, "maxTokens").ifPresent(value -> body.put("max_tokens", value));
-
-            var builder = HttpRequest.newBuilder()
-                    .uri(openAiChatCompletionsUri(provider))
-                    .timeout(request.timeout())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));
-            var apiKey = credentialCipher.decrypt(provider.encryptedApiKey());
-            if (provider.providerType() == AiProviderType.OPENAI && (apiKey == null || apiKey.isBlank())) {
-                throw new GatewayException("OpenAI provider requires an API key: " + provider.providerCode());
-            }
-            if (apiKey != null && !apiKey.isBlank()) {
-                if (provider.providerType() == AiProviderType.OPENAI && invalidOpenAiApiKey(apiKey)) {
-                    throw new GatewayException("OpenAI API key format is invalid for provider: " + provider.providerCode());
-                }
-                builder.header("Authorization", "Bearer " + apiKey);
-            }
-
-            var httpFuture = httpClient.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString());
-            providerFutureRef.set(httpFuture);
-            return httpFuture.handle((response, error) -> {
-                if (error != null) {
-                    var failure = providerFailure("AI provider call failed: " + provider.providerCode(), error);
-                    recordFailureSafely(callId, provider, request, failure, requestedAt);
-                    observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
-                    throw failure;
-                }
-                try {
-                    var aiResponse = parseOpenAiCompatibleResponse(provider, request, response, startedAt);
-                    recordSuccessSafely(callId, provider, request, aiResponse, requestedAt);
-                    observationBufferService.observeSuccess(callId, request, aiResponse, OffsetDateTime.now());
-                    return aiResponse;
-                } catch (RuntimeException ex) {
-                    recordFailureSafely(callId, provider, request, ex, requestedAt);
-                    observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
-                    throw ex;
-                }
+            var adapter = new OpenAiCompatibleModelGateway(
+                    OpenAiCompatibleGatewayConfig.builder(openAiCompatibleBaseUri(provider))
+                            .apiKey(openAiApiKey(provider))
+                            .build(),
+                    httpClient,
+                    objectMapper);
+            var adapterRequest = withOpenAiCompatibleDefaults(request);
+            var call = adapter.submit(adapterRequest);
+            var future = new CompletableFuture<AiModelResponse>();
+            cancelProviderRef.set(() -> {
+                call.cancel();
+                future.cancel(true);
             });
-        } catch (GatewayException ex) {
-            recordFailureSafely(callId, provider, request, ex, requestedAt);
-            observationBufferService.observeFailure(callId, request, ex, OffsetDateTime.now());
-            return CompletableFuture.failedFuture(ex);
-        } catch (IllegalArgumentException ex) {
-            var failure = new GatewayException(
-                    "AI provider request contains an invalid header value: " + provider.providerCode(), ex);
+            pollProviderAdapter("OpenAI-compatible", call, future, System.nanoTime() + request.timeout().toNanos());
+            return future.handle((response, error) -> {
+                if (error == null) {
+                    var enriched = withProviderTrace(provider, response);
+                    recordSuccessSafely(callId, provider, request, enriched, requestedAt);
+                    observationBufferService.observeSuccess(callId, request, enriched, OffsetDateTime.now());
+                    return enriched;
+                }
+                var failure = providerFailure("AI provider call failed: " + provider.providerCode(), error);
+                recordFailureSafely(callId, provider, request, failure, requestedAt);
+                observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
+                throw failure;
+            });
+        } catch (RuntimeException ex) {
+            var failure = providerFailure("AI provider call failed: " + provider.providerCode(), ex);
             recordFailureSafely(callId, provider, request, failure, requestedAt);
             observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
             return CompletableFuture.failedFuture(failure);
-        } catch (Exception ex) {
-            var failure = new GatewayException("AI provider call failed: " + provider.providerCode(), ex);
-            recordFailureSafely(callId, provider, request, failure, requestedAt);
-            observationBufferService.observeFailure(callId, request, failure, OffsetDateTime.now());
-            return CompletableFuture.failedFuture(failure);
-        }
-    }
-
-    private AiModelResponse parseOpenAiCompatibleResponse(
-            AiProviderCredential provider,
-            AiModelRequest request,
-            HttpResponse<String> response,
-            long startedAt
-    ) {
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new GatewayException("AI provider returned HTTP " + response.statusCode());
-        }
-        try {
-            var json = objectMapper.readTree(response.body());
-            var text = json.path("choices").path(0).path("message").path("content").asText("");
-            var usage = json.path("usage");
-            return new AiModelResponse(
-                    text,
-                    request.modelId(),
-                    new AiModelResponse.ResponseMetadata(
-                            optionalInt(usage.path("prompt_tokens")),
-                            optionalInt(usage.path("completion_tokens")),
-                            Optional.of(Duration.ofNanos(System.nanoTime() - startedAt)),
-                            Optional.ofNullable(json.path("choices").path(0).path("finish_reason").asText(null)),
-                            Map.of(
-                                    "providerCode", provider.providerCode(),
-                                    "providerType", provider.providerType().name(),
-                                    "providerResponseId", json.path("id").asText(""))));
-        } catch (Exception ex) {
-            throw new GatewayException("AI provider response parsing failed: " + provider.providerCode(), ex);
         }
     }
 
@@ -428,7 +375,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
             AiProviderCredential provider,
             AiModelRequest request,
             OffsetDateTime requestedAt,
-            AtomicReference<CompletableFuture<?>> providerFutureRef
+            AtomicReference<Runnable> cancelProviderRef
     ) {
         var startedAt = System.nanoTime();
         try {
@@ -445,7 +392,7 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
             var httpFuture = httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
-            providerFutureRef.set(httpFuture);
+            cancelProviderRef.set(() -> httpFuture.cancel(true));
             return httpFuture.handle((response, error) -> {
                 if (error != null) {
                     var failure = providerFailure("Ollama AI provider call failed: " + provider.providerCode(), error);
@@ -504,13 +451,9 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         }
     }
 
-    private URI openAiChatCompletionsUri(AiProviderCredential provider) {
+    private URI openAiCompatibleBaseUri(AiProviderCredential provider) {
         var baseUrl = blankToDefault(provider.baseUrl(), "https://api.openai.com/v1");
-        var normalized = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        if (normalized.endsWith("/chat/completions")) {
-            return URI.create(normalized);
-        }
-        return URI.create(normalized + "/chat/completions");
+        return URI.create(baseUrl);
     }
 
     private URI ollamaChatUri(AiProviderCredential provider) {
@@ -544,12 +487,6 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
         return request.options().get(key);
     }
 
-    private Optional<Number> numberOption(AiModelRequest request, String key) {
-        return request.options().get(key)
-                .filter(Number.class::isInstance)
-                .map(Number.class::cast);
-    }
-
     private boolean providerConnectionTest(AiModelRequest request) {
         return request.options().get(AiModelCallMetadata.PROVIDER_CONNECTION_TEST)
                 .map(value -> {
@@ -559,6 +496,45 @@ public class ArchDoxProviderAiModelGateway implements AiModelGateway {
                     return Boolean.parseBoolean(String.valueOf(value));
                 })
                 .orElse(false);
+    }
+
+    private String openAiApiKey(AiProviderCredential provider) {
+        var apiKey = credentialCipher.decrypt(provider.encryptedApiKey());
+        if (provider.providerType() == AiProviderType.OPENAI && (apiKey == null || apiKey.isBlank())) {
+            throw new GatewayException("OpenAI provider requires an API key: " + provider.providerCode());
+        }
+        if (apiKey != null
+                && !apiKey.isBlank()
+                && provider.providerType() == AiProviderType.OPENAI
+                && invalidOpenAiApiKey(apiKey)) {
+            throw new GatewayException("OpenAI API key format is invalid for provider: " + provider.providerCode());
+        }
+        return apiKey;
+    }
+
+    private AiModelRequest withOpenAiCompatibleDefaults(AiModelRequest request) {
+        if (request.options().get(OpenAiCompatibleOptions.TEMPERATURE).isPresent()) {
+            return request;
+        }
+        return request.withOptions(request.options().with(OpenAiCompatibleOptions.TEMPERATURE, 0.1));
+    }
+
+    private AiModelResponse withProviderTrace(AiProviderCredential provider, AiModelResponse response) {
+        var trace = new LinkedHashMap<String, String>();
+        if (provider != null) {
+            trace.put("providerCode", provider.providerCode());
+            trace.put("providerType", provider.providerType().name());
+        }
+        trace.putAll(response.metadata().providerTrace());
+        return new AiModelResponse(
+                response.rawText(),
+                response.modelId(),
+                new AiModelResponse.ResponseMetadata(
+                        response.metadata().inputTokens(),
+                        response.metadata().outputTokens(),
+                        response.metadata().latency(),
+                        response.metadata().finishReason(),
+                        Map.copyOf(trace)));
     }
 
     private boolean invalidOpenAiApiKey(String apiKey) {

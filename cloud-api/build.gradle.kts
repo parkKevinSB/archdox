@@ -21,6 +21,7 @@ fun DependencyHandlerScope.addHarnessRuntimeDependencies() {
             "flower-ai-harness-core",
             "flower-ai-harness-validator-jackson",
             "flower-ai-harness-spring-ai",
+            "flower-ai-harness-provider-openai-compatible",
             "flower-ai-harness-spring-boot-starter",
         ).forEach { module ->
             implementation(files(harnessJar(module)))

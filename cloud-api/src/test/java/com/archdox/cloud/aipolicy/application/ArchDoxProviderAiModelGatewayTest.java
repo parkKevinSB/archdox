@@ -90,7 +90,12 @@ class ArchDoxProviderAiModelGatewayTest {
         assertThat(response.modelId().asString()).isEqualTo("local-openai:gpt-test");
         assertThat(response.metadata().inputTokens()).contains(11);
         assertThat(response.metadata().outputTokens()).contains(7);
+        assertThat(response.metadata().providerTrace())
+                .containsEntry("providerCode", "local-openai")
+                .containsEntry("providerType", "CUSTOM_HTTP")
+                .containsEntry("providerResponseId", "chatcmpl-test");
         assertThat(capturedRequestBody.get()).contains("\"model\":\"gpt-test\"");
+        assertThat(capturedRequestBody.get()).contains("\"temperature\":0.1");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"system\"");
         assertThat(capturedRequestBody.get()).contains("\"role\":\"user\"");
     }
