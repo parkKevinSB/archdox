@@ -162,14 +162,19 @@ cloud-api가 하면 안 되는 일:
 
 ## AI Provider 추상화
 
-ArchDox cloud-api는 OpenAI/Ollama provider 구현체를 직접 소유하지 않는다.
+ArchDox cloud-api는 provider transport 구현을 직접 소유하지 않는 방향으로
+이동한다. 현재 OpenAI-compatible HTTP transport는
+`flower-ai-harness-provider-openai-compatible`로 분리되어 있고, Cloud API는
+provider credential, policy, call log, observation, tenant/office scope를
+적용한 뒤 해당 adapter에 위임한다. Ollama 직접 호출은 아직 Cloud API에
+남아 있으며, 향후 `flower-ai-harness-provider-ollama`로 분리한다.
 
 ```text
 archdox-ai-harness
 -> AiModelGateway
--> flower-ai-harness-spring-ai
--> Spring AI ChatClient
--> OpenAI / Ollama
+-> ArchDoxProviderAiModelGateway
+-> flower-ai-harness-spring-ai or flower-ai-harness-provider-*
+-> Spring AI ChatClient / OpenAI-compatible endpoint / future provider SDK
 ```
 
 `flower-ai-harness-spring-ai`는 Spring AI를 대체하는 모듈이 아니다. Spring
@@ -178,8 +183,9 @@ AI `ChatClient`를 하네스의 `AiModelGateway` 계약으로 변환하는 adapt
 executor를 자동 bean으로 등록하는 편의 모듈이다.
 
 Cloud API가 소유하는 것은 document AI review 요청, run/finding 저장,
-operation event, REST API다. Provider client, API 호출 방식, OpenAI/Ollama
-설정은 Spring AI 또는 향후 별도 harness provider module의 책임이다.
+operation event, REST API, provider credential/policy/logging 같은 운영
+정책이다. Provider client와 API 호출 방식은 Spring AI 또는 별도 harness
+provider module의 책임으로 점진적으로 옮긴다.
 
 나중에는 provider 모듈을 분리할 수 있다.
 

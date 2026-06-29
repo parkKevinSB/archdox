@@ -33,6 +33,9 @@ fun DependencyHandlerScope.addHarnessRuntimeDependencies() {
         implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-validator-jackson:$flowerAiHarnessVersion") {
             exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
         }
+        implementation("io.github.parkkevinsb.flower.ai.harness:flower-ai-harness-provider-openai-compatible:$flowerAiHarnessVersion") {
+            exclude(group = "io.github.parkkevinsb.flower", module = "flower-core")
+        }
     }
 }
 
