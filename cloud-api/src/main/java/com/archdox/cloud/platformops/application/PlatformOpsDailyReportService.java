@@ -530,8 +530,10 @@ public class PlatformOpsDailyReportService {
                 PhotoStatus.UPLOADED,
                 PhotoPickupStatus.PENDING,
                 PhotoUploadTarget.CLOUD_MEDIATED));
-        snapshot.put("allPendingOriginalPickup", photoRepository.countByOriginalPickupStatus(PhotoPickupStatus.PENDING));
-        snapshot.put("note", "uploadedPendingOriginalPickup counts CLOUD_MEDIATED photos that require local agent original pickup.");
+        snapshot.put("allPendingOriginalPickup", photoRepository.countByStatusNotAndOriginalPickupStatus(
+                PhotoStatus.DELETED,
+                PhotoPickupStatus.PENDING));
+        snapshot.put("note", "uploadedPendingOriginalPickup counts CLOUD_MEDIATED photos that require local agent original pickup. Deleted photos are excluded.");
         return snapshot;
     }
 

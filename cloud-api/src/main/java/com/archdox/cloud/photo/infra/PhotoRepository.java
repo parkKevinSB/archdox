@@ -44,6 +44,13 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     long countByOfficeIdAndOriginalPickupStatus(Long officeId, PhotoPickupStatus status);
 
+    long countByOfficeIdAndStatusNot(Long officeId, PhotoStatus status);
+
+    long countByOfficeIdAndStatusNotAndOriginalPickupStatus(
+            Long officeId,
+            PhotoStatus status,
+            PhotoPickupStatus originalPickupStatus);
+
     long countByStatus(PhotoStatus status);
 
     long countByStatusAndOriginalPickupStatus(PhotoStatus status, PhotoPickupStatus originalPickupStatus);
@@ -54,6 +61,8 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
             PhotoUploadTarget uploadTarget);
 
     long countByOriginalPickupStatus(PhotoPickupStatus status);
+
+    long countByStatusNotAndOriginalPickupStatus(PhotoStatus status, PhotoPickupStatus originalPickupStatus);
 
     @Query("""
             select photo

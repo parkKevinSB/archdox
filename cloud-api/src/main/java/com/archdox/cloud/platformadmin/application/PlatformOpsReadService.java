@@ -116,7 +116,8 @@ public class PlatformOpsReadService {
                 commandSummary(),
                 countGroup(DocumentJobStatus.values(), documentJobRepository::countByStatus),
                 countGroup(PhotoStatus.values(), photoRepository::countByStatus),
-                countGroup(PhotoPickupStatus.values(), photoRepository::countByOriginalPickupStatus),
+                countGroup(PhotoPickupStatus.values(),
+                        status -> photoRepository.countByStatusNotAndOriginalPickupStatus(PhotoStatus.DELETED, status)),
                 countGroup(DocumentDeliveryStatus.values(), deliveryRepository::countByStatus),
                 serverRuntimeHealthService.latestOrSample(),
                 OffsetDateTime.now());

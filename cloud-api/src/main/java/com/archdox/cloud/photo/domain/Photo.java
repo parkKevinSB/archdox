@@ -274,6 +274,11 @@ public class Photo {
 
     public void markDeleted(OffsetDateTime now) {
         this.status = PhotoStatus.DELETED;
+        if (this.originalPickupStatus == PhotoPickupStatus.PENDING
+                || this.originalPickupStatus == PhotoPickupStatus.FAILED) {
+            this.originalPickupStatus = PhotoPickupStatus.NOT_REQUIRED;
+            this.pickupErrorMessage = null;
+        }
         this.updatedAt = now;
     }
 

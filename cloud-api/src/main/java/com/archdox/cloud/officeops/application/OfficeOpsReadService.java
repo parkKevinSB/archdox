@@ -110,9 +110,12 @@ public class OfficeOpsReadService {
                         PhotoStatus.values(),
                         status -> photoRepository.countByOfficeIdAndStatus(officeId, status)),
                 countGroup(
-                        photoRepository.countByOfficeId(officeId),
+                        photoRepository.countByOfficeIdAndStatusNot(officeId, PhotoStatus.DELETED),
                         PhotoPickupStatus.values(),
-                        status -> photoRepository.countByOfficeIdAndOriginalPickupStatus(officeId, status)),
+                        status -> photoRepository.countByOfficeIdAndStatusNotAndOriginalPickupStatus(
+                                officeId,
+                                PhotoStatus.DELETED,
+                                status)),
                 countGroup(
                         deliveryRepository.countByOfficeId(officeId),
                         DocumentDeliveryStatus.values(),

@@ -49,4 +49,33 @@ class PhotoAssetWorkflowTest {
         assertFalse(asset.temporary());
         assertEquals(PhotoPickupStatus.PICKED_UP, photo.originalPickupStatus());
     }
+
+    @Test
+    void deletedPendingPhotoNoLongerRequiresOriginalPickup() {
+        var now = OffsetDateTime.now();
+        var photo = new Photo(
+                10L,
+                100L,
+                1000L,
+                "PHOTOS",
+                null,
+                PhotoCaptureKind.CAMERA,
+                "image/jpeg",
+                1000L,
+                "sha256:pending",
+                PhotoStorageKind.S3,
+                "offices/10/reports/1000/photos/2/working.jpg",
+                "offices/10/reports/1000/photos/2/thumbnail.webp",
+                PhotoUploadTarget.CLOUD_MEDIATED,
+                1L,
+                now,
+                null,
+                null,
+                now);
+
+        photo.markDeleted(now.plusMinutes(1));
+
+        assertEquals(PhotoStatus.DELETED, photo.status());
+        assertEquals(PhotoPickupStatus.NOT_REQUIRED, photo.originalPickupStatus());
+    }
 }
