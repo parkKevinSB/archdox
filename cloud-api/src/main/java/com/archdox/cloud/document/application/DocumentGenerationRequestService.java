@@ -31,13 +31,31 @@ public class DocumentGenerationRequestService {
     @Transactional
     public DocumentJobResponse request(Long reportId, CreateDocumentJobRequest request, UserPrincipal principal) {
         var response = documentJobService.create(reportId, request, principal);
+        submitAfterCommit(response);
+        return response;
+    }
+
+    @Transactional
+    public DocumentJobResponse requestIdempotent(
+            Long reportId,
+            CreateDocumentJobRequest request,
+            UserPrincipal principal,
+            String idempotencyKey
+    ) {
+        var result = documentJobService.createIdempotent(reportId, request, principal, idempotencyKey);
+        if (result.created()) {
+            submitAfterCommit(result.response());
+        }
+        return result.response();
+    }
+
+    private void submitAfterCommit(DocumentJobResponse response) {
         registerAfterCommit(() -> worker.submit(flowFactory.create(new DocumentGenerationRequested(
                 response.officeId(),
                 response.reportId(),
                 response.id(),
                 response.workerType(),
                 OffsetDateTime.now()))));
-        return response;
     }
 
     private void registerAfterCommit(Runnable task) {

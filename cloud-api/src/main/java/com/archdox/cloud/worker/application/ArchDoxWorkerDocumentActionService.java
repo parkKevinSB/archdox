@@ -21,6 +21,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class ArchDoxWorkerDocumentActionService {
+    private static final String PAYLOAD_WORKER_IDEMPOTENCY_KEY = "workerIdempotencyKey";
+
     private final ReportPreflightReviewService preflightReviewService;
     private final ReportPreflightReviewWorker preflightReviewWorker;
     private final DocumentGenerationRequestService documentGenerationRequestService;
@@ -62,10 +64,11 @@ public class ArchDoxWorkerDocumentActionService {
         var workerType = documentWorkerTypeValue(payload.get("workerType"));
         var job = withOfficeContext(
                 officeId,
-                () -> documentGenerationRequestService.request(
+                () -> documentGenerationRequestService.requestIdempotent(
                         reportId,
                         new CreateDocumentJobRequest(outputFormat, workerType, null, null),
-                        workerPrincipal(userId)));
+                        workerPrincipal(userId),
+                        workerIdempotencyKey(context)));
         return new DocumentGenerationActionResult(
                 job.reportId(),
                 job.id(),
@@ -148,6 +151,14 @@ public class ArchDoxWorkerDocumentActionService {
 
     private String stringValue(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private String workerIdempotencyKey(ArchDoxWorkerExecutionContext context) {
+        var provided = trimToNull(stringValue(context.action().payload().get(PAYLOAD_WORKER_IDEMPOTENCY_KEY)));
+        if (provided != null) {
+            return provided;
+        }
+        return "archdox-worker:" + context.request().requestId() + ":" + context.action().actionType().name();
     }
 
     private UserPrincipal workerPrincipal(Long userId) {

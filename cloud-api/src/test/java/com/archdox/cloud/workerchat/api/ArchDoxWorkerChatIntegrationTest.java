@@ -226,6 +226,7 @@ class ArchDoxWorkerChatIntegrationTest {
         assertThat(syncedAfterPreflight.get("workflowState").get("canRequestDocumentGeneration").asBoolean()).isTrue();
 
         registerDocumentAgent(user.officeId());
+        grantPlatformAdmin(user.userId());
         mockMvc.perform(post("/api/v1/projects/{projectId}/worker-chat/messages", projectId)
                         .header("Authorization", bearer(user.accessToken()))
                         .header("X-Office-Id", user.officeId())
@@ -240,6 +241,14 @@ class ArchDoxWorkerChatIntegrationTest {
                                 }
                                 """.formatted(createdReportId)))
                 .andExpect(status().isOk());
+
+        var approvalRequestId = awaitWorkerApprovalRequest(user, "REQUEST_DOCUMENT_GENERATION");
+        mockMvc.perform(post("/api/v1/platform-admin/ops/worker-approvals/{approvalRequestId}/approve", approvalRequestId)
+                        .header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Worker chat document generation smoke approval.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
 
         var afterGeneration = awaitLastAssistantReply(user, projectId);
         var generationReply = lastMessage(afterGeneration);
@@ -408,7 +417,7 @@ class ArchDoxWorkerChatIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         var me = objectMapper.readTree(meResult.getResponse().getContentAsString());
-        return new TestUser(me.get("offices").get(0).get("id").asLong(), accessToken);
+        return new TestUser(me.get("id").asLong(), me.get("offices").get(0).get("id").asLong(), accessToken);
     }
 
     private long createProject(String accessToken, long officeId, String name) throws Exception {
@@ -496,6 +505,36 @@ class ArchDoxWorkerChatIntegrationTest {
         }
     }
 
+    private long awaitWorkerApprovalRequest(TestUser user, String actionType) throws Exception {
+        JsonNode approvals = null;
+        for (int i = 0; i < 40; i++) {
+            var result = mockMvc.perform(get("/api/v1/platform-admin/ops/worker-approvals")
+                            .header("Authorization", bearer(user.accessToken()))
+                            .param("officeId", String.valueOf(user.officeId()))
+                            .param("status", "PENDING")
+                            .param("actionType", actionType))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            approvals = objectMapper.readTree(result.getResponse().getContentAsString());
+            if (approvals.isArray() && !approvals.isEmpty()) {
+                return approvals.get(0).get("id").asLong();
+            }
+            Thread.sleep(150);
+        }
+        throw new AssertionError("Worker approval request was not created for " + actionType + ": " + approvals);
+    }
+
+    private void grantPlatformAdmin(long userId) {
+        var now = OffsetDateTime.now();
+        jdbcTemplate.update("""
+                        insert into platform_admins (user_id, role, status, created_at, updated_at)
+                        values (?, 'SUPER_ADMIN', 'ACTIVE', ?, ?)
+                        """,
+                userId,
+                now,
+                now);
+    }
+
     private void registerDocumentAgent(long officeId) {
         agentRepository.saveAndFlush(new ArchDoxAgent(
                 officeId,
@@ -545,6 +584,6 @@ class ArchDoxWorkerChatIntegrationTest {
         return "Bearer " + token;
     }
 
-    private record TestUser(long officeId, String accessToken) {
+    private record TestUser(long userId, long officeId, String accessToken) {
     }
 }

@@ -122,7 +122,7 @@ public class ArchDoxWorkerActionRegistry {
                 true,
                 false,
                 ArchDoxWorkerActionRiskLevel.HIGH,
-                false,
+                true,
                 true,
                 Set.of(ArchDoxWorkerRequestSource.UI, ArchDoxWorkerRequestSource.API),
                 required("userId", "officeId", "projectId"),

@@ -22,6 +22,8 @@ public interface DocumentJobRepository extends JpaRepository<DocumentJob, Long> 
 
     Optional<DocumentJob> findByIdAndOfficeId(Long id, Long officeId);
 
+    Optional<DocumentJob> findByOfficeIdAndIdempotencyKey(Long officeId, String idempotencyKey);
+
     long countByOfficeId(Long officeId);
 
     long countByOfficeIdAndStatus(Long officeId, DocumentJobStatus status);

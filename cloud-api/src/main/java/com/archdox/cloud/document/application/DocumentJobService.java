@@ -166,14 +166,56 @@ public class DocumentJobService {
 
     @Transactional
     public DocumentJobResponse create(Long reportId, CreateDocumentJobRequest request, UserPrincipal principal) {
+        return createResult(reportId, request, principal, null).response();
+    }
+
+    public record DocumentJobCreateResult(DocumentJobResponse response, boolean created) {
+    }
+
+    @Transactional
+    public DocumentJobCreateResult createIdempotent(
+            Long reportId,
+            CreateDocumentJobRequest request,
+            UserPrincipal principal,
+            String idempotencyKey
+    ) {
+        return createResult(reportId, request, principal, idempotencyKey);
+    }
+
+    private DocumentJobCreateResult createResult(
+            Long reportId,
+            CreateDocumentJobRequest request,
+            UserPrincipal principal,
+            String idempotencyKey
+    ) {
         var createRequest = request == null ? new CreateDocumentJobRequest(null, null, null, null) : request;
+        var officeId = OfficeContext.requireCurrentOfficeId();
+        var normalizedIdempotencyKey = normalizeIdempotencyKey(idempotencyKey);
+        if (normalizedIdempotencyKey != null) {
+            var existing = documentJobRepository.findByOfficeIdAndIdempotencyKey(officeId, normalizedIdempotencyKey);
+            if (existing.isPresent()) {
+                var existingJob = existing.get();
+                if (!existingJob.reportId().equals(reportId)) {
+                    throw new BadRequestException(
+                            "DOCUMENT_JOB_IDEMPOTENCY_KEY_CONFLICT",
+                            "errors.document.idempotencyKeyConflict",
+                            "Document job idempotency key belongs to a different report.",
+                            Map.of("idempotencyKey", normalizedIdempotencyKey));
+                }
+                permissionService.requireReportWriter(
+                        principal.userId(),
+                        existingJob.officeId(),
+                        existingJob.projectId(),
+                        existingJob.reportId());
+                return new DocumentJobCreateResult(toResponse(existingJob), false);
+            }
+        }
         var report = inspectionReportService.requireReport(reportId);
         permissionService.requireReportWriter(principal.userId(), report.officeId(), report.projectId(), report.id());
         requireCanRequestGeneration(report);
         preflightGateService.requirePassedForGeneration(report);
         requirePhotoAssetsReadyForGeneration(report);
         var outputFormat = createRequest.normalizedOutputFormat();
-        var officeId = OfficeContext.requireCurrentOfficeId();
         var workerType = routingService.route(officeId, report.reportType(), outputFormat, createRequest.workerType());
         var now = OffsetDateTime.now();
         var configuration = configurationRegistryService.resolveForDocumentGeneration(officeId, report.reportType());
@@ -188,6 +230,7 @@ public class DocumentJobService {
                 reportRevision,
                 selectedTemplateRevisionId(report, configuration),
                 principal.userId(),
+                normalizedIdempotencyKey,
                 workerType,
                 outputFormat,
                 snapshot,
@@ -214,7 +257,7 @@ public class DocumentJobService {
                         "templateRevisionId", selectedTemplateRevisionId(report, configuration) == null
                                 ? ""
                                 : selectedTemplateRevisionId(report, configuration)));
-        return toResponse(job);
+        return new DocumentJobCreateResult(toResponse(job), true);
     }
 
     @Transactional(readOnly = true)
@@ -256,6 +299,20 @@ public class DocumentJobService {
                         override.label(),
                         override.source()))
                 .toList();
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return null;
+        }
+        var normalized = idempotencyKey.trim();
+        if (normalized.length() > 200) {
+            throw new BadRequestException(
+                    "DOCUMENT_JOB_IDEMPOTENCY_KEY_TOO_LONG",
+                    "errors.document.idempotencyKeyTooLong",
+                    "Document job idempotency key must be 200 characters or fewer.");
+        }
+        return normalized;
     }
 
     @Transactional(readOnly = true)

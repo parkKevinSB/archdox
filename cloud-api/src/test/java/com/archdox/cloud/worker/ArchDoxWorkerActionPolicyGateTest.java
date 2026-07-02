@@ -43,7 +43,7 @@ class ArchDoxWorkerActionPolicyGateTest {
     private final ArchDoxWorkerActionRegistry registry = new ArchDoxWorkerActionRegistry(List.of());
 
     @Test
-    void allowsEnabledUiActionWithRequiredContextAndDomainState() {
+    void requiresApprovalForDocumentGenerationWhenDomainStateAllowsIt() {
         var action = action(ArchDoxWorkerActionType.REQUEST_DOCUMENT_GENERATION);
         var definition = registry.definition(action.actionType()).orElseThrow();
         var report = readyReport();
@@ -51,6 +51,22 @@ class ArchDoxWorkerActionPolicyGateTest {
         when(permissionService.canWriteReport(1L, 2L, 3L, 5L)).thenReturn(true);
 
         var decision = policyGate.evaluate(request(ArchDoxWorkerRequestSource.UI, 1L, 2L, 3L, 5L), action, definition);
+
+        assertThat(decision.type()).isEqualTo(ArchDoxWorkerPolicyDecisionType.REQUIRE_APPROVAL);
+        assertThat(decision.reasonCode()).isEqualTo("ARCHDOX_WORKER_APPROVAL_REQUIRED");
+    }
+
+    @Test
+    void allowsDocumentGenerationWhenApprovedExecutionMatches() {
+        var action = action(ArchDoxWorkerActionType.REQUEST_DOCUMENT_GENERATION);
+        var definition = registry.definition(action.actionType()).orElseThrow();
+        var request = request(ArchDoxWorkerRequestSource.UI, 1L, 2L, 3L, 5L);
+        var report = readyReport();
+        when(reportRepository.findByIdAndOfficeId(5L, 2L)).thenReturn(Optional.of(report));
+        when(permissionService.canWriteReport(1L, 2L, 3L, 5L)).thenReturn(true);
+        when(approvalRequestService.isApprovedExecution(request, action)).thenReturn(true);
+
+        var decision = policyGate.evaluate(request, action, definition);
 
         assertThat(decision.type()).isEqualTo(ArchDoxWorkerPolicyDecisionType.ALLOW);
     }

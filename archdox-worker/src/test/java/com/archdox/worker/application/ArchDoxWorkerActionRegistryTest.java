@@ -78,6 +78,7 @@ class ArchDoxWorkerActionRegistryTest {
         assertThat(documentGeneration.owner()).isEqualTo("DOCUMENT_WORKFLOW");
         assertThat(documentGeneration.executorName()).isEqualTo("RequestDocumentGenerationArchDoxWorkerActionExecutor");
         assertThat(documentGeneration.allowedSources()).contains(ArchDoxWorkerRequestSource.UI, ArchDoxWorkerRequestSource.API);
+        assertThat(documentGeneration.requiresApprovalByDefault()).isTrue();
     }
 
     @Test

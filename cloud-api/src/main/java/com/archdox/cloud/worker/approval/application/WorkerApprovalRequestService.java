@@ -35,6 +35,8 @@ public class WorkerApprovalRequestService {
     private static final int MAX_LIMIT = 100;
     private static final int DEFAULT_TTL_DAYS = 7;
     private static final String PAYLOAD_APPROVAL_ID = "workerApprovalRequestId";
+    private static final String PAYLOAD_ORIGINAL_REQUEST_ID = "workerOriginalRequestId";
+    private static final String PAYLOAD_WORKER_IDEMPOTENCY_KEY = "workerIdempotencyKey";
 
     private final WorkerApprovalRequestRepository repository;
     private final PlatformAdminService platformAdminService;
@@ -244,6 +246,8 @@ public class WorkerApprovalRequestService {
     private ArchDoxWorkerAction approvedAction(WorkerApprovalRequest approval, Long approvedByUserId) {
         var payload = new LinkedHashMap<String, Object>(approval.actionPayloadJson());
         payload.put(PAYLOAD_APPROVAL_ID, approval.id());
+        payload.put(PAYLOAD_ORIGINAL_REQUEST_ID, approval.workerRequestId().toString());
+        payload.put(PAYLOAD_WORKER_IDEMPOTENCY_KEY, workerIdempotencyKey(approval));
         payload.put("workerApprovalDecision", "APPROVED");
         payload.put("workerApprovalApprovedByUserId", approvedByUserId);
         return new ArchDoxWorkerAction(
@@ -252,6 +256,10 @@ public class WorkerApprovalRequestService {
                 approval.actionReason() == null ? "Approved worker action execution." : approval.actionReason(),
                 approval.confidence(),
                 approval.actionOrigin() == null ? ArchDoxWorkerActionOrigin.SYSTEM : approval.actionOrigin());
+    }
+
+    private String workerIdempotencyKey(WorkerApprovalRequest approval) {
+        return "archdox-worker:" + approval.workerRequestId() + ":" + approval.actionType().name();
     }
 
     private boolean sameContext(WorkerApprovalRequest approval, ArchDoxWorkerRequestContext context) {

@@ -53,6 +53,9 @@ public class DocumentJob {
     @Column(name = "requested_by")
     private Long requestedBy;
 
+    @Column(name = "idempotency_key")
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "worker_type", nullable = false)
     private DocumentWorkerType workerType;
@@ -98,6 +101,33 @@ public class DocumentJob {
             Map<String, Object> inputSnapshotJson,
             OffsetDateTime now
     ) {
+        this(
+                officeId,
+                reportId,
+                projectId,
+                reportRevision,
+                templateId,
+                requestedBy,
+                null,
+                workerType,
+                outputFormat,
+                inputSnapshotJson,
+                now);
+    }
+
+    public DocumentJob(
+            Long officeId,
+            Long reportId,
+            Long projectId,
+            int reportRevision,
+            Long templateId,
+            Long requestedBy,
+            String idempotencyKey,
+            DocumentWorkerType workerType,
+            OutputFormat outputFormat,
+            Map<String, Object> inputSnapshotJson,
+            OffsetDateTime now
+    ) {
         this.officeId = officeId;
         this.reportId = reportId;
         this.projectId = projectId;
@@ -108,6 +138,7 @@ public class DocumentJob {
         this.progressPercent = 0;
         this.progressMessage = "문서 생성 요청이 접수되었습니다.";
         this.requestedBy = requestedBy;
+        this.idempotencyKey = blankToNull(idempotencyKey);
         this.workerType = workerType;
         this.outputFormat = outputFormat;
         this.inputSnapshotJson = inputSnapshotJson;
@@ -202,6 +233,10 @@ public class DocumentJob {
         return requestedBy;
     }
 
+    public String idempotencyKey() {
+        return idempotencyKey;
+    }
+
     public DocumentWorkerType workerType() {
         return workerType;
     }
@@ -236,5 +271,9 @@ public class DocumentJob {
 
     public OffsetDateTime updatedAt() {
         return updatedAt;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
